@@ -1,7 +1,8 @@
 // Pixel › Entraînement › « Terrain imaginaire » (owner, 2026-11-12): forests that exist nowhere, made in the browser from a seed
 // (games/vgen.js in a worker, games/vgenpack.js), map and terrain from one model.
 // - « Carte du jour »: one seed a day (Paris), its terrain type in turn, the same world and six courses for everyone; each runner's
-//   first run of a course is ranked (the day's results), later ones are training; the runs are kept under the race « day-YYYYMMDD »
+//   runs are training (owner, 2026-11-14: « Carte du jour remains a training, hence no result »: a palmarès of each runner's best
+//   time, as the maps'; the first runs were ranked from 2026-11-12 to 14); the runs are kept under the race « day-YYYYMMDD »
 //   with the courses' signature as their event (functions/api/virtual: today's and yesterday's only). Not counted in the virtual
 //   index (it counts competitions alone).
 // - « Terrain libre »: a terrain type, a number, sliders (size, detail, relief, vegetation, paths); played, never kept.
@@ -148,8 +149,9 @@ export async function renderGen(el, ctx) {
     let runs;
     try { runs = (await V.ctx.runsOf(m.race.id)).filter((r) => r.event === m.race.sig); } catch (e) { box.innerHTML = String(html`<p class="muted">${t("g.palm.err")}</p>`); return; }
     const c = state.sel.day, mine = runs.filter((r) => r.course === c).sort((a, b) => a.at.localeCompare(b.at));
-    const first = new Map(); for (const r of mine) if (!first.has(r.u) && !r.help) first.set(r.u, r);
-    const ranked = [...first.values()].sort((a, b) => a.t - b.t), best = ranked[0]?.t;
+    // the palmarès: each runner's best time, the 20 best (a training: as many runs as one likes)
+    const bestOf = new Map(); for (const r of mine) { const b = bestOf.get(r.u); if (!r.help && (!b || r.t < b.t)) bestOf.set(r.u, r); }
+    const ranked = [...bestOf.values()].sort((a, b) => a.t - b.t).slice(0, 20), best = ranked[0]?.t;
     if (!$(".vtg-results", V.el)) return;
     box.innerHTML = String(ranked.length ? html`<table class="data g-palm-t"><thead><tr><th class="num">${t("vt.col.place")}</th><th>${t("vt.col.runner")}</th>
         <th class="num">${t("vt.col.time")}</th><th class="num">${t("vt.col.gap")}</th></tr></thead>

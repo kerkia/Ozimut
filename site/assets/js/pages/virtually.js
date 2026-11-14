@@ -317,7 +317,7 @@ export async function render(main, { query }) {
         // account's, with the run just saved (a « Carte du jour »'s too); a « Terrain libre » is not kept, so not analysed.
         // a « Terrain libre » is not kept: neither results nor analysis; a map's training has a palmarès, not results
         navs: race.noSave ? [] : ["results", ...(hasTab("analyse") ? ["analysis"] : [])],
-        resultsLabel: race.gen || (ev?.type === "competition" && !ev.mine) ? t("vt.toResults") : t("vt.toPalmares"),
+        resultsLabel: ev?.type === "competition" && !ev.mine ? t("vt.toResults") : t("vt.toPalmares"),   // a « Carte du jour » too
         onNav: async (k) => {
           await saving;                                    // so that the run just finished is the one opened
           if (k === "analysis" && hasTab("analyse") && !race.noSave) { setQuery({ run: sel.run }); return goTab("analyse"); }
