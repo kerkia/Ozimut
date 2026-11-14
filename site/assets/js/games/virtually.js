@@ -750,7 +750,8 @@ export function mount(root, raceId, opts = {}) {
       // the map lies along the start corridor the runner faces (owner, 2026-11-14: « au départ carte orientée dans le sens du couloir
       // de départ »; the corridor `world.startPos`, else the way to control 1)
       mv.free = -st.yaw; blankUntil = 0;
-      showPosBtn(); showSpeed(); showEnergy(); setView("scene"); sheet.hidden = false; describe(); mapSize("small"); mv.cx = course[0].x * mPer; mv.cy = course[0].z * mPer; fitZoom(700); drawMapPanel(); showNorth();
+      // the race starts with the large map (owner, 2026-11-14: « démarre carte grande, le meilleur mode »); M or ⤢ makes it small
+      showPosBtn(); showSpeed(); showEnergy(); setView("scene"); sheet.hidden = false; describe(); mapSize("large"); mv.cx = course[0].x * mPer; mv.cy = course[0].z * mPer; fitZoom(700); drawMapPanel(); showNorth();
     }
     function finished() {
       st.phase = "done"; keys.clear(); st.posLeft = 0; showPosBtn(); help(false);

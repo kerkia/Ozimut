@@ -944,7 +944,7 @@ Every multiple-choice game was played through to its score page at phone size, w
   coureur | par ses yeux », kept in `localStorage ocn.vt.view`, an event's races included — owner, 2026-11-14), the map
   with the course in a panel (M: small, large, hidden), a compass
   (baseplate, red needle north, the dial turning with the runner: the map's north is the world's, the world being the map's paper
-  frame in metres). **The race's screen** (owner, 2026-11-11): the map in the bottom left corner, the compass beside it, both left of
+  frame in metres). **The race's screen** (owner, 2026-11-11): the map in the bottom left corner — large at the start since 2026-11-14 (owner: « démarre carte grande, le meilleur mode »; M or ⤢ makes it small) —, the compass beside it, both left of
   the centre where the runner stands at every size (app.css `--mw`/`--mh`/`--cw` by `.vt[data-map]`: large = half the width less the
   compass; on a touch screen smaller, the pad at the bottom right; a phone upright: map ≤ 36 % of the width, the compass above the pad;
   the game's box fits under the site's bar, so a phone on its side sees it whole; « full » is the finish's map beside the card;
