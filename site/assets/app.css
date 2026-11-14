@@ -4413,6 +4413,12 @@ html.vt-fs-on, html.vt-fs-on body { overflow: hidden; }
 .vtp-map:hover { border-color: color-mix(in srgb, var(--flag) 45%, transparent); }
 .vtp-map[aria-pressed="true"] { border-color: var(--flag); box-shadow: 0 0 0 2px color-mix(in srgb, var(--flag) 25%, transparent); }
 .vtp-map .muted { font-size: 0.85rem; }
+/* the invented forests' tiles (owner, 2026-11-14): no picture of a map, contour lines drawn by the page */
+.vtp-genthumb { display: block; width: 100%; aspect-ratio: 16 / 10; border-radius: 6px; border: 1px solid var(--border); margin-bottom: 4px;
+  background-color: #fff; background-image: repeating-radial-gradient(circle at 30% 60%, transparent 0 9px, #c46a1d 9px 10.5px, transparent 10.5px 18px),
+  radial-gradient(circle at 75% 30%, #b8e4a3 0 22%, transparent 23%), radial-gradient(circle at 20% 25%, #fbd38b 0 16%, transparent 17%); }
+.vtp-genthumb-free { background-image: repeating-radial-gradient(circle at 70% 55%, transparent 0 9px, #c46a1d 9px 10.5px, transparent 10.5px 18px),
+  radial-gradient(circle at 25% 70%, #b8e4a3 0 26%, transparent 27%), radial-gradient(circle at 80% 20%, #fbd38b 0 14%, transparent 15%); }
 .vtp-courses { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 8px; }
 .vtp-course { display: grid; grid-template-columns: auto 1fr; gap: 2px 8px; align-items: center; padding: 8px 10px; text-align: left; font: inherit; color: inherit;
   background: var(--surface); border: 1px solid var(--border); border-radius: 8px; cursor: pointer; }

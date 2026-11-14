@@ -17,6 +17,7 @@ import { mapOptText, moOf } from "../games/vmapopt.js";
 const API = "/api/virtual/";
 const ME = "#d7191c", OTHERS = ["#1f6fd1", "#16a34a", "#9333ea", "#ea580c", "#0891b2", "#be185d", "#65a30d", "#475569"];
 const SPEEDS = [1, 5, 10, 20, 50];
+const CAP = 100;                                             // the other runners offered to compare, the most recent
 const mapCache = new Map(), routeCache = new Map();
 
 async function getJson(url) {
@@ -88,7 +89,10 @@ export async function drawAnalysis(el, { run, race, course, all, mineRuns, mapNa
   const ref = refLegs(fieldLegs, nL), best = bestLegs(fieldLegs, nL);
   const mine = legsOf(run.sp), loss = run.sp.length === nL ? legLoss(mine, ref) : mine.map(() => ({ lost: null, mistake: false }));
   const rankOf = (i) => (mine[i] == null ? null : 1 + fieldLegs.filter((l) => l[i] < mine[i]).length);
-  const others = field.filter((r) => r !== run && r.u !== run.u && canSee(r)).sort((a, b) => a.t - b.t);
+  // the others offered: every runner of the circuit, the CAP most recent when there are more (owner, 2026-11-14); the legs' ranks
+  // still count them all
+  const seen = field.filter((r) => r !== run && r.u !== run.u && canSee(r));
+  const others = [...seen].sort((a, b) => b.at.localeCompare(a.at)).slice(0, CAP).sort((a, b) => a.t - b.t);
   const hidden = field.filter((r) => r !== run && r.u !== run.u && !canSee(r)).length;   // a competition not over yet
   const lost = loss.reduce((s, l) => s + (l.lost > 0 ? l.lost : 0), 0);
 
@@ -102,6 +106,7 @@ export async function drawAnalysis(el, { run, race, course, all, mineRuns, mapNa
       <span class="muted">${t("vt.an.compare")}</span>${others.map((r, i) => html`<label class="vtp-chip"><input type="checkbox" data-other="${r.id}">
       <span class="vtp-sw" style="background:${OTHERS[i % OTHERS.length]}"></span>${displayName(r.name)} <span class="muted">${clock(r.t)}</span></label>`)}</div>`
       : hidden ? "" : html`<p class="muted vtp-cmp">${t("vt.an.alone")}</p>`}
+    ${seen.length > others.length ? html`<p class="muted vtp-cmp">${t("vt.an.capped", { n: fmt(others.length), all: fmt(seen.length) })}</p>` : ""}
     ${hidden ? html`<p class="muted vtp-cmp">${tn("vt.an.compHidden", hidden)}</p>` : ""}
     <div class="vtp-an">
       <div class="vtp-anmain">

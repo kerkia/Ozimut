@@ -219,7 +219,10 @@ export async function render(main, { query }) {
       const race = list.find((r) => r.id === sel.race), courses = race?.race.courses || [];
       if (!courses.some((c) => c.id === sel.course)) sel.course = null;
       // on a phone the chosen map's circuits and « Commencer » come right under that map, not under the whole list (owner, 2026-11-12)
-      const inline = !!race && matchMedia("(max-width: 640px)").matches;
+      // the invented forests (pages/virtuallygen.js) as two tiles among the maps (owner, 2026-11-14: hidden at the page's bottom,
+      // nobody saw them): « gen:day » / « gen:free » chosen shows their section right under the maps, in place of a map's courses
+      const gen = /^gen:(day|free)$/.exec(sel.race || "")?.[1] || null;
+      const inline = (!!race || !!gen) && matchMedia("(max-width: 640px)").matches;
       el.innerHTML = html`<p class="muted vtp-intro">${t(auth.session()?.admin ? "vt.tr.intro" : "vt.tr.introAll")}</p>
         <h2 class="vtp-h">${t("vt.tr.maps")}</h2>
         <div class="vtp-maps">${list.map((r) => html`<button type="button" class="vtp-map card" data-race="${r.id}" aria-pressed="${r.id === sel.race}">
@@ -230,8 +233,12 @@ export async function render(main, { query }) {
           ${r.event?.type === "competition" ? html`<span><span class="tag vo-comp">${t("vo.type.competition")}</span></span>` : ""}
           ${r.event && envText(t, r.event.env) ? html`<span class="vtp-env">${envText(t, r.event.env)}</span>` : ""}
           ${r.event && mapOptText(t, r.event.mapOpt) ? html`<span class="vtp-env">${mapOptText(t, r.event.mapOpt)}</span>` : ""}
-          <span class="muted">${t(`vt.src.${r.race.source}`, { authors: (r.race.photoAuthors || []).join(", ") || "—" })}</span></button>${inline && r.id === race.id ? raw('<div class="vtp-inline"></div>') : ""}`)}</div>
-        <div class="vtp-below">${race ? html`<h2 class="vtp-h vtp-h-row"><span>${t("vt.tr.courses", { map: mapName(race.id) })}</span>
+          <span class="muted">${t(`vt.src.${r.race.source}`, { authors: (r.race.photoAuthors || []).join(", ") || "—" })}</span></button>${inline && r.id === race?.id ? raw('<div class="vtp-inline"></div>') : ""}`)}
+          ${["day", "free"].map((k) => html`<button type="button" class="vtp-map vtp-genmap card" data-gen="${k}" aria-pressed="${gen === k}">
+            <span class="vtp-genthumb vtp-genthumb-${k}" aria-hidden="true"></span>
+            <b>${t(`vtg.${k}.h`)}</b><span class="muted">${t(`vt.tr.gen.${k}`)}</span>
+            <span><span class="tag vtg-tag">${t("vtg.tag")}</span></span></button>${inline && gen === k ? raw('<div class="vtp-inline"></div>') : ""}`)}</div>
+        <div class="vtp-below" ${raw(gen ? "hidden" : "")}>${race ? html`<h2 class="vtp-h vtp-h-row"><span>${t("vt.tr.courses", { map: mapName(race.id) })}</span>
           <button type="button" class="btn btn-sm" id="vtp-palm" title="${t("vt.palm.tip")}">🏆 ${t("vt.palm.btn")}</button></h2>
           ${race.event?.type === "competition" ? html`<p class="muted">${t(race.event.open ? "vo.compRule" : "vo.compClosed")}</p>` : ""}
           <div class="vtp-courses">${courses.map((c) => html`<button type="button" class="vtp-course" data-course="${c.id}" aria-pressed="${c.id === sel.course}"
@@ -247,13 +254,17 @@ export async function render(main, { query }) {
             <select id="vtp-view">${["third", "first"].map((v) => html`<option value="${v}" ${raw(v === savedView() ? "selected" : "")}>${t(`vt.view.opt.${v}`)}</option>`)}</select></label>` : ""}
           <span class="muted">${!race ? t("vt.tr.needMap") : !sel.course ? t("vt.tr.needCourse") : t("vt.tr.ready", { course: courseName(courses.find((c) => c.id === sel.course)), map: mapName(race.id) })}</span></div>
           ${race && sel.course ? moChooser(race) : ""}</div>
-        <div class="vtp-gen" id="vtp-gen"></div>`;
+        <div class="vtp-gen" id="vtp-gen" ${raw(gen ? "" : "hidden")}></div>`;
       // invented terrain (pages/virtuallygen.js): the « Carte du jour » and the « Terrain libre », played by `play` as any map
       const genHost = $("#vtp-gen", el);
-      import("./virtuallygen.js").then((m) => { if (genHost.isConnected) m.renderGen(genHost, { play, runsOf, courseName, swatch }); }).catch((e) => console.error(e));
-      if (inline) $(".vtp-inline", el).append($(".vtp-below", el));
       const into = (q) => requestAnimationFrame(() => $(q, el)?.scrollIntoView({ block: "nearest", behavior: "smooth" }));
-      $$(".vtp-map", el).forEach((b) => b.addEventListener("click", () => { sel.race = b.dataset.race; sel.course = null; setQuery({ carte: sel.race, circuit: null }); drawChooser(); into(".vtp-below"); }));
+      if (gen) import("./virtuallygen.js").then(async (m) => { if (genHost.isConnected) { await m.renderGen(genHost, { play, runsOf, courseName, swatch }); into(`#vtp-gen [data-k="${gen}"]`); } })
+        .catch((e) => console.error(e));
+      if (inline) $(".vtp-inline", el).append(gen ? genHost : $(".vtp-below", el));
+      $$(".vtp-map", el).forEach((b) => b.addEventListener("click", () => {
+        sel.race = b.dataset.race || `gen:${b.dataset.gen}`; sel.course = null; setQuery({ carte: sel.race, circuit: null }); drawChooser();
+        if (!b.dataset.gen) into(".vtp-below");
+      }));
       $$(".vtp-course", el).forEach((b) => b.addEventListener("click", () => { sel.course = b.dataset.course; setQuery({ circuit: sel.course }); drawChooser(); into("#vtp-go"); }));
       $("#vtp-palm", el)?.addEventListener("click", () => palmares(race, sel.course));
       $("#vtp-ghosts", el)?.addEventListener("change", (e) => { try { localStorage.setItem(GHOSTS_KEY, e.target.value); } catch (x) { /* not kept */ } });
@@ -304,7 +315,9 @@ export async function render(main, { query }) {
         // résultats » opens the map's palmarès over the training tab, for everyone; a competition's the Résultats tab (else the
         // palmarès); an invented terrain's its own results on the training tab. « Analyser ma course »: the Analyse tab, every
         // account's, with the run just saved (a « Carte du jour »'s too); a « Terrain libre » is not kept, so not analysed.
-        navs: race.noSave ? ["results"] : ["results", ...(hasTab("analyse") ? ["analysis"] : [])],
+        // a « Terrain libre » is not kept: neither results nor analysis; a map's training has a palmarès, not results
+        navs: race.noSave ? [] : ["results", ...(hasTab("analyse") ? ["analysis"] : [])],
+        resultsLabel: race.gen || (ev?.type === "competition" && !ev.mine) ? t("vt.toResults") : t("vt.toPalmares"),
         onNav: async (k) => {
           await saving;                                    // so that the run just finished is the one opened
           if (k === "analysis" && hasTab("analyse") && !race.noSave) { setQuery({ run: sel.run }); return goTab("analyse"); }
