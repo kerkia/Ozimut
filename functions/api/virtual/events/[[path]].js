@@ -26,9 +26,9 @@ import { runnerHash } from "../../../_lib/virtual.js";
 
 const EV = "virtual-events/", PKG = "virtual-ev/", REQ = "virtual-build/", RUNS = "virtual-runs/";
 const ID = /^e[a-z0-9]{9}$/, COURSE = /^[a-z0-9_]{1,24}$/;
-const PFILES = /^(race\.json|h\.png|cls\.png|veg\.png|ground\.jpg|feats\.json|trees\.bin|map\.ocd|map\.webp|thumb\.webp)$/;
+const PFILES = /^(race\.json|h\.png|cls\.png|veg\.png|ground\.jpg|feats\.json|trees\.bin|map\.ocd|map\.ocd\.gz|map\.webp|thumb\.webp)$/;
 const INPUTS = { "map.ocd": 40e6, "courses.ocd": 40e6, "courses.xml": 5e6 };
-const TYPES = { json: "application/json", png: "image/png", jpg: "image/jpeg", webp: "image/webp", bin: "application/octet-stream", ocd: "application/octet-stream" };
+const TYPES = { json: "application/json", png: "image/png", jpg: "image/jpeg", webp: "image/webp", bin: "application/octet-stream", ocd: "application/octet-stream", gz: "application/gzip" };
 const MAX_EVENTS = 20;                       // an account's events (an administrator: no limit)
 
 const isOrganiser = (env, user, ev) => !!user && (ev.by === user.id || isAdmin(env, user));

@@ -973,7 +973,17 @@ Every multiple-choice game was played through to its score page at phone size, w
   surfaces); only chunks within 90 m cast shadows (34 fps in headless Edge at 1400 × 860, 2026-11-10). Each race is a package
   (race.json, h.png heights as R·256+G cm, cls.png ground classes, veg.png tree/bush/low densities, ground.jpg, feats.json,
   trees.bin LiDAR trees, map.ocd drawn by the Tracer's `vmap` with its own 7xx course symbols hidden) in R2 `virtual/<race>/`, served
-  by `/api/virtual/<race>/<file>`. **Built offline** by `tools/virtually/` (`dump.mjs`, `build.py`, `course.py`, `lidar.py`,
+  by `/api/virtual/<race>/<file>`. **Loading** (owner, 2026-11-14: Gif's race, since its 1 320 × 1 040 m, took « an eternity »:
+  19-26 s to « Partir » on the PC's dev server, ~35 MB): published with `tools/virtually/pkggz.py` (upload.py, ci.py) — town.bin and
+  map.ocd also as `.gz` (14 → 5.5 and 13.9 → 4.8 MB; Cloudflare compresses only text), race.json uploaded last naming them (`gz`)
+  and every file's size (`bytes`, the briefing's « Chargement de la course… n % »); `vworld.loadRace` asks for every file at once
+  (the town's waited for the rest before), inflates the `.gz` (DecompressionStream; the plain files stay for `virtuallyan.js` and
+  older code) and hands the OCAD file over as soon as it is in (`onMap`: the map drawn while the rest downloads); the drawn map is
+  kept in IndexedDB `ocn-virtually` (`games/vmapcache.js`, the PNG made by the worker `vmapcacheworker.js`; keyed by the file's
+  SHA-256, the layer, the build stamp; 6 maps) — 3-6 s of drawing become 0.3 s from the second race on; only the chunks within
+  `NEAR_START` (140 m, virtually.js) are built before « Partir », the rest two a frame during the briefing; the shaders by `renderer.compileAsync`
+  (KHR_parallel_shader_compile: the first frame waited 3.5 s for 31 programs one by one) while the textures upload. Measured in
+  headless Edge at 1400 × 860 on the dev server: 19-26 s → 12-13.5 s the first time, 4.3 s the next. **Built offline** by `tools/virtually/` (`dump.mjs`, `build.py`, `course.py`, `lidar.py`,
   `upload.py`; inputs outside git in `C:\kerkia\Ozimut\data\virtual\<race>\`: the club's map.ocd — never in the repository —,
   biome.json, the LiDAR): the map's classes by symbol for ISOM 2017 or ISOM 2000 (detected), the relief **read from the map's
   contours** (slope ticks give the downhill side, a closed line without ticks is a hill, the direction carries on from line to line,

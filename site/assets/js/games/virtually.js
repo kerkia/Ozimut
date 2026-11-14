@@ -31,6 +31,7 @@ const LEVELS = [0, 0.5, 1, 1.5, 2, 2.5, 3];
 // The stamina of 2026-11-12 (the fast levels empty an energy bar, the slow ones fill it; empty, back to ×2): off for now (owner,
 // 2026-11-14: « enlever le simulateur de perte d'énergie, au moins pour le moment »); true brings it back.
 const STAMINA = false;
+const NEAR_START = 140;            // m: the chunks built before « Partir » (the rest during the briefing, two a frame)
 const VIEW_ICONS = [
   ["scene", '<svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path d="M2 20 9 8l4 6 3-4 6 10Z" fill="currentColor"/><circle cx="17" cy="6" r="2" fill="currentColor"/></svg>'],
   ["map", '<svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M3 6l6-2 6 2 6-2v14l-6 2-6-2-6 2Z"/><path d="M9 4v14M15 6v14"/></svg>'],
@@ -135,13 +136,17 @@ export function mount(root, raceId, opts = {}) {
   fillSheet();
   (async () => {
     try {
-      const [THREE, data, cd, ghostRuns] = await Promise.all([import(THREE_URL), (opts.load ? opts.load() : loadRace(opts.base || `${BASE}${raceId}/`)), cdLoaded,
+      // the bytes counted on the briefing's line; the map drawn as soon as its file is in, while the rest still downloads
+      let mapP = null;
+      const early = { onProgress: (d, n) => { if (n) say("vt.loadingPct", { pct: Math.min(99, Math.floor((100 * d) / n)) }); },
+        onMap: (m) => { mapP = drawMap(m, usable(brief.mapOpt, m.race).layer); mapP.catch(() => {}); } };
+      const [THREE, data, cd, ghostRuns] = await Promise.all([import(THREE_URL), (opts.load ? opts.load() : loadRace(opts.base || `${BASE}${raceId}/`, undefined, early)), cdLoaded,
         Promise.resolve(opts.ghosts || []).catch(() => [])]);
       data.cd = cd;
       if (stopped) return;
       if (!brief.course) { brief.race = data.race; brief.course = courseIn(data.race); fillSheet(); }
       say("vt.drawingMap");
-      const mapImg = await drawMap(data, usable(brief.mapOpt, data.race).layer);
+      const mapImg = await (mapP || drawMap(data, usable(brief.mapOpt, data.race).layer));
       if (stopped) return;
       say("vt.preparing");
       await new Promise((r) => setTimeout(r, 60));   // the message shown before the world is built (no animation frame: a hidden tab has none)
@@ -884,7 +889,7 @@ export function mount(root, raceId, opts = {}) {
         for (let i = 0; i < n; i++) move(dt / n, sdt / n);
       }
       // the world around the runner
-      world.update(st.x, st.z, dt < 0.03 ? 1 : 0);   // a chunk a frame at most, none when the frame was already slow
+      world.update(st.x, st.z, !run && st.phase === "ready" ? 2 : dt < 0.03 ? 1 : 0);   // a chunk a frame at most, none when the frame was already slow (two during the briefing)
       const y = world.heightAt(st.x, st.z);
       me.position.set(st.x, y, st.z); me.rotation.y = -st.yaw + Math.PI; me.userData.animate(st.speed, sdt);
       me.visible = st.view === "third";
@@ -941,10 +946,14 @@ export function mount(root, raceId, opts = {}) {
     };
     reset(); resize();
     window.vtDebug = { st, mv, course, world, ghosts };          // for support and scripted tests (the console)
-    // build the chunks around the start before the first frame, then « Partir »
-    while (world.update(st.x, st.z, 6) > 0) { /* all near chunks */ }
-    startScreen();
-    raf = requestAnimationFrame(step);
+    // build the chunks around the start before the first frame (within NEAR_START: the farther ones, in the haze, come during the
+    // briefing), the shaders compiled in parallel (KHR_parallel_shader_compile: the first frame no longer waits for them one by
+    // one), then « Partir »
+    while (world.update(st.x, st.z, 6) > 0 && world.nextNear < NEAR_START) { /* the near chunks */ }
+    say("vt.compiling");
+    const compiled = renderer.compileAsync ? renderer.compileAsync(scene, camera).catch(() => {}) : Promise.resolve();
+    scene.traverse((o) => { for (const m of [].concat(o.material || [])) for (const v of Object.values(m)) if (v?.isTexture) renderer.initTexture(v); });   // uploaded meanwhile
+    compiled.then(() => { if (stopped) return; startScreen(); raf = requestAnimationFrame(step); });
     return [() => { ro.disconnect(); removeEventListener("keydown", onKey); removeEventListener("keyup", onKey); removeEventListener("blur", onBlur);
       document.removeEventListener("visibilitychange", onVis); document.removeEventListener("fullscreenchange", onFs); document.removeEventListener("webkitfullscreenchange", onFs);
       if (document.fullscreenElement === box) document.exitFullscreen().catch(() => {}); document.documentElement.classList.remove("vt-fs-on");
@@ -1048,11 +1057,15 @@ export async function drawMap(data, layer = "full") {
     c.getContext("2d").drawImage(data.mapImage, 0, 0);
     return { canvas: c, ppm: data.race.k / data.race.mapPx };
   }
+  // drawn once, then kept in the browser (games/vmapcache.js: a second race on the map shows it at once)
+  const r = data.race, wmm = r.W / r.k, hmm = r.H / r.k;
+  const ppm = Math.min(12, 9000 / Math.max(wmm, hmm));
+  const MC = await import("./vmapcache.js"), key = await MC.mapKey(data.ocd, `${layer}|${ppm}|${r.W}x${r.H}|${r.k}|${r.mm0}`).catch(() => null);
+  const kept = key && (await MC.getMap(key));
+  if (kept) return kept;
   const [{ readOcad }, { CanvasTarget }, { Matrix }] = await Promise.all([import("../tracer/vmap/ocad.js"), import("../tracer/vmap/target.js"), import("../tracer/vmap/geom.js")]);
   const { map } = readOcad(data.ocd);
   await map.ready;
-  const r = data.race, wmm = r.W / r.k, hmm = r.H / r.k;
-  const ppm = Math.min(12, 9000 / Math.max(wmm, hmm));
   const c = document.createElement("canvas"); c.width = Math.round(wmm * ppm); c.height = Math.round(hmm * ppm);
   const g = c.getContext("2d"); g.fillStyle = "#fff"; g.fillRect(0, 0, c.width, c.height);
   const [X0, Y1] = r.mm0, l = X0, top = Y1, b = Y1 - hmm, rr = X0 + wmm;
@@ -1064,5 +1077,6 @@ export async function drawMap(data, layer = "full") {
     for (const id of presetSymbols(syms, layer)) skip.add(id);
   }
   map.draw(new CanvasTarget(g, new Matrix(ppm, 0, 0, -ppm, -l * ppm, top * ppm)), [l, b, rr, top], { minRes: 1 / ppm, hideSyms: skip });
+  if (key) MC.putMap(key, c, ppm);
   return { canvas: c, ppm };
 }

@@ -9,6 +9,7 @@ import json, os, shutil, subprocess, sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
+sys.path.insert(0, str(Path(__file__).resolve().parent))
 DATA = Path(os.environ.get("VIRTUAL_DATA") or Path(__import__("paths").DATA_DIR) / "virtual")
 race = sys.argv[1]
 where = "--remote" if "--remote" in sys.argv else "--local"
@@ -24,10 +25,13 @@ if leg.exists():
             sys.exit(f"{race}: {sum(errors.values())} legibility errors left — not uploaded (see src/legibility.json, "
                      "legibility.py --sheet; --accept-violations publishes them with their list)")
     shutil.copyfile(leg, pkg / "legibility.json")             # the list goes with the package, errors or none
-for name in ("race.json", "h.png", "cls.png", "veg.png", "ground.jpg", "feats.json", "trees.bin", "map.ocd", "map.webp", "thumb.webp", "town.json", "town.bin", "surf.png", "facades.webp", "legibility.json"):
-    f = pkg / name
-    if not f.exists():
-        continue
+# the package as published (pkggz.py): town.bin and map.ocd also gzipped, race.json naming them, uploaded last
+from pkggz import publish_list
+NAMES = ("h.png", "cls.png", "veg.png", "ground.jpg", "feats.json", "trees.bin", "map.ocd", "map.webp", "thumb.webp", "town.json", "town.bin", "surf.png", "facades.webp", "legibility.json", "race.json")
+for name, f in publish_list(pkg, DATA / race / "publish", NAMES):
     cmd = f'npx wrangler r2 object put "cn-state/virtual/{race}/{name}" {where} --file "{f}"'
-    r = subprocess.run(cmd, cwd=repo, shell=True, capture_output=True, text=True, encoding="utf-8", errors="replace")
-    print(name, "ok" if r.returncode == 0 else r.stderr.strip()[-300:], flush=True)
+    for attempt in range(3):                                   # the local store is sometimes busy (the dev server): again
+        r = subprocess.run(cmd, cwd=repo, shell=True, capture_output=True, text=True, encoding="utf-8", errors="replace")
+        if r.returncode == 0:
+            break
+    print(name, "ok" if r.returncode == 0 else (r.stderr.strip() or r.stdout.strip())[-300:], flush=True)

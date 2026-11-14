@@ -1,6 +1,8 @@
 // « Virtually »'s catalogue in English, as virtually.fr.js.
 export default {
   "vt.loading": "Loading the race…",
+  "vt.loadingPct": "Loading the race… {pct}%",
+  "vt.compiling": "Preparing the display…",
   "vt.drawingMap": "Drawing the map…",
   "vt.tr.introAll": "Choose a map, then one of its courses, and go. Every race you finish is kept under your name: each course's palmarès is beside the list of courses, and the Analysis tab replays it, alone or with the course's other runners.",
   "vt.preparing": "Preparing the terrain…",

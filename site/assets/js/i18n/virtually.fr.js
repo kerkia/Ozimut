@@ -1,6 +1,8 @@
 // « Virtually »'s catalogue in French (games/virtually.js), loaded by loadArea("virtually"); virtually.en.js, .de.js, .es.js in step.
 export default {
   "vt.loading": "Chargement de la course…",
+  "vt.loadingPct": "Chargement de la course… {pct} %",
+  "vt.compiling": "Préparation de l'affichage…",
   "vt.drawingMap": "Dessin de la carte…",
   "vt.tr.introAll": "Choisissez une carte, puis un de ses circuits, et partez. Chaque course terminée est gardée sous votre nom : le palmarès de chaque circuit est à côté de la liste des circuits, et l'onglet Analyse la rejoue, seule ou avec les autres coureurs du circuit.",
   "vt.preparing": "Préparation du terrain…",

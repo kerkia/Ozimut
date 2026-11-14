@@ -24,35 +24,63 @@ const STEP_OVER = 1.2;
 // contourner »): within its trunk and the body's width the runner goes at this share of their speed
 const TREE_SLOW = 0.3;
 
-export async function loadRace(base, onFile = () => {}) {
+/* Loading fast (owner, 2026-11-14: Gif's race, 1 320 × 1 040 m of town, took « an eternity »): every file is asked for as soon as
+   race.json is read — the town's too, which waited for the rest before —; the large ones the package keeps gzipped (race.json
+   `gz`, tools/virtually/pkggz.py: town.bin, map.ocd) are inflated here; the bytes are counted for the progress line (race.json
+   `bytes`, else each answer's length); the map's file is handed over as soon as it is in (opts.onMap), so that its drawing runs
+   while the rest still downloads. opts: onProgress(done, total) in bytes, onMap({ race, ocd } | { race, mapImage }). */
+export async function loadRace(base, onFile = () => {}, opts = {}) {
+  const got = new Map();                          // file -> [bytes in, bytes expected]
+  let sizes = {}, gz = new Set(), lastTick = 0;
+  const tick = (force) => {
+    const now = performance.now(); if (!force && now - lastTick < 120) return; lastTick = now;
+    let d = 0, t = 0; for (const [a, b] of got.values()) { d += a; t += Math.max(a, b); }
+    opts.onProgress?.(d, t);
+  };
   const get = async (f, kind) => {
-    const r = await fetch(base + f, { credentials: "same-origin" });
-    if (!r.ok) throw Object.assign(new Error(`${f}: ${r.status}`), { status: r.status });
-    const v = kind === "json" ? await r.json() : kind === "buf" ? await r.arrayBuffer() : await r.blob();
+    const z = gz.has(f), name = z ? `${f}.gz` : f;
+    if (!got.has(f)) got.set(f, [0, sizes[name] || 0]);
+    const r = await fetch(base + name, { credentials: "same-origin" });
+    if (!r.ok) throw Object.assign(new Error(`${name}: ${r.status}`), { status: r.status });
+    const e = got.get(f); if (!e[1]) e[1] = Number(r.headers.get("Content-Length")) || 0;
+    let body = r.body;
+    if (body && opts.onProgress) body = body.pipeThrough(new TransformStream({ transform(c, ctl) { e[0] += c.byteLength; tick(); ctl.enqueue(c); } }));
+    if (body && z) body = body.pipeThrough(new DecompressionStream("gzip"));
+    const res = body ? new Response(body, { headers: { "Content-Type": r.headers.get("Content-Type") || "" } }) : r;
+    const v = kind === "json" ? await res.json() : kind === "buf" ? await res.arrayBuffer() : await res.blob();
+    e[0] = Math.max(e[0], e[1]); tick(true);
     onFile(f);
     return v;
   };
-  const raceP = get("race.json", "json");
-  // the photo textures of the race's set (its biome's « textures »), beside the package
-  const photos = raceP.then((r) => loadPhotos(r.biome?.textures)).catch(() => ({}));
-  const race = await raceP;
+  const race = await get("race.json", "json");
+  sizes = race.bytes || {};
+  if (typeof DecompressionStream === "function") gz = new Set(race.gz || []);
   // the player's map: the club's OCAD file, or (a race from the LiDAR alone, tools/virtually/lidarrace.py) the generated map's image
-  const webp = race.map === "webp";
-  const [hb, cb, vb, gb, feats, trees, ocd] = await Promise.all([get("h.png"), get("cls.png"), get("veg.png"), get("ground.jpg"),
-    get("feats.json", "json"), race.lidarTrees ? get("trees.bin", "buf") : null, webp ? get("map.webp") : get("map.ocd", "buf")]);
-  const [hp, cp, vp] = await Promise.all([pixels(hb), pixels(cb), pixels(vb)]);
+  const webp = race.map === "webp", T = race.town || {};
+  // what will be asked for, its size known from the start when race.json gives it
+  for (const f of ["h.png", "cls.png", "veg.png", "ground.jpg", "feats.json", race.lidarTrees && "trees.bin", webp ? "map.webp" : "map.ocd", T.file, T.bin, T.surf, T.tex]) {
+    if (f) got.set(f, [0, sizes[gz.has(f) ? `${f}.gz` : f] || 0]);
+  }
+  // the photo textures of the race's set (its biome's « textures »), beside the package
+  const photos = loadPhotos(race.biome?.textures).catch(() => ({}));
+  const mapP = (webp ? get("map.webp").then(async (b) => ({ race, mapImage: await createImageBitmap(b) })) : get("map.ocd", "buf").then((b) => ({ race, ocd: new Uint8Array(b) })))
+    .then((m) => { opts.onMap?.(m); return m; });
+  // a sprint race's town (games/vtown.js: buildings, walls, street furniture), when the package has one: at once, beside the rest
+  // (its files asked for at once, not once its module has come)
+  const asked = new Map(), once = (f, kind) => { if (!asked.has(f)) asked.set(f, get(f, kind)); return asked.get(f); };
+  for (const [f, kind] of [[T.file, "json"], [T.bin, "buf"], [T.surf, "blob"], [T.tex, "blob"]]) if (f) once(f, kind).catch(() => {});
+  const townP = race.town ? import("./vtown.js").then(async (V) => ({ ...(await V.loadTown(base, race.town, onFile, once)), Town: V.Town })) : null;
+  const decoded = (f) => get(f).then(pixels);
+  const [hp, cp, vp, groundImg, feats, trees, map, town] = await Promise.all([decoded("h.png"), decoded("cls.png"), decoded("veg.png"),
+    get("ground.jpg").then((b) => createImageBitmap(b)), get("feats.json", "json"), race.lidarTrees ? get("trees.bin", "buf") : null, mapP, townP]);
   const W = race.W, H = race.H, n = W * H, h = new Float32Array(n), cls = new Uint8Array(n), veg = new Uint8Array(n * 3);
   for (let i = 0; i < n; i++) {
     h[i] = race.base + (hp.d[i * 4] * 256 + hp.d[i * 4 + 1]) / 100;
     cls[i] = cp.d[i * 4];
     veg[i * 3] = vp.d[i * 4]; veg[i * 3 + 1] = vp.d[i * 4 + 1]; veg[i * 3 + 2] = vp.d[i * 4 + 2];
   }
-  const groundImg = await createImageBitmap(gb);
-  // a sprint race's town (games/vtown.js: buildings, walls, street furniture), when the package has one
-  let town = null;
-  if (race.town) { const V = await import("./vtown.js"); town = { ...(await V.loadTown(base, race.town, onFile)), Town: V.Town }; }
   return { race, W, H, h, cls, veg, groundImg, feats, trees: trees ? new DataView(trees) : null, photos: await photos,
-    ocd: webp ? null : new Uint8Array(ocd), mapImage: webp ? await createImageBitmap(ocd) : null, town };
+    ocd: map.ocd || null, mapImage: map.mapImage || null, town };
 }
 
 const DETAIL = 95;                 // m: chunks nearer than this draw the trees whole, the others as impostors
@@ -304,6 +332,7 @@ export class World {
     // the nearest missing chunk is always built, even on a slow frame, once it is within 140 m (the runner could reach its edge)
     if (!budget && want.length && want[0][0] < 140) budget = 1;
     for (const [, a, b] of want.slice(0, budget)) this.build(a, b);
+    this.nextNear = want.length > budget ? want[budget][0] : Infinity;     // the next chunk to build: its distance
     for (const [k, c] of this.chunks) {
       // the distance to the chunk's nearest point, not its middle
       const u = c.userData, dx = Math.max(u.x0 - x, 0, x - u.x1), dz = Math.max(u.z0 - z, 0, z - u.z1), d = Math.hypot(dx, dz);

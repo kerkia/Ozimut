@@ -1,6 +1,8 @@
 // « Virtually »'s catalogue in Spanish, as virtually.fr.js.
 export default {
   "vt.loading": "Cargando la carrera…",
+  "vt.loadingPct": "Cargando la carrera… {pct} %",
+  "vt.compiling": "Preparando la pantalla…",
   "vt.drawingMap": "Dibujando el mapa…",
   "vt.tr.introAll": "Elige un mapa, luego uno de sus recorridos, y sal. Cada carrera que terminas se guarda con tu nombre: el palmarés de cada recorrido está junto a la lista de recorridos, y la pestaña Análisis la reproduce, sola o con los demás corredores del recorrido.",
   "vt.preparing": "Preparando el terreno…",

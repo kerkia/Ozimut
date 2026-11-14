@@ -10,15 +10,16 @@
 const CELL = 8;                     // m: the collision index's cells
 
 /** The town's files: { meta, arrays } (typed arrays over town.bin, named as town.json lists them). */
-export async function loadTown(base, town, onFile = () => {}) {
-  const get = async (f, kind) => {
+export async function loadTown(base, town, onFile = () => {}, getter = null) {
+  // vworld.loadRace's getter (gzipped files, the bytes counted), else a plain fetch
+  const get = getter || (async (f, kind) => {
     const r = await fetch(base + f, { credentials: "same-origin" });
     if (!r.ok) throw Object.assign(new Error(`${f}: ${r.status}`), { status: r.status });
-    const v = kind === "json" ? await r.json() : await r.arrayBuffer();
+    const v = kind === "json" ? await r.json() : kind === "buf" ? await r.arrayBuffer() : await r.blob();
     onFile(f);
     return v;
-  };
-  const blob = (f) => (f ? fetch(base + f, { credentials: "same-origin" }).then((r) => (r.ok ? r.blob() : null)).catch(() => null) : null);
+  });
+  const blob = (f) => (f ? get(f, "blob").catch(() => null) : null);
   const grainOf = (n) => fetch(`/assets/textures/virtually/${n}.webp`).then((r) => (r.ok ? r.blob() : null)).catch(() => null);
   const [meta, bin, surfBlob, texBlob, gBlob, rBlob] = await Promise.all([get(town.file, "json"), get(town.bin, "buf"), blob(town.surf),
     blob(town.tex), grainOf("town-ground"), grainOf("town-roof")]);

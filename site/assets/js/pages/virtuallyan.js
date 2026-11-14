@@ -48,7 +48,8 @@ async function mapOf(race) {
     const { drawMap } = await import("../games/virtually.js");
     const m = full.map === "webp"
       ? await drawMap({ race: full, mapImage: await createImageBitmap(await (await get("map.webp")).blob()) })
-      : await drawMap({ race: full, ocd: new Uint8Array(await (await get("map.ocd")).arrayBuffer()) });
+      : await drawMap({ race: full, ocd: new Uint8Array(await (await ((full.gz || []).includes("map.ocd") && typeof DecompressionStream === "function"
+        ? get("map.ocd.gz").then((r) => new Response(r.body.pipeThrough(new DecompressionStream("gzip")))) : get("map.ocd"))).arrayBuffer()) });   // gzipped when published so (tools/virtually/pkggz.py)
     return { ...m, k: full.k };
   })());
   return mapCache.get(race.id);

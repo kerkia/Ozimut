@@ -4,7 +4,8 @@
 // running competitions on the built-in maps stays the administrators' (administrators only 2026-11-10 to 12).
 //   GET  races                         the maps: [{ id, race }] (each race.json, read here so that the page asks once)
 //   GET  <race>/<file>                 a map's package (made offline by tools/virtually: race.json — its courses —, h.png,
-//                                      cls.png, veg.png, ground.jpg, feats.json, trees.bin when LiDAR, map.ocd, thumb.webp; a town's town.json, town.bin, surf.png and facades.webp, tools/virtually/town_3d.py)
+//                                      cls.png, veg.png, ground.jpg, feats.json, trees.bin when LiDAR, map.ocd, thumb.webp; a town's town.json, town.bin, surf.png and facades.webp, tools/virtually/town_3d.py; town.bin.gz and map.ocd.gz the same
+//                                      gzipped, tools/virtually/pkggz.py, which games/vworld.js inflates)
 //   GET  runs?race=<id>                every finished run of that map: [{ id, race, u, name, course, t, sp, d, at, help, seed, mo, mine }]
 //   GET  runs?race=day                 every « Carte du jour »'s runs, all days (the analysis of an invented forest's run)
 //   GET  runs/<race>/<run>             one run with its route (the analysis, the ghosts): one's own, any to an administrator, any
@@ -26,8 +27,8 @@
 import { allow, isAdmin, json, nowIso, readBody, withUser } from "../../_lib/api.js";
 import { runnerHash } from "../../_lib/virtual.js";
 
-const FILE = /^([a-z0-9-]{1,40})\/(race\.json|h\.png|cls\.png|veg\.png|ground\.jpg|feats\.json|trees\.bin|map\.ocd|map\.webp|thumb\.webp|town\.json|town\.bin|surf\.png|facades\.webp)$/;
-const TYPES = { json: "application/json", png: "image/png", jpg: "image/jpeg", webp: "image/webp", bin: "application/octet-stream", ocd: "application/octet-stream" };
+const FILE = /^([a-z0-9-]{1,40})\/(race\.json|h\.png|cls\.png|veg\.png|ground\.jpg|feats\.json|trees\.bin|map\.ocd|map\.ocd\.gz|map\.webp|thumb\.webp|town\.json|town\.bin|town\.bin\.gz|surf\.png|facades\.webp)$/;
+const TYPES = { json: "application/json", png: "image/png", jpg: "image/jpeg", webp: "image/webp", bin: "application/octet-stream", ocd: "application/octet-stream", gz: "application/gzip" };
 const ID = /^[a-z0-9-]{1,40}$/, COURSE = /^[a-z0-9_]{1,24}$/, RUN = /^[0-9a-f]{12}-[0-9a-z]{6,12}$/;
 const RUNS = "virtual-runs/";
 const DAY = /^day-(\d{8})$/, SIG = /^[0-9a-f]{1,8}$/;

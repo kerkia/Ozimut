@@ -1,6 +1,8 @@
 // « Virtually »'s catalogue in German, as virtually.fr.js.
 export default {
   "vt.loading": "Der Lauf wird geladen…",
+  "vt.loadingPct": "Der Lauf wird geladen… {pct} %",
+  "vt.compiling": "Die Anzeige wird vorbereitet…",
   "vt.drawingMap": "Die Karte wird gezeichnet…",
   "vt.tr.introAll": "Wähle eine Karte, dann eine ihrer Bahnen, und lauf los. Jeder beendete Lauf wird unter deinem Namen gespeichert: Die Bestenliste jeder Bahn steht neben der Liste der Bahnen, und der Reiter Analyse spielt ihn ab, allein oder mit den anderen Läufern der Bahn.",
   "vt.preparing": "Das Gelände wird vorbereitet…",

@@ -225,8 +225,10 @@ def build_one(req: dict, work: Path, kp: str):
     if not race.get("courses"):
         raise RuntimeError("no course could be set on this map")
     prog("upload", 0)
-    for f in sorted((rd / "pkg").iterdir()):
-        aws("cp", str(f), f"{BUCKET}/virtual-ev/{eid}/{f.name}")
+    # as published (pkggz.py): map.ocd also gzipped, race.json naming it, uploaded last
+    from pkggz import publish_list
+    for name, f in publish_list(rd / "pkg", rd / "publish"):
+        aws("cp", str(f), f"{BUCKET}/virtual-ev/{eid}/{name}")
     # the event's record again (it may have changed meanwhile: its settings kept), ready
     get(f"virtual-events/{eid}.json", ev_path)
     ev = json.load(open(ev_path, encoding="utf-8"))
