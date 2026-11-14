@@ -477,6 +477,7 @@ export function mount(root, raceId, opts = {}) {
 
     const ptrs = new Map();
     let tap = null, twist = null;
+    const SPIN_PX = 0.45 * Math.PI / 180;
     const angOf = (a, b) => Math.atan2(b[1] - a[1], b[0] - a[0]), distOf = (a, b) => Math.hypot(b[0] - a[0], b[1] - a[1]);
     mapC.addEventListener("contextmenu", (e) => e.preventDefault());
     mapC.addEventListener("pointerdown", (e) => {
@@ -487,8 +488,8 @@ export function mount(root, raceId, opts = {}) {
       }
       tap = { x: e.clientX, y: e.clientY, at: performance.now() };
       if ((e.button === 2 || e.shiftKey) && turning()) {
-        const rc = mapC.getBoundingClientRect(), cx = rc.left + rc.width / 2, cy = rc.top + rc.height / 2;
-        mv.spin = { cx, cy, a: Math.atan2(e.clientY - cy, e.clientX - cx), free: mv.free }; return;
+        // dragged left or right (owner, 2026-11-14: « avec la souris vers la gauche/droite, bouton droit appuyé »), 0.45° a pixel
+        mv.spin = { x: e.clientX, free: mv.free }; return;
       }
       mv.drag = [e.clientX, e.clientY, mv.cx, mv.cy];
     });
@@ -502,7 +503,7 @@ export function mount(root, raceId, opts = {}) {
         if (turning()) mv.free = twist.free + angOf(a, b) - twist.ang;
         drawMapPanel(); return;
       }
-      if (mv.spin) { mv.free = mv.spin.free + Math.atan2(e.clientY - mv.spin.cy, e.clientX - mv.spin.cx) - mv.spin.a; drawMapPanel(); return; }
+      if (mv.spin) { mv.free = mv.spin.free + (e.clientX - mv.spin.x) * SPIN_PX; drawMapPanel(); return; }
       if (!mv.drag) return;
       const [dx, dy] = unturn(e.clientX - mv.drag[0], e.clientY - mv.drag[1]); mv.cx = mv.drag[2] - dx; mv.cy = mv.drag[3] - dy; drawMapPanel();
     });
@@ -518,7 +519,7 @@ export function mount(root, raceId, opts = {}) {
       const f = e.deltaY < 0 ? 1.2 : 1 / 1.2, rc = mapC.getBoundingClientRect();
       const px = e.clientX - rc.left - rc.width / 2, py = e.clientY - rc.top - rc.height / 2;
       const [ux, uy] = unturn(px, py); mv.cx += ux - ux / f; mv.cy += uy - uy / f; mv.zoom *= f; drawMapPanel(); }, { passive: false });
-    // the one-shot orientations (N at the start, O the way run, L the leg)
+    // the one-shot orientations (N at the start, R the way run, T the leg)
     const ORIENT_ICON = {
       north: '<svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path d="M12 3 17 15 12 12 7 15Z" fill="currentColor"/><text x="12" y="22.5" font-size="8" font-weight="700" text-anchor="middle" fill="currentColor">N</text></svg>',
       leg: '<svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true" fill="none" stroke="#f06ad8" stroke-width="2.2"><circle cx="12" cy="19" r="3.2"/><circle cx="12" cy="5" r="3.2"/><path d="M12 15.6V8.4"/></svg>',
@@ -582,7 +583,7 @@ export function mount(root, raceId, opts = {}) {
     }
     // ---- input ----
     const GAMEKEYS = new Set(["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight", "KeyW", "KeyA", "KeyS", "KeyD", "KeyQ", "KeyE", "Space", "Tab", "Comma", "Period"]);
-    const UP = ["ArrowUp", "KeyW", "KeyR"], DOWN = ["ArrowDown", "KeyS", "KeyF"];
+    const UP = ["ArrowUp", "KeyW"], DOWN = ["ArrowDown", "KeyS"];   // R and F no longer: R orients the map
     let lvAt = 0;
     /** A key or a pad button just pressed: its first step of turning, and when it was pressed. */
     const pressStep = (code) => {
@@ -612,8 +613,8 @@ export function mount(root, raceId, opts = {}) {
         if (e.code === "Space" && st.phase === "run") punch();
         // M by its letter (owner, 2026-11-14: « M ça marche pas »: on an AZERTY keyboard M's key is « Semicolon », and KeyM is « , »)
         else if (e.key === "m" || e.key === "M") mapSize(mapEl.dataset.size === "small" ? "large" : mapEl.dataset.size === "large" ? "hidden" : "small");
-        else if (e.code === "KeyO") orientOnce("run");
-        else if (e.code === "KeyL") orientOnce("leg");
+        else if (e.code === "KeyR") orientOnce("run");
+        else if (e.code === "KeyT") orientOnce("leg");
         else if (e.code === "KeyN") orientOnce("north");
         else if (e.code === "KeyB") toggleComp();
         else if (e.code === "Tab" && st.phase === "run") setView(VIEWS[(VIEWS.indexOf(box.dataset.view) + 1) % VIEWS.length]);
@@ -673,7 +674,7 @@ export function mount(root, raceId, opts = {}) {
     const help = (on) => { helpEl.hidden = !on; helpBtn.classList.toggle("on", on); helpBtn.setAttribute("aria-expanded", String(on)); box.focus(); };
     helpBtn.addEventListener("click", () => help(helpEl.hidden));
     $("#vt-helpx", root).addEventListener("click", () => help(false));
-    // the cruise speed, changed during the race: − and + (↓ ↑, W S, F R, 0 to 3); the button itself goes up, then round to 0
+    // the cruise speed, changed during the race: − and + (↓ ↑, W S, 0 to 3); the button itself goes up, then round to 0
     const speedBtn = $("#vt-speed", root), paceLbl = $("#vt-pacelbl", root), bar = $(".vt-energy i", root);
     const paceText = (p) => `×${p.toLocaleString(lang())}`;
     const showSpeed = () => { paceLbl.textContent = paceText(st.level); speedBtn.classList.toggle("on", st.level > 2); speedBtn.classList.toggle("slow", st.level < 1); };
