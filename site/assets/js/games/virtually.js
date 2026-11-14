@@ -378,6 +378,7 @@ export function mount(root, raceId, opts = {}) {
       const f = FEATURE_CD[c.feature] || [];
       let g = f[3] || null;
       if (g) { const side = sideOf(world.town, c.x, c.z, c.feature === "corner"); g = side ? g + side : null; }
+      else if (c.foot) g = `11.14${c.foot}`;                      // a flag moved out of its rock: its foot's side (vworld footOf)
       return (c.cd = { d: f[0] || null, e: f[1] || null, f: f[2] || null, g });
     }
     const cell = (id) => { const s = cdSym(id); return s ? html`<td title="${cd.name(s)}">${cd.svg(s, 40, "vt-cds")}</td>` : html`<td></td>`; };
@@ -788,7 +789,7 @@ export function mount(root, raceId, opts = {}) {
       if (L > 0) {
         const f = (world.terrainSpeed(st.x, st.z) || 0.3) * world.rough(st.x, st.z);
         const dx0 = Math.sin(st.yaw), dz0 = -Math.cos(st.yaw);
-        const ahead = world.heightAt(st.x + dx0 * 2, st.z + dz0 * 2) - world.heightAt(st.x, st.z), grade = ahead / 2;
+        const ahead = world.heightAt(st.x + dx0 * 2, st.z + dz0 * 2) - world.heightAt(st.x, st.z), grade = ahead / 2 / world.VX;   // the true grade (the 3D's relief is × VX)
         const slope = grade > 0 ? 1 / (1 + 7 * grade) : 1 / (1 + 2.5 * Math.max(0, -grade - 0.12));
         const d = RUN * f * slope * L * dt, nx = st.x + dx0 * d, nz = st.z + dz0 * d;   // a real runner's speed × L, over the wall clock
         const free = (x, z) => world.terrainSpeed(x, z) > 0 && !world.hits(x, z, 0.3);

@@ -20,6 +20,9 @@ async function pixels(blob) {
 /** The race package's files: { race, h, cls, veg, groundImg, feats, trees, ocd }. onFile(name) as each arrives. */
 // a rock lower than this (m) is climbed over, not walked round (owner, 2026-11-12)
 const STEP_OVER = 1.2;
+// a tree no longer stops the runner (owner, 2026-11-14: « les arbres doivent être traversables, mais plus lentement pour inciter à
+// contourner »): within its trunk and the body's width the runner goes at this share of their speed
+const TREE_SLOW = 0.3;
 
 export async function loadRace(base, onFile = () => {}) {
   const get = async (f, kind) => {
@@ -63,8 +66,20 @@ export class World {
     this.W = W; this.H = H; this.race = race;
     this.speedOf = Float32Array.from(race.speed);
     this.C = Object.fromEntries(race.classes.map((n, i) => [n, i]));
+    // the ways no tree, bush or log stands on (owner, 2026-11-14: « interdis les arbres sur les chemins »)
+    // (a town's street trees stand on its paved ground: there only the footpaths and tracks)
+    this.pathCls = new Set((race.town ? ["path", "small_path", "track"] : ["path", "small_path", "track", "road", "paved", "stairs"])
+      .map((n) => this.C[n]).filter((v) => v != null));
     const B = race.biome || {};
     this.B = B;
+    // the relief exaggerated for the eye (owner, 2026-11-14: « le 3D est bcp trop plat, le dénivelé très insuffisamment visible »):
+    // the ground's heights × VX about the race's base — 1.5 in a forest, the biome's or the race's « relief » if it says, none
+    // in a town (buildings, stairs and kerbs stand on the true ground); the trees, rocks and the runner keep their sizes, the
+    // runner's speed reads the true grade (virtually.js divides by VX), the map and the times are unchanged
+    const sprint = !!race.town || /ISSprOM/i.test(race.std || "") || (race.scale && race.scale <= 5000);
+    this.VX = sprint ? 1 : Math.max(1, Math.min(2, B.relief ?? race.relief ?? 1.5));
+    const base = race.base || 0;
+    this.h = this.VX === 1 ? data.h : data.h.map((v) => base + (v - base) * this.VX);
     const col = (c) => new THREE.Color(c);
     this.leaf = (B.leaf || ["#5d7d3a"]).map(col); this.pine = (B.coniferLeaf || ["#33532d"]).map(col);
     this.bushC = (B.bush || ["#4f6a33"]).map(col); this.lowC = (B.low || ["#7a7a48"]).map(col); this.rockC = (B.rock || ["#9a968e"]).map(col);
@@ -98,7 +113,7 @@ export class World {
   }
 
   // ---- the ground's values ---------------------------------------------------------------------------------------------------
-  hRaw(i, j) { const { W, H } = this; i = i < 0 ? 0 : i >= H ? H - 1 : i; j = j < 0 ? 0 : j >= W ? W - 1 : j; return this.d.h[i * W + j]; }
+  hRaw(i, j) { const { W, H } = this; i = i < 0 ? 0 : i >= H ? H - 1 : i; j = j < 0 ? 0 : j >= W ? W - 1 : j; return this.h[i * W + j]; }
   heightAt(x, z) {
     const fx = x - 0.5, fz = z - 0.5, j = Math.floor(fx), i = Math.floor(fz), a = fx - j, b = fz - i;
     return this.hRaw(i, j) * (1 - a) * (1 - b) + this.hRaw(i, j + 1) * a * (1 - b) + this.hRaw(i + 1, j) * (1 - a) * b + this.hRaw(i + 1, j + 1) * a * b;
@@ -107,6 +122,11 @@ export class World {
     const j = Math.floor(x), i = Math.floor(z);
     if (i < 0 || j < 0 || i >= this.H || j >= this.W) return this.C.outside;
     return this.d.cls[i * this.W + j];
+  }
+  /** Is (x, z), or a point d metres from it along the axes, on a path, track or road? */
+  onPath(x, z, d = 1) {
+    const P = this.pathCls;
+    return P.has(this.classAt(x, z)) || P.has(this.classAt(x + d, z)) || P.has(this.classAt(x - d, z)) || P.has(this.classAt(x, z + d)) || P.has(this.classAt(x, z - d));
   }
   /** The terrain's speed factor (0: impassable). */
   terrainSpeed(x, z) { return this.speedOf[this.classAt(x, z)] || 0; }
@@ -317,6 +337,7 @@ export class World {
     const tint = (c, k = 1) => c.clone().offsetHSL((r() - 0.5) * 0.035 * k, (r() - 0.5) * 0.16 * k, (r() - 0.5) * 0.07 * k);
     const crownKinds = ["crown", "crown2", "crown3", "crown4"];
     const addTree = (x, z, h, cr) => {
+      if (this.onPath(x, z, 1.2)) return;                       // the map's ways stay clear (a LiDAR tree there is left out)
       const y = this.heightAt(x, z), rot = r() * 6.283, isPine = r() < conifer;
       const bright = 0.85 + r() * 0.3;
       const tc = tint(isPine && this.trunkP ? this.trunkP : euc && r() < 0.7 ? this.trunk : this.trunk2, 0.6);
@@ -345,7 +366,7 @@ export class World {
         inst.farLeaf.push([x, y - 0.2, z, (cr / 3.5) * this.IMP.w * (euc ? 1.15 : 1), (h / 20) * this.IMP.h, (cr / 3.5) * this.IMP.w, rot, leaf.clone().multiplyScalar(1.6)]);
       }
       shadeAt(x, z, cr * 1.15, 0.32); shadeAt(x, z, 1.4, 0.25);
-      this.trunk_(g, x, z, 0.12 + h * 0.008);
+      this.trunk_(g, x, z, 0.12 + h * 0.008 + 0.35, TREE_SLOW);     // crossed slowly, never a wall
     };
     const B_ = this.fb.get(k) || { rocks: [], walls: [], points: [], trees: [] };
     for (const [x, z, h, cr] of B_.trees) addTree(x, z, h, cr);
@@ -357,6 +378,7 @@ export class World {
       // a fallen log now and then where trees grow
       if (td > 0 && r() < 0.012) {
         const x = j + r() * 2, zz = i + r() * 2, L = 3 + r() * 6, rad = 0.12 + r() * 0.14, ang = r() * 6.283;
+        if (this.onPath(x, zz, L * 0.5)) continue;
         inst.log.push([x, this.heightAt(x, zz) + rad * 0.5, zz, L, rad, rad, ang, this.trunk2.clone().multiplyScalar(0.75 + r() * 0.2)]);
         shadeAt(x, zz, L * 0.45, 0.18);
       }
@@ -364,9 +386,17 @@ export class World {
     const open = new Set(["open", "open_t", "rough", "rough_t", "cultivated", "marsh"].map((n) => this.C[n]).filter((v) => v != null));
     for (let i = z0; i < z1; i++) for (let j = x0; j < x1; j++) {
       const q = (i * this.W + j) * 3, bd = this.d.veg[q + 1] / BK, ld = this.d.veg[q + 2] / LK;
-      if (bd > 0 && r() < bd) { const x = j + r(), z = i + r(), s = 0.7 + r() * 0.9; inst.bush.push([x, this.heightAt(x, z) + 0.35, z, s, (0.9 + r() * 1.1) * 0.6, s, r() * 6.28, pick(this.bushC).clone().multiplyScalar(0.85 + r() * 0.3)]); shadeAt(x, z, s * 1.3, 0.22); }
+      if (bd > 0 && r() < bd) { const x = j + r(), z = i + r(), s = 0.7 + r() * 0.9; if (!this.onPath(x, z, 0.6)) inst.bush.push([x, this.heightAt(x, z) + 0.35, z, s, (0.9 + r() * 1.1) * 0.6, s, r() * 6.28, pick(this.bushC).clone().multiplyScalar(0.85 + r() * 0.3)]); shadeAt(x, z, s * 1.3, 0.22); }
+      // stony ground and boulder fields strewn with stones (owner, 2026-11-14: « le terrain quand la carte indique pierrier est très
+      // chelou, à peu près la même surface qu'un chemin »): low ones, stepped over, the class's own speed slowing the runner
+      const c = this.d.cls[i * this.W + j], stony = c === this.C.stony ? 0.6 : c === this.C.bfield ? 0.75 : 0;
+      if (stony && r() < stony) {
+        const x = j + r(), z = i + r(), sz = stony > 0.7 ? 0.4 + r() * 0.8 : 0.25 + r() * 0.5;
+        inst[pick(["rock0", "rock1", "rock2"])].push([x, this.heightAt(x, z) - sz * 0.15, z, sz, sz * (0.45 + r() * 0.35), sz * (0.7 + r() * 0.5), r() * 6.283, tint(pick(this.rockC), 0.8).multiplyScalar(0.8 + r() * 0.3)]);
+        if (sz > 0.6) shadeAt(x, z, sz, 0.25);
+      }
       // grass in open ground, ferns and low growth in the forest
-      const grassy = open.has(this.d.cls[i * this.W + j]);
+      const grassy = open.has(c);
       let n = ld; while (n > 0) { if (r() < n) { const x = j + r(), z = i + r(), s = 0.5 + r() * 0.6;
         (grassy ? inst.grass : inst.low).push([x, this.heightAt(x, z) - 0.05, z, s * (grassy ? 1.1 : 1.4), (0.35 + r() * 0.45) * (grassy ? 1.0 : 1.2), s * 1.4, r() * 6.28, pick(this.lowC).clone().multiplyScalar(0.85 + r() * 0.3)]); } n -= 1; }
     }
@@ -392,6 +422,9 @@ export class World {
     // ground
     const pos = new Float32Array(nx * nz * 3), nor = new Float32Array(nx * nz * 3), uv = new Float32Array(nx * nz * 2), colr = new Float32Array(nx * nz * 3), gm = new Float32Array(nx * nz * 2), idx = [];
     const GM = this.groundKinds(), town = this.d.race.town ? 0.3 : 1;
+    // the relief's shading baked into the ground (a hillshade, as a map's): the slopes facing the sun lighter, those facing away
+    // darker, steep ground a little darker — over 6 m, so that the slopes read through the hemisphere's soft light and the canopy
+    const sh = Math.hypot(this.sunDir.x, this.sunDir.z) || 1, SX = this.sunDir.x / sh, SZ = this.sunDir.z / sh, HS = town < 1 ? 0 : 1;
     for (let i = 0; i < nz; i++) for (let j = 0; j < nx; j++) {
       const x = x0 + j, z = z0 + i, q = i * nx + j, y = this.heightAt(x, z);
       pos[q * 3] = x; pos[q * 3 + 1] = y; pos[q * 3 + 2] = z;
@@ -401,7 +434,10 @@ export class World {
       // a hollow (lower than the ground 3 m around) darker, a crest a little lighter
       const hollow = (this.heightAt(x - 3, z) + this.heightAt(x + 3, z) + this.heightAt(x, z - 3) + this.heightAt(x, z + 3)) / 4 - y;
       const ao = Math.max(0.72, Math.min(1.06, 1 - 0.16 * hollow));
-      const s = (0.55 + 0.45 * Math.max(shade[q], 0.15)) * ao;
+      const gx = (this.heightAt(x + 3, z) - this.heightAt(x - 3, z)) / 6, gz = (this.heightAt(x, z + 3) - this.heightAt(x, z - 3)) / 6;
+      const sl = Math.hypot(gx, gz), face = sl > 1e-4 ? -(gx * SX + gz * SZ) / sl * Math.min(1, sl / 0.3) : 0;
+      const relief = 1 + HS * (0.45 * face - 0.22 * Math.min(1, sl / 0.8));
+      const s = (0.55 + 0.45 * Math.max(shade[q], 0.15)) * ao * relief;
       colr[q * 3] = s; colr[q * 3 + 1] = s * 1.01; colr[q * 3 + 2] = s * 0.98;
       const kd = GM[this.classAt(x, z)] || GM.forest; gm[q * 2] = kd[0]; gm[q * 2 + 1] = kd[1] * town;
     }
@@ -415,7 +451,7 @@ export class World {
     const wc = new Set([this.C.water, this.C.shallow, this.C.marsh_x].filter((v) => v != null));
     for (let i = z0; i < z1; i++) for (let j = x0; j < x1; j++) if (wc.has(this.d.cls[i * this.W + j])) water.push([j, i]);
     if (water.length) {
-      const hs = water.map(([j, i]) => this.d.h[i * this.W + j]).sort((p, q) => p - q), lvl = hs[Math.floor(hs.length * 0.3)] + 0.12;
+      const hs = water.map(([j, i]) => this.h[i * this.W + j]).sort((p, q) => p - q), lvl = hs[Math.floor(hs.length * 0.3)] + 0.12;
       const wp = [], wi = [];
       for (const [j, i] of water) { const v = wp.length / 3; wp.push(j, lvl, i, j + 1, lvl, i, j, lvl, i + 1, j + 1, lvl, i + 1); wi.push(v, v + 2, v + 1, v + 1, v + 2, v + 3); }
       const wg = new T.BufferGeometry(); wg.setAttribute("position", new T.Float32BufferAttribute(wp, 3)); wg.setIndex(wi); wg.computeVertexNormals();
@@ -462,6 +498,26 @@ export class World {
   }
 
   // ---- the course's flags -----------------------------------------------------------------------------------------------------
+  /** A flag the package sets inside a rock (owner, 2026-11-14: « une balise invisible parce qu'elle est dans le rocher ! mets-la
+   *  derrière ») stands at its foot, on the far side as one comes from the previous control: c.flagX / c.flagZ, and c.foot the
+   *  side (« NE ») for the description's column G (« Pied NE », 11.14). The control's circle and its reach stay at c.x, c.z. */
+  footOf(c, prev) {
+    const near = [];
+    const ci = Math.floor(c.x / CH), cj = Math.floor(c.z / CH);
+    for (let a = ci - 1; a <= ci + 1; a++) for (let b = cj - 1; b <= cj + 1; b++) for (const r of this.fb.get(`${a},${b}`)?.rocks || []) near.push(r);
+    let rock = null, best = Infinity;
+    for (const r of near) {
+      const d = Math.hypot(r[0] - c.x, r[1] - c.z), s = r[2] || 1;
+      if (d < s * 0.62 + 0.3 && d < best) { best = d; rock = r; }
+    }
+    if (!rock) return;
+    let dx = c.x - (prev?.x ?? c.x - 1), dz = c.z - (prev?.z ?? c.z);
+    const L = Math.hypot(dx, dz) || 1; dx /= L; dz /= L;
+    const out = (rock[2] || 1) * 0.62 + 0.35;
+    c.flagX = rock[0] + dx * out; c.flagZ = rock[1] + dz * out;
+    const SECT = ["N", "NE", "E", "SE", "S", "SW", "W", "NW"], b = Math.atan2(dx, -dz);
+    c.foot = SECT[((Math.round(b / (Math.PI / 4)) % 8) + 8) % 8];
+  }
   /** Flags at the controls, the start's triangle, the finish's banner; flag(i) gives control i's group. */
   addCourse(course) {
     const T = this.T;
@@ -476,9 +532,12 @@ export class World {
       const t = new T.CanvasTexture(c); t.colorSpace = T.SRGBColorSpace; return new T.MeshBasicMaterial({ map: t, side: T.DoubleSide });
     };
     this.flags = [];
+    const ROCKY = new Set(["boulder", "bigboulder", "cluster", "rockface", "cave"]);
+    course.forEach((c, i) => { if (ROCKY.has(c.feature)) this.footOf(c, course[i - 1]); });
     for (const c of course) {
-      const g = new T.Group(), y = this.heightAt(c.x, c.z);
-      g.position.set(c.x, y, c.z);
+      const fx = c.flagX ?? c.x, fz = c.flagZ ?? c.z;
+      const g = new T.Group(), y = this.heightAt(fx, fz);
+      g.position.set(fx, y, fz);
       if (c.kind === "start") {
         const tri = new T.Mesh(new T.CircleGeometry(0.45, 3), new T.MeshLambertMaterial({ color: 0xb5179e, side: T.DoubleSide }));
         tri.position.y = 1.4; tri.rotation.z = Math.PI / 2;
