@@ -166,6 +166,7 @@ export async function render(main, { query }) {
     await trainingPlay({ id: ev.id, event: ev, race: { courses: ev.courses } }, course);
   };
   const goTab = (k) => { game?.stop(); game = null; show(k); };
+  const hasTab = (k) => tabs.some(([x]) => x === k);     // « Résultats » and « Analyse » are the administrators' (owner, 2026-11-12)
   /** An event published, withdrawn, changed or deleted in « Orga »: the maps and their results are read again when next shown,
    *  Training drawn afresh unless a race is under way there. */
   function listsChanged() {
@@ -215,8 +216,10 @@ export async function render(main, { query }) {
             ${swatch(c.id)}<b>${courseName(c)}</b><span>${t("vt.tr.courseLine", { km: fmt(c.length / 1000, 1), climb: fmt(c.climb || 0), n: c.controls.length - 2 })}</span>
             <span class="muted">${race.event?.played?.includes(c.id) ? t("vo.played") : t(`vt.lvlHint.${LEVELS.includes(c.id) ? c.id : "other"}`)}</span></button>`)}</div>` : ""}
         <div class="vtp-go"><button type="button" class="btn btn-primary" id="vtp-go" ${raw(race && sel.course ? "" : "disabled")}>${t("vt.tr.start")}</button>
-          ${race && sel.course && race.event?.type !== "competition" ? html`<label class="vtp-ghosts" title="${t("vt.gh.tip")}">${t("vt.gh.label")}
-            <select id="vtp-ghosts">${Array.from({ length: GHOSTS_MAX + 1 }, (_, i) => html`<option value="${i}" ${raw(i === ghostCount() ? "selected" : "")}>${i ? fmt(i) : t("vt.gh.none")}</option>`)}</select></label>` : ""}
+          ${race && sel.course && race.event?.type !== "competition" ? html`<span class="vtp-ghosts"><label title="${t("vt.gh.tip")}">${t("vt.gh.label")}
+            <select id="vtp-ghosts">${Array.from({ length: GHOSTS_MAX + 1 }, (_, i) => html`<option value="${i}" ${raw(i === ghostCount() ? "selected" : "")}>${i ? fmt(i) : t("vt.gh.none")}</option>`)}</select></label>
+            <button type="button" class="vtp-info" id="vtp-gh-i" title="${t("vt.gh.what")}" aria-label="${t("vt.gh.what")}" aria-expanded="false">i</button></span>
+            <p class="vtp-gh-what" id="vtp-gh-what" hidden>${t("vt.gh.what")}</p>` : ""}
           ${race && sel.course ? html`<label class="vtp-ghosts" title="${t("vt.view.tip")}">${t("vt.view.label")}
             <select id="vtp-view">${["third", "first"].map((v) => html`<option value="${v}" ${raw(v === savedView() ? "selected" : "")}>${t(`vt.view.opt.${v}`)}</option>`)}</select></label>` : ""}
           <span class="muted">${!race ? t("vt.tr.needMap") : !sel.course ? t("vt.tr.needCourse") : t("vt.tr.ready", { course: courseName(courses.find((c) => c.id === sel.course)), map: mapName(race.id) })}</span></div>
@@ -232,6 +235,8 @@ export async function render(main, { query }) {
       $("#vtp-palm", el)?.addEventListener("click", () => palmares(race, sel.course));
       $("#vtp-ghosts", el)?.addEventListener("change", (e) => { try { localStorage.setItem(GHOSTS_KEY, e.target.value); } catch (x) { /* not kept */ } });
       $("#vtp-view", el)?.addEventListener("change", (e) => { try { localStorage.setItem(VIEW_KEY, e.target.value); } catch (x) { /* not kept */ } });
+      // the ghosts' ⓘ: its tooltip on hover; a tap (no hover on a phone) shows the text under the line
+      $("#vtp-gh-i", el)?.addEventListener("click", (e) => { const p = $("#vtp-gh-what", el), on = p.hidden; p.hidden = !on; e.currentTarget.setAttribute("aria-expanded", String(on)); });
       const moSave = () => saveOpt({ layer: $("#vtp-layer", el)?.value || savedOpt().layer, memory: !!$("#vtp-memory", el)?.checked });
       $("#vtp-layer", el)?.addEventListener("change", moSave);
       $("#vtp-memory", el)?.addEventListener("change", moSave);
@@ -242,6 +247,7 @@ export async function render(main, { query }) {
       el.innerHTML = html`<p class="vtp-back"><button type="button" class="btn btn-sm" id="vtp-back">${t("vt.tr.back")}</button>
         <b>${name} · ${courseName(course)}</b></p><div class="g-root card vtp-game"><div class="card-body"></div></div>`;
       const seed = mySeed();
+      let saving = null;                                   // the run being saved: the finish card's buttons wait for it
       const { mount } = await import("../games/virtually.js");
       const ev = race.event;
       game = mount($(".vtp-game .card-body", el), race.id, {
@@ -253,7 +259,7 @@ export async function render(main, { query }) {
         // (the « Carte du jour »'s ranked runs: the whole map for everyone)
         map: ev ? mapOptOf(ev.mapOpt) : race.day ? null : savedOpt(),
         view: savedView(),                                  // the runner's own choice, an event's races included
-        onFinish: async (run) => {
+        onFinish: (run) => (saving = (async () => {
           const note = () => $("#vt-saved", el);
           if (race.noSave) { if (note()) note().textContent = t("vtg.notKept"); return; }       // a « Terrain libre »: played, not kept
           try {
@@ -267,9 +273,19 @@ export async function render(main, { query }) {
             runsCache.delete(race.id); sel.run = saved.id; drawn.delete("resultats"); drawn.delete("classement"); drawn.delete("analyse");
             if (note()) note().textContent = t("vt.saved");
           } catch (e) { if (note()) note().textContent = t("vt.notSaved"); }
-        },
+        })()),
         // an invented terrain's results are on the training tab itself (the day's), not in « Résultats »
-        onNav: (k) => { if (race.gen) { game?.stop(); game = null; drawChooser(); return; } setQuery({ run: sel.run }); goTab(k === "results" ? "resultats" : "analyse"); },
+        // the finish card's buttons, only where they lead (owner, 2026-11-14: they blanked the page for the accounts without those tabs):
+        // « Voir les résultats » the Résultats tab, else this map's palmarès over the training tab; « Analyser ma course » the Analyse tab
+        navs: race.gen ? ["results"] : ["results", ...(hasTab("analyse") ? ["analysis"] : [])],
+        onNav: async (k) => {
+          if (race.gen) { game?.stop(); game = null; drawChooser(); return; }
+          await saving;                                    // so that the run just finished is the one opened
+          setQuery({ run: sel.run });
+          if (k === "analysis" && hasTab("analyse")) return goTab("analyse");
+          if (hasTab("resultats")) return goTab("resultats");
+          game?.stop(); game = null; drawChooser(); palmares(race, course.id);
+        },
       });
       $("#vtp-back", el).addEventListener("click", () => { game?.stop(); game = null; drawChooser(); });
     };

@@ -344,6 +344,7 @@ export default {
   "vt.gh.label": "Geister",
   "vt.gh.none": "keine",
   "vt.gh.tip": "Trainingsläufe dieser Karte neben dir abgespielt: die dieser Bahn — dein bester, der schnellste, dann die der Läufer nahe deiner Zeit — und abwechselnd Läufe anderer Bahnen der Karte, ihre Bahn nach ihrem Namen. Sie stören dich nie, erscheinen auf der Karte nur, solange du deine Position zeigst, und ändern nichts an den Ergebnissen oder der Rangliste.",
+  "vt.gh.what": "Ein Geist ist ein bereits gelaufener Trainingslauf auf dieser Karte — deiner oder der eines anderen Läufers —, gleichzeitig mit deinem abgespielt: ein durchscheinender Läufer mit seinem Namen, der genau seine Route in seinem Tempo nachläuft. Er stört dich nie und zählt nicht: Er ist da, damit du dich unterwegs mit ihm misst. Wähle, wie viele du willst (standardmäßig keinen).",
   "vt.gh.me": "Mein Bester",
   "vt.gh.you": "Du",
   "vt.gh.done": "Gegen die Geister",

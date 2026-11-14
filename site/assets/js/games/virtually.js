@@ -107,7 +107,7 @@ const ghostsLine = (n, other = 0) => (n ? html`<p class="vt-gh-brief">${tn("vt.g
  * Mount the game for map `raceId` in `root` (Coach › Virtually's Training tab); returns { stop }.
  * opts: course (its id), title (the course's name as the page writes it), onFinish(run) once the finish is punched —
  * run { course, t (the race time, « Ma position »'s penalties included), sp (cumulative splits, s, the same), d (m run),
- * route [[t, x, z]] (the clock's time) } —, onNav("results" | "analysis") the finish card's buttons; base the package's address
+ * route [[t, x, z]] (the clock's time) } —, onNav("results" | "analysis") the finish card's buttons, navs those offered (both by default); base the package's address
  * when it is not a built-in map's (an event's: /api/virtual/events/<id>/pkg/); race the map's race.json as the page's list has it
  * (the briefing shows the course and its descriptions while the package loads); ghosts (owner, 2026-11-12: training only) a list,
  * or a promise of one, of runs replayed beside the runner — { name, t (race time), route [[t, x, z]], mine } —, translucent, named,
@@ -724,7 +724,8 @@ export function mount(root, raceId, opts = {}) {
         <tbody>${legs.map(([leg, tot], i) => html`<tr><td>${i + 1 <= nC ? i + 1 : t("vt.finish")}</td><td>${course[i + 1].code || ""}</td><td>${fmt(leg)}</td><td>${fmt(tot)}</td>${st.posN ? html`<td>${st.legPen[i] ? `+${st.legPen[i]} s` : ""}</td>` : ""}</tr>`)}</tbody></table>
         ${ghostTable(T)}
         <div class="vt-btns"><button type="button" class="btn btn-primary" id="vt-again">${t("vt.again")}</button>
-          ${opts.onNav ? html`<button type="button" class="btn" id="vt-to-res">${t("vt.toResults")}</button><button type="button" class="btn" id="vt-to-an">${t("vt.toAnalysis")}</button>` : ""}</div>
+          ${opts.onNav && (opts.navs || ["results"]).includes("results") ? html`<button type="button" class="btn" id="vt-to-res">${t("vt.toResults")}</button>` : ""}
+          ${opts.onNav && (opts.navs || ["analysis"]).includes("analysis") ? html`<button type="button" class="btn" id="vt-to-an">${t("vt.toAnalysis")}</button>` : ""}</div>
         <p class="muted" id="vt-saved">${opts.onFinish ? t("vt.saving") : ""}</p></div>`);
       $("#vt-again", root).addEventListener("click", () => { $("#vt-over", root).classList.remove("side"); reset(); startScreen(); });
       $("#vt-to-res", root)?.addEventListener("click", () => opts.onNav("results"));

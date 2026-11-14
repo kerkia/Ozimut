@@ -344,6 +344,7 @@ export default {
   "vt.gh.label": "Fantasmas",
   "vt.gh.none": "ninguno",
   "vt.gh.tip": "Carreras de entrenamiento de este mapa reproducidas a tu lado: las de este recorrido — tu mejor, la más rápida y luego las de los corredores cercanos a tu tiempo — y, alternándolas, las de otros recorridos del mapa, con su recorrido escrito tras su nombre. Nunca te estorban, solo aparecen en el mapa mientras muestras tu posición y no cambian nada en los resultados ni en la clasificación.",
+  "vt.gh.what": "Un fantasma es una carrera de entrenamiento ya hecha en este mapa — la tuya o la de otro corredor — reproducida a la vez que la tuya: un corredor translúcido, con su nombre, que repite exactamente su ruta a su ritmo. Nunca te estorba y no cuenta: sirve para medirte con él por el camino. Elige cuántos quieres (ninguno por defecto).",
   "vt.gh.me": "Mi mejor",
   "vt.gh.you": "Tú",
   "vt.gh.done": "Contra los fantasmas",

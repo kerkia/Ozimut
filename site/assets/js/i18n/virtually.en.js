@@ -344,6 +344,7 @@ export default {
   "vt.gh.label": "Ghosts",
   "vt.gh.none": "none",
   "vt.gh.tip": "Training runs of this map replayed beside you: those of this course — your best, the fastest, then those of the runners nearest your time — and, in turn, runs of the map's other courses, their course written after their name. They never get in your way, show on the map only while you show your position, and change nothing in the results or the ranking.",
+  "vt.gh.what": "A ghost is a training run already done on this map — yours or another runner's — replayed at the same time as yours: a translucent runner, with its name, retracing exactly its route at its speed. It never gets in your way and does not count: it is there to race against along the way. Choose how many you want (none by default).",
   "vt.gh.me": "My best",
   "vt.gh.you": "You",
   "vt.gh.done": "Against the ghosts",

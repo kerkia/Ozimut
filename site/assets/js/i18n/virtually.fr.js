@@ -344,6 +344,7 @@ export default {
   "vt.gh.label": "Fantômes",
   "vt.gh.none": "aucun",
   "vt.gh.tip": "Des courses d'entraînement de cette carte rejouées à côté de vous : celles de ce circuit — votre meilleure, la plus rapide, puis celles des coureurs proches de votre temps — et, en alternance, celles d'autres circuits de la carte, leur circuit écrit après leur nom. Ils ne vous gênent pas, n'apparaissent sur la carte que lorsque vous montrez votre position, et ne changent rien aux résultats ni au classement.",
+  "vt.gh.what": "Un fantôme est une course d'entraînement déjà faite sur cette carte — la vôtre ou celle d'un autre coureur — rejouée en même temps que la vôtre : un coureur translucide, avec son nom, qui refait exactement son parcours à sa vitesse. Il ne vous gêne pas et ne compte pas : il sert à vous mesurer à lui en route. Choisissez combien vous en voulez (aucun par défaut).",
   "vt.gh.me": "Mon meilleur",
   "vt.gh.you": "Vous",
   "vt.gh.done": "Contre les fantômes",

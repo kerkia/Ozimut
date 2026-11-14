@@ -4443,6 +4443,11 @@ html.vt-fs-on, html.vt-fs-on body { overflow: hidden; }
 @media (max-width: 640px) { .vtg-row { grid-template-columns: 6.5rem minmax(0, 1fr) 3.6rem; } }
 /* the ghosts (owner, 2026-11-12): their count beside « Commencer », the briefing's line, the finish card's table */
 .vtp-ghosts { display: inline-flex; align-items: center; gap: 6px; font-size: 0.9rem; }
+.vtp-ghosts label { display: inline-flex; align-items: center; gap: 6px; }
+.vtp-info { width: 18px; height: 18px; border-radius: 50%; border: 1.5px solid currentColor; background: none; color: var(--ink-2);
+  font: 600 11px/1 Georgia, serif; font-style: italic; padding: 0; cursor: help; display: inline-flex; align-items: center; justify-content: center; }
+.vtp-info:hover, .vtp-info[aria-expanded="true"] { color: var(--ink); }
+.vtp-gh-what { flex: 0 0 100%; order: 9; margin: 0; font-size: 0.85rem; }
 .vt-gh-brief { margin: 4px 0 8px; font-size: 0.9rem; opacity: 0.9; }
 .vt-gh-h { font-size: 0.95rem; margin: 12px 0 2px; }
 .vt-gh-sw { display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-right: 6px; vertical-align: 0; }
