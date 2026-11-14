@@ -226,7 +226,8 @@ export function mount(root, raceId, opts = {}) {
     if (ghosts.length && !$(".vt-gh-brief", root)) $(".vt-brief-cols", root)?.insertAdjacentHTML("beforebegin", String(ghostsLine(ghosts.length, brief.ghostsOther)));
     // ---- the runner's state ----
     // the runner starts at the far end of the start's taped corridor, facing the triangle (vworld corridor), else on the triangle
-    const START = world.startPos || { x: course[0].x, z: course[0].z, yaw: 0 };
+    // without a corridor, on the triangle facing control 1
+    const START = world.startPos || { x: course[0].x, z: course[0].z, yaw: course[1] ? Math.atan2(course[1].x - course[0].x, -(course[1].z - course[0].z)) : 0 };
     const st = { phase: "ready", t: 0, x: START.x, z: START.z, yaw: START.yaw, pitch: -0.08, next: 1, splits: [], track: [], dist: 0,
       view: opts.view === "first" ? "first" : "third", level: 0, energy: 1, paceT: {}, speed: 0, lastTrack: -1, msgUntil: 0,
       posLeft: 0, posN: 0, pen: 0, legPen: [] };       // « Ma position »: seconds still shown (real time), presses, penalty seconds, per leg
@@ -267,7 +268,7 @@ export function mount(root, raceId, opts = {}) {
     const ro = new ResizeObserver(resize); ro.observe(box);
     // ---- the map panel ----
     const ppm = mapImg.ppm, mPer = ppm / race.k;                    // map canvas px per world metre
-    const mv = { cx: course[0].x * mPer, cy: course[0].z * mPer, zoom: 1, drag: null, ang: 0, free: 0, spin: null };
+    const mv = { cx: course[0].x * mPer, cy: course[0].z * mPer, zoom: 1, drag: null, ang: -st.yaw, free: -st.yaw, spin: null };
     // The map's orientation (owner, 2026-11-14: « juste le mode d'orientation manuel »): turned by hand only — ↺ ↻ on the map's bar,
     // Shift + wheel or the right button, two fingers, , and . —, as a real map in the hand. Two one-shot buttons turn it once, the way
     // the runner faces or the current leg up, and cost ORIENT_S of blank map (the time it takes to set a map by the compass); north up
@@ -531,7 +532,7 @@ export function mount(root, raceId, opts = {}) {
         iv = setInterval(() => { const n = performance.now(); turnBy((dir * turnRate(t0) * (n - last)) / 1000); last = n; }, 30); });
       for (const ev of ["pointerup", "pointerleave", "pointercancel"]) b.addEventListener(ev, stop);
     }
-    const atStart = () => st.next === 1 && Math.hypot(st.x - course[0].x, st.z - course[0].z) < START_R;
+    const atStart = () => st.next === 1 && Math.min(Math.hypot(st.x - course[0].x, st.z - course[0].z), Math.hypot(st.x - START.x, st.z - START.z)) < START_R;
     for (const [id, k] of [["#vt-onorth", "north"], ["#vt-orun", "run"], ["#vt-oleg", "leg"]]) {
       const b = $(id, root); b.innerHTML = ORIENT_ICON[k];
       b.title = t(`vt.map.orient.${k}`, { s: ORIENT_S }); b.setAttribute("aria-label", b.title);
@@ -745,10 +746,8 @@ export function mount(root, raceId, opts = {}) {
       if (mapImg.canvas !== layered) mapImg.canvas = layered;        // the finish drew the whole map
       Object.assign(st, { phase: "ready", t: 0, punchT: -1e9, x: START.x, z: START.z, yaw: START.yaw, next: 1, splits: [], track: [], dist: 0, lastTrack: -1,
         posLeft: 0, posN: 0, pen: 0, legPen: [], level: 0, energy: 1, paceT: {} });
-      // the start corridor's way (the course's `startDir`, a heading as st.yaw, when the race has one), else toward the first control:
-      // the runner faces it and the map lies along it (owner, 2026-11-14: « au départ carte orientée dans le sens du couloir de départ »)
-      const s0 = course[0], c1 = course[1] || s0;
-      st.yaw = Number.isFinite(C0.startDir) ? C0.startDir : Math.atan2(c1.x - s0.x, -(c1.z - s0.z));
+      // the map lies along the start corridor the runner faces (owner, 2026-11-14: « au départ carte orientée dans le sens du couloir
+      // de départ »; the corridor `world.startPos`, else the way to control 1)
       mv.free = -st.yaw; blankUntil = 0;
       showPosBtn(); showSpeed(); showEnergy(); setView("scene"); sheet.hidden = false; describe(); mapSize("small"); mv.cx = course[0].x * mPer; mv.cy = course[0].z * mPer; fitZoom(700); drawMapPanel(); showNorth();
     }
