@@ -113,8 +113,8 @@ def osm_polys(M, pred):
     d = M.src("osm.json")
     if d is None:
         return None
-    import pyproj
-    tr = pyproj.Transformer.from_crs(4326, 2154, always_xy=True)
+    from l93 import transformer
+    tr = transformer(4326, 2154)
     out = []
     for e in d.get("elements", []):
         if e.get("type") != "way" or not pred(e.get("tags", {})) or not e.get("geometry"):
@@ -129,8 +129,8 @@ def osm_lines(M, pred):
     d = M.src("osm.json")
     if d is None:
         return None
-    import pyproj
-    tr = pyproj.Transformer.from_crs(4326, 2154, always_xy=True)
+    from l93 import transformer
+    tr = transformer(4326, 2154)
     out = []
     for e in d.get("elements", []):
         if e.get("type") == "way" and pred(e.get("tags", {})) and e.get("geometry") and len(e["geometry"]) >= 2:
@@ -291,6 +291,24 @@ def t5(M):
     d = M.src("bdtopo_batiment.json")
     if d is None:
         raise Skip("no src/bdtopo_batiment.json")
+    # schools are 520 on purpose (CLAUDE.md « olive 520 for … schools »), though BD TOPO files their buildings under « Commercial et
+    # services »: the generator's own test for a school (its activity zones, « Science et enseignement »)
+    zones = M.src("bdtopo_zone_d_activite_ou_d_interet.json")
+    schools = []
+    for f in (zones or {}).get("features", []):
+        p = f["properties"]; cat = (p.get("categorie") or "").lower(); nat = (p.get("nature") or "").lower()
+        if cat.startswith("science et enseignement") and any(w in nat for w in ("école", "collège", "lycée", "enseignement")):
+            schools.append(shapely.force_2d(shapely.make_valid(shapely.geometry.shape(f["geometry"]))))
+    SCH = unary_union(schools) if schools else Polygon()
+    parcels = []
+    import glob
+    from l93 import transformer
+    tr = transformer(4326, 2154)
+    for fn in glob.glob(str(M.rd / "src" / "parcelles_*.json")):
+        for f in json.load(open(fn, encoding="utf-8"))["features"]:
+            q = shapely.transform(shapely.geometry.shape(f["geometry"]), lambda c: np.c_[tr.transform(c[:, 0], c[:, 1])])
+            if q.intersects(M.box):
+                parcels.append(shapely.make_valid(q))
     bad = []
     for f in d["features"]:
         p = f["properties"]
@@ -300,13 +318,28 @@ def t5(M):
             continue
         g = shapely.make_valid(shapely.geometry.shape(f["geometry"]))
         g = shapely.force_2d(g)
-        if not M.box.intersects(g) or g.area < 30:
+        if not M.box.intersects(g) or g.area < 30 or SCH.contains(g.representative_point()):
             continue
-        ring = g.buffer(4).difference(g.buffer(0.5))
-        ring = ring.difference(M.local(["521"], ring))
-        if ring.area > 5 and ring.intersection(M.local(["520"], ring)).area / ring.area > 0.5:
+        # the building's own parcel: its olive is wrong where it lies against open ground or paving with no wall, fence or hedge
+        # between (what the parcel rule would have made); olive that open ground reaches only through buildings or other olive is
+        # the enclosed or island ground of remarks 6 and 7, and right
+        own = [pg for pg in parcels if pg.intersection(g).area > 0.5 * g.area] if parcels else [g.buffer(4)]
+        if not own:
+            continue
+        free = unary_union(own).difference(M.local(["521"], g, pad=30))
+        op = free.intersection(M.local(["520"], g, pad=30))
+        op = unary_union([q for q in getattr(op, "geoms", [op]) if q.geom_type in ("Polygon", "MultiPolygon")] or [Polygon()])
+        if op.area < 5 or op.area < 0.3 * free.area:
+            continue
+        acc = M.local(ACC, op, pad=1.0)
+        walls = unary_union([x.buffer(0.6) for c in ("411", "513.1", "513.2", "515", "516", "518", "529") for x in M.gs(c, otp=2)
+                             if x.distance(op) < 2] or [Polygon()])
+        if op.boundary.intersection(acc.buffer(0.3)).difference(walls).length >= 3.0:
             bad.append(rp(g))
-    return [m for m in [fail_list(bad, "blocks of flats or shops surrounded by olive")] if m]
+    return [m for m in [fail_list(bad, "blocks of flats or shops whose parcel is olive by open ground")] if m]
+
+
+ACC = ["501", "501.3", "501.4", "401", "402", "403", "404", "405", "406", "408"]
 
 
 def runnable(M):

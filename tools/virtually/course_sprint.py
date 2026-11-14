@@ -2,9 +2,12 @@
 
 Control sites on sprint features: buildings' outer corners (the flag a metre out), monuments, fountains, trees and bushes
 standing alone, stairways' feet, impassable walls' ends — never in a building, a garden, a forbidden area or against a wall.
-Legs are timed on the ground classes' speeds (buildings, gardens, impassable walls, fences and hedges block; 1 m grid,
-skimage's geometric MCP). A leg scores for its route choice: the best route and a second one kept 10 m away from it, within
-12 % of its time; legs 60-260 m, controls 25 m apart, no dog-leg, no leg through another control's circle. Four courses
+Legs are timed on the ground classes' speeds and the game's own obstacles (buildings, gardens, impassable walls, fences and
+hedges at their thickness, parked cars, bins and columns, a runner's body round them; 1 m grid, skimage's geometric MCP). A leg
+scores for its route choice: the best route and a second one kept 10 m away from it, within 12 % of its time and round the other
+side of something one cannot cross. Legs 60-260 m, no dog-leg, no leg through another control's circle; two controls of a course
+near each other only when they follow each other, or when the legs between them are short (the owner, 2026-11-14: « otherwise one
+passes the same place many times »); a leg does not run again along an earlier leg's route; flags and the start in open ground. Four courses
 (blue, yellow, orange short and orange long — a sprint has no violet, nor middle and long distances; few to many controls,
 short to long legs, route choice weighed more and more) into pkg/race.json `courses`; a review picture per course beside the package."""
 import json, math, os, sys
@@ -34,6 +37,24 @@ for w in TJ["walls"]:
     if w["imp"]:
         dr.line([tuple(p) for p in w["pts"]], fill=0, width=1)
 free = np.array(img, bool)
+# the game's own obstacles (vtown.js hits(): a body of 0.3 m against walls and fences at their thickness, cars, posts), so that no
+# leg and no flag counts on a way the runner cannot take (the owner, 2026-11-14: « the tunnel 3-4 is not accessible »); the thin
+# posts (lamps, poles, bollards) are left to the runner, a 1 m grid cannot hold them
+BODY = 0.3
+PROP_R = {"bin": 0.25, "postbox": 0.3, "column": 0.6, "fountain": 1.2, "memorial": 0.7, "cabinet": 0.35, "phone": 0.4, "rpole": 0.22}
+img = Image.fromarray(free.astype(np.uint8)); dr = ImageDraw.Draw(img)
+for w in TJ["walls"]:
+    if w.get("imp") and len(w["pts"]) >= 2:
+        t_ = 0.45 if w["kind"] == "hedge" else 0.08 if w["kind"] in ("fence", "net") else 0.16
+        dr.line([tuple(p) for p in w["pts"]], fill=0, width=max(1, int(round(2 * (t_ + BODY)))))
+for pr in TJ.get("props", []):
+    r_ = PROP_R.get(pr[0])
+    if r_:
+        r_ += BODY; dr.ellipse([pr[1] - r_, pr[2] - r_, pr[1] + r_, pr[2] + r_], fill=0)
+for x_, z_, ang, L_, Wd, *_ in TJ.get("cars", []):
+    a_ = math.radians(ang); h_ = max(0.0, L_ / 2 - Wd / 2); ex, ez = math.sin(a_) * h_, math.cos(a_) * h_
+    dr.line([(x_ - ex, z_ - ez), (x_ + ex, z_ + ez)], fill=0, width=max(1, int(round(Wd + 2 * BODY))))
+free = np.array(img, bool)
 cost = np.where(free, 1.0 / np.maximum(speed, 0.05), np.inf)
 cost[~free] = np.inf
 # the course's area: the map's box, 25 m in from its edge (the world is the box plus the 3D scenery's margin)
@@ -51,6 +72,12 @@ from scipy.ndimage import label as _label
 _lab, _n = _label(free)
 MAIN = _lab == (np.argmax(np.bincount(_lab.ravel())[1:]) + 1) if _n else free
 ok_ground = ok_ground & MAIN
+# a flag in open ground (the owner, 2026-11-14: controls 1 and 2 « very hard to take »): half the ground within 3 m runnable
+from scipy.ndimage import convolve
+_disk = (np.hypot(*np.mgrid[-3:4, -3:4]) <= 3).astype(np.float32)
+OPEN3 = convolve(free.astype(np.float32), _disk / _disk.sum(), mode="constant") >= 0.5
+ok_ground = ok_ground & OPEN3
+CLEAR = distance_transform_edt(free)                               # metres to the nearest obstacle
 
 # ---- control sites ----------------------------------------------------------------------------------------------------------
 sites = []
@@ -119,51 +146,94 @@ xy = xy[keep]; kinds = [k for k, m in zip(kinds, keep) if m]
 print(RACE, "sites", len(xy), {k: kinds.count(k) for k in set(kinds)})
 
 # ---- legs ---------------------------------------------------------------------------------------------------------------------
-def route(i, j, cst):
-    """The best route from site i to j over the cost grid cst (a window of the map): (time units, path [(z, x)…] in the map)."""
-    (z0, x0), sub = cst
-    m = MCP_Geometric(sub, fully_connected=True)
-    cc, _ = m.find_costs([(int(xy[i][1]) - z0, int(xy[i][0]) - x0)])
-    end = (int(xy[j][1]) - z0, int(xy[j][0]) - x0)
-    if not np.isfinite(cc[end]):
-        return math.inf, []
-    return float(cc[end]), [(z + z0, x + x0) for z, x in m.traceback(end)]
+# each site's cost field over a window round it, computed once and kept compact (float16): a leg's time and route come from its
+# first control's field, its route choice from the two fields added
+from collections import OrderedDict
+from scipy.ndimage import label as _lab2
+RW = 380                                                            # the window's half side: the longest leg and a margin
+_F, _M = OrderedDict(), OrderedDict()                               # fields (z0, x0, costs), and the searches kept for tracebacks
 
 
-def path_cost(pth):
-    p = np.array(pth); d = np.hypot(*np.diff(p, axis=0).T)
-    c = cost[p[:, 0], p[:, 1]]
-    return float(np.sum(d * (c[1:] + c[:-1]) / 2))
+def field(i, keep=False):
+    if i in _F and (not keep or i in _M):
+        _F.move_to_end(i); return _F[i]
+    x, z = int(xy[i][0]), int(xy[i][1])
+    x0, x1, z0, z1 = max(0, x - RW), min(W, x + RW + 1), max(0, z - RW), min(H, z + RW + 1)
+    m = MCP_Geometric(cost[z0:z1, x0:x1], fully_connected=True)
+    cc, _ = m.find_costs([(z - z0, x - x0)])
+    _F[i] = (z0, x0, np.minimum(cc, 6e4).astype(np.float16))
+    if len(_F) > 300:
+        _F.popitem(last=False)
+    if keep:
+        _M[i] = m
+        if len(_M) > 6:
+            _M.popitem(last=False)
+    return _F[i]
 
 
-_legs = {}
+def trace(i, z, x):
+    if i not in _M or i not in _F:
+        field(i, keep=True)
+    z0, x0, _ = _F[i]
+    return [(a + z0, b + x0) for a, b in _M[i].traceback((z - z0, x - x0))]
+
+
+_legs, _ch = {}, {}
+CHOICE_E = (0.03, 0.06, 0.09, 0.12)
 
 
 def leg(i, j):
-    """(best time, the second route's time over the best's, the two routes' gap) — the second route kept 10 m away."""
+    """(best time, the second route's time over the best's, unused, best route, second route, ground enclosed between them);
+    the choice (r2, p2, enclosed) only once asked for (choice())."""
     if (i, j) in _legs:
-        return _legs[(i, j)]
-    x0 = int(max(0, min(xy[i][0], xy[j][0]) - 130)); x1 = int(min(W, max(xy[i][0], xy[j][0]) + 130))
-    z0 = int(max(0, min(xy[i][1], xy[j][1]) - 130)); z1 = int(min(H, max(xy[i][1], xy[j][1]) + 130))
-    sub = cost[z0:z1, x0:x1]
-    t1, p1 = route(i, j, ((z0, x0), sub))
-    if not p1:
-        _legs[(i, j)] = (math.inf, 9, 0, [], []); return _legs[(i, j)]
-    band = np.zeros(sub.shape, bool); pa = np.array(p1) - [z0, x0]; band[pa[:, 0], pa[:, 1]] = True
-    band = binary_dilation(band, iterations=10)
-    for (z, x) in (pa[0], pa[-1]):                                  # the second route leaves the same control
-        band[max(0, z - 12):z + 13, max(0, x - 12):x + 13] = False
-    c2 = sub.copy(); c2[band] *= 6
-    _, p2 = route(i, j, ((z0, x0), c2))
-    r2 = path_cost(p2) / t1 if p2 else 9
-    if p2:
-        line = np.zeros(sub.shape, bool); line[pa[:, 0], pa[:, 1]] = True
-        dd = distance_transform_edt(~line); q = np.array(p2) - [z0, x0]
-        gap = float(np.mean(dd[q[:, 0], q[:, 1]]))
+        t1, p1 = _legs[(i, j)]
+        r2, p2, blk = _ch.get((i, j), (9, [], 0))
+        return t1, r2, 0, p1, p2, blk
+    fi = field(i, keep=True)
+    zj, xj = int(xy[j][1]), int(xy[j][0])
+    if not (fi[0] <= zj < fi[0] + fi[2].shape[0] and fi[1] <= xj < fi[1] + fi[2].shape[1]):
+        _legs[(i, j)] = (math.inf, [])
     else:
-        gap = 0
-    _legs[(i, j)] = (t1, r2, gap, p1, p2)
-    return _legs[(i, j)]
+        t1 = float(fi[2][zj - fi[0], xj - fi[1]])
+        _legs[(i, j)] = (t1, trace(i, zj, xj)) if t1 < 6e4 else (math.inf, [])
+    return leg(i, j)
+
+
+def choice(i, j):
+    """A real choice is a piece of ground one cannot cross, 150 m² at least, that the ground every route within e of the best
+    passes over goes round on both sides (the owner, 2026-11-14: « non-trivial route choices »): r2 = 1 + the smallest e."""
+    if (i, j) in _ch:
+        return _ch[(i, j)]
+    t1, p1 = _legs[(i, j)]
+    fi, fj = field(i), field(j)
+    oz0, ox0 = max(fi[0], fj[0]), max(fi[1], fj[1])
+    oz1, ox1 = min(fi[0] + fi[2].shape[0], fj[0] + fj[2].shape[0]), min(fi[1] + fi[2].shape[1], fj[1] + fj[2].shape[1])
+    T = fi[2][oz0 - fi[0]:oz1 - fi[0], ox0 - fi[1]:ox1 - fi[1]].astype(np.float32) +         fj[2][oz0 - fj[0]:oz1 - fj[0], ox0 - fj[1]:ox1 - fj[1]].astype(np.float32)
+    blocked = ~np.isfinite(cost[oz0:oz1, ox0:ox1])
+    r2, blk, p2 = 9, 0, []
+    for e in CHOICE_E:
+        near = T <= t1 * (1 + e)
+        lab, n = _lab2(~near)
+        if n == 0:
+            continue
+        edge = np.unique(np.concatenate([lab[0], lab[-1], lab[:, 0], lab[:, -1]]))
+        nb = np.bincount(lab[blocked], minlength=n + 1)
+        nb[edge] = 0; nb[0] = 0
+        k = int(np.argmax(nb))
+        if nb[k] >= 150:
+            r2, blk = 1 + e, int(nb[k])
+            line = np.zeros(T.shape, bool); pa = np.array(p1) - [oz0, ox0]
+            ok_ = (pa[:, 0] >= 0) & (pa[:, 0] < T.shape[0]) & (pa[:, 1] >= 0) & (pa[:, 1] < T.shape[1])
+            line[pa[ok_, 0], pa[ok_, 1]] = True
+            dd = distance_transform_edt(~line)
+            ring = near & binary_dilation(lab == k, iterations=2)
+            if ring.any():
+                c = np.unravel_index(np.argmax(np.where(ring, dd, -1)), T.shape)
+                cz, cx = int(c[0]) + oz0, int(c[1]) + ox0
+                p2 = trace(i, cz, cx) + trace(j, cz, cx)[::-1]
+            break
+    _ch[(i, j)] = (r2, p2, blk)
+    return _ch[(i, j)]
 
 
 def seg_cross(a, b, c, d):
@@ -173,24 +243,47 @@ def seg_cross(a, b, c, d):
 
 # the colour levels at a sprint's lengths (the Coach page names them, vt.lvl.<id>): no violet in sprint, and its orange is short
 # or long, not middle or long distance (owner, 2026-11-11)
-LEVELS = {"blue": dict(n=6, km=1.0, lo=50, hi=170, rc=0.0), "yellow": dict(n=8, km=1.4, lo=60, hi=200, rc=0.3),
-          "orange_s": dict(n=10, km=1.8, lo=60, hi=220, rc=1.0), "orange_l": dict(n=14, km=2.8, lo=80, hi=280, rc=2.0)}
+LEVELS = {"blue": dict(n=6, km=1.0, lo=50, hi=170, rc=0.0, sep=70), "yellow": dict(n=8, km=1.4, lo=60, hi=200, rc=0.3, sep=70),
+          "orange_s": dict(n=10, km=1.8, lo=60, hi=220, rc=1.0, sep=90), "orange_l": dict(n=14, km=2.8, lo=80, hi=280, rc=2.0, sep=90)}
+
+
+def apart(q, seq, L):
+    """May a point q follow the course seq? Not near an earlier control but the last, unless the legs between them are short:
+    `sep` metres, or half the way along the course between them when that is less."""
+    along = math.hypot(*(q - xy[seq[-1]]))
+    for m in range(len(seq) - 2, -1, -1):
+        along += math.hypot(*(xy[seq[m + 1]] - xy[seq[m]]))
+        if math.hypot(*(q - xy[seq[m]])) < min(L["sep"], 0.5 * along):
+            return False
+    return True
+
+
+def route_mask(pth, r=6):
+    """The cells within r m of a route."""
+    m = np.zeros((H, W), bool)
+    if pth:
+        pa = np.array(pth); m[pa[:, 0], pa[:, 1]] = True
+        z0, z1, x0, x1 = max(0, pa[:, 0].min() - r - 1), pa[:, 0].max() + r + 2, max(0, pa[:, 1].min() - r - 1), pa[:, 1].max() + r + 2
+        m[z0:z1, x0:x1] = binary_dilation(m[z0:z1, x0:x1], iterations=r)
+    return m
 
 
 def make(level, tries=60):
     L = LEVELS[level]; best = None
     # the start: a site near the box's middle-south (the map's bottom), the finish near it
+    starts = [k for k in range(len(xy)) if CLEAR[int(xy[k][1]), int(xy[k][0])] >= 2.5] or list(range(len(xy)))
     for t in range(tries):
-        s = int(rng.integers(len(xy)))
+        s = int(starts[int(rng.integers(len(starts)))])          # the start in the open: a runner sees where to go
         seq = [s]; score = 0.0; legs_ = []
+        used = np.zeros((H, W), bool); last_mask = None
         while len(seq) < L["n"] + 1:
             last = seq[-1]
             d = np.hypot(xy[:, 0] - xy[last, 0], xy[:, 1] - xy[last, 1])
             cand = [int(c) for c in np.nonzero((d > L["lo"]) & (d < L["hi"]))[0] if c not in seq]
             rng.shuffle(cand)
-            got = None
-            for c in cand[:25]:
-                if any(math.hypot(*(xy[c] - xy[q])) < 25 for q in seq):
+            goods = []
+            for c in cand[:40]:
+                if any(math.hypot(*(xy[c] - xy[q])) < 25 for q in seq) or not apart(xy[c], seq, L):
                     continue
                 if len(seq) >= 2:
                     a1 = math.atan2(*(xy[last] - xy[seq[-2]])[::-1]); a2 = math.atan2(*(xy[c] - xy[last])[::-1])
@@ -198,17 +291,30 @@ def make(level, tries=60):
                         continue
                 if any(seg_cross(xy[last], xy[c], xy[seq[k]], xy[seq[k + 1]]) for k in range(len(seq) - 2)):
                     continue
-                t1, r2, gap, p1, p2 = leg(last, c)
+                t1, r2, gap, p1, p2, blk = leg(last, c)
                 if not math.isfinite(t1) or t1 > 2.6 * d[c]:
+                    continue
+                # not again along an earlier leg's route (the leg before excepted: they share a control)
+                pa_ = np.array(p1)
+                if used[pa_[:, 0], pa_[:, 1]].mean() > 0.2:
                     continue
                 # no leg through another control's circle (15 m)
                 pa = np.array(p1)
                 if any(np.min(np.hypot(pa[:, 1] - xy[q][0], pa[:, 0] - xy[q][1])) < 15 for q in seq[:-1]):
                     continue
-                choice = max(0.0, 1.12 - r2) / 0.12 if gap > 12 else 0.0
-                got = (c, choice, t1); break
+                if L["rc"] > 0:
+                    r2, p2, blk = choice(last, c)
+                choice_ = max(0.0, 1.15 - r2) / 0.12 if blk >= 150 else 0.0
+                goods.append((c, choice_, t1))
+                # the levels that want route choices look at a few legs and take the one with the best (the first otherwise)
+                if len(goods) >= (4 if L["rc"] >= 1 else 1):
+                    break
+            got = max(goods, key=lambda g_: g_[1]) if goods else None
             if got is None:
                 break
+            if last_mask is not None:
+                used |= last_mask
+            last_mask = route_mask(leg(last, got[0])[3])
             seq.append(got[0]); legs_.append(got); score += L["rc"] * got[1] + 0.2 * (got[2] / d[got[0]] > 1.25)
         if len(seq) < L["n"] + 1:
             continue
@@ -217,7 +323,8 @@ def make(level, tries=60):
         for _ in range(200):
             a = rng.uniform(0, 2 * math.pi); r = rng.uniform(40, 140)
             q = xy[seq[-1]] + r * np.array([math.cos(a), math.sin(a)])
-            if inbox(*q) and ok_ground[int(q[1]), int(q[0])] and not near_block[int(q[1]), int(q[0])] and math.hypot(*(q - xy[s])) < 200:
+            if inbox(*q) and ok_ground[int(q[1]), int(q[0])] and not near_block[int(q[1]), int(q[0])] and math.hypot(*(q - xy[s])) < 200 \
+                    and all(math.hypot(*(q - xy[k])) >= min(L["sep"], 60) for k in seq[1:-1]):
                 fin = q; break
         if fin is None:
             continue
@@ -230,13 +337,18 @@ def make(level, tries=60):
     return best
 
 
-out = []
-used_starts = set()
 HG = (lambda a: R["base"] + (a[..., 0] * 256 + a[..., 1]) / 100)(np.asarray(Image.open(P / "h.png").convert("RGB")).astype(np.float32))
-for level in LEVELS:
-    b = make(level, 60 if level in ("blue", "yellow") else 200)                 # the orange courses searched longer: route choices
+
+
+def do_level(level):
+    """One level's course and its review picture (each level in a process of its own: the levels are set side by side)."""
+    import time
+    global rng
+    rng = np.random.default_rng(SEED * 100 + list(LEVELS).index(level))
+    t0 = time.time()
+    b = make(level, 40 if level in ("blue", "yellow") else 50)                 # the orange courses searched longer: route choices
     if b is None:
-        print(level, "no course found"); continue
+        print(level, "no course found", flush=True); return None
     score, seq, fin, length, legs_ = b
     codes = list(range(31, 31 + len(seq) - 1)); rng.shuffle(codes)
     ctl = [{"kind": "start", "x": round(float(xy[seq[0]][0]), 1), "z": round(float(xy[seq[0]][1]), 1)}]
@@ -244,18 +356,18 @@ for level in LEVELS:
         ctl.append({"kind": "control", "x": round(float(xy[k][0]), 1), "z": round(float(xy[k][1]), 1), "code": str(code), "feature": kinds[k]})
     ctl.append({"kind": "finish", "x": round(float(fin[0]), 1), "z": round(float(fin[1]), 1)})
     rc = sum(1 for l in legs_ if l[1] > 0.3)
-    print(f"{level}: {len(seq) - 1} controls, {length / 1000:.2f} km, {rc} legs with a route choice, score {score:.2f}")
+    print(f"{level}: {len(seq) - 1} controls, {length / 1000:.2f} km, {rc} legs with a route choice, score {score:.2f}, "
+          f"{time.time() - t0:.0f} s", flush=True)
     up = 0.0                                                         # the climb along the best routes
     for i0, i1 in zip(seq, seq[1:]):
         pa = np.array(leg(i0, i1)[3]); hz = gaussian_filter1d(HG[pa[:, 0], pa[:, 1]], 3); up += float(np.clip(np.diff(hz), 0, None).sum())
-    out.append({"id": level, "controls": ctl, "length": round(length), "climb": int(round(up / 5.0) * 5)})
     # review picture
     rv = Image.fromarray(np.where(free[..., None], np.array([250, 250, 245], np.uint8), np.array([60, 60, 60], np.uint8))).convert("RGB")
     d_ = ImageDraw.Draw(rv)
     for (c, ch, t1), (i0, i1) in zip(legs_, zip(seq, seq[1:])):
-        _, _, _, p1, p2 = leg(i0, i1)
+        _, _, _, p1, p2, _ = leg(i0, i1)
         d_.line([(x, z) for z, x in p1], fill=(0, 120, 255), width=2)
-        if ch > 0:
+        if ch > 0 and p2:
             d_.line([(x, z) for z, x in p2], fill=(0, 200, 90), width=2)
     pts = [tuple(xy[k]) for k in seq] + [tuple(fin)]
     for a_, b_ in zip(pts, pts[1:]):
@@ -264,6 +376,13 @@ for level in LEVELS:
         d_.ellipse([x - 12, z - 12, x + 12, z + 12], outline=(200, 0, 160), width=2)
         d_.text((x + 13, z - 13), "S" if i == 0 else "F" if i == len(pts) - 1 else str(i), fill=(200, 0, 160))
     rv.save(P.parent / f"course_review_{level}.png")
-R.pop("course", None)
-R["courses"] = out
-json.dump(R, open(P / "race.json", "w"), indent=1)
+    return {"id": level, "controls": ctl, "length": round(length), "climb": int(round(up / 5.0) * 5)}
+
+
+if __name__ == "__main__":
+    from multiprocessing import Pool
+    with Pool(len(LEVELS)) as pool:
+        out = [o for o in pool.map(do_level, list(LEVELS)) if o]
+    R.pop("course", None)
+    R["courses"] = out
+    json.dump(R, open(P / "race.json", "w"), indent=1)

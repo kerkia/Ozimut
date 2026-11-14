@@ -185,8 +185,8 @@ def _fac_colours(fac):
 
 FACRGB = _fac_colours(FAC["buildings"])
 # shops, cafés and the like (OpenStreetMap): a building holding one has a shop front on its ground floor
-import pyproj
-tr = pyproj.Transformer.from_crs(4326, 2154, always_xy=True)
+from l93 import transformer
+tr = transformer(4326, 2154)
 osm = json.load(open(SRC / "osm.json"))["elements"]
 SHOPS = []
 for e in osm:

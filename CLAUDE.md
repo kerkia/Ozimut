@@ -1249,7 +1249,31 @@ Every multiple-choice game was played through to its score page at phone size, w
   strip came out paved); OSM's lawns kept inside a paved square; ground reached only through 520 is 520; one tangent at each point,
   from the most natural object through it (water, contours, vegetation, open land without angles); a curve's points 4 m apart at
   least; a street crossed square, the contour coming to it over 3 m; a stairway centred between buildings or 520 with its shift
-  smoothed. course_sprint.py tests a control's cell after rounding it as race.json keeps it. **Every remark so far is listed, with
+  smoothed. course_sprint.py tests a control's cell after rounding it as race.json keeps it. **The remarks' tests made to pass**
+  (2026-11-14, `tools/virtually/test_remarks.py gif`; every rule generic): ground no way reaches from the map's edge — once the
+  cover is drawn (`town_map.py` « reach ») and again in `legibility.py` once its gaps are closed (`sp.520.enclosed`, before the
+  slivers) — is 520, or 521 when buildings make 85 % of its edge: courtyards behind a closed 1.5 m entrance, ground closed by a pond
+  and olive, fully fenced tennis courts (their fence kept); a canopy over it is dropped, a hedge mostly bounded by olive joins it; a
+  check pass on areas alone that encloses ground is followed by a full pass (what lies inside goes); walls and fences cut where they
+  enter the olive; a bridge's deck is never olive, one deck a bridge (the widest; another whose axis lies 60 % within it dropped),
+  its sides 3.6 m apart and off the passages' mouths, sides of two bridges side by side under 2.9 m apart kept once; a passage through
+  a building must lead out on both sides (not into a garden); a watercourse runs on under a bridge (the owner: « OpenStreetMap is
+  right here, there is no discontinuity »), cut only along an OSM culvert or tunnel; a court's 501.1 outline only inside the paving;
+  an unpaved path ending 0.3-4 m short of the paving or another path drawn on to it; a contour's ends kept exact through
+  `square_streets` (a loop came out 0.4 m open), a loop under 600 m² dropped once smoothed, a loop cut by a stairway rejoined at its
+  first point, stairways inside the olive not drawn (nor cutting contours); 512.2 dropped where another black line bounds the lower
+  level; a paved edge the check finds without 501.1 drawn there; a path open to all (OSM, not `access`/`foot` private) runs
+  through the olive on a corridor of its own, 2.2 m (a right of way: the olive is what is wrong); a passage whose end stops inside a
+  building is drawn on until it comes out (10 m at most: porches, the station); a ring that turns back on itself (over 170°, a
+  triangle under 0.5 m²) loses that point, again until none is left (needles after the overlays); the check joins again two
+  contour ends facing each other under 8 m apart with no stairway left between them (a stairway an earlier pass dropped); building
+  outlines (521.9) stay in the olive as their buildings do; `build.py` opens the railway's 3 m stroke within 2 m of a passage (a
+  road under the RER had the track's block across its mouth in the game); `src/olive_origin.json` says which rule made each piece
+  of olive (parcel, school, private or railway; enclosure; island; no way reaches; hedge). The test of remark 5 leaves schools out (520 by design) and looks
+  only at olive on the block's own parcel that lies against open ground with no wall between (the enclosed and island ground of
+  remarks 6 and 7 is right). **Windows' Smart App Control** (2026-11-14) refuses some DLLs of the venv `C:\Kerkia\Ozimut\work\vr3d\venv`
+  (pyproj, rasterio, laspy, lazrs): run the town tools with the global `py` (Python 3.14), whose copies load; `tools/virtually/l93.py`
+  gives WGS 84 <-> Lambert 93 in numpy when pyproj does not load. **Every remark so far is listed, with
   test places in Gif, in the sessions' notes `standard-remarks.md`**: the legibility session turns them into a rule catalogue from
   ISSprOM's full text and regression tests (2026-11-13). These rules are the generator's (`town_map.py`,
   `mkocd.mjs`), so every town map made after Gif has them — and **Cartographier's « Plan de ville (sprint) » is this same
@@ -1337,10 +1361,18 @@ Every multiple-choice game was played through to its score page at phone size, w
   **`course_sprint.py`**: sites on outer building corners (the flag 1.1 m out), monuments, fountains, lone trees and bushes,
   impassable walls' ends, stairways' feet, each on runnable ground joined to the rest of the town (2026-11-12: a wall's end in a pocket
   between a wall and a garden had taken a control no route reached); legs 60-260 m timed on the speeds grid (skimage `MCP_Geometric`, a 130 m window), a leg
-  scoring for its route choice (a second route kept 10 m off the best, within 12 % of its time); four courses at the sprint's
+  scoring for its route choice; since 2026-11-14 (the owner: « non-trivial route choices », « controls hard to take », « two controls
+  of a course close only if consecutive, else one passes the same place many times », « the tunnel 3-4 is not accessible »): the
+  grid holds the game's own obstacles (walls, fences and hedges at their thickness, parked cars, bins, columns, a 0.3 m body round
+  them: `vtown.js hits()`); each site's cost field over a 380 m window is computed once (float16, kept), a leg's time and route
+  read from its first control's; a route choice is a piece of ground one cannot cross, 150 m² at least, that the ground every route
+  within 3, 6, 9 or 12 % of the best passes over goes round on both sides (the two fields added); the orange levels take the best of
+  four acceptable legs, the others the first; flags with half the ground within 3 m runnable, the start 2.5 m from any obstacle;
+  two controls of a course not consecutive at least `sep` apart (70 m blue and yellow, 90 m orange) or half the way along the
+  course between them when less; a leg not run again within 6 m of an earlier leg's route (the leg before apart) over 20 % of it;
+  the four levels set side by side, a process each (`multiprocessing`: 1 to 12 min a level on the PC); four courses at the sprint's
   levels (owner, 2026-11-11: « in Sprint there is no violet, and middle makes no sense »), `race.courses` [{ id:
-  blue|yellow|orange_s|orange_l, controls, length, climb }] (6, 8, 10, 14 controls, 0.85 to 2.7 km in Gif; the orange ones searched 200
-  times), `orange_s` / `orange_l` the Coach page's « Orange court » / « Orange long » (`LEVELS`, `vt.lvl.*`), review pictures `course_review_<id>.png`; then `thumb.mjs <race>` and `upload.py <race> [--remote]`. New feature names `vt.f.corner|monument|fountain|bush|stairs|wallend`, the credit `vt.src.town`
+  blue|yellow|orange_s|orange_l, controls, length, climb }] (6, 8, 10, 14 controls, 0.85 to 2.7 km in Gif; 40 tries blue and yellow, 80 orange), `orange_s` / `orange_l` the Coach page's « Orange court » / « Orange long » (`LEVELS`, `vt.lvl.*`), review pictures `course_review_<id>.png`; then `thumb.mjs <race>` and `upload.py <race> [--remote]`. New feature names `vt.f.corner|monument|fountain|bush|stairs|wallend`, the credit `vt.src.town`
   (IGN LiDAR HD, BD TOPO, BD ORTHO, Licence Ouverte 2.0; OpenStreetMap ODbL; cadastre; Panoramax's authors). Measured 60 fps in
   headless Edge at 1400 × 860 and at a phone's 390 × 844. **Not usable** (study of 2026-11-11, notes `virtually-sprint-report.md` in the sessions' notes folder): Google's
   Photorealistic 3D Tiles (refused with 403 to an EEA project since 2025-07-08, and no storing, deriving or « with any map »

@@ -300,11 +300,18 @@ def check(doc, fix=False, frame=None, log=print, passes=2, decks=None):
     railway are taken for a bridge's sides (as Cartographier's checks do)."""
     total = {}
     rep = None
-    for n in range(passes if fix else 1):
+    n = 0
+    while n < (passes if fix else 1):
         rep = _once(doc, fix, frame, log, f"pass {n + 1}" if fix else "check", areas_only=n > 0, decks=decks)
         for r, v in rep.fixed.items():
             total[r] = total.get(r, 0) + v
         if not fix or sum(rep.fixed.values()) == 0:
+            break
+        n += 1
+        if n >= passes and rep.fixed.get("enclosed"):      # (ground turned 520 by a pass on areas alone: one full pass more, to
+            rep = _once(doc, fix, frame, log, f"pass {n + 1}", decks=decks)   # take out what lies inside it)
+            for r, v in rep.fixed.items():
+                total[r] = total.get(r, 0) + v
             break
     if fix and sum(rep.fixed.values()):
         rep = _once(doc, False, frame, log, "check", decks=decks)
@@ -572,6 +579,43 @@ def _once(doc, fix, frame, log, what, areas_only=False, decks=None):
             cover[a] = shapely.make_valid(cover[a]).difference(unary_union(x)); changed.add(a)
             rep.fix("combo", sum(1 for p in x if p.area >= 0.5))
     step("overlaps")
+    # ---- 3b. ground no way reaches (ISSprOM 520: « areas entirely enclosed within uncrossable features should be filled with this
+    # symbol »; 521: inside a building block, part of the building), once the gaps above are closed: the uncrossable areas and
+    # lines cut the frame into pieces; a piece that does not reach the frame's edge becomes 520, or 521 when buildings make 85 %
+    # of its edge (2026-11-14: courtyards whose 1.5 m entrance the gap fix had closed stayed paving)
+    _bar = [cover[c] for c in ("521", "520", "411", "301", "709") if c in cover and not cover[c].is_empty]
+    for c_, w_ in (("515", 0.4), ("518", 0.4), ("529", 0.4), ("509.1", 0.3)):
+        _bar += [f["g"].buffer(w_ * k / 2, cap_style="flat") for f in line_feats([c_])]
+    _opens = unary_union([PASS] + [f["g"] for c_ in ("522", "512.3") for f in by.get(c_, []) if f["otp"] == 3])
+    BARR = shapely.make_valid(unary_union(_bar))
+    if not _opens.is_empty:
+        BARR = BARR.difference(_opens)
+    _free = shapely.make_valid(frame.difference(BARR))
+    _Bb = shapely.make_valid(cover["521"]).buffer(0.4) if not cover["521"].is_empty else Polygon()
+    _ol, _bf = [], []
+    for q in as_polys(_free):
+        if q.area < 0.5 or q.distance(frame.exterior) <= 1.0:
+            continue
+        L_ = q.exterior.length
+        to_b = L_ > 0 and not _Bb.is_empty and q.exterior.intersection(_Bb).length >= 0.85 * L_
+        if fix:
+            (_bf if to_b else _ol).append(q)
+        else:
+            rep.add("enclosed", q, f"{'521' if to_b else '520'} {q.area:.0f} m² no way reaches")
+    if fix and (_ol or _bf):
+        U_ = unary_union(_ol + _bf).buffer(0.02)
+        for c_ in ground:
+            if c_ in cover and c_ not in ("520",) and not cover[c_].is_empty and cover[c_].intersects(U_):
+                cover[c_] = shapely.make_valid(cover[c_]).difference(U_); changed.add(c_)
+        if _ol:
+            cover["520"] = unary_union([cover["520"]] + [q.buffer(0.02) for q in _ol]); changed.add("520")
+        if _bf:
+            cover["521"] = unary_union([cover["521"]] + [q.buffer(0.02) for q in _bf]); changed.add("521")
+        rep.fix("enclosed", len(_ol) + len(_bf))
+        for f in by.get("522", []):                           # (a canopy over ground no way reaches: that ground's, not drawn)
+            if f["otp"] == 3 and f["i"] not in drop and f["g"].area > 0 and f["g"].intersection(U_).area >= 0.5 * f["g"].area:
+                drop.add(f["i"])
+    step("enclosed")
     # ---- 2. width, slivers and small areas
     def width_of(c):
         return (mins(c).get("width") or RULES["minWidthDefaultMm"]) * k
@@ -871,6 +915,41 @@ def _once(doc, fix, frame, log, what, areas_only=False, decks=None):
                     rep.add("course_on_base", f["g"], f"{c0} on the base map")
         # contours cut where they cross a stairway (ISSprOM 101)
         STB = unary_union([f["g"].buffer(_sw(f) * k / 2 + 0.3, cap_style="flat") for f in line_feats(k_stairs)] or [Polygon()])
+        # first, two contour ends facing each other under 8 m apart with no stairway left between them are joined again (2026-11-14:
+        # a contour cut at a stairway an earlier pass then took out of the olive kept its gap, two ends in the open)
+        if fix:
+            cf = [f for f in line_feats(RULES["contours"]) if f["g"] is not None and f["g"].length > 0]
+            ends_ = []
+            for f in cf:
+                cs_ = list(f["g"].coords)
+                if len(cs_) >= 2 and math.dist(cs_[0], cs_[-1]) > 0.01:
+                    for e_, q_ in ((0, 1), (-1, -2)):
+                        dx_, dy_ = cs_[e_][0] - cs_[q_][0], cs_[e_][1] - cs_[q_][1]; n_ = math.hypot(dx_, dy_) or 1
+                        ends_.append((f, e_, cs_[e_], (dx_ / n_, dy_ / n_)))
+            joined = set()
+            pairs_ = []
+            for ia, (fa, ea, pa, da) in enumerate(ends_):
+                for fb, eb, pb, db in ends_[ia + 1:]:
+                    d_ = math.dist(pa, pb)
+                    if fb is fa or fa["c"] != fb["c"] or d_ > 8 or d_ < 1e-6:
+                        continue
+                    ux, uy = (pb[0] - pa[0]) / d_, (pb[1] - pa[1]) / d_
+                    if da[0] * ux + da[1] * uy < 0.8 or -(db[0] * ux + db[1] * uy) < 0.8:
+                        continue
+                    seg_ = LineString([pa, pb])
+                    if (not STB.is_empty and seg_.intersects(STB)) or seg_.distance(frame.exterior) < 1.0:
+                        continue
+                    pairs_.append((d_, fa, ea, fb, eb))
+            for d_, fa, ea, fb, eb in sorted(pairs_, key=lambda t_: t_[0]):
+                if fa["i"] in joined or fb["i"] in joined:
+                    continue
+                ca, cb = list(fa["g"].coords), list(fb["g"].coords)
+                ca = ca if ea == -1 else ca[::-1]
+                cb = cb if eb == 0 else cb[::-1]
+                g_ = LineString(ca + cb)
+                set_line(fa, g_, "contour_end"); drop.add(fb["i"]); joined |= {fa["i"], fb["i"]}
+                fa["g"] = g_
+                rep.fix("contour_end")
         if not STB.is_empty:
             for f in line_feats(RULES["contours"]):
                 if f["i"] in drop or not f["g"].intersects(STB):
@@ -1021,7 +1100,11 @@ def _once(doc, fix, frame, log, what, areas_only=False, decks=None):
                         run_m = float(sl[i_:j_].sum())
                         if run_m >= 3:
                             m_ = P0[(i_ + j_) // 2]
-                            rep.add("paved_edge", Point(m_), f"{pc} {run_m:.0f} m of edge without 501.1")
+                            if fix:                           # (the area changed under the generator's edge: drawn again there)
+                                new.append({"sym": sym_of("501.1"), "otp": 2, "rings": [to_mm(LineString(V[i_:j_ + 1]))]})
+                                rep.fix("paved_edge")
+                            else:
+                                rep.add("paved_edge", Point(m_), f"{pc} {run_m:.0f} m of edge without 501.1")
                         i_ = j_
         # two black lines side by side closer than 0.15 mm (ISSprOM §3.3)
         BLK = RULES["blackLines"]
@@ -1086,7 +1169,10 @@ def _once(doc, fix, frame, log, what, areas_only=False, decks=None):
                     continue
                 share = f["g"].intersection(unary_union([g.buffer(0.5) for g in near_])).length / max(f["g"].length, 1e-6)
                 if share >= 0.5:
-                    rep.add("pass_side", f["g"], f"512.2 along another black line ({share:.0%})")
+                    if fix:                                   # (another line bounds the lower level: no 512.2 there)
+                        drop.add(f["i"]); rep.fix("pass_side")
+                    else:
+                        rep.add("pass_side", f["g"], f"512.2 along another black line ({share:.0%})")
         # areas outside the ground's coverage under their minimum width or area (buildings, canopies, marsh…)
         for c0, fs in by.items():
             if c0 in ground or c0 in helpers or c0[0] in "67":

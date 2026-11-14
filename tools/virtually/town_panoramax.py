@@ -32,8 +32,8 @@ UA = {"User-Agent": "Ozimut Virtually builder (https://ozimut.com; contact@ozimu
 API = "https://api.panoramax.xyz/api/search"
 T0 = time.time()
 log = lambda *a: print(f"[{time.time() - T0:5.0f}s]", *a, flush=True)
-import pyproj
-TO = pyproj.Transformer.from_crs(4326, 2154, always_xy=True); FROM = pyproj.Transformer.from_crs(2154, 4326, always_xy=True)
+from l93 import transformer
+TO = transformer(4326, 2154); FROM = transformer(2154, 4326)
 
 # ---- the photos --------------------------------------------------------------------------------------------------------------
 lst = PX / "list.json"

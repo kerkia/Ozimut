@@ -25,7 +25,7 @@ from pathlib import Path
 import numpy as np
 import requests
 from PIL import Image, ImageDraw
-from pyproj import Transformer
+from l93 import transformer
 from scipy.ndimage import gaussian_filter, distance_transform_edt, maximum_filter, binary_dilation
 from scipy.sparse import coo_matrix, csr_matrix, diags
 from scipy.sparse.linalg import lsqr, cg
@@ -57,8 +57,8 @@ def mm_to_grid(mx, my):
     return X * cga - Y * sga + RW["x"], X * sga + Y * cga + RW["y"]
 
 
-TO_LL = Transformer.from_crs(EPSG, 4326, always_xy=True)
-FROM_LL = Transformer.from_crs(4326, EPSG, always_xy=True)
+TO_LL = transformer(EPSG, 4326)
+FROM_LL = transformer(4326, EPSG)
 
 # ---- symbol standard and tables ---------------------------------------------------------------------------------------------
 desc = {s["sym"]: (s["desc"] or "") for s in D["syms"]}
@@ -248,6 +248,23 @@ cls = np.array(img)
 for o in D["objs"]:                                        # (the hidden helpers are not in `objs`)
     if o["otp"] == 3 and o["sym"] == 993000:
         draw_area(flatten(o["c"]), C["paved"])
+# and round its mouths, the railway's own stroke (3 m wide) where it overruns the passage (2026-11-14, the owner: « the tunnel
+# 3-4 is not accessible »: a road under the RER had a track 0.8 m from its mouth, its block across the way in); walls stay walls
+if SPRINT:
+    _rail = Image.new("L", (W, H), 0); _dr = ImageDraw.Draw(_rail)
+    for o in objs:
+        if o["otp"] == 2 and num(o["sym"]) == 509:
+            rr = flatten(o["c"])
+            if rr and len(rr[0]) >= 2:
+                _dr.line(rr[0], fill=1, width=max(1, round(LINE[509][1])), joint="curve")
+    _near = Image.new("L", (W, H), 0); _dn = ImageDraw.Draw(_near)
+    for o in D["objs"]:
+        if o["otp"] == 3 and o["sym"] == 993000:
+            rr = flatten(o["c"])
+            if rr and len(rr[0]) >= 3:
+                _dn.polygon(rr[0], fill=1)
+    _near = binary_dilation(np.array(_near, bool), iterations=2)
+    cls[_near & np.array(_rail, bool) & (cls == C["block"])] = C["paved"]
 # stony ground and boulder fields as ground patches; buildings drawn as points
 img = Image.fromarray(cls); dr = ImageDraw.Draw(img)
 for p in points:
