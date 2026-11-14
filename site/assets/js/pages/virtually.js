@@ -300,13 +300,17 @@ export async function render(main, { query }) {
         // an invented terrain's results are on the training tab itself (the day's), not in « Résultats »
         // the finish card's buttons, only where they lead (owner, 2026-11-14: they blanked the page for the accounts without those tabs):
         // « Voir les résultats » the Résultats tab, else this map's palmarès over the training tab; « Analyser ma course » the Analyse tab
-        navs: race.gen ? ["results"] : ["results", ...(hasTab("analyse") ? ["analysis"] : [])],
+        // (owner, 2026-11-14: « Résultats is not relevant for trainings, whether for admins or others »): a training's « Voir les
+        // résultats » opens the map's palmarès over the training tab, for everyone; a competition's the Résultats tab (else the
+        // palmarès); an invented terrain's its own results on the training tab. « Analyser ma course »: the Analyse tab, every
+        // account's, with the run just saved (a « Carte du jour »'s too); a « Terrain libre » is not kept, so not analysed.
+        navs: race.noSave ? ["results"] : ["results", ...(hasTab("analyse") ? ["analysis"] : [])],
         onNav: async (k) => {
-          if (race.gen) { game?.stop(); game = null; drawChooser(); return; }
           await saving;                                    // so that the run just finished is the one opened
+          if (k === "analysis" && hasTab("analyse") && !race.noSave) { setQuery({ run: sel.run }); return goTab("analyse"); }
+          if (race.gen) { game?.stop(); game = null; drawChooser(); return; }
           setQuery({ run: sel.run });
-          if (k === "analysis" && hasTab("analyse")) return goTab("analyse");
-          if (hasTab("resultats")) return goTab("resultats");
+          if (ev?.type === "competition" && !ev.mine && hasTab("resultats")) return goTab("resultats");
           game?.stop(); game = null; drawChooser(); palmares(race, course.id);
         },
       });
