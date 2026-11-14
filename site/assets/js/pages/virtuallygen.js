@@ -69,11 +69,29 @@ export async function renderGen(el, ctx) {
     const cs = m.race.race.courses, sel = state.sel[k];
     if (!cs.length) return html`<p class="muted">${t("vtg.noCourse")}</p>`;
     return html`<p class="muted vtg-made">${t("vtg.made", { s: fmt(m.ms / 1000, 1), km: fmt(m.size / 1000, 1) })}</p>
+      ${checkLine(m.chk)}
       <div class="vtp-courses">${cs.map((c) => html`<button type="button" class="vtp-course" data-gk="${k}" data-course="${c.id}" aria-pressed="${c.id === sel}">
         ${V.ctx.swatch(c.id)}<b>${V.ctx.courseName(c)}</b><span>${t("vt.tr.courseLine", { km: fmt(c.length / 1000, 1), climb: fmt(c.climb || 0), n: c.controls.length - 2 })}</span></button>`)}</div>
       <div class="vtp-go"><button type="button" class="btn btn-primary" data-go="${k}" ${raw(sel ? "" : "disabled")}>${t("vt.tr.start")}</button>
         ${k === "free" ? html`<span class="muted">${t("vtg.notKeptHint")}</span>` : html`<span class="muted">${t("vtg.day.notCounted")}</span>`}</div>
       ${k === "day" ? html`<h4 class="vtg-rh">${t("vtg.day.results")}</h4><div class="vtg-results"><div class="boot"><div class="spinner"></div></div></div>` : ""}`;
+  };
+  // the map's check against ISOM 2017-2 (games/vcheck.js): one line, the points left listed under it
+  const checkLine = (chk) => {
+    if (!chk) return "";
+    const err = chk.findings.filter((f) => f.sev === "error"), warn = chk.findings.filter((f) => f.sev !== "error");
+    const n = (fs) => fs.reduce((s, f) => s + f.n, 0);
+    const head = !chk.findings.length ? t("vtg.chk.ok", { n: chk.checked.length })
+      : err.length ? t("vtg.chk.err", { n: chk.checked.length, e: n(err), w: n(warn) }) : t("vtg.chk.warn", { n: chk.checked.length, w: n(warn) });
+    if (!chk.findings.length) return html`<p class="muted vtg-chk ok">✓ ${head}</p>`;
+    return html`<details class="vtg-chk ${raw(err.length ? "bad" : "")}"><summary>${err.length ? "✗" : "✓"} ${head}</summary><ul>
+      ${chk.findings.map((f) => html`<li>${ruleText(f.id)} × ${f.n}${f.sev === "error" ? "" : html` <span class="muted">(${t("vtg.chk.warnTag")})</span>`}</li>`)}</ul></details>`;
+  };
+  const ruleText = (id) => {
+    const m = /^fo\.min\.(\d+)\.(area|width|length)$/.exec(id);
+    if (m) return t(`vtg.chk.min.${m[2]}`, { sym: m[1] });
+    const k = `vtg.chk.r.${id.replace(/\./g, "_")}`, s = t(k);
+    return s === k ? id : s;
   };
   const freeKey = () => { const f = state.free; return [f.type, f.seed, f.size, ...SLIDERS.map((k) => f[k])].join("|"); };
 
@@ -116,7 +134,7 @@ export async function renderGen(el, ctx) {
       const load = async () => (data ||= await P.packageOf(res, { id, title: name }));
       const raceJ = { id, scale: 10000, std: "ISOM 2017-2", source: "gen", courses: res.courses };
       const sig = P.courseSig(res.courses);
-      state.made[k] = { key: k === "free" ? freeKey() : dayKey, ms: res.ms, size: res.world.W,
+      state.made[k] = { key: k === "free" ? freeKey() : dayKey, ms: res.ms, size: res.world.W, chk: res.world.check,
         race: { id, name, gen: true, day: k === "day", sig, noSave: k === "free", race: raceJ, load } };
       state.sel[k] = state.sel[k] && res.courses.some((c) => c.id === state.sel[k]) ? state.sel[k] : res.courses[2]?.id || res.courses[0]?.id || null;
       state.busy[k] = null;

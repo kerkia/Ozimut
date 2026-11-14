@@ -13,6 +13,7 @@ import { execFileSync } from "node:child_process";
 import { generate, raceOf, CL, SPEED, TYPES } from "../../site/assets/js/games/vgen.js";
 import { setCourses, GEN_LEVELS } from "../../site/assets/js/games/vcourse.js";
 import { mapBytes } from "../../site/assets/js/games/vgenmap.js";
+import { ISOM_MINS } from "../../site/assets/js/games/vcheck.js";
 
 const HERE = path.dirname(new URL(import.meta.url).pathname).replace(/^\/([A-Z]:)/, "$1");
 const DATA = process.env.VIRTUAL_DATA || path.join(execFileSync("py", ["-c", "import paths; print(paths.DATA_DIR)"], { cwd: path.resolve(HERE, "../.."), encoding: "utf8" }).trim(), "virtual");
@@ -21,7 +22,14 @@ if (!race || !TYPES.includes(type) || !(+seedS > 0)) { console.error(`node gen.m
 const seed = +seedS, size = +sizeS, t0 = performance.now();
 const say = (...a) => console.log(`[${((performance.now() - t0) / 1000).toFixed(1)}s]`, ...a);
 
+// the minimums the generator holds itself to are a copy of Cartographier's: say if they have parted
+const MINS = JSON.parse(readFileSync(path.resolve(HERE, "../../site/assets/js/mapper/sets/minimums.json"), "utf8")).isom;
+for (const [k, v] of Object.entries(ISOM_MINS)) if (JSON.stringify(v) !== JSON.stringify(MINS[k])) console.warn(`vcheck.js ISOM_MINS["${k}"] ${JSON.stringify(v)} ≠ minimums.json ${JSON.stringify(MINS[k])}`);
+
 const world = generate({ type, seed, size, onStep: (s, f) => f === 1 && say(s) });
+const chk = world.check;
+say(`ISOM 2017-2 check: ${chk.checked.length} rules, ${chk.ok ? "no error" : "ERRORS"}`, chk.findings.map((f) => `${f.id} ×${f.n} (${f.sev}) at ${f.at.map((p) => p.join(",")).join(" ")}`).join("; ") || "");
+if (!chk.ok && !process.env.GEN_ACCEPT) { console.error("not conforming: set GEN_ACCEPT=1 to write it anyway"); process.exit(1); }
 const courses = setCourses({ W: world.W, H: world.H, h: world.h, cls: world.cls, classes: CL, speed: CL.map((n) => SPEED[n]), features: world.features },
   { seed, tries: +triesS, levels: GEN_LEVELS });
 say("courses", courses.map((c) => `${c.id} ${c.controls.length - 2} / ${(c.length / 1000).toFixed(1)} km / ${c.climb} m`).join(", "));

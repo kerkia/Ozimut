@@ -16,6 +16,8 @@
 // + − × ÷, Math.sqrt, Math.floor and integer hashing decide the world (JavaScript engines may differ in the last bit of sin, exp,
 // pow, atan2…, which are used only to draw, never to decide). No time budget anywhere.
 
+import { GROUND, POINT_R, LINE_HW, ISOM_MINS, checkMap, distLine, areaFindings, reentrants } from "./vcheck.js";
+
 // ---- the ground classes and speeds (tools/virtually/build.py's, same order: the game and course.py read them by index) ----------
 export const CL = ["forest", "open", "open_t", "rough", "rough_t", "slow", "slow_vis", "walk", "walk_vis", "fight", "paved", "rock",
   "building", "path", "road", "stony", "bfield", "water", "track", "marsh", "marsh_x", "shallow", "cliff", "oob", "cultivated", "stream",
@@ -169,12 +171,11 @@ export function isolines(F, nx, ny, level, cells = null) {
     pts.set(id, p); return p;
   };
   const add = (e1, e2) => { const k = segs.length; segs.push([e1, e2]); for (const e of [e1, e2]) { const l = byEdge.get(e); if (l) l.push(k); else byEdge.set(e, [k]); } };
-  const nc = cells ? cells.length : (nx - 1) * (ny - 1);
-  for (let k = 0; k < nc; k++) {
-    const cell = cells ? cells[k] : k, j = Math.floor(cell / (nx - 1)), i = cell - j * (nx - 1);
-    const a = at(j, i), b = at(j, i + 1), c = at(j + 1, i + 1), d = at(j + 1, i);
+  // one cell: its corners a (top left), b, c, d clockwise; the grid read directly (the whole grid's scan is most of the time)
+  const cell = (j, i, o) => {
+    const a = F[o], b = F[o + 1], c = F[o + nx + 1], d = F[o + nx];
     const idx = (a > level ? 8 : 0) | (b > level ? 4 : 0) | (c > level ? 2 : 0) | (d > level ? 1 : 0);
-    if (idx === 0 || idx === 15) continue;
+    if (idx === 0 || idx === 15) return;
     const T = (j * nx + i) * 2, R = (j * nx + i + 1) * 2 + 1, B = ((j + 1) * nx + i) * 2, L = (j * nx + i) * 2 + 1;
     const mid = (a + b + c + d) / 4 > level;
     switch (idx) {
@@ -187,6 +188,13 @@ export function isolines(F, nx, ny, level, cells = null) {
       case 5: if (mid) { add(L, T); add(B, R); } else { add(T, R); add(L, B); } break;
       case 10: if (mid) { add(T, R); add(L, B); } else { add(L, T); add(B, R); } break;
     }
+  };
+  if (cells) for (let k = 0; k < cells.length; k++) { const c = cells[k], j = Math.floor(c / (nx - 1)), i = c - j * (nx - 1); cell(j, i, j * nx + i); }
+  else for (let j = 0; j < ny - 1; j++) for (let i = 0, o = j * nx; i < nx - 1; i++, o++) {
+    // a cell wholly on one side of the level: nothing (the common case, tested before the call)
+    const a = F[o], b = F[o + 1], c = F[o + nx + 1], d = F[o + nx];
+    if ((a > level) === (b > level) && (b > level) === (c > level) && (c > level) === (d > level)) continue;
+    cell(j, i, o);
   }
   const used = new Uint8Array(segs.length), out = [];
   const walk = (k0, from) => {
@@ -237,6 +245,16 @@ function dp(p, tol) {
   return p.filter((_, k) => keep[k]);
 }
 /** Chaikin's corner cutting, n rounds; a closed ring stays closed. */
+/** A polyline with a point at least every `step` metres (the same line). */
+function densify(p, step) {
+  const out = [p[0]];
+  for (let k = 1; k < p.length; k++) {
+    const [ax, az] = p[k - 1], [bx, bz] = p[k], n = Math.ceil(Math.sqrt((bx - ax) * (bx - ax) + (bz - az) * (bz - az)) / step);
+    for (let s = 1; s < n; s++) out.push([ax + ((bx - ax) * s) / n, az + ((bz - az) * s) / n]);
+    out.push(p[k]);
+  }
+  return out;
+}
 function chaikin(p, n = 2) {
   const closed = p.length > 3 && p[0][0] === p[p.length - 1][0] && p[0][1] === p[p.length - 1][1];
   for (let r = 0; r < n; r++) {
@@ -256,9 +274,10 @@ const polyLen = (p) => { let s = 0; for (let k = 1; k < p.length; k++) { const d
 /**
  * One world. opts: type (TYPES), seed (uint32), size (m, the square's side), detail, relief, green, paths (each 0 … 1, 0.5 the
  * terrain type's own), onStep(name, share) for a progress bar. Returns { W, H, h (Float32), cls (Uint8), veg (Uint8 × 3),
- * ground (Uint8 RGBA), feats, objects (ISOM: { sym, otp, pts: [[x, z]…] | rings, ang }), features, junctions, interval, biome, gen }.
+ * ground (Uint8 RGBA), feats, objects (ISOM: { sym, otp, pts: [[x, z]…] | rings, ang }), features, junctions, interval, biome, gen,
+ * check (games/vcheck.js's report) }. mins: minimums.json's `isom` (the minimum sizes the world is held to; none: not held).
  */
-export function generate({ type = "moraine", seed = 1, size = 1200, detail = 0.5, relief = 0.5, green = 0.5, paths = 0.5, onStep = () => {} } = {}) {
+export function generate({ type = "moraine", seed = 1, size = 1200, detail = 0.5, relief = 0.5, green = 0.5, paths = 0.5, mins = ISOM_MINS, onStep = () => {} } = {}) {
   const R = RECIPES[type] || RECIPES.moraine;
   const rnd = prng(seed ^ 0x9e3779b9);
   const W = Math.round(size / 2) * 2, H = W, S = 2, nx = W / S + 1, ny = H / S + 1, N = nx * ny;
@@ -306,24 +325,25 @@ export function generate({ type = "moraine", seed = 1, size = 1200, detail = 0.5
   for (let d = 0; d < count(R.dolines); d++) {              // dolines: round hollows of the limestone
     const [x, z] = somewhere(30), r = rnd.range(12, 32);
     if (!spaced(feats, x, z, r + 10)) continue;
-    addBump(x, z, r, -rnd.range(2.5, 6.5) * rk); feats.push({ k: "depression", x, z, r });
+    const a = -rnd.range(2.5, 6.5) * rk; addBump(x, z, r, a); feats.push({ k: "depression", x, z, r, a });
   }
   for (let n = 0; n < count(R.knolls); n++) {
     const [x, z] = somewhere(25), r = rnd.range(7, 15);
     if (!spaced(feats, x, z, 30)) continue;
     const elong = rnd() < 0.3, [ex, ez] = unit();
-    addBump(x, z, r, rnd.range(1.8, 3.6) * rk, ex, ez, elong ? rnd.range(6, 14) : 0);
-    feats.push({ k: elong ? "eknoll" : "knoll", x, z, r, ex, ez });
+    const a = rnd.range(1.8, 3.6) * rk, ln = elong ? rnd.range(6, 14) : 0;
+    addBump(x, z, r, a, ex, ez, ln);
+    feats.push({ k: elong ? "eknoll" : "knoll", x, z, r, ex, ez, a, ln });
   }
   for (let n = 0; n < count(R.depressions); n++) {
     const [x, z] = somewhere(25), r = rnd.range(6, 10);
     if (!spaced(feats, x, z, 30)) continue;
-    addBump(x, z, r, -rnd.range(1.4, 2.4)); feats.push({ k: "depression", x, z, r });
+    const a = -rnd.range(1.4, 2.4); addBump(x, z, r, a); feats.push({ k: "depression", x, z, r, a });
   }
   for (let n = 0; n < count(R.pits); n++) {
     const [x, z] = somewhere(25), r = rnd.range(3, 4.5);
     if (!spaced(feats, x, z, 25)) continue;
-    addBump(x, z, r, -rnd.range(1.2, 1.8)); feats.push({ k: "pit", x, z, r });
+    const a = -rnd.range(1.2, 1.8); addBump(x, z, r, a); feats.push({ k: "pit", x, z, r, a });
   }
   onStep("relief", 0.5);
   // the small, unmapped roughness of real ground (well under a contour's interval)
@@ -429,6 +449,26 @@ export function generate({ type = "moraine", seed = 1, size = 1200, detail = 0.5
   AREA.marsh = marshF; AREA.water = water;
   onStep("cover", 1);
 
+  /** The rings where a field is above zero: { outers, holes } of { r (world m, closed), a (m²) }, simplified to `tol` m. */
+  function traceRings(F, tol = 0.6, tiny = false) {
+    const pad = new Float32Array((nx + 2) * (ny + 2)).fill(-1);
+    for (let j = 0; j < ny; j++) for (let i = 0; i < nx; i++) pad[(j + 1) * (nx + 2) + i + 1] = F[j * nx + i];
+    const lines_ = isolines(pad, nx + 2, ny + 2, 0).map((l) => l.map(([i, j]) => [(i - 1) * S, (j - 1) * S]));
+    const outers = [], holes = [];
+    for (let r of lines_) {
+      if (r.length < 4) continue;
+      if (tol) { r = simplify(r, tol); if (r.length < 4) continue; }
+      const a = ringArea(r);
+      if (!tiny && Math.abs(a) < 20) continue;
+      // which side is inside: the field just to the left of the first segment
+      const [ax, az] = r[0], [bx, bz] = r[1], dx = bx - ax, dz = bz - az, L = Math.sqrt(dx * dx + dz * dz) || 1;
+      const px = (ax + bx) / 2 - (dz / L) * 0.3, pz = (az + bz) / 2 + (dx / L) * 0.3;
+      const leftIn = inPoly(r, px, pz), leftAbove = sample(pad, nx + 2, ny + 2, px / S + 1, pz / S + 1) > 0;
+      (leftIn === leftAbove ? outers : holes).push({ r, a: Math.abs(a) });
+    }
+    return { outers, holes };
+  }
+
   function makeParcels() {
     // a plantation: straight tracks in a grid turned a little, each parcel one age of pines, firebreaks and clear-cuts; in the grid's
     // frame u = (x − W/2) cos + (z − H/2) sin, v = −(x − W/2) sin + (z − H/2) cos, the tracks at u = k sp and v = k sp
@@ -457,6 +497,110 @@ export function generate({ type = "moraine", seed = 1, size = 1200, detail = 0.5
       if (dir) for (let m = -lim; m <= lim; m++) { const p = toXZ(k * sp, m * sp); if (inside(p) && p[0] > 40 && p[1] > 40 && p[0] < W - 40 && p[1] < H - 40) cross.push(p); }
     }
     return { fields, tracks, cross };
+  }
+
+  // ---- each area held to ISOM's minimum area and width, each white opening in a screen to its minimum size (minimums.json): the
+  // fields themselves edited — a region too small pushed under zero, a small opening filled — so that the classes read from them
+  // and the polygons traced from them stay one region ----
+  const nodesIn = (ring, fn) => {
+    let a = Infinity, b = Infinity, c = -Infinity, d = -Infinity; for (const [x, z] of ring) { if (x < a) a = x; if (z < b) b = z; if (x > c) c = x; if (z > d) d = z; }
+    for (let j = Math.max(0, Math.ceil(b / S)); j <= Math.min(ny - 1, Math.floor(d / S)); j++)
+      for (let i = Math.max(0, Math.ceil(a / S)); i <= Math.min(nx - 1, Math.floor(c / S)); i++) if (inPoly(ring, i * S, j * S)) fn(j * nx + i);
+  };
+  const ISYM = { open: "401", rough: "403", slow: "406", slow_vis: "407", walk: "408", walk_vis: "409", fight: "410", stony: "210", rock: "214", marsh: "308", water: "301" };
+  const OPENING = { "401": 0.7, "403": 1, "406": 1, "407": 1, "408": 0.7, "409": 0.7, "410": 0.55 };
+  const others = (name) => Object.entries(AREA).filter(([k, F]) => k !== name && k !== "_vis" && F);
+  const hold = (name, F, sym, edit = null) => {
+    const m = mins?.[sym]; if (!m && !OPENING[sym]) return false;
+    let changed = false;
+    // with a margin: the map's polygons are the same rings simplified a little (0.6 m)
+    const minA = 1.15 * (m?.area || 0) * GROUND * GROUND, minW = 1.15 * (m?.width || 0) * GROUND, side = 1.1 * (OPENING[sym] || 0) * GROUND;
+    const { outers, holes } = traceRings(F, 0, true);                                      // every ring, unsimplified
+    for (const o of outers) {
+      const hs = holes.filter((hl) => hl.a < o.a && inPoly(o.r, hl.r[0][0], hl.r[0][1]));
+      const a = o.a - hs.reduce((t, hl) => t + hl.a, 0), per = polyLen(o.r) + hs.reduce((t, hl) => t + polyLen(hl.r), 0);
+      if (a < minA || (2 * a) / per < minW) { changed = true; nodesIn(o.r, edit ? edit.out : (q) => { F[q] = Math.min(F[q], -0.05); }); }
+    }
+    // a hole is a white opening only where no other area lies (else it is that area's border)
+    if (side) for (const hl of holes) if (hl.a < side * side) {
+      const ot = others(name);
+      let other = false; nodesIn(hl.r, (q) => { if (!other && ot.some(([, G]) => G[q] > 0)) other = true; });
+      if (!other) { changed = true; nodesIn(hl.r, edit ? edit.in : (q) => { F[q] = Math.max(F[q], 0.05); }); }
+    }
+    return changed;
+  };
+  for (let pass = 0, dirty = null; pass < 3; pass++) {
+  const next = new Set(), due = (n) => !dirty || dirty.has(n);
+  for (const name of ["water", "marsh", "rock", "stony", "open", "rough", "slow", "walk", "fight", "slow_vis"])
+    if (AREA[name] && due(name) && hold(name, AREA[name], ISYM[name])) next.add(name);
+  // the good-visibility greens (407, 409): their pieces and the plain green's beside them held alike, by moving the visibility field
+  if (AREA._vis) for (const [name, hiName] of [["slow", "slow_vis"], ["walk", "walk_vis"]]) {
+    if (!due(name) && !due("_vis")) continue;
+    const F = AREA[name], vis = AREA._vis, lo = new Float32Array(N), hi = new Float32Array(N);
+    for (let q = 0; q < N; q++) { lo[q] = Math.min(F[q], 0.55 - vis[q]); hi[q] = Math.min(F[q], vis[q] - 0.55); }
+    const a = hold(hiName, hi, ISYM[hiName], { out: (q) => { vis[q] = Math.min(vis[q], 0.5); }, in: (q) => { vis[q] = Math.max(vis[q], 0.6); } });
+    const b = hold(name, lo, ISYM[name], { out: (q) => { vis[q] = Math.max(vis[q], 0.6); }, in: (q) => { vis[q] = Math.min(vis[q], 0.5); } });
+    if (a || b) next.add("_vis");
+  }
+  if (!next.size) break;
+  dirty = next;
+  }
+
+  // ---- the map's area polygons, traced from the fields as they now are, and checked: what the holding left (a ring simplified
+  // a little narrower, a piece of the visibility split) mended in the fields themselves — a piece still too small taken out of its
+  // field, a white opening still too small filled, the nodes within a cell of the ring too — then traced again ----
+  const AREA_SYM = { open: 401000, rough: 403000, slow: 406000, slow_vis: 407000, walk: 408000, walk_vis: 409000, fight: 410000,
+    stony: 210000, rock: 214000, marsh: 308000, water: 301000 };
+  const areaOf = (F, sym, tol, src) => {
+    const { outers, holes } = traceRings(F, tol);
+    outers.sort((p, q) => p.a - q.a);
+    const out = outers.map((o) => ({ sym, otp: 3, rings: [o.r], src }));
+    for (const hl of holes) { const k = outers.findIndex((o) => o.a > hl.a && inPoly(o.r, hl.r[0][0], hl.r[0][1])); if (k >= 0) out[k].rings.push(hl.r); }
+    return out;
+  };
+  const traced = new Map();                                         // field name -> its polygons, kept while it does not change
+  const traceAreas = (changed = null) => {
+    const objs = [], vis_ = AREA._vis;
+    for (const name of ["open", "rough", "slow", "walk", "fight", "stony", "rock", "marsh", "water"]) {
+      const F = AREA[name]; if (!F) continue;
+      const green = vis_ && (name === "slow" || name === "walk");
+      if (!changed || changed.has(name) || (green && changed.has("_vis"))) {
+        // a green with good visibility: drawn as its own symbol where the visibility field is high
+        if (green) {
+          const lo = new Float32Array(N), hi = new Float32Array(N);
+          for (let q = 0; q < N; q++) { lo[q] = Math.min(F[q], 0.55 - vis_[q]); hi[q] = Math.min(F[q], vis_[q] - 0.55); }
+          traced.set(name, [...areaOf(lo, AREA_SYM[name], 0.6, [name, "lo"]), ...areaOf(hi, AREA_SYM[name === "slow" ? "slow_vis" : "walk_vis"], 0.6, [name, "hi"])]);
+        } else traced.set(name, areaOf(F, AREA_SYM[name], parcels ? 0.3 : 0.6, [name, null]));
+      }
+      objs.push(...traced.get(name));
+    }
+    if (parcels?.fields.slow_vis) {
+      if (!changed || changed.has("slow_vis")) traced.set("slow_vis", areaOf(parcels.fields.slow_vis, AREA_SYM.slow_vis, 0.3, ["slow_vis", null]));
+      objs.push(...traced.get("slow_vis"));
+    }
+    return objs;
+  };
+  const nodesNear = (ring, d, fn) => {
+    let a = Infinity, b = Infinity, c = -Infinity, e = -Infinity; for (const [x, z] of ring) { if (x < a) a = x; if (z < b) b = z; if (x > c) c = x; if (z > e) e = z; }
+    for (let j = Math.max(0, Math.ceil((b - d) / S)); j <= Math.min(ny - 1, Math.floor((e + d) / S)); j++)
+      for (let i = Math.max(0, Math.ceil((a - d) / S)); i <= Math.min(nx - 1, Math.floor((c + d) / S)); i++)
+        if (inPoly(ring, i * S, j * S) || distLine(ring, i * S, j * S) < d) fn(j * nx + i);
+  };
+  let areaObjs = traceAreas();
+  for (let round = 0; round < 5 && mins; round++) {
+    const fails = areaFindings(areaObjs, mins);
+    if (!fails.length) break;
+    const d = S * (1 + round * 0.5), changed = new Set();
+    for (const f of fails) {
+      const [name, part] = f.o.src, F = AREA[name] || parcels?.fields[name], vis_ = AREA._vis;
+      changed.add(name); if (part === "hi" || part === "lo") changed.add("_vis");
+      if (f.ring) nodesNear(f.ring, d, (q) => {                                  // a white opening: the area there
+        F[q] = Math.max(F[q], 0.05);
+        if (part === "hi") vis_[q] = Math.max(vis_[q], 0.6); else if (part === "lo") vis_[q] = Math.min(vis_[q], 0.5);
+      });
+      else nodesNear(f.o.rings[0], d, (q) => { F[q] = Math.min(F[q], -0.05); });   // a piece too small: gone, the ground under it shows
+    }
+    areaObjs = traceAreas(changed);
   }
 
   // ---- the 1 m classes from the fields (the same regions the map's polygons enclose) ----
@@ -496,21 +640,21 @@ export function generate({ type = "moraine", seed = 1, size = 1200, detail = 0.5
     let [x, z] = somewhere(20);
     // on rocky crests and steep ground first, where the type has them
     if (h.crest && (1 - Math.abs(sample(h.crest, nx, ny, x / S, z / S))) < 0.7 && rnd() < 0.7) continue;
-    if (!dryAt(x, z) || !spaced(points, x, z, 18) || !spaced(feats, x, z, 14)) continue;
+    if (!dryAt(x, z) || !spaced(points, x, z, 18) || !spaced(feats, x, z, 16)) continue;
     const big_ = rnd() < 0.2;
-    rockAt(x, z, big_ ? "bigboulder" : "boulder"); points.push({ k: big_ ? "bigboulder" : "boulder", x, z });
+    const i0 = rocks.length; rockAt(x, z, big_ ? "bigboulder" : "boulder"); points.push({ k: big_ ? "bigboulder" : "boulder", x, z, rk: [i0, rocks.length] });
   }
   for (let n = 0; n < count(R.clusters); n++) {
     const [x, z] = somewhere(20);
     if (!dryAt(x, z) || !spaced(points, x, z, 25) || !spaced(feats, x, z, 18)) continue;
-    rockAt(x, z, "cluster", 4, 2.5); points.push({ k: "cluster", x, z });
+    const i0 = rocks.length; rockAt(x, z, "cluster", 4, 2.5); points.push({ k: "cluster", x, z, rk: [i0, rocks.length] });
   }
   const giants = [];
   for (let n = 0; n < count(R.giants) * 3 && giants.length < count(R.giants); n++) {
     const [x, z] = somewhere(30);
     if (h.crest && (1 - Math.abs(sample(h.crest, nx, ny, x / S, z / S))) < 0.75) continue;
     if (!dryAt(x, z) || !spaced(points, x, z, 25) || !spaced(feats, x, z, 18)) continue;
-    const r = rnd.range(2.6, 4.2);
+    const r = rnd.range(3, 7);
     rockAt(x, z, "giant"); rocks[rocks.length - 1][2] = +(r * 2).toFixed(2); rocks[rocks.length - 1][3] = +(r * 1.25).toFixed(2);
     giants.push({ x, z, r }); points.push({ k: "bigboulder", x, z, giant: r });
   }
@@ -521,26 +665,65 @@ export function generate({ type = "moraine", seed = 1, size = 1200, detail = 0.5
     else if (c === C.rock && rnd() < 0.18) rockAt(x + rnd.range(-3, 3), z + rnd.range(-3, 3), "bfield", 2, 2);
   }
 
-  // ---- cliffs: on the steepest ground, short rock faces across the slope ----
+  // ---- cliffs: rock steps across the steepest slopes. Each one follows the contour (traced along the slope's level line), and the
+  // ground steps down across it by the cliff's height — the upper side raised, the lower one lowered, fading over 10 m and towards
+  // its ends — so that the cliff stands in the relief, the contours meet it and stop there (cut below), and its ticks, on the line's
+  // right as OCAD draws them, fall on the lower side ----
   const walls = [], cliffs = [];
+  const gradAt = (x, z) => { const i = Math.min(nx - 2, Math.max(1, Math.round(x / S))), j = Math.min(ny - 2, Math.max(1, Math.round(z / S))), q = j * nx + i;
+    return [(h[q + 1] - h[q - 1]) / (2 * S), (h[q + nx] - h[q - nx]) / (2 * S)]; };
   if (R.rock || R.giants) {
-    const tries = Math.round(28 * km2 * dk);
-    for (let n = 0; n < tries * 4 && cliffs.length < tries; n++) {
-      const [x, z] = somewhere(30), q = Math.round(z / S) * nx + Math.round(x / S);
-      if (slope[q] < 0.42 || !dryAt(x, z) || !cliffs.every((c) => (c.x - x) * (c.x - x) + (c.z - z) * (c.z - z) > 40 * 40)) continue;
-      // along the contour: perpendicular to the gradient
-      const gx = (h[q + 1] - h[q - 1]) / (2 * S), gz = (h[q + nx] - h[q - nx]) / (2 * S), l = Math.sqrt(gx * gx + gz * gz) || 1;
-      const tx = -gz / l, tz = gx / l, len = rnd.range(10, 26), hh = rnd.range(1.6, 4.2);
-      const pts = [];
-      for (let s = -len / 2; s <= len / 2 + 0.01; s += len / 4) pts.push([x + tx * s + rnd.range(-1, 1), z + tz * s + rnd.range(-1, 1)]);
-      cliffs.push({ x, z, pts, h: hh, imp: hh > 2.6 });
-      walls.push({ pts: pts.map(([a, b]) => [+a.toFixed(2), +b.toFixed(2)]), kind: hh > 2.6 ? "cliff" : "rockface", h: +hh.toFixed(2) });
-      // its foot: a control site (downhill side)
-      const fx = x + (gx / l) * -2.5, fz = z + (gz / l) * -2.5;
-      feats.push({ k: "rockface", x: fx, z: fz, r: 0, map: false });
-      for (const [a, b] of pts) for (let t = -1; t <= 1; t++) {
-        const px = Math.floor(a + t * tx), pz = Math.floor(b + t * tz);
-        if (px >= 0 && pz >= 0 && px < W && pz < H) cls[pz * W + px] = hh > 2.6 ? C.cliff : C.rockstep;
+    const tries = Math.round(22 * km2 * dk);
+    for (let n = 0; n < tries * 5 && cliffs.length < tries; n++) {
+      const [x0, z0] = somewhere(40), q0 = Math.round(z0 / S) * nx + Math.round(x0 / S);
+      if (slope[q0] < 0.4 || !dryAt(x0, z0) || !cliffs.every((c) => (c.x - x0) * (c.x - x0) + (c.z - z0) * (c.z - z0) > 50 * 50)) continue;
+      if (giants.some((g) => (g.x - x0) * (g.x - x0) + (g.z - z0) * (g.z - z0) < (g.r + 30) * (g.r + 30))) continue;
+      const len = rnd.range(14, 34), hh = rnd.range(1.8, 4.5);
+      // the level line both ways from the start, 2 m at a time (the tangent turned from the gradient: the downhill side on the right)
+      const half = (sign) => {
+        const out = []; let x = x0, z = z0;
+        for (let s_ = 0; s_ < len / 2; s_ += 2) {
+          const [gx, gz] = gradAt(x, z), l = Math.sqrt(gx * gx + gz * gz) || 1;
+          x += sign * (gz / l) * 2; z += sign * (-gx / l) * 2; out.push([x, z]);
+        }
+        return out;
+      };
+      let pts = [...half(-1).reverse(), [x0, z0], ...half(1)];
+      if (pts.some(([x, z]) => x < 10 || z < 10 || x > W - 10 || z > H - 10 || !dryAt(x, z))) continue;
+      pts = chaikin(simplify(pts, 0.5), 2);
+      // the line's direction: the downhill side on its right (the paper's right: (−dz, dx) in world axes)
+      const [ax, az] = pts[0], [bx, bz] = pts[pts.length - 1], [gx0, gz0] = gradAt(x0, z0);
+      if ((-(bz - az)) * -gx0 + (bx - ax) * -gz0 < 0) pts.reverse();
+      // the step in the ground
+      const L = polyLen(pts), grid0 = (v) => Math.max(0, Math.floor(v / S));
+      let a = Infinity, b = Infinity, c = -Infinity, d = -Infinity; for (const [x, z] of pts) { a = Math.min(a, x); b = Math.min(b, z); c = Math.max(c, x); d = Math.max(d, z); }
+      for (let j = grid0(b - 12); j <= Math.min(ny - 1, Math.ceil((d + 12) / S)); j++) for (let i = grid0(a - 12); i <= Math.min(nx - 1, Math.ceil((c + 12) / S)); i++) {
+        const x = i * S, z = j * S;
+        // the nearest segment: the distance across (signed: + on the right, the lower side) and along
+        let best = Infinity, side = 0, along = 0, acc = 0;
+        for (let k = 1; k < pts.length; k++) {
+          const [px, pz] = pts[k - 1], [qx, qz] = pts[k], dx = qx - px, dz = qz - pz, l2 = dx * dx + dz * dz, l = Math.sqrt(l2) || 1;
+          const t = Math.max(0, Math.min(1, ((x - px) * dx + (z - pz) * dz) / (l2 || 1))), ex = x - (px + t * dx), ez = z - (pz + t * dz), dd = ex * ex + ez * ez;
+          if (dd < best) { best = dd; side = (ex * -dz + ez * dx) / l; along = acc + t * l; }
+          acc += l;
+        }
+        const dist = Math.sqrt(best); if (dist > 12) continue;
+        const ends = smoothstep(0, 5, along) * smoothstep(0, 5, L - along), fall = 1 - smoothstep(0, 10, dist);
+        h[j * nx + i] += (side > 0 ? -1 : 1) * (hh / 2) * fall * ends;
+      }
+      cliffs.push({ x: x0, z: z0, pts, h: hh, imp: hh > 2.8 });
+      walls.push({ pts: pts.map(([p, q]) => [+p.toFixed(2), +q.toFixed(2)]), kind: hh > 2.8 ? "cliff" : "rockface", h: +hh.toFixed(2) });
+      // its foot: a control site, 2.5 m out on the lower side
+      const m = pts[Math.floor(pts.length / 2)], m2 = pts[Math.min(pts.length - 1, Math.floor(pts.length / 2) + 1)];
+      const tx = m2[0] - m[0], tz = m2[1] - m[1], tl = Math.sqrt(tx * tx + tz * tz) || 1;
+      feats.push({ k: "rockface", x: m[0] + (-tz / tl) * 2.5, z: m[1] + (tx / tl) * 2.5, r: 0, map: false });
+      // the classes along it: impassable for a high cliff, a slow step for a low one
+      for (let k = 1; k < pts.length; k++) {
+        const [px, pz] = pts[k - 1], [qx, qz] = pts[k], l = Math.sqrt((qx - px) * (qx - px) + (qz - pz) * (qz - pz)), nn = Math.ceil(l / 0.5);
+        for (let s_ = 0; s_ <= nn; s_++) for (let t = -1; t <= 1; t++) {
+          const ox = Math.floor(px + ((qx - px) * s_) / nn + t * (-(qz - pz) / (l || 1))), oz = Math.floor(pz + ((qz - pz) * s_) / nn + t * ((qx - px) / (l || 1)));
+          if (ox >= 0 && oz >= 0 && ox < W && oz < H) cls[oz * W + ox] = hh > 2.8 ? C.cliff : C.rockstep;
+        }
       }
     }
   }
@@ -557,6 +740,14 @@ export function generate({ type = "moraine", seed = 1, size = 1200, detail = 0.5
     const q = Math.round(z / S) * nx + Math.round(x / S);
     // a path may cross a marsh (dearly), never water, a cliff or a gigantic boulder
     cost[j * gw + i] = sp > 0 ? (c === C.marsh ? 8 : 1 / sp) * (1 + slope[q] * 6) : 1e4;
+    for (const g of giants) if ((x - g.x) * (x - g.x) + (z - g.z) * (z - g.z) < (g.r + 7) * (g.r + 7)) cost[j * gw + i] = 1e4;
+  }
+  // nor through a cliff: its line is narrower than the grid's cells, so every cell within 5 m of it is closed
+  for (const c of cliffs) {
+    let a = Infinity, b = Infinity, cc = -Infinity, d = -Infinity; for (const [x, z] of c.pts) { a = Math.min(a, x); b = Math.min(b, z); cc = Math.max(cc, x); d = Math.max(d, z); }
+    for (let j = Math.max(0, Math.floor((b - 8) / G)); j <= Math.min(gh - 1, Math.floor((d + 8) / G)); j++)
+      for (let i = Math.max(0, Math.floor((a - 8) / G)); i <= Math.min(gw - 1, Math.floor((cc + 8) / G)); i++)
+        if (distLine(c.pts, i * G + 2, j * G + 2) < 5) cost[j * gw + i] = 1e4;
   }
   const lines = [];                                         // { kind, pts (world m) }
   const route = (from, toNet, to) => {
@@ -577,26 +768,28 @@ export function generate({ type = "moraine", seed = 1, size = 1200, detail = 0.5
         if (nd < dist[qq]) { dist[qq] = nd; prev[qq] = q; push(qq); }
       }
     }
-    if (end < 0 || dist[end] > 9e3) return null;
+    if (end < 0 || dist[end] > 3e3) return null;
     const pts = []; for (let q = end; q >= 0; q = prev[q]) pts.push([(q % gw) * G + 2, Math.floor(q / gw) * G + 2]);
     return { pts: pts.reverse(), joined: toNet ? end : -1 };
   };
   const mark = (pts) => { for (const [x, z] of pts) net[Math.min(gh - 1, Math.floor(z / G)) * gw + Math.min(gw - 1, Math.floor(x / G))] = 1; };
   const edgePt = () => { const s = rnd.int(0, 3), u = rnd.range(0.15, 0.85); return s === 0 ? [u * W, 2] : s === 1 ? [W - 2, u * H] : s === 2 ? [u * W, H - 2] : [2, u * H]; };
   const junctions = [];
+  const LSYM = { track: "504", path: "505", small: "506", ride: "508", stream: "305" };
+  const minLen = (kind) => (mins?.[LSYM[kind]]?.length || 0) * GROUND;
   if (parcels) {
-    for (const tr of parcels.tracks) { lines.push({ kind: tr.kind, pts: tr.pts }); mark(tr.pts); }
+    for (const tr of parcels.tracks) if (polyLen(tr.pts) >= minLen(tr.kind) * 1.1) { lines.push({ kind: tr.kind, pts: tr.pts }); mark(tr.pts); }
     for (const [x, z] of parcels.cross) junctions.push({ k: "junction", x, z });
   } else {
     // a track across the map (another pair of ends while one fails: a lake or a cliff in the way)
-    for (let t = 0; t < 10; t++) { const main = route(edgePt(), false, edgePt()); if (main) { lines.push({ kind: "track", pts: main.pts }); mark(main.pts); break; } }
+    for (let t = 0; t < 10; t++) { const main = route(edgePt(), false, edgePt()); if (main && polyLen(main.pts) >= Math.max(minLen("track") * 1.1, W / 3)) { lines.push({ kind: "track", pts: main.pts }); mark(main.pts); break; } }
   }
   const nHubs = Math.round(R.hubs * km2 * pk);
   for (let k = 0; k < nHubs + Math.round(2 * pk); k++) {
     const from = k < nHubs ? somewhere(60) : edgePt();
-    const r = route(from, true);
-    if (!r || r.pts.length < 6) continue;
-    lines.push({ kind: k % 4 === 3 ? "small" : "path", pts: r.pts }); mark(r.pts);
+    const r = route(from, true), kind = k % 4 === 3 ? "small" : "path";
+    if (!r || r.pts.length < 6 || polyLen(r.pts) < minLen(kind) * 1.1) continue;            // under ISOM's minimum length: not made
+    lines.push({ kind, pts: r.pts }); mark(r.pts);
     const [jx, jz] = r.pts[r.pts.length - 1];
     if (spaced(junctions, jx, jz, 25)) junctions.push({ k: "junction", x: jx, z: jz });
   }
@@ -606,17 +799,36 @@ export function generate({ type = "moraine", seed = 1, size = 1200, detail = 0.5
     for (const l of lines) for (let k = 2; k < l.pts.length - 2; k += 3) onPath.push(l.pts[k]);
     const want = Math.round(14 * km2 * dk);
     for (let t = 0, got = 0; t < want * 6 && got < want && onPath.length; t++) {
-      const [px, pz] = onPath[Math.floor(rnd() * onPath.length)], [ux, uz] = unit(), d = rnd.range(5, 11), x = px + ux * d, z = pz + uz * d;
+      // 8-12 m from the path: the symbol clear of the path's (ISOM: 0.15 mm between symbols)
+      const [px, pz] = onPath[Math.floor(rnd() * onPath.length)], [ux, uz] = unit(), d = rnd.range(8, 12), x = px + ux * d, z = pz + uz * d;
       if (x < 30 || z < 30 || x > W - 30 || z > H - 30 || !dryAt(x, z) || !spaced(points, x, z, 20) || !spaced(feats, x, z, 20)) continue;
-      if (type === "pine") { addBump(x, z, 3.5, -1.4); feats.push({ k: "pit", x, z, r: 3.5 }); }
-      else { rockAt(x, z, "boulder"); points.push({ k: "boulder", x, z }); }
+      if (type === "pine") { if (d < 11) continue; addBump(x, z, 3.5, -1.4); feats.push({ k: "pit", x, z, r: 3.5, a: -1.4 }); }
+      else { const i0 = rocks.length; rockAt(x, z, "boulder"); points.push({ k: "boulder", x, z, rk: [i0, rocks.length] }); }
       got++;
     }
   }
   // streams are lines too (not paths): ISOM 305 small crossable watercourse
-  for (const s of streams) lines.push({ kind: "stream", pts: s });
+  for (const s of streams) if (polyLen(s) >= minLen("stream")) lines.push({ kind: "stream", pts: s });
   // smooth the lines as a mapper draws them, then stamp them into the classes
   for (const l of lines) l.pts = chaikin(simplify(l.pts, 1.2), 3);
+  {
+    const LHW = { track: LINE_HW[504], path: LINE_HW[505], small: LINE_HW[506], ride: LINE_HW[508], stream: LINE_HW[305] };
+    const PR = { knoll: POINT_R[109], eknoll: POINT_R[110], depression: POINT_R[111], pit: POINT_R[112], boulder: POINT_R[204], bigboulder: POINT_R[205], cluster: POINT_R[207] };
+    const tooNear = (x, z, k) => lines.some((l) => distLine(l.pts, x, z) < ((PR[k] || 0.3) + LHW[l.kind] + 0.15) * GROUND)
+      || cliffs.some((c) => distLine(c.pts, x, z) < ((PR[k] || 0.3) + LINE_HW[201] + 0.15) * GROUND);
+    for (let i = feats.length - 1; i >= 0; i--) {
+      const f = feats[i];
+      if (f.map === false || !f.a || !tooNear(f.x, f.z, f.k)) continue;
+      addBump(f.x, f.z, f.r, -f.a, f.ex || 0, f.ez || 0, f.ln || 0); feats.splice(i, 1);
+    }
+    for (let i = points.length - 1; i >= 0; i--) {
+      const p = points[i];
+      if (p.giant || !tooNear(p.x, p.z, p.k)) continue;
+      if (p.rk) for (let k = p.rk[0]; k < p.rk[1]; k++) rocks[k] = null;
+      points.splice(i, 1);
+    }
+    for (let k = rocks.length - 1; k >= 0; k--) if (!rocks[k]) rocks.splice(k, 1);
+  }
   const WIDTH = { track: [C.track, 3], path: [C.path, 1.6], small: [C.small_path, 1.0], ride: [C.small_path, 1.2], stream: [C.stream, 1.2] };
   for (const l of lines) {
     const [c, w] = WIDTH[l.kind], r = w / 2;
@@ -676,6 +888,9 @@ export function generate({ type = "moraine", seed = 1, size = 1200, detail = 0.5
   let hmin = Infinity, hmax = -Infinity; for (let q = 0; q < N; q++) { if (h[q] < hmin) hmin = h[q]; if (h[q] > hmax) hmax = h[q]; }
   const hs = blur(h, nx, ny, 1);
   const rings = [];
+  const cMinL = (mins?.["101"]?.length || 0.9) * GROUND, cMinW = (mins?.["101"]?.width || 0.6) * GROUND;
+  const cliffBox = cliffs.map((c) => { let a = Infinity, b = Infinity, cc = -Infinity, d = -Infinity; for (const [x, z] of c.pts) { a = Math.min(a, x); b = Math.min(b, z); cc = Math.max(cc, x); d = Math.max(d, z); } return [a - 3, b - 3, cc + 3, d + 3]; });
+  const nearCliff = (x, z) => cliffs.some((c, k) => { const bb = cliffBox[k]; return x >= bb[0] && x <= bb[2] && z >= bb[1] && z <= bb[3] && distLine(c.pts, x, z) < 1.6; });
   // each grid cell listed under the levels it spans, so that a level looks at its own cells only
   const k0 = Math.ceil(hmin / E), nl = Math.max(0, Math.floor(hmax / E) - k0 + 1), cnt = new Int32Array(nl + 1);
   const span = (c) => { const j = Math.floor(c / (nx - 1)), i = c - j * (nx - 1), o = j * nx + i, a = hs[o], b = hs[o + 1], d = hs[o + nx], e = hs[o + nx + 1];
@@ -690,65 +905,73 @@ export function generate({ type = "moraine", seed = 1, size = 1200, detail = 0.5
     for (const raw of isolines(hs, nx, ny, lv, cellsOf.subarray(cnt[l], cnt[l + 1]))) {
       let line = toW(raw);
       const closed = line.length > 3 && line[0][0] === line[line.length - 1][0] && line[0][1] === line[line.length - 1][1];
-      if (polyLen(line) < (closed ? 28 : 20)) continue;
+      const L0 = polyLen(line);
+      if (L0 < Math.max(cMinL, 20)) continue;
+      if (closed && (4 * Math.abs(ringArea(line))) / L0 < cMinW * 1.15) continue;                  // narrower than 101's minimum width
       line = chaikin(simplify(line, 0.6), 1);
-      // pieces outside the water
+      // pieces outside the water and away from the cliffs (a contour stops at a cliff), cut on the line with a point every metre
+      const dense = densify(line, 1);
       let cur = [];
-      const pieces = [];
-      for (const p of line) { if (inWater(p[0], p[1])) { if (cur.length > 1) pieces.push(cur); cur = []; } else cur.push(p); }
+      let pieces = [];
+      for (const p of dense) { if (inWater(p[0], p[1]) || nearCliff(p[0], p[1])) { if (cur.length > 1) pieces.push(cur); cur = []; } else cur.push(p); }
       if (cur.length > 1) pieces.push(cur);
-      for (const p of pieces) objects.push({ sym: index ? 102000 : 101000, otp: 2, pts: p });
-      if (closed && pieces.length === 1) rings.push({ line, lv });
+      if (pieces.length === 1 && pieces[0].length === dense.length) pieces = [line];                  // not cut: the line as it was
+      else {
+        // a closed ring cut somewhere: its last piece runs on into its first (they meet at the ring's start)
+        if (closed && pieces.length > 1 && pieces[0][0] === dense[0] && pieces[pieces.length - 1][pieces[pieces.length - 1].length - 1] === dense[dense.length - 1])
+          pieces[0] = pieces.pop().concat(pieces[0].slice(1));
+        pieces = pieces.map((p) => simplify(p, 0.15));
+      }
+      for (const p of pieces) if (polyLen(p) >= cMinL) objects.push({ sym: index ? 102000 : 101000, otp: 2, pts: p });
+      if (closed && pieces.length === 1 && pieces[0] === line) rings.push({ line, lv });
     }
   }
-  // slope ticks on the closed contours round a hollow (the ground inside lower than the line)
+  // slope ticks on every closed contour round a hollow (the ground inside all lower than the line): one to three, evenly along
+  // it, each across the line and pointing in, downhill — the tick symbol (101009) is drawn along (0, −1) turned by its angle
   for (const { line, lv } of rings) {
-    let cx = 0, cz = 0; for (const p of line) { cx += p[0]; cz += p[1]; } cx /= line.length; cz /= line.length;
-    if (!inPoly(line, cx, cz) || hAt(cx, cz) > lv) continue;
-    // at the ring's point nearest the centre, pointing to it (downhill)
-    let best = line[0], bd = Infinity; for (const p of line) { const d = (p[0] - cx) * (p[0] - cx) + (p[1] - cz) * (p[1] - cz); if (d < bd) { bd = d; best = p; } }
-    const a = Math.atan2(-(cz - best[1]), cx - best[0]) * 180 / Math.PI;           // map angle (y up), drawing only
-    objects.push({ sym: 101009, otp: 1, pts: [best], ang: Math.round((a - 90) * 10) });
-  }
-  // areas: each class's region traced as polygons with their holes
-  const AREA_SYM = { open: 401000, rough: 403000, slow: 406000, slow_vis: 407000, walk: 408000, walk_vis: 409000, fight: 410000,
-    stony: 210000, rock: 214000, marsh: 308000, water: 301000 };
-  const areaOf = (F, sym, tol = 0.6) => {
-    const pad = new Float32Array((nx + 2) * (ny + 2)).fill(-1);
-    for (let j = 0; j < ny; j++) for (let i = 0; i < nx; i++) pad[(j + 1) * (nx + 2) + i + 1] = F[j * nx + i];
-    const lines_ = isolines(pad, nx + 2, ny + 2, 0).map((l) => l.map(([i, j]) => [(i - 1) * S, (j - 1) * S]));
-    const outers = [], holes = [];
-    for (let r of lines_) {
-      if (r.length < 4) continue;
-      r = simplify(r, tol); if (r.length < 4) continue;
-      const a = ringArea(r);
-      if (Math.abs(a) < 60) continue;
-      // which side is inside: the field just to the left of the first segment
-      const [ax, az] = r[0], [bx, bz] = r[1], dx = bx - ax, dz = bz - az, L = Math.sqrt(dx * dx + dz * dz) || 1;
-      const px = (ax + bx) / 2 - (dz / L) * 0.3, pz = (az + bz) / 2 + (dx / L) * 0.3;
-      const leftIn = inPoly(r, px, pz), leftAbove = sample(pad, nx + 2, ny + 2, px / S + 1, pz / S + 1) > 0;
-      (leftIn === leftAbove ? outers : holes).push({ r, a: Math.abs(a) });
+    let a = Infinity, b = Infinity, c = -Infinity, d = -Infinity; for (const [x, z] of line) { a = Math.min(a, x); b = Math.min(b, z); c = Math.max(c, x); d = Math.max(d, z); }
+    const stepIn = Math.max(1, Math.sqrt(((c - a) * (d - b)) / 400));
+    let hi = -Infinity, n = 0;
+    for (let z = b + stepIn / 2; z < d; z += stepIn) for (let x = a + stepIn / 2; x < c; x += stepIn) if (inPoly(line, x, z)) { hi = Math.max(hi, hAt(x, z)); n++; }
+    if (!n || hi > lv - 0.01) continue;
+    const L = polyLen(line), nt = Math.max(1, Math.min(3, Math.round(L / 90)));
+    for (let t = 0; t < nt; t++) {
+      // the point at that share of the ring's length, its tangent from its neighbours
+      let target = (L * (t + 0.5)) / nt, k = 1;
+      for (; k < line.length - 1; k++) { const dx = line[k][0] - line[k - 1][0], dz = line[k][1] - line[k - 1][1], l = Math.sqrt(dx * dx + dz * dz); if (target <= l) break; target -= l; }
+      const p = line[k], pa = line[k - 1], pb = line[Math.min(line.length - 1, k + 1)];
+      let tx = pb[0] - pa[0], tz = pb[1] - pa[1]; const tl = Math.sqrt(tx * tx + tz * tz) || 1; tx /= tl; tz /= tl;
+      let nx_ = -tz, nz_ = tx;                                                              // a normal; the one pointing inside
+      if (!inPoly(line, p[0] + nx_ * 2, p[1] + nz_ * 2)) { nx_ = -nx_; nz_ = -nz_; }
+      const ang = Math.atan2(-nz_, nx_) * 180 / Math.PI;                                    // its angle on the paper (y up): drawing only
+      objects.push({ sym: 101009, otp: 1, pts: [[p[0], p[1]]], ang: Math.round((ang + 90) * 10) });
     }
-    outers.sort((p, q) => p.a - q.a);
-    const out = outers.map((o) => ({ sym, otp: 3, rings: [o.r] }));
-    for (const hl of holes) { const k = outers.findIndex((o) => o.a > hl.a && inPoly(o.r, hl.r[0][0], hl.r[0][1])); if (k >= 0) out[k].rings.push(hl.r); }
-    return out;
-  };
-  for (const name of ["open", "rough", "slow", "walk", "fight", "stony", "rock", "marsh", "water"]) {
-    const F = AREA[name]; if (!F) continue;
-    // a green with good visibility: drawn as its own symbol where the visibility field is high
-    if (vis && (name === "slow" || name === "walk")) {
-      const lo = new Float32Array(N), hi = new Float32Array(N);
-      for (let q = 0; q < N; q++) { lo[q] = Math.min(F[q], 0.55 - vis[q]); hi[q] = Math.min(F[q], vis[q] - 0.55); }
-      objects.push(...areaOf(lo, AREA_SYM[name]), ...areaOf(hi, AREA_SYM[name === "slow" ? "slow_vis" : "walk_vis"]));
-    } else objects.push(...areaOf(F, AREA_SYM[name], parcels ? 0.3 : 0.6));
   }
-  if (parcels?.fields.slow_vis) objects.push(...areaOf(parcels.fields.slow_vis, AREA_SYM.slow_vis, 0.3));
+  // slope ticks at the re-entrants' tips (owner, 2026-11-14: « il devrait y en avoir sur les rentrants, ie petit trait dans
+  // l'intérieur d'un angle serré »): inside each tight bend of a contour round lower ground, down the re-entrant's axis; one
+  // every 30 m at most, none at a cliff, in the water or at the map's edge
+  {
+    const tk = objects.filter((o) => o.sym === 101009).map((o) => o.pts[0]);
+    // the 1 m heights, read as the check reads them (games/vcheck.js)
+    const h1 = (x, z) => hm[Math.min(H - 1, Math.max(0, Math.floor(z))) * W + Math.min(W - 1, Math.max(0, Math.floor(x)))];
+    for (const o of objects.filter((o) => o.sym === 101000 || o.sym === 102000)) for (const r of reentrants(o.pts, h1)) {
+      if (r.x < 10 || r.z < 10 || r.x > W - 10 || r.z > H - 10 || inWater(r.x + 2 * r.dx, r.z + 2 * r.dz) || nearCliff(r.x, r.z)) continue;
+      if (cliffs.some((c) => distLine(c.pts, r.x, r.z) < 10) || tk.some(([x, z]) => Math.abs(x - r.x) < 30 && Math.abs(z - r.z) < 30 && (x - r.x) ** 2 + (z - r.z) ** 2 < 900)) continue;
+      const ang = Math.atan2(-r.dz, r.dx) * 180 / Math.PI;                                  // drawing only
+      objects.push({ sym: 101009, otp: 1, pts: [[r.x, r.z]], ang: Math.round((ang + 90) * 10) });
+      tk.push([r.x, r.z]);
+    }
+  }
+  // areas: each class's region traced as polygons with their holes (above, before the classes)
+  for (const o of areaObjs) { delete o.src; objects.push(o); }
   // the water's bank line
   for (const o of objects.filter((o) => o.sym === 301000)) for (const r of o.rings) objects.push({ sym: 301009, otp: 2, pts: r });
   // gigantic boulders (206 areas), cliffs
+  // a gigantic boulder under 206's minimum area or width is drawn as a large boulder (205)
+  const giantMin = 1.08 * Math.max(Math.sqrt(((mins?.["206"]?.area || 0.3) * GROUND * GROUND) / Math.PI), (mins?.["206"]?.width || 0.25) * GROUND);
   for (const g of giants) {
-    const r = []; for (let k = 0; k <= 10; k++) { const a = (k % 10) / 10; const [cx_, cz_] = circ(a); r.push([g.x + g.r * cx_, g.z + g.r * cz_]); }
+    if (g.r < giantMin) { objects.push({ sym: 205000, otp: 1, pts: [[g.x, g.z]] }); continue; }
+    const r = []; for (let k = 0; k <= 12; k++) { const a = (k % 12) / 12; const [cx_, cz_] = circ(a); r.push([g.x + g.r * cx_, g.z + g.r * cz_]); }
     objects.push({ sym: 206000, otp: 3, rings: [r] });
   }
   for (const c of cliffs) objects.push({ sym: c.imp ? 201000 : 202000, otp: 2, pts: c.pts });
@@ -776,9 +999,14 @@ export function generate({ type = "moraine", seed = 1, size = 1200, detail = 0.5
   // ---- what the course setter and the description sheet read ----
   const features = [...feats.filter((f) => !inWater(f.x, f.z)).map((f) => ({ k: f.k, x: +f.x.toFixed(1), z: +f.z.toFixed(1) })),
     ...points.map((p) => ({ k: p.k, x: +p.x.toFixed(1), z: +p.z.toFixed(1) })), ...junctions.map((p) => ({ k: "junction", x: +p.x.toFixed(1), z: +p.z.toFixed(1) }))];
-  return { W, H, base, h: hm, cls, veg, ground, interval: E, biome, objects, features,
+  const world = { W, H, base, h: hm, cls, veg, ground, interval: E, biome, objects, features,
     feats: { rocks, walls, points: [], features },
     gen: { type, seed, size: W, detail, relief, green, paths } };
+  // the ISOM check (games/vcheck.js): what the holding above left, rule by rule
+  onStep("check", 0);
+  world.check = checkMap(world, { mins });
+  onStep("check", 1);
+  return world;
 }
 // a point of the unit circle at a turn's fraction a, by a polynomial (deterministic: no Math.sin)
 function circ(a) {

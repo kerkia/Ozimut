@@ -4439,6 +4439,11 @@ html.vt-fs-on, html.vt-fs-on body { overflow: hidden; }
 .vtg-busy progress { width: 100%; }
 .vtg-made { margin: 4px 0 8px; font-size: 0.85rem; }
 .vtg-err { color: var(--bad, #c0392b); }
+.vtg-chk { margin: 0 0 8px; font-size: 0.85rem; }
+.vtg-chk.ok { color: var(--good, #2e7d32); }
+.vtg-chk summary { cursor: pointer; color: var(--muted); }
+.vtg-chk.bad summary { color: var(--bad, #c0392b); }
+.vtg-chk ul { margin: 4px 0 0 18px; padding: 0; }
 .vtg-rh { font-size: 0.92rem; margin: 14px 0 4px; }
 @media (max-width: 640px) { .vtg-row { grid-template-columns: 6.5rem minmax(0, 1fr) 3.6rem; } }
 /* the ghosts (owner, 2026-11-12): their count beside « Commencer », the briefing's line, the finish card's table */
