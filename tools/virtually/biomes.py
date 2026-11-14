@@ -31,6 +31,12 @@ FONTAINEBLEAU = {
 PLACES = [((48.20, 2.30, 48.52, 2.85), FONTAINEBLEAU)]
 
 
+def sandstone(lat, lon):
+    """Whether a place's rock is a sandstone chaos (Fontainebleau's): lidarrace.py makes its cliffs boulders and outcrops there,
+    elsewhere cliff lines (2026-11-14)."""
+    return any(s <= lat <= n and w <= lon <= e for (s, w, n, e), b in PLACES if b is FONTAINEBLEAU)
+
+
 def for_place(lat, lon):
     """The biome of a place: Fontainebleau's sandstone forests, else a temperate European forest."""
     for (s, w, n, e), b in PLACES:

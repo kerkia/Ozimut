@@ -52,7 +52,10 @@ GOOD = {"boulder": 1.0, "bigboulder": 1.3, "cluster": 1.0, "knoll": 1.2, "eknoll
         "waterhole": 1.0, "cave": 1.0, "landform": 0.8, "junction": 1.0}
 ok_ground = lambda x, z: (60 < x < W - 60 and 60 < z < H - 60 and not near_bad[int(z), int(x)] and speed[int(z), int(x)] >= 0.6
                           and cls[int(z), int(x)] != C["outside"])
-sites = [(f["x"], f["z"], f["k"]) for f in F["features"] if ok_ground(f["x"], f["z"])]
+# a rock face's control stands at its foot, beside the rock it describes: the 8 m kept from slow or impassable ground does not
+# apply to it (lidarrace.py's cliff sites, 2026-11-14), only the ground it stands on
+ok_foot = lambda x, z: (60 < x < W - 60 and 60 < z < H - 60 and speed[int(z), int(x)] >= 0.6 and cls[int(z), int(x)] != C["outside"])
+sites = [(f["x"], f["z"], f["k"]) for f in F["features"] if (ok_foot if f["k"] == "rockface" else ok_ground)(f["x"], f["z"])]
 
 
 def junctions():

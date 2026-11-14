@@ -1383,6 +1383,28 @@ Every multiple-choice game was played through to its score page at phone size, w
   relief, forest share and no cliff band (the Vercors rim just west of it left out), six LiDAR HD tiles of 2021; its tiles made
   apart (`python -m mapgen tiles … --out DATA/autrans/tiles`), then `lidarrace.py … --tiles DATA/autrans/tiles` with mapgen's
   `work/` (point clouds, `osm_*.json`) moved beside that folder — lidarrace reads it there, and without it finds no OpenStreetMap.
+  **Read as a mapper draws** (owner, 2026-11-14, after looking at a club's map of the next valley — only as a reference: it says
+  « Copie ou adaptation interdite », so never traced, copied, committed or published, and the race stays open data; the comparison,
+  with our own pictures only, in the session's scratch and the shared notes): four generic rules in `lidarrace.py`. **R1** the
+  vegetation in ISOM's three greens, generalised: karttapullautin's two lightest of its seven greens are white forest (a fir and
+  beech forest's low branches and seedlings), the next two 406, the next two 408, the darkest 410; each cell takes the class most
+  present within 6 m (`GEN_R`), patches under `GEN_MIN` (open and rough 300 m², 406 400, 408 300, 410 200) and white holes under
+  200 m² go to their surroundings; `map.webp` is karttapullautin's image with its ground repainted from that layer in ISOM's colours
+  (its lines kept), and `cls_base.png` is the same layer (Autrans: 53 % of green in 7 700 patches → 32 % in 646; the club's map about
+  15-35 %). **R2** open land 401 where karttapullautin's yellow lies on grass: OpenStreetMap's open land and pitches (no longer area
+  objects of their own, which covered their trees too) and, in France, IGN's RPG grassland parcels (code_group 18, 19; WFS
+  `RPG.LATEST:parcelles_graphiques`, Licence Ouverte 2.0, kept beside the point clouds as `rpg_*.json`, credited in race.json); the
+  rest stays 403 (Autrans: 48 parcels, 34 ha). **R3** the rock from karttapullautin's cliffs (c2g) only, chained end to end into
+  cliff lines 202 (rock steps in the world; one of 8 m or more is also a control site, build.py's « rockface », 2.5 m from its
+  middle on its lower side — its foot —, left out of the editable OCAD; course.py takes a rock face 8 m from slow ground, which
+  any other site keeps away from); its c3g steep marks and the boulders and outcrops every 3 m only on sandstone
+  (`biomes.sandstone`: Fontainebleau) — on Autrans they made 49 of 139 outcrops and 70 of 236 boulders on steep earth the map did not
+  show. **R4** the knolls (109, 10-600 m²) and small depressions (111, 10-300 m²) of 1 m or more in the terrain model (IGN's MNT at
+  0.5 m that mapgen fetched, else the tiles' 2 m one), roundish, away from roads, paths, buildings, water and cliffs, 12 m from
+  karttapullautin's own, drawn on the map in its brown and placed in the world (control sites; Autrans' slopes: 5 knolls and 1
+  hollow more — most bumps there are under 1 m or hills). The CI's build installs scikit-image for it. Autrans was rebuilt with
+  them the same day (its courses set again: R3 took away the boulders several controls stood on); its files of before in
+  `DATA/autrans/_before_20261114/`. A LiDAR-only event of Orga takes them at its next « Reconstruire ».
   **The map and the world agree point by point** (owner, 2026-11-11): every boulder the race places is drawn on `map.webp` as its
   ISOM dot (204 ⌀ 0.6 mm, 205 ⌀ 0.9 mm at the map's scale), the outcrops as 206 areas. **North lines** (owner, 2026-11-11: missing on the generated map, which matters once the map turns to the leg): blue 601 lines every 300 m (30 mm at 1:10 000) on the grid's round hundreds, on `map.webp` and in `lidar.ocd`, parallel to the frame (the game's north is the grid's). **The map as an editable OCAD file**:
   `lidarrace.editable_ocd` writes `map_objects.json` — the OpenStreetMap objects, the boulders, karttapullautin's contours (101/102/103
