@@ -225,7 +225,9 @@ export function mount(root, raceId, opts = {}) {
     brief.ghostsOther = ghosts.filter((g) => g.course).length;
     if (ghosts.length && !$(".vt-gh-brief", root)) $(".vt-brief-cols", root)?.insertAdjacentHTML("beforebegin", String(ghostsLine(ghosts.length, brief.ghostsOther)));
     // ---- the runner's state ----
-    const st = { phase: "ready", t: 0, x: course[0].x, z: course[0].z, yaw: 0, pitch: -0.08, next: 1, splits: [], track: [], dist: 0,
+    // the runner starts at the far end of the start's taped corridor, facing the triangle (vworld corridor), else on the triangle
+    const START = world.startPos || { x: course[0].x, z: course[0].z, yaw: 0 };
+    const st = { phase: "ready", t: 0, x: START.x, z: START.z, yaw: START.yaw, pitch: -0.08, next: 1, splits: [], track: [], dist: 0,
       view: opts.view === "first" ? "first" : "third", level: 0, energy: 1, paceT: {}, speed: 0, lastTrack: -1, msgUntil: 0,
       posLeft: 0, posN: 0, pen: 0, legPen: [] };       // « Ma position »: seconds still shown (real time), presses, penalty seconds, per leg
     const total = () => st.t + st.pen;                // the race time: the clock and the penalties
@@ -698,7 +700,7 @@ export function mount(root, raceId, opts = {}) {
     }
     function reset() {
       if (mapImg.canvas !== layered) mapImg.canvas = layered;        // the finish drew the whole map
-      Object.assign(st, { phase: "ready", t: 0, punchT: -1e9, x: course[0].x, z: course[0].z, yaw: 0, next: 1, splits: [], track: [], dist: 0, lastTrack: -1,
+      Object.assign(st, { phase: "ready", t: 0, punchT: -1e9, x: START.x, z: START.z, yaw: START.yaw, next: 1, splits: [], track: [], dist: 0, lastTrack: -1,
         posLeft: 0, posN: 0, pen: 0, legPen: [], level: 0, energy: 1, paceT: {} });
       showPosBtn(); showSpeed(); showEnergy(); setView("scene"); sheet.hidden = false; describe(); mapSize("small"); mv.cx = course[0].x * mPer; mv.cy = course[0].z * mPer; fitZoom(700); drawMapPanel();
     }

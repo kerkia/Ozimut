@@ -165,16 +165,23 @@ export class World {
     const litter = P["ground-litter"] || X.litter, gravel = P["ground-gravel"] || litter, photo = !!P["ground-litter"];
     const nrm = P["ground-litter-n"] || X.litterN; nrm.repeat.set(W / 2.6, H / 2.6);
     this.groundMat = new T.MeshLambertMaterial({ map: tex, normalMap: nrm, normalScale: new T.Vector2(1.1, 1.1), vertexColors: true });
+    const pathMask = this.pathMask();
     this.groundMat.onBeforeCompile = (sh) => {
-      Object.assign(sh.uniforms, { litter: { value: litter }, gravel: { value: gravel }, rep: { value: new T.Vector2(W / 2.6, H / 2.6) }, gainD: { value: photo ? G : 1 } });
+      Object.assign(sh.uniforms, { litter: { value: litter }, gravel: { value: gravel }, rep: { value: new T.Vector2(W / 2.6, H / 2.6) }, gainD: { value: photo ? G : 1 }, pathMask: { value: pathMask } });
       sh.vertexShader = "attribute vec2 gm; varying vec2 vGm;\n" + sh.vertexShader.replace("#include <begin_vertex>", "#include <begin_vertex>\n vGm = gm;");
-      sh.fragmentShader = "uniform sampler2D litter, gravel; uniform vec2 rep; uniform float gainD; varying vec2 vGm;\n" + sh.fragmentShader.replace("#include <map_fragment>",
+      sh.fragmentShader = "uniform sampler2D litter, gravel, pathMask; uniform vec2 rep; uniform float gainD; varying vec2 vGm;\n" + sh.fragmentShader.replace("#include <map_fragment>",
         `#include <map_fragment>
          vec2 q = vMapUv * rep;
          vec3 dL = texture2D(litter, q).rgb, dG = texture2D(gravel, q * 0.83 + 0.17).rgb;
          vec3 d = mix(dL, dG, vGm.x) * gainD;
          float m = texture2D(litter, q * 0.031 + 0.31).g * gainD, m2 = texture2D(gravel, q * 0.0071 + 0.6).g * gainD;
-         diffuseColor.rgb *= mix(vec3(1.0), d, vGm.y) * (0.82 + 0.18 * m) * (0.86 + 0.14 * m2);`);
+         vec2 pm = texture2D(pathMask, vMapUv).rg;
+         float pk = pm.r * pm.g, pe = clamp(pm.r * (1.0 - pm.r) * 4.0, 0.0, 1.0) * pm.g;
+         // a path over open land: a trodden band, smoother, paler and greyer, its edges worn darker (pathMask)
+         vec3 grain = mix(mix(vec3(1.0), d, vGm.y), vec3(1.0), 0.6 * pk);
+         diffuseColor.rgb *= grain * (0.82 + 0.18 * m) * (0.86 + 0.14 * m2);
+         float lum = dot(diffuseColor.rgb, vec3(0.299, 0.587, 0.114));
+         diffuseColor.rgb = mix(diffuseColor.rgb, vec3(lum) * vec3(1.04, 1.0, 0.94), 0.45 * pk) * (1.0 + 0.16 * pk) * (1.0 - 0.3 * pe);`);
     };
     const lam = (o = {}) => new T.MeshLambertMaterial({ color: 0xffffff, ...o });
     // leaves: the photographed clusters (grey, tinted by each tree's colour), else the drawn ones; the crowns' baked occlusion
@@ -395,8 +402,10 @@ export class World {
         inst[pick(["rock0", "rock1", "rock2"])].push([x, this.heightAt(x, z) - sz * 0.15, z, sz, sz * (0.45 + r() * 0.35), sz * (0.7 + r() * 0.5), r() * 6.283, tint(pick(this.rockC), 0.8).multiplyScalar(0.8 + r() * 0.3)]);
         if (sz > 0.6) shadeAt(x, z, sz, 0.25);
       }
-      // grass in open ground, ferns and low growth in the forest
+      // grass in open ground, ferns and low growth in the forest - none on the map's paths (owner, 2026-11-14: « les chemins dans
+      // le jaune sont invisibles »: the tufts hid them)
       const grassy = open.has(c);
+      if (this.pathCls.has(c)) continue;
       let n = ld; while (n > 0) { if (r() < n) { const x = j + r(), z = i + r(), s = 0.5 + r() * 0.6;
         (grassy ? inst.grass : inst.low).push([x, this.heightAt(x, z) - 0.05, z, s * (grassy ? 1.1 : 1.4), (0.35 + r() * 0.45) * (grassy ? 1.0 : 1.2), s * 1.4, r() * 6.28, pick(this.lowC).clone().multiplyScalar(0.85 + r() * 0.3)]); } n -= 1; }
     }
@@ -427,7 +436,7 @@ export class World {
     const sh = Math.hypot(this.sunDir.x, this.sunDir.z) || 1, SX = this.sunDir.x / sh, SZ = this.sunDir.z / sh, HS = town < 1 ? 0 : 1;
     for (let i = 0; i < nz; i++) for (let j = 0; j < nx; j++) {
       const x = x0 + j, z = z0 + i, q = i * nx + j, y = this.heightAt(x, z);
-      pos[q * 3] = x; pos[q * 3 + 1] = y; pos[q * 3 + 2] = z;
+      pos[q * 3] = x; pos[q * 3 + 1] = y - (this.pathCls.has(this.classAt(x, z)) && !this.d.race.town ? 0.06 : 0); pos[q * 3 + 2] = z;   // a path trodden a little lower
       const ex = this.heightAt(x - 1, z) - this.heightAt(x + 1, z), ez = this.heightAt(x, z - 1) - this.heightAt(x, z + 1), l = Math.hypot(ex, 2, ez);
       nor[q * 3] = ex / l; nor[q * 3 + 1] = 2 / l; nor[q * 3 + 2] = ez / l;
       uv[q * 2] = x / this.W; uv[q * 2 + 1] = z / this.H;      // an ImageBitmap is never flipped: its first row (north) at v = 0
@@ -497,6 +506,82 @@ export class World {
     l.push(low ? [x, z, r, low] : [x, z, r]);
   }
 
+  // ---- the paths over open land, for the ground's shader --------------------------------------------------------------------
+  /** A W x H texture: R the map's footpaths and tracks, G open land within 3 m (a trodden band shows there; in the forest the
+   *  paths already stand out). None in a town. */
+  pathMask() {
+    const T = this.T, { W, H } = this, n = W * H, out = new Uint8Array(n * 4);
+    if (!this.d.race.town) {
+      const P = new Set(["path", "small_path", "track"].map((k) => this.C[k]).filter((v) => v != null));
+      const O = new Set(["open", "open_t", "rough", "rough_t", "cultivated", "stony", "rock"].map((k) => this.C[k]).filter((v) => v != null));
+      const cls = this.d.cls, a = new Uint8Array(n), b = new Uint8Array(n), R = 3;
+      for (let i = 0; i < n; i++) a[i] = O.has(cls[i]) ? 1 : 0;
+      for (let z = 0; z < H; z++) for (let x = 0; x < W; x++) { let v = 0; for (let k = Math.max(0, x - R); k <= Math.min(W - 1, x + R) && !v; k++) v = a[z * W + k]; b[z * W + x] = v; }
+      for (let z = 0; z < H; z++) for (let x = 0; x < W; x++) {
+        let v = 0; for (let k = Math.max(0, z - R); k <= Math.min(H - 1, z + R) && !v; k++) v = b[k * W + x];
+        const i = z * W + x; out[i * 4] = P.has(cls[i]) ? 255 : 0; out[i * 4 + 1] = v ? 255 : 0;
+      }
+    }
+    const t = new T.DataTexture(out, W, H, T.RGBAFormat);
+    t.magFilter = T.LinearFilter; t.minFilter = T.LinearMipmapLinearFilter; t.generateMipmaps = true; t.needsUpdate = true;
+    return t;
+  }
+
+  // ---- the start's corridor -----------------------------------------------------------------------------------------------
+  /** A taped corridor to the start triangle (owner, 2026-11-14: « mets un couloir balisé vers le départ, par exemple 50 m, à moins
+   *  de 90° de la direction du premier poste… c'est chelou de toujours regarder vers le nord au début »): ~50 m, its bearing drawn
+   *  within ±60° of the start's to the first control by a seed of the course's own (everyone gets the same), on runnable ground -
+   *  another bearing, else shorter. Drawn in the 3D only (the map unchanged); the runner starts at its far end facing the
+   *  triangle. Returns { x, z, yaw, len } or null. */
+  corridor(course) {
+    const S = course[0], C1 = course[1];
+    if (!S || !C1) return null;
+    const base = Math.atan2(C1.x - S.x, -(C1.z - S.z));
+    const r = rng((Math.round(S.x * 7 + S.z * 13 + C1.x * 17 + C1.z * 19) ^ 0x51a7) >>> 0);
+    // runnable ground, and no rock of the package's features on it (the chunks, and their trunks, are not built yet)
+    const rockAt = (x, z) => (this.fb.get(`${Math.floor(x / CH)},${Math.floor(z / CH)}`)?.rocks || []).some((q) => Math.hypot(q[0] - x, q[1] - z) < (q[2] || 1) * 0.62 + 0.4);
+    const ok = (x, z) => x > 2 && z > 2 && x < this.W - 2 && z < this.H - 2 && this.terrainSpeed(x, z) > 0 && !this.hits(x, z, 0.5) && !rockAt(x, z);
+    for (const len of [50, 40, 30, 20]) for (let k = 0; k < 14; k++) {
+      const th = base + (r() * 2 - 1) * (Math.PI / 3), ux = Math.sin(th), uz = -Math.cos(th);
+      let fine = true;
+      for (let d = 2; d <= len && fine; d += 2) fine = ok(S.x - ux * d, S.z - uz * d) && ok(S.x - ux * d + uz * 1.4, S.z - uz * d - ux * 1.4) && ok(S.x - ux * d - uz * 1.4, S.z - uz * d + ux * 1.4);
+      if (!fine) continue;
+      this.drawCorridor(S, ux, uz, len);
+      return { x: S.x - ux * len, z: S.z - uz * len, yaw: th, len };
+    }
+    return null;
+  }
+  /** Orange and white tape on stakes along both sides of the corridor, 1.4 m from its axis, at 0.85 m. */
+  drawCorridor(S, ux, uz, len) {
+    const T = this.T, c = document.createElement("canvas"); c.width = 64; c.height = 8;
+    const g = c.getContext("2d");
+    for (let k = 0; k < 4; k++) { g.fillStyle = k % 2 ? "#ffffff" : "#ff6a13"; g.fillRect(k * 16, 0, 16, 8); }
+    const tex = new T.CanvasTexture(c); tex.colorSpace = T.SRGBColorSpace; tex.wrapS = T.RepeatWrapping;
+    const pos = [], uv = [], idx = [], stakes = [];
+    for (const side of [1, -1]) {
+      const px = uz * 1.4 * side, pz = -ux * 1.4 * side;
+      let prev = null;
+      for (let d = 0; d <= len + 0.01; d += 4) {
+        const x = S.x - ux * d + px, z = S.z - uz * d + pz, y = this.heightAt(x, z);
+        stakes.push([x, y, z]);
+        if (prev) {
+          const v = pos.length / 3, top = 0.9, w = 0.08;
+          for (const [qx, qy, qz, u] of [prev, [x, y, z, d]]) { pos.push(qx, qy + top, qz, qx, qy + top - w, qz); uv.push(u / 2, 1, u / 2, 0); }
+          idx.push(v, v + 1, v + 2, v + 1, v + 3, v + 2);
+        }
+        prev = [x, y, z, d];
+      }
+    }
+    const geo = new T.BufferGeometry();
+    geo.setAttribute("position", new T.Float32BufferAttribute(pos, 3)); geo.setAttribute("uv", new T.Float32BufferAttribute(uv, 2)); geo.setIndex(idx);
+    const tape = new T.Mesh(geo, new T.MeshBasicMaterial({ map: tex, side: T.DoubleSide }));
+    const im = new T.InstancedMesh(new T.CylinderGeometry(0.02, 0.025, 1, 5).translate(0, 0.5, 0), new T.MeshLambertMaterial({ color: 0xcfc6b8 }), stakes.length);
+    const M = new T.Matrix4();
+    stakes.forEach(([x, y, z], i) => im.setMatrixAt(i, M.makeTranslation(x, y - 0.05, z)));
+    this.scene.add(tape, im);
+    this.corridorMeshes = [tape, im];
+  }
+
   // ---- the course's flags -----------------------------------------------------------------------------------------------------
   /** A flag the package sets inside a rock (owner, 2026-11-14: « une balise invisible parce qu'elle est dans le rocher ! mets-la
    *  derrière ») stands at its foot, on the far side as one comes from the previous control: c.flagX / c.flagZ, and c.foot the
@@ -532,6 +617,7 @@ export class World {
       const t = new T.CanvasTexture(c); t.colorSpace = T.SRGBColorSpace; return new T.MeshBasicMaterial({ map: t, side: T.DoubleSide });
     };
     this.flags = [];
+    this.startPos = this.corridor(course);
     const ROCKY = new Set(["boulder", "bigboulder", "cluster", "rockface", "cave"]);
     course.forEach((c, i) => { if (ROCKY.has(c.feature)) this.footOf(c, course[i - 1]); });
     for (const c of course) {
