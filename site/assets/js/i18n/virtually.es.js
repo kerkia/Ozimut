@@ -438,4 +438,8 @@ export default {
   "vt.map.compline": "Línea de brújula: la dirección en que miras, por el centro del mapa (B)",
   "vt.map.complineOn": "Línea de brújula visible",
   "vt.map.complineOff": "Línea de brújula oculta",
+  "vt.view.label": "Vista",
+  "vt.view.tip": "La vista en la salida; la tecla V la cambia durante la carrera",
+  "vt.view.opt.third": "detrás del corredor",
+  "vt.view.opt.first": "con sus ojos",
 };

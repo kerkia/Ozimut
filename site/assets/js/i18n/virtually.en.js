@@ -438,4 +438,8 @@ export default {
   "vt.map.compline": "Compass line: the direction you face, across the middle of the map (B)",
   "vt.map.complineOn": "Compass line shown",
   "vt.map.complineOff": "Compass line hidden",
+  "vt.view.label": "View",
+  "vt.view.tip": "The view at the start; the V key changes it during the race",
+  "vt.view.opt.third": "behind the runner",
+  "vt.view.opt.first": "through their eyes",
 };

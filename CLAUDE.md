@@ -940,7 +940,8 @@ Every multiple-choice game was played through to its score page at phone size, w
   (a thumb sliding off no longer stops the runner). The finish card goes under the map on a phone held upright. On a phone the
   chosen map's circuits and « Commencer » come right under that map (`.vtp-inline`). **The training's palmarès** (a button beside
   a map's circuits, a pop-up as the games'): per circuit, the 20 best training times, each runner's best (`runs?race=`):
-  a virtual race in a 3D forest made from a real orienteering map. The runner is seen from behind (V: through their eyes), the map
+  a virtual race in a 3D forest made from a real orienteering map. The runner is seen from behind (V: through their eyes; the view the race starts in chosen beside « Commencer », « Vue : derrière le
+  coureur | par ses yeux », kept in `localStorage ocn.vt.view`, an event's races included — owner, 2026-11-14), the map
   with the course in a panel (M: small, large, hidden), a compass
   (baseplate, red needle north, the dial turning with the runner: the map's north is the world's, the world being the map's paper
   frame in metres). **The race's screen** (owner, 2026-11-11): the map in the bottom left corner, the compass beside it, both left of

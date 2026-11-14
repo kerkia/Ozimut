@@ -73,6 +73,10 @@ async function allRuns() {
 
 // ---- the ghosts (owner, 2026-11-12: « a user could select a number of ghosts to run with, in training for now ») -------------
 const GHOSTS_KEY = "ocn.vt.ghosts", GHOSTS_MAX = 5;
+// the view the race starts in (owner, 2026-11-14: « autoriser le choix avant le début »): behind the runner or through their eyes;
+// V still switches during the race; kept in this browser
+const VIEW_KEY = "ocn.vt.view";
+const savedView = () => { try { return localStorage.getItem(VIEW_KEY) === "first" ? "first" : "third"; } catch (e) { return "third"; } };
 const ghostCount = () => { try { const n = Number(localStorage.getItem(GHOSTS_KEY)); return n >= 0 && n <= GHOSTS_MAX ? n : 0; } catch (e) { return 0; } };
 /** The n ghosts of a run: training runs of the whole map (a competition's never, nor one shown « Ma position »), each runner once.
  *  The course's own runs first — one's own best, the fastest, then the runners nearest one's own best time (else the field's
@@ -213,6 +217,8 @@ export async function render(main, { query }) {
         <div class="vtp-go"><button type="button" class="btn btn-primary" id="vtp-go" ${raw(race && sel.course ? "" : "disabled")}>${t("vt.tr.start")}</button>
           ${race && sel.course && race.event?.type !== "competition" ? html`<label class="vtp-ghosts" title="${t("vt.gh.tip")}">${t("vt.gh.label")}
             <select id="vtp-ghosts">${Array.from({ length: GHOSTS_MAX + 1 }, (_, i) => html`<option value="${i}" ${raw(i === ghostCount() ? "selected" : "")}>${i ? fmt(i) : t("vt.gh.none")}</option>`)}</select></label>` : ""}
+          ${race && sel.course ? html`<label class="vtp-ghosts" title="${t("vt.view.tip")}">${t("vt.view.label")}
+            <select id="vtp-view">${["third", "first"].map((v) => html`<option value="${v}" ${raw(v === savedView() ? "selected" : "")}>${t(`vt.view.opt.${v}`)}</option>`)}</select></label>` : ""}
           <span class="muted">${!race ? t("vt.tr.needMap") : !sel.course ? t("vt.tr.needCourse") : t("vt.tr.ready", { course: courseName(courses.find((c) => c.id === sel.course)), map: mapName(race.id) })}</span></div>
           ${race && sel.course ? moChooser(race) : ""}</div>
         <div class="vtp-gen" id="vtp-gen"></div>`;
@@ -225,6 +231,7 @@ export async function render(main, { query }) {
       $$(".vtp-course", el).forEach((b) => b.addEventListener("click", () => { sel.course = b.dataset.course; setQuery({ circuit: sel.course }); drawChooser(); into("#vtp-go"); }));
       $("#vtp-palm", el)?.addEventListener("click", () => palmares(race, sel.course));
       $("#vtp-ghosts", el)?.addEventListener("change", (e) => { try { localStorage.setItem(GHOSTS_KEY, e.target.value); } catch (x) { /* not kept */ } });
+      $("#vtp-view", el)?.addEventListener("change", (e) => { try { localStorage.setItem(VIEW_KEY, e.target.value); } catch (x) { /* not kept */ } });
       const moSave = () => saveOpt({ layer: $("#vtp-layer", el)?.value || savedOpt().layer, memory: !!$("#vtp-memory", el)?.checked });
       $("#vtp-layer", el)?.addEventListener("change", moSave);
       $("#vtp-memory", el)?.addEventListener("change", moSave);
@@ -245,6 +252,7 @@ export async function render(main, { query }) {
         // the map options: an event's, fixed by its creator; a map's training, the runner's choice (games/vmapopt.js)
         // (the « Carte du jour »'s ranked runs: the whole map for everyone)
         map: ev ? mapOptOf(ev.mapOpt) : race.day ? null : savedOpt(),
+        view: savedView(),                                  // the runner's own choice, an event's races included
         onFinish: async (run) => {
           const note = () => $("#vt-saved", el);
           if (race.noSave) { if (note()) note().textContent = t("vtg.notKept"); return; }       // a « Terrain libre »: played, not kept

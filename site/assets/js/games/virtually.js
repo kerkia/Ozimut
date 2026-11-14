@@ -226,7 +226,7 @@ export function mount(root, raceId, opts = {}) {
     if (ghosts.length && !$(".vt-gh-brief", root)) $(".vt-brief-cols", root)?.insertAdjacentHTML("beforebegin", String(ghostsLine(ghosts.length, brief.ghostsOther)));
     // ---- the runner's state ----
     const st = { phase: "ready", t: 0, x: course[0].x, z: course[0].z, yaw: 0, pitch: -0.08, next: 1, splits: [], track: [], dist: 0,
-      view: "third", level: 0, energy: 1, paceT: {}, speed: 0, lastTrack: -1, msgUntil: 0,
+      view: opts.view === "first" ? "first" : "third", level: 0, energy: 1, paceT: {}, speed: 0, lastTrack: -1, msgUntil: 0,
       posLeft: 0, posN: 0, pen: 0, legPen: [] };       // « Ma position »: seconds still shown (real time), presses, penalty seconds, per leg
     const total = () => st.t + st.pen;                // the race time: the clock and the penalties
     const keys = new Set();

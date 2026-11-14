@@ -438,4 +438,8 @@ export default {
   "vt.map.compline": "Ligne de boussole : la direction où vous regardez, au milieu de la carte (B)",
   "vt.map.complineOn": "Ligne de boussole affichée",
   "vt.map.complineOff": "Ligne de boussole masquée",
+  "vt.view.label": "Vue",
+  "vt.view.tip": "La vue du départ ; la touche V la change pendant la course",
+  "vt.view.opt.third": "derrière le coureur",
+  "vt.view.opt.first": "par ses yeux",
 };

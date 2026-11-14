@@ -438,4 +438,8 @@ export default {
   "vt.map.compline": "Kompasslinie: deine Blickrichtung, durch die Kartenmitte (B)",
   "vt.map.complineOn": "Kompasslinie eingeblendet",
   "vt.map.complineOff": "Kompasslinie ausgeblendet",
+  "vt.view.label": "Ansicht",
+  "vt.view.tip": "Die Ansicht beim Start; die Taste V wechselt sie während des Laufs",
+  "vt.view.opt.third": "hinter dem Läufer",
+  "vt.view.opt.first": "mit seinen Augen",
 };
