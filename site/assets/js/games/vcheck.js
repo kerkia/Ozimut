@@ -13,7 +13,7 @@ const GAP = 0.15 * GROUND;                      // the general minimum gap betwe
 const GAP_IMPASSABLE = 0.4 * GROUND;            // between impassable features (6 m)
 // point symbols' radii and line symbols' half widths, mm at 1:15 000 (ISOM 2017-2's drawings)
 export const POINT_R = { 109: 0.375, 110: 0.5, 111: 0.35, 112: 0.4, 115: 0.5, 204: 0.2, 205: 0.3, 207: 0.4 };
-export const LINE_HW = { 201: 0.3, 202: 0.25, 305: 0.09, 504: 0.175, 505: 0.125, 506: 0.09, 508: 0.07 };
+export const LINE_HW = { 107: 0.125, 108: 0.09, 201: 0.3, 202: 0.25, 305: 0.09, 306: 0.09, 504: 0.175, 505: 0.125, 506: 0.09, 508: 0.07 };
 const BLACK_LINES = new Set([201, 202, 504, 505, 506, 508]);
 // the white openings a screen may hold, their side (mm): ISOM's 405 rule
 const OPENING = { 401: 0.7, 402: 1, 403: 1, 404: 1, 406: 1, 407: 1, 408: 0.7, 409: 0.7, 410: 0.55 };
@@ -21,10 +21,10 @@ const OPENING = { 401: 0.7, 402: 1, 403: 1, 404: 1, 406: 1, 407: 1, 408: 0.7, 40
 // The minimums the generator holds itself to, copied from minimums.json's `isom` (map mm at 1:15 000): written here so that a world
 // never depends on a file fetched (the map of the day is the same everywhere); tools/virtually/gen.mjs says if they part.
 export const ISOM_MINS = {
-  "101": { length: 0.9, width: 0.6 }, "201": { length: 0.6 }, "202": { length: 0.6 }, "206": { width: 0.25, area: 0.3 }, "214": { area: 1 },
+  "101": { length: 0.9, width: 0.6 }, "103": { length: 1.1 }, "201": { length: 0.6 }, "202": { length: 0.6 }, "206": { width: 0.25, area: 0.3 }, "214": { area: 1 },
   "301": { width: 0.3, area: 0.3025 }, "305": { length: 1 }, "308": { area: 0.2 }, "401": { width: 0.3 }, "403": { area: 1, width: 0.4 },
   "406": { area: 1, width: 0.4 }, "407": { area: 1.5 }, "408": { area: 0.49, width: 0.3 }, "409": { area: 1 }, "410": { width: 0.25 },
-  "504": { length: 6.25 }, "505": { length: 4.25 }, "506": { length: 2.25 }, "508": { length: 3.25 },
+  "107": { length: 1.15 }, "108": { length: 0.7 }, "306": { length: 2.75 }, "504": { length: 6.25 }, "505": { length: 4.25 }, "506": { length: 2.25 }, "508": { length: 3.25 },
 };
 
 const code = (sym) => String(Math.floor(sym / 1000));
@@ -90,7 +90,7 @@ export function reentrants(pts, h, { win = 10, tight = 0.25, drop = 0.15 } = {})
     for (let j = k + 1; j < p.length && s[j] - s[k] <= win; j++) if (bend[j] <= bend[k]) best = false;
     if (!best) continue;
     const [x, z] = p[k], [dx, dz] = dirs[k], h0 = h(x, z);
-    if (h(x + 4 * dx, z + 4 * dz) < h0 - drop && h(x - 4 * dx, z - 4 * dz) > h0) out.push({ x, z, dx, dz });
+    if (h(x + 4 * dx, z + 4 * dz) < h0 - drop && h(x - 4 * dx, z - 4 * dz) > h0 && h(x + 3 * dx, z + 3 * dz) < h(x - 3 * dx, z - 3 * dz) - 0.05) out.push({ x, z, dx, dz });
   }
   return out;
 }
@@ -197,6 +197,7 @@ export function checkMap(world, { mins = ISOM_MINS, scale = 10000 } = {}) {
   }
   // slope ticks point downhill; a closed contour round lower ground carries one (else it reads as a knoll)
   checked.add("oz.tick.downhill"); checked.add("oz.depression.tick");
+  const hollows = [];
   const ticks = of((o) => o.sym === 101009);
   for (const t of ticks) {
     const [x, z] = t.pts[0], th = ((t.ang || 0) / 10) * Math.PI / 180, dx = Math.sin(th), dz = Math.cos(th);   // drawing direction: (sin θ, −cos θ) on the paper
@@ -212,6 +213,7 @@ export function checkMap(world, { mins = ISOM_MINS, scale = 10000 } = {}) {
       const v = hAt(x, z); if (v < lo) lo = v; if (v > hi) hi = v; n++;
     }
     if (!n || hi > lv - 0.05) continue;                                   // not clearly a hollow
+    if (bb[2] - bb[0] <= 60 && bb[3] - bb[1] <= 60) hollows.push({ pts: o.pts, bb });   // a depression, not a basin
     if (!ticks.some((t) => near(bb, t.pts[0][0], t.pts[0][1], 1) && distLine(o.pts, t.pts[0][0], t.pts[0][1]) < 1)) add("oz.depression.tick", "error", o.pts[0][0], o.pts[0][1]);
   }
   // a re-entrant's tip (a contour's tight bend round lower ground) carries a slope tick: else the re-entrant does not read
@@ -238,7 +240,7 @@ export function checkMap(world, { mins = ISOM_MINS, scale = 10000 } = {}) {
   // point symbols: 0.15 mm apart from each other and from the black and blue lines; nothing in a lake
   checked.add("fo.417.trees"); checked.add("oz.point.line"); checked.add("oz.in_water");
   const cell = 40, grid = new Map(), key = (x, z) => `${Math.floor(x / cell)},${Math.floor(z / cell)}`;
-  const marked = lines.filter((l) => BLACK_LINES.has(+code(l.sym)) || +code(l.sym) === 305).map((l) => ({ pts: l.pts, c: +code(l.sym) }));
+  const marked = lines.filter((l) => BLACK_LINES.has(+code(l.sym)) || [107, 108, 305, 306].includes(+code(l.sym))).map((l) => ({ pts: l.pts, c: +code(l.sym) }));
   points.forEach((p, i) => { p._i = i; const k = key(...p.pts[0]); (grid.get(k) || grid.set(k, []).get(k)).push(p); });
   for (const p of points) {
     const [x, z] = p.pts[0], r = (POINT_R[code(p.sym)] || 0.3) * GROUND;
@@ -258,6 +260,13 @@ export function checkMap(world, { mins = ISOM_MINS, scale = 10000 } = {}) {
   // no path, track or ride across a cliff (a runner on the path would meet it)
   checked.add("oz.path.cliff");
   const ways = lines.filter((l) => { const c = +code(l.sym); return c >= 504 && c <= 508; }).map((l) => ({ pts: l.pts, bb: bbox(l.pts) }));
+  // nor through a depression (a mapper would not find one on a path: the generator keeps its landforms off them)
+  checked.add("oz.path.depression");
+  for (const hw of hollows) for (const wy of ways) {
+    if (wy.bb[0] > hw.bb[2] || wy.bb[2] < hw.bb[0] || wy.bb[1] > hw.bb[3] || wy.bb[3] < hw.bb[1]) continue;
+    const x = crossing(hw.pts, wy.pts) || (wy.pts.some(([a, b]) => inPoly(hw.pts, a, b)) && wy.pts[0]);
+    if (x) { add("oz.path.depression", "warn", x[0], x[1]); break; }
+  }
   for (const { o: cl, bb } of cliffs) for (const wy of ways) {
     if (wy.bb[0] > bb[2] || wy.bb[2] < bb[0] || wy.bb[1] > bb[3] || wy.bb[3] < bb[1]) continue;
     const x = crossing(cl.pts, wy.pts); if (x) { add("oz.path.cliff", "error", x[0], x[1]); break; }

@@ -73,16 +73,16 @@ export const BIOMES = {
 };
 // what each type is made of: base relief (m, per octave), contour interval, features per km² at detail 1, ground cover
 const RECIPES = {
-  moraine: { relief: [7, 5, 2.5, 1.1], scales: [520, 230, 95, 38], interval: 2.5, knolls: 70, pits: 30, depressions: 10, boulders: 120, giants: 0,
+  moraine: { relief: [10, 7, 3.4, 1.4], scales: [520, 230, 95, 38], interval: 2.5, knolls: 70, pits: 30, depressions: 10, boulders: 120, giants: 0,
     clusters: 18, lakes: 3, marsh: 0.42, open: 0.18, green: 0.35, rock: 0, stony: 0.06, eskers: 2, dolines: 0, hubs: 10 },
-  karst: { relief: [16, 9, 3, 1], scales: [600, 260, 110, 45], interval: 5, knolls: 15, pits: 35, depressions: 12, boulders: 30, giants: 0,
-    clusters: 6, lakes: 0, marsh: 0, open: 0.3, green: 0.3, rock: 0.08, stony: 0.14, eskers: 0, dolines: 34, hubs: 10 },
-  sandrock: { relief: [10, 7, 3, 1], scales: [560, 240, 100, 40], interval: 5, knolls: 20, pits: 12, depressions: 6, boulders: 110, giants: 26,
-    clusters: 28, lakes: 0, marsh: 0, open: 0.22, green: 0.28, rock: 0.2, stony: 0.1, eskers: 0, dolines: 0, hubs: 14, ridges: 18 },
-  valley: { relief: [14, 6, 2.2, 0.8], scales: [520, 220, 90, 36], interval: 5, knolls: 14, pits: 6, depressions: 4, boulders: 40, giants: 0,
-    clusters: 8, lakes: 0, marsh: 0, open: 0.2, green: 0.36, rock: 0.1, stony: 0.08, eskers: 0, dolines: 0, hubs: 9, valleys: 70 },
-  pine: { relief: [2.2, 1.6, 0.8, 0.4], scales: [500, 220, 90, 36], interval: 2.5, knolls: 20, pits: 14, depressions: 6, boulders: 0, giants: 0,
-    clusters: 0, lakes: 0, marsh: 0.3, open: 0.12, green: 0.4, rock: 0, stony: 0, eskers: 0, dolines: 0, hubs: 6, parcels: true },
+  karst: { relief: [26, 14, 5, 1.5], scales: [600, 260, 110, 45], interval: 5, knolls: 15, pits: 35, depressions: 12, boulders: 30, giants: 0,
+    clusters: 6, lakes: 0, marsh: 0, open: 0.3, green: 0.3, rock: 0.08, stony: 0.14, eskers: 0, dolines: 34, hubs: 10, gullies: 1.5 },
+  sandrock: { relief: [16, 11, 4, 1.4], scales: [560, 240, 100, 40], interval: 5, knolls: 20, pits: 12, depressions: 6, boulders: 110, giants: 26,
+    clusters: 28, lakes: 0, marsh: 0, open: 0.22, green: 0.28, rock: 0.2, stony: 0.1, eskers: 0, dolines: 0, hubs: 14, ridges: 24, gullies: 1 },
+  valley: { relief: [20, 9, 3.2, 1.1], scales: [520, 220, 90, 36], interval: 5, knolls: 14, pits: 6, depressions: 4, boulders: 40, giants: 0,
+    clusters: 8, lakes: 0, marsh: 0, open: 0.2, green: 0.36, rock: 0.1, stony: 0.08, eskers: 0, dolines: 0, hubs: 9, valleys: 95, gullies: 4 },
+  pine: { relief: [3.4, 2.4, 1.1, 0.5], scales: [500, 220, 90, 36], interval: 2.5, knolls: 28, pits: 14, depressions: 10, boulders: 0, giants: 0,
+    clusters: 0, lakes: 0, marsh: 0.3, open: 0.12, green: 0.4, rock: 0, stony: 0, eskers: 0, dolines: 0, hubs: 6, parcels: true, dunes: 8, ditches: 0.45 },
 };
 
 // ---- deterministic numbers ----------------------------------------------------------------------------------------------------
@@ -281,7 +281,7 @@ export function generate({ type = "moraine", seed = 1, size = 1200, detail = 0.5
   const R = RECIPES[type] || RECIPES.moraine;
   const rnd = prng(seed ^ 0x9e3779b9);
   const W = Math.round(size / 2) * 2, H = W, S = 2, nx = W / S + 1, ny = H / S + 1, N = nx * ny;
-  const km2 = (W * H) / 1e6, dk = 0.4 + 1.2 * detail, rk = 0.5 + relief, gk = green - 0.5, pk = 0.3 + 1.4 * paths;
+  const km2 = (W * H) / 1e6, dk = 0.4 + 1.2 * detail, rk = 0.35 + 1.3 * relief, gk = green - 0.5, pk = 0.3 + 1.4 * paths;
   const count = (n) => Math.round(n * km2 * dk);
   const xyOf = (q) => [(q % nx) * S, Math.floor(q / nx) * S];
   onStep("relief", 0);
@@ -322,6 +322,26 @@ export function generate({ type = "moraine", seed = 1, size = 1200, detail = 0.5
       x += ux * 9; z += uz * 9; if (x < 30 || z < 30 || x > W - 30 || z > H - 30) break;
     }
   }
+  if (R.dunes) {
+    const a0 = rnd.range(-0.06, 0.06);
+    for (let n = 0, made = 0; n < count(R.dunes) * 3 && made < count(R.dunes); n++) {
+      const [x, z] = somewhere(70);
+      if (!spaced(feats, x, z, 20)) continue;
+      // a dune: a chain of overlapping crests along a gently curving axis, each a little wider or higher than the last
+      let a = a0 + rnd.range(-0.025, 0.025), px = x, pz = z, hgt = rnd.range(1.6, 3.2) * rk, wid = rnd.range(18, 30);
+      const parts = rnd.int(4, 8), side = rnd() < 0.5 ? 1 : -1;
+      for (let k = 0; k < parts; k++) {
+        const [cx, cz] = circ(a), ln = rnd.range(12, 26);
+        addBump(px, pz, wid, hgt, cx, cz, ln);
+        // the hollow beside it (a « lette »), on one side all along
+        if (rnd() < 0.7) addBump(px - side * cz * wid * 1.7, pz + side * cx * wid * 1.7, wid * 0.7, -rnd.range(0.6, 1.5) * rk, cx, cz, ln);
+        px += cx * ln * 1.15; pz += cz * ln * 1.15;
+        a += rnd.range(-0.02, 0.02); hgt = Math.max(0.9 * rk, Math.min(3.6 * rk, hgt * rnd.range(0.75, 1.25))); wid = Math.max(14, Math.min(36, wid * rnd.range(0.8, 1.2)));
+        if (px < 40 || pz < 40 || px > W - 40 || pz > H - 40) break;
+      }
+      made++;
+    }
+  }
   for (let d = 0; d < count(R.dolines); d++) {              // dolines: round hollows of the limestone
     const [x, z] = somewhere(30), r = rnd.range(12, 32);
     if (!spaced(feats, x, z, r + 10)) continue;
@@ -331,14 +351,14 @@ export function generate({ type = "moraine", seed = 1, size = 1200, detail = 0.5
     const [x, z] = somewhere(25), r = rnd.range(7, 15);
     if (!spaced(feats, x, z, 30)) continue;
     const elong = rnd() < 0.3, [ex, ez] = unit();
-    const a = rnd.range(1.8, 3.6) * rk, ln = elong ? rnd.range(6, 14) : 0;
+    const a = rnd.range(2.2, 4.2) * rk, ln = elong ? rnd.range(6, 14) : 0;
     addBump(x, z, r, a, ex, ez, ln);
     feats.push({ k: elong ? "eknoll" : "knoll", x, z, r, ex, ez, a, ln });
   }
   for (let n = 0; n < count(R.depressions); n++) {
     const [x, z] = somewhere(25), r = rnd.range(6, 10);
     if (!spaced(feats, x, z, 30)) continue;
-    const a = -rnd.range(1.4, 2.4); addBump(x, z, r, a); feats.push({ k: "depression", x, z, r, a });
+    const a = -rnd.range(1.6, 2.8) * Math.max(1, rk); addBump(x, z, r, a); feats.push({ k: "depression", x, z, r, a });
   }
   for (let n = 0; n < count(R.pits); n++) {
     const [x, z] = somewhere(25), r = rnd.range(3, 4.5);
@@ -399,6 +419,38 @@ export function generate({ type = "moraine", seed = 1, size = 1200, detail = 0.5
     // the streams cut a little into the ground
     for (const line of streams) for (const [x, z] of line) addBump(x, z, 5, -0.6);
   }
+  const gullies = [];
+  if (R.gullies) {
+    const gh_ = blur(h, nx, ny, 2), gAt = (q) => gh_[q];
+    for (let t = 0; t < count(R.gullies) * 8 && gullies.length < count(R.gullies); t++) {
+      const [x0, z0] = somewhere(50); let q = Math.round(z0 / S) * nx + Math.round(x0 / S);
+      const i0 = q % nx, j0 = Math.floor(q / nx);
+      const gx = (gh_[q + 1] - gh_[q - 1]) / (2 * S), gz = (gh_[q + nx] - gh_[q - nx]) / (2 * S);
+      if (gx * gx + gz * gz < 0.3 * 0.3 || i0 < 2 || j0 < 2) continue;
+      const line = [xyOf(q)];
+      for (let k = 0; k < 60; k++) {
+        const i = q % nx, j = Math.floor(q / nx); let nb = q;
+        for (const [di, dj] of [[1, 0], [-1, 0], [0, 1], [0, -1], [1, 1], [-1, -1], [1, -1], [-1, 1]]) {
+          const ii = i + di, jj = j + dj; if (ii < 1 || jj < 1 || ii >= nx - 1 || jj >= ny - 1) continue;
+          if (gAt(jj * nx + ii) < gAt(nb)) nb = jj * nx + ii;
+        }
+        if (nb === q || gAt(q) - gAt(nb) < 0.12) break;                                   // flat ground: the gully ends
+        q = nb; line.push(xyOf(q));
+      }
+      const L = polyLen(line);
+      if (L < 30) continue;
+      if (gullies.some((g) => g.pts.some(([a, b]) => line.some(([c, d]) => (a - c) * (a - c) + (b - d) * (b - d) < 30 * 30)))) continue;
+      if (streams.some((s) => s.some(([a, b]) => Math.abs(a - line[0][0]) < 25 && Math.abs(b - line[0][1]) < 25))) continue;
+      const depth = rnd.range(1.1, 2.4) * Math.max(1, rk * 0.9);
+      let run = 0;
+      for (let k = 0; k < line.length; k++) {
+        if (k) run += Math.sqrt((line[k][0] - line[k - 1][0]) ** 2 + (line[k][1] - line[k - 1][1]) ** 2);
+        const tp = Math.min(1, run / 10, (L - run) / 10);
+        addBump(line[k][0], line[k][1], 2.4, (-depth / 1.2) * Math.max(0.15, tp));
+      }
+      gullies.push({ pts: line, deep: depth >= 1.6 });
+    }
+  }
   // marshes: in the hollows (the ground lower than its 60 m surroundings), where the type has them
   if (R.marsh) {
     const loc = blur(h, nx, ny, 14), mn = noiseField(nx, ny, S, [[160, 1]], seed + 5);
@@ -428,6 +480,8 @@ export function generate({ type = "moraine", seed = 1, size = 1200, detail = 0.5
   const parcels = R.parcels ? makeParcels() : null;
   if (parcels) {
     for (const [name, F] of Object.entries(parcels.fields)) AREA[name] = F;
+    // no marsh across a track or a firebreak (the forester drained it)
+    for (let q = 0; q < N; q++) marshF[q] = Math.min(marshF[q], parcels.near[q] - 9);
   } else {
     const open = field(), rough = field(), g1 = field(), g2 = field(), g3 = field(), rock = field(), stony = field();
     for (let q = 0; q < N; q++) {
@@ -477,14 +531,20 @@ export function generate({ type = "moraine", seed = 1, size = 1200, detail = 0.5
     const fields = { open: field(), rough: field(), slow: field(), walk: field(), slow_vis: field() };
     for (const F of Object.values(fields)) F.fill(-1);
     const kinds = ["forest", "forest", "forest", "forest", "forest", "slow", "walk", "rough", "slow_vis", "open"], pick = new Map();
+    const near = new Float32Array(N), ride = (k) => ((k % 3) + 3) % 3 === 1;
     for (let j = 0; j < ny; j++) for (let i = 0; i < nx; i++) {
       const x = i * S - W / 2, z = j * S - H / 2, u = x * ca + z * sa, v = -x * sa + z * ca;
       const cu = Math.floor(u / sp), cv = Math.floor(v / sp), key = cu * 1000 + cv;
+      const du = Math.min(u - cu * sp, (cu + 1) * sp - u), dv = Math.min(v - cv * sp, (cv + 1) * sp - v);
+      near[j * nx + i] = Math.min(du, dv);
+      // a firebreak: the ride's strip open, 7 m either side
+      const ku = u - cu * sp < (cu + 1) * sp - u ? cu : cu + 1, kv = v - cv * sp < (cv + 1) * sp - v ? cv : cv + 1;
+      const fb = Math.max(ride(ku) ? 7 - du : -1, ride(kv) ? 7 - dv : -1);
+      if (fb > 0) fields.open[j * nx + i] = Math.max(fields.open[j * nx + i], fb);
       if (!pick.has(key)) pick.set(key, kinds[Math.floor(prng(seed + key * 31 + 7)() * kinds.length)]);
       const k = pick.get(key);
       if (k === "forest") continue;
-      const du = Math.min(u - cu * sp, (cu + 1) * sp - u), dv = Math.min(v - cv * sp, (cv + 1) * sp - v);
-      fields[k][j * nx + i] = Math.min(du, dv) - 6;            // inside the parcel beyond the track's margin
+      fields[k][j * nx + i] = Math.min(Math.min(du, dv) - 6, -fb);   // inside the parcel beyond the track's margin and the firebreak
     }
     const toXZ = (u, v) => [W / 2 + u * ca - v * sa, H / 2 + u * sa + v * ca];
     const inside = ([x, z]) => x >= 0 && z >= 0 && x <= W && z <= H;
@@ -496,7 +556,16 @@ export function generate({ type = "moraine", seed = 1, size = 1200, detail = 0.5
       if (pts.length > 4) tracks.push({ kind: ((k % 3) + 3) % 3 === 1 ? "ride" : "track", pts });
       if (dir) for (let m = -lim; m <= lim; m++) { const p = toXZ(k * sp, m * sp); if (inside(p) && p[0] > 40 && p[1] > 40 && p[0] < W - 40 && p[1] < H - 40) cross.push(p); }
     }
-    return { fields, tracks, cross };
+    // drainage ditches (« crastes ») along some tracks, 7 m off them, cut a little into the sand
+    const ditches = [];
+    for (const tr of tracks) {
+      if (tr.kind !== "track" || rnd() > R.ditches) continue;
+      const [ax, az] = tr.pts[0], [bx, bz] = tr.pts[tr.pts.length - 1], L = Math.sqrt((bx - ax) ** 2 + (bz - az) ** 2) || 1, s_ = rnd() < 0.5 ? 7 : -7;
+      const ox = (-(bz - az) / L) * s_, oz = ((bx - ax) / L) * s_;
+      const pts = tr.pts.map(([x, z]) => [x + ox, z + oz]).filter(([x, z]) => x > 3 && z > 3 && x < W - 3 && z < H - 3);
+      if (pts.length > 4) { ditches.push(pts); for (let k = 0; k < pts.length; k += 1) addBump(pts[k][0], pts[k][1], 1.6, -0.45); }
+    }
+    return { fields, tracks, cross, near, ditches };
   }
 
   // ---- each area held to ISOM's minimum area and width, each white opening in a screen to its minimum size (minimums.json): the
@@ -742,6 +811,23 @@ export function generate({ type = "moraine", seed = 1, size = 1200, detail = 0.5
     cost[j * gw + i] = sp > 0 ? (c === C.marsh ? 8 : 1 / sp) * (1 + slope[q] * 6) : 1e4;
     for (const g of giants) if ((x - g.x) * (x - g.x) + (z - g.z) * (z - g.z) < (g.r + 7) * (g.r + 7)) cost[j * gw + i] = 1e4;
   }
+  // nor across a knoll, a depression or a pit: it goes round them (three times dearer within the landform and 4 m around)
+  for (const f of feats) {
+    if (!f.a) continue;
+    const rr = f.r + (f.ln || 0) + 4;
+    for (let j = Math.max(0, Math.floor((f.z - rr) / G)); j <= Math.min(gh - 1, Math.floor((f.z + rr) / G)); j++)
+      for (let i = Math.max(0, Math.floor((f.x - rr) / G)); i <= Math.min(gw - 1, Math.floor((f.x + rr) / G)); i++) {
+        const dx = i * G + 2 - f.x, dz = j * G + 2 - f.z; if (dx * dx + dz * dz < rr * rr && cost[j * gw + i] < 1e4) cost[j * gw + i] *= 3;
+      }
+  }
+  // nor through the ground's own hollows (lower than their 20 m surroundings): three times dearer
+  {
+    const around = blur(h, nx, ny, 5);
+    for (let j = 0; j < gh; j++) for (let i = 0; i < gw; i++) {
+      const q = Math.min(ny - 1, Math.round((j * G + 2) / S)) * nx + Math.min(nx - 1, Math.round((i * G + 2) / S));
+      if (around[q] - h[q] > 0.5 && cost[j * gw + i] < 1e4) cost[j * gw + i] *= 3;
+    }
+  }
   // nor through a cliff: its line is narrower than the grid's cells, so every cell within 5 m of it is closed
   for (const c of cliffs) {
     let a = Infinity, b = Infinity, cc = -Infinity, d = -Infinity; for (const [x, z] of c.pts) { a = Math.min(a, x); b = Math.min(b, z); cc = Math.max(cc, x); d = Math.max(d, z); }
@@ -775,7 +861,7 @@ export function generate({ type = "moraine", seed = 1, size = 1200, detail = 0.5
   const mark = (pts) => { for (const [x, z] of pts) net[Math.min(gh - 1, Math.floor(z / G)) * gw + Math.min(gw - 1, Math.floor(x / G))] = 1; };
   const edgePt = () => { const s = rnd.int(0, 3), u = rnd.range(0.15, 0.85); return s === 0 ? [u * W, 2] : s === 1 ? [W - 2, u * H] : s === 2 ? [u * W, H - 2] : [2, u * H]; };
   const junctions = [];
-  const LSYM = { track: "504", path: "505", small: "506", ride: "508", stream: "305" };
+  const LSYM = { track: "504", path: "505", small: "506", ride: "508", stream: "305", gully: "107", sgully: "108", ditch: "306" };
   const minLen = (kind) => (mins?.[LSYM[kind]]?.length || 0) * GROUND;
   if (parcels) {
     for (const tr of parcels.tracks) if (polyLen(tr.pts) >= minLen(tr.kind) * 1.1) { lines.push({ kind: tr.kind, pts: tr.pts }); mark(tr.pts); }
@@ -809,16 +895,20 @@ export function generate({ type = "moraine", seed = 1, size = 1200, detail = 0.5
   }
   // streams are lines too (not paths): ISOM 305 small crossable watercourse
   for (const s of streams) if (polyLen(s) >= minLen("stream")) lines.push({ kind: "stream", pts: s });
+  for (const g of gullies) if (polyLen(g.pts) >= minLen(g.deep ? "gully" : "sgully") * 1.1) lines.push({ kind: g.deep ? "gully" : "sgully", pts: g.pts });
+  if (parcels) for (const d of parcels.ditches) if (polyLen(d) >= minLen("ditch") * 1.1) lines.push({ kind: "ditch", pts: d });
   // smooth the lines as a mapper draws them, then stamp them into the classes
   for (const l of lines) l.pts = chaikin(simplify(l.pts, 1.2), 3);
   {
-    const LHW = { track: LINE_HW[504], path: LINE_HW[505], small: LINE_HW[506], ride: LINE_HW[508], stream: LINE_HW[305] };
+    const LHW = { track: LINE_HW[504], path: LINE_HW[505], small: LINE_HW[506], ride: LINE_HW[508], stream: LINE_HW[305], gully: LINE_HW[107], sgully: LINE_HW[108], ditch: LINE_HW[306] };
     const PR = { knoll: POINT_R[109], eknoll: POINT_R[110], depression: POINT_R[111], pit: POINT_R[112], boulder: POINT_R[204], bigboulder: POINT_R[205], cluster: POINT_R[207] };
+    const WAYS = new Set(["track", "path", "small", "ride"]);
     const tooNear = (x, z, k) => lines.some((l) => distLine(l.pts, x, z) < ((PR[k] || 0.3) + LHW[l.kind] + 0.15) * GROUND)
       || cliffs.some((c) => distLine(c.pts, x, z) < ((PR[k] || 0.3) + LINE_HW[201] + 0.15) * GROUND);
     for (let i = feats.length - 1; i >= 0; i--) {
       const f = feats[i];
-      if (f.map === false || !f.a || !tooNear(f.x, f.z, f.k)) continue;
+      const onWay = lines.some((l) => WAYS.has(l.kind) && distLine(l.pts, f.x, f.z) < f.r + (f.ln || 0) + 1.5);
+      if (f.map === false || !f.a || !(onWay || tooNear(f.x, f.z, f.k))) continue;
       addBump(f.x, f.z, f.r, -f.a, f.ex || 0, f.ez || 0, f.ln || 0); feats.splice(i, 1);
     }
     for (let i = points.length - 1; i >= 0; i--) {
@@ -829,8 +919,9 @@ export function generate({ type = "moraine", seed = 1, size = 1200, detail = 0.5
     }
     for (let k = rocks.length - 1; k >= 0; k--) if (!rocks[k]) rocks.splice(k, 1);
   }
-  const WIDTH = { track: [C.track, 3], path: [C.path, 1.6], small: [C.small_path, 1.0], ride: [C.small_path, 1.2], stream: [C.stream, 1.2] };
+  const WIDTH = { track: [C.track, 3], path: [C.path, 1.6], small: [C.small_path, 1.0], ride: [C.small_path, 1.2], stream: [C.stream, 1.2], ditch: [C.stream, 0.9] };
   for (const l of lines) {
+    if (!WIDTH[l.kind]) continue;                                        // a gully: carved in the ground, nothing stamped
     const [c, w] = WIDTH[l.kind], r = w / 2;
     for (let k = 1; k < l.pts.length; k++) {
       const [ax, az] = l.pts[k - 1], [bx, bz] = l.pts[k], dx = bx - ax, dz = bz - az, L = Math.sqrt(dx * dx + dz * dz), n = Math.ceil(L / 0.5);
@@ -926,8 +1017,38 @@ export function generate({ type = "moraine", seed = 1, size = 1200, detail = 0.5
       if (closed && pieces.length === 1 && pieces[0] === line) rings.push({ line, lv });
     }
   }
+  // form lines (ISOM 103), half an interval up, where the contours miss a shape: a ring, or a winding piece, at least 12 m from
+  // any contour (a dune, a low ridge, a shallow hollow between two lines)
+  {
+    const G4 = 4, gw4 = Math.ceil(W / G4) + 1, gh4 = Math.ceil(H / G4) + 1, near4 = new Uint8Array(gw4 * gh4);
+    const cellOf = (x, z) => Math.min(gh4 - 1, Math.max(0, Math.floor(z / G4))) * gw4 + Math.min(gw4 - 1, Math.max(0, Math.floor(x / G4)));
+    for (const o of objects) if (o.sym === 101000 || o.sym === 102000) for (const [x, z] of densify(o.pts, 3)) {
+      const ci = Math.floor(x / G4), cj = Math.floor(z / G4);
+      for (let dj = -3; dj <= 3; dj++) for (let di = -3; di <= 3; di++) {
+        const i = ci + di, j = cj + dj; if (i >= 0 && j >= 0 && i < gw4 && j < gh4 && di * di + dj * dj <= 9) near4[j * gw4 + i] = 1;
+      }
+    }
+    const fMin = Math.max(30, (mins?.["103"]?.length || 1.1) * GROUND * 1.1);
+    for (let l = 0; l < nl; l++) {
+      const lv = (k0 + l) * E + E / 2;
+      for (const raw of isolines(hs, nx, ny, lv)) {
+        let line = toW(raw); if (polyLen(line) < fMin) continue;
+        line = densify(chaikin(simplify(line, 0.6), 1), 2);
+        let cur = []; const pieces = [];
+        for (const p of line) { if (near4[cellOf(p[0], p[1])] || inWater(p[0], p[1]) || nearCliff(p[0], p[1])) { if (cur.length > 1) pieces.push(cur); cur = []; } else cur.push(p); }
+        if (cur.length > 1) pieces.push(cur);
+        for (const p of pieces) {
+          const L = polyLen(p), [ax, az] = p[0], [bx, bz] = p[p.length - 1], ring = p.length === line.length && ax === bx && az === bz;
+          if (L < fMin || L > 300 || (!ring && Math.sqrt((bx - ax) ** 2 + (bz - az) ** 2) > 0.6 * L)) continue;
+          objects.push({ sym: 103000, otp: 2, pts: simplify(p, 0.3) });
+        }
+      }
+    }
+  }
   // slope ticks on every closed contour round a hollow (the ground inside all lower than the line): one to three, evenly along
   // it, each across the line and pointing in, downhill — the tick symbol (101009) is drawn along (0, −1) turned by its angle
+  // the 1 m heights, read as the check reads them (games/vcheck.js)
+  const h1 = (x, z) => hm[Math.min(H - 1, Math.max(0, Math.floor(z))) * W + Math.min(W - 1, Math.max(0, Math.floor(x)))];
   for (const { line, lv } of rings) {
     let a = Infinity, b = Infinity, c = -Infinity, d = -Infinity; for (const [x, z] of line) { a = Math.min(a, x); b = Math.min(b, z); c = Math.max(c, x); d = Math.max(d, z); }
     const stepIn = Math.max(1, Math.sqrt(((c - a) * (d - b)) / 400));
@@ -935,14 +1056,25 @@ export function generate({ type = "moraine", seed = 1, size = 1200, detail = 0.5
     for (let z = b + stepIn / 2; z < d; z += stepIn) for (let x = a + stepIn / 2; x < c; x += stepIn) if (inPoly(line, x, z)) { hi = Math.max(hi, hAt(x, z)); n++; }
     if (!n || hi > lv - 0.01) continue;
     const L = polyLen(line), nt = Math.max(1, Math.min(3, Math.round(L / 90)));
-    for (let t = 0; t < nt; t++) {
-      // the point at that share of the ring's length, its tangent from its neighbours
-      let target = (L * (t + 0.5)) / nt, k = 1;
+    // 24 places along the ring, each with its inward normal and how much the ground falls across the line there (as the check
+    // reads it); in each of nt equal arcs the place where it falls most (a flat bit of a wide hollow would read either way)
+    const cand = [];
+    for (let t = 0; t < 24; t++) {
+      let target = (L * (t + 0.5)) / 24, k = 1;
       for (; k < line.length - 1; k++) { const dx = line[k][0] - line[k - 1][0], dz = line[k][1] - line[k - 1][1], l = Math.sqrt(dx * dx + dz * dz); if (target <= l) break; target -= l; }
       const p = line[k], pa = line[k - 1], pb = line[Math.min(line.length - 1, k + 1)];
       let tx = pb[0] - pa[0], tz = pb[1] - pa[1]; const tl = Math.sqrt(tx * tx + tz * tz) || 1; tx /= tl; tz /= tl;
       let nx_ = -tz, nz_ = tx;                                                              // a normal; the one pointing inside
       if (!inPoly(line, p[0] + nx_ * 2, p[1] + nz_ * 2)) { nx_ = -nx_; nz_ = -nz_; }
+      cand.push({ p, nx_, nz_, fall: h1(p[0] - 3 * nx_, p[1] - 3 * nz_) - h1(p[0] + 3 * nx_, p[1] + 3 * nz_) });
+    }
+    const chosen = [];
+    for (let t = 0; t < nt; t++) {
+      const arc = cand.slice(Math.floor((24 * t) / nt), Math.floor((24 * (t + 1)) / nt)).sort((u, v) => v.fall - u.fall)[0];
+      if (arc && arc.fall > 0.02) chosen.push(arc);
+    }
+    if (!chosen.length) chosen.push([...cand].sort((u, v) => v.fall - u.fall)[0]);
+    for (const { p, nx_, nz_ } of chosen) {
       const ang = Math.atan2(-nz_, nx_) * 180 / Math.PI;                                    // its angle on the paper (y up): drawing only
       objects.push({ sym: 101009, otp: 1, pts: [[p[0], p[1]]], ang: Math.round((ang + 90) * 10) });
     }
@@ -952,8 +1084,6 @@ export function generate({ type = "moraine", seed = 1, size = 1200, detail = 0.5
   // every 30 m at most, none at a cliff, in the water or at the map's edge
   {
     const tk = objects.filter((o) => o.sym === 101009).map((o) => o.pts[0]);
-    // the 1 m heights, read as the check reads them (games/vcheck.js)
-    const h1 = (x, z) => hm[Math.min(H - 1, Math.max(0, Math.floor(z))) * W + Math.min(W - 1, Math.max(0, Math.floor(x)))];
     for (const o of objects.filter((o) => o.sym === 101000 || o.sym === 102000)) for (const r of reentrants(o.pts, h1)) {
       if (r.x < 10 || r.z < 10 || r.x > W - 10 || r.z > H - 10 || inWater(r.x + 2 * r.dx, r.z + 2 * r.dz) || nearCliff(r.x, r.z)) continue;
       if (cliffs.some((c) => distLine(c.pts, r.x, r.z) < 10) || tk.some(([x, z]) => Math.abs(x - r.x) < 30 && Math.abs(z - r.z) < 30 && (x - r.x) ** 2 + (z - r.z) ** 2 < 900)) continue;
@@ -976,7 +1106,7 @@ export function generate({ type = "moraine", seed = 1, size = 1200, detail = 0.5
   }
   for (const c of cliffs) objects.push({ sym: c.imp ? 201000 : 202000, otp: 2, pts: c.pts });
   // lines: tracks, paths, small paths, rides, streams
-  const LINE_SYM = { track: 504000, path: 505000, small: 506000, ride: 508000, stream: 305000 };
+  const LINE_SYM = { track: 504000, path: 505000, small: 506000, ride: 508000, stream: 305000, gully: 107000, sgully: 108000, ditch: 306000 };
   for (const l of lines) objects.push({ sym: LINE_SYM[l.kind], otp: 2, pts: l.pts });
   // point features: knolls, depressions, pits, boulders (a feature a contour ring already draws keeps no symbol)
   const ringed = (x, z, r) => rings.some(({ line }) => { let mx = Infinity, Mx = -Infinity, mz = Infinity, Mz = -Infinity;
@@ -1020,5 +1150,5 @@ export function raceOf(world, { id, scale = 10000, courses = [] } = {}) {
   const k = scale / 1000;
   return { id, scale, std: "ISOM 2017-2", W: world.W, H: world.H, res: 1, base: world.base, mm0: [0, world.H / k], k,
     interval: world.interval, source: "gen", lidarTrees: null, classes: CL, speed: CL.map((n) => SPEED[n]), vegK: VEG_K,
-    biome: world.biome, map: "ocd", gen: world.gen, courses };
+    biome: world.biome, map: "ocd", gen: world.gen, courses, relief: 1.25 };
 }

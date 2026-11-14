@@ -18,6 +18,8 @@ export const LEVELS = [
 export const GEN_LEVELS = LEVELS.map((L) => (L.id === "blue" ? { ...L, line: [45, 110] } : L));
 const GOOD = { boulder: 1.0, bigboulder: 1.3, cluster: 1.0, knoll: 1.2, eknoll: 1.1, depression: 1.2, pit: 1.0, rockface: 1.2, junction: 1.0 };
 const COS150 = -0.8660254037844387;
+// the climb a course should keep under, a share of its length (IOF's guidance: little for beginners, 4-5 % at most for the others)
+const CLIMB = { blue: 0.025, yellow: 0.03, orange: 0.04, orange_md: 0.04, orange_ld: 0.04, orange_s: 0.04, orange_l: 0.04, violet_md: 0.05, violet_ld: 0.05 };
 
 /** Chamfer distance (metres, 3-4 weights ÷ 3) from the cells where `src` is true, on a W × H grid of 1 m. */
 function distance(src, W, H) {
@@ -128,6 +130,11 @@ export function setCourses(pkg, { seed = 7, tries = 260, levels = LEVELS } = {})
     let length = 0; for (let k = 1; k < all.length; k++) length += dist(all[k - 1], all[k]);
     let x0 = Infinity, x1 = -Infinity, z0 = Infinity, z1 = -Infinity; for (const [x, z] of all) { x0 = Math.min(x0, x); x1 = Math.max(x1, x); z0 = Math.min(z0, z); z1 = Math.max(z1, z); }
     score = (score / L.n) * 4 + (2 * new Set(kinds).size) / kinds.length - (8 * Math.abs(length / 1000 - L.km)) / L.km + (2 * (x1 - x0) * (z1 - z0)) / (W * H);
+    // the climb kept to the level's (owner, 2026-11-14: more relief, the courses still runnable): beyond its share of the length,
+    // the course scores less
+    let up = 0; for (let k = 1; k < all.length; k++) up += climb(all[k - 1], all[k]);
+    const cap = CLIMB[L.id] ?? 0.05;
+    score -= 4 * Math.max(0, up / length / cap - 1);
     return { score, all, kinds, length };
   }
 
