@@ -8,6 +8,8 @@
 //                                      gzipped, tools/virtually/pkggz.py, which games/vworld.js inflates)
 //   GET  runs?race=<id>                every finished run of that map: [{ id, race, u, name, course, t, sp, d, at, help, seed, mo, mine }]
 //   GET  runs?race=day                 every « Carte du jour »'s runs, all days (the analysis of an invented forest's run)
+//   GET  runs/<race>/routes?ids=a,b,…  the routes of up to 101 runs of a map at once, { <id>: { route } } — the ones this account
+//                                      may read, as below (Pixel › Analyse, Coach's analysis of a map's runs: owner, 2026-11-14)
 //   GET  runs/<race>/<run>             one run with its route (the analysis, the ghosts): one's own, any to an administrator, any
 //                                      training run to every account (owner, 2026-11-12: the ghosts; 2026-11-14: « every training
 //                                      open to solo and multi analysis »), a competition's once its event's last day is past
@@ -97,6 +99,23 @@ export const onRequestGet = withUser(async ({ request, env, params }, user) => {
       return json({ runs: objs.map((o) => summary(o, me)).filter((r) => r.u && Number.isFinite(r.t)) }, 200, { "Cache-Control": "private, no-store" });
     }
     const [, race, run] = path;
+    if (path.length === 3 && run === "routes" && ID.test(race || "")) {
+      const ids = (new URL(request.url).searchParams.get("ids") || "").split(",").filter((x) => RUN.test(x)).slice(0, 101);
+      const all = await listAll(env, `${RUNS}${race}/`, { include: ["customMetadata"] }), admin = isAdmin(env, user);
+      let over = null;                                   // the event's end, read once if a competition's run is asked
+      const parts = [];
+      for (const want of ids) {
+        const o = all.find((x) => x.key.endsWith(`/${want}.json`));
+        if (!o) continue;
+        if (!want.startsWith(`${me}-`) && !admin && o.customMetadata?.k === "competition") {
+          if (over == null) over = await eventOver(env, race);
+          if (!over) continue;
+        }
+        const body = await env.BUCKET.get(o.key);
+        if (body) parts.push(`${JSON.stringify(want)}:${await body.text()}`);   // the stored { route } as it is: no parsing here
+      }
+      return new Response(`{${parts.join(",")}}`, { headers: { "Content-Type": "application/json", "Cache-Control": "private, max-age=3600" } });
+    }
     if (!ID.test(race || "") || !RUN.test(run || "")) return json({ error: "bad request" }, 400);
     const found = await env.BUCKET.list({ prefix: `${RUNS}${race}/`, include: ["customMetadata"] });
     const o = found.objects.find((x) => x.key.endsWith(`/${run}.json`));

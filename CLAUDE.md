@@ -977,7 +977,7 @@ Every multiple-choice game was played through to its score page at phone size, w
   19-26 s to « Partir » on the PC's dev server, ~35 MB): published with `tools/virtually/pkggz.py` (upload.py, ci.py) — town.bin and
   map.ocd also as `.gz` (14 → 5.5 and 13.9 → 4.8 MB; Cloudflare compresses only text), race.json uploaded last naming them (`gz`)
   and every file's size (`bytes`, the briefing's « Chargement de la course… n % »); `vworld.loadRace` asks for every file at once
-  (the town's waited for the rest before), inflates the `.gz` (DecompressionStream; the plain files stay for `virtuallyan.js` and
+  (the town's waited for the rest before), inflates the `.gz` (DecompressionStream; the plain files stay for `virtuallysrc.js` and
   older code) and hands the OCAD file over as soon as it is in (`onMap`: the map drawn while the rest downloads); the drawn map is
   kept in IndexedDB `ocn-virtually` (`games/vmapcache.js`, the PNG made by the worker `vmapcacheworker.js`; keyed by the file's
   SHA-256, the layer, the build stamp; 6 maps) — 3-6 s of drawing become 0.3 s from the second race on; only the chunks within
@@ -1009,22 +1009,29 @@ Every multiple-choice game was played through to its score page at phone size, w
   then a circuit (each course as a training, every event and course the runs name), Stats' race table (`ui.dataTable`: place,
   runner, time, gap, the runner's virtual index today, the virtual score with its gap, `scoreCell`), the runs not ranked below
   (another try); « Classement » — the runners by virtual index (2 counted runs at least), their starting index;
-  « Analyse » — one's own runs (`pages/virtuallyan.js`): the map (`drawMap`, `drawOverprint` exported by games/virtually.js) with
-  the route run so far and the runner, play / speed / time slider, drag and wheel; the legs' table (time, rank, best, the time lost
-  and the mistakes by `trace/legs.js` `refLegs` / `legLoss` over each runner's first run of the circuit, distance run, pace), a leg
-  clicked framed and replayed; the pace under the map (`trace/pacestrip.js`); other runners of the circuit ticked beside it.
-  **Every account's since 2026-11-14** (owner: « Add Analyse back in pixel, assuming the proposed trainings are all automatically
-  opened for both multi and solo analyses, as regular trainings would be »): every training — the maps' courses, the training
-  events, the « Cartes du jour » — open to both with nothing to open: « Seul » (one's run alone, solo) and « Avec tous » (every
-  other runner of the circuit, each one's first run, multi; or ticked one by one) above the map. **A competition's** other runs
-  open once its event's last day is past (`api/virtual` `eventOver`, the page's `canSee`; a competition on a built-in map — the
-  administrators' tests — never), said under the chips (`vt.an.compHidden`); the legs' ranks count them all the same (their
-  splits, not their routes). **A « Carte du jour »'s run** (`GET runs?race=day`: every day's runs) is analysed on its forest made
-  again in the browser (`dayRace`: `vgenpack.makeWorld(dayOpts(day))`, its courses' signature checked against the run's event, its
-  package drawn by `drawMap`; a few seconds, said). Visitors without an account: nothing — Pixel is not among `GUEST_ROUTES`, and a
-  run is kept only under an account. Tested 2026-11-14 with two local accounts (`work\vr3d\anpost.mjs`, `antest.mjs`). The other
-  runners offered are the circuit's 100 most recent (`CAP`; owner, 2026-11-14), said when there are more (`vt.an.capped`); the legs'
-  ranks still count everyone. **The invented forests are tiles among the maps** (owner, 2026-11-14: at the page's bottom nobody saw
+  « Analyse » — **Coach's map analysis on a Pixel map's runs** (owner, 2026-11-14: « change pixel analyses so they are like coach
+  analyses. Consider producing a GPS trace for each runner in order to reuse the same components, as users will fully expect the
+  same functionalities and ergonomy »; the page of its own of 2026-11-11, `pages/virtuallyan.js`, is gone): `pages/virtuallysrc.js`
+  `pixelAnalysis` makes a map an analysis « px~<race> » that `pages/shared.js` reads through `useSource` (its `api()` asks the
+  browser's source for those ids) and opens by `openSourced` inside the tab — every view of Coach's: the replay and its start modes,
+  « Inter-postes », « Temps », « Analyse des temps », the gaps, route choices, the computed routes, the 3D view, exports. The
+  analysis: a circuit per course, the map drawn from the package (`drawRaceMap`: the OCAD file, a LiDAR-only map's image, an invented
+  forest made again in the browser) as its image, the controls in its pixels (circles 3 mm), a georeference from the map's centre
+  (race.json `lonlat`, world metres on the map's grid; an invented forest a place of its own in the ocean, its 3D view off); **each
+  runner's run made a GPS trace**: one position a second in millionths of a degree from the run's start (its saving time less its
+  race time), the analysis's trace form (`trace/share.js`). Each runner once a circuit: one's own run of the address (`run`), else
+  one's best; the others' best, **the 100 most recent runners** (`CAP`, said above the page, `vt.an.cappedAll`); their routes read
+  together (`GET runs/<race>/routes?ids=`, up to 101, the stored bodies joined unparsed). **Read only** (`readonly`, `via: "pixel"`):
+  no trace added, no comment, no « Analyse solo » or Mes cartes, no admin test traces; the times without Coach's « ~ » (a Pixel run's
+  time is exact); « Entraînement Pixel » as its kind. A map chosen above it (Pixel's maps and events someone ran, then the « Cartes du
+  jour »), the circuit in Coach's « Circuits » tab; the address keeps Coach's replay state beside Pixel's. **Every account's since
+  2026-11-14** (owner: « every training open to both multi and solo analyses, as regular trainings would be »): the maps' courses,
+  the training events, the « Cartes du jour ». **A competition's** other runs open once its event's last day is past (`api/virtual`
+  `eventOver`, the page's `canSee`; a competition on a built-in map — the administrators' tests — never), said above it
+  (`vt.an.compHidden`). **A « Carte du jour »'s runs** (`GET runs?race=day`: every day's) on its forest made again (`dayRace`:
+  `vgenpack.makeWorld(dayOpts(day))`, its courses' signature checked against the runs' event; a few seconds, said). Visitors without an
+  account: nothing — Pixel is not among `GUEST_ROUTES`, and a run is kept only under an account. Tested 2026-11-14 with two local
+  accounts (`work\vr3d\anpost.mjs` posts runs, `cxtest.mjs` opens the analysis). **The invented forests are tiles among the maps** (owner, 2026-11-14: at the page's bottom nobody saw
   them): « Carte du jour » and « Terrain libre » at the end of the maps' grid (contour lines drawn by CSS, `.vtp-genthumb`), chosen as
   `?carte=gen:day|gen:free`; their section (pages/virtuallygen.js) then shows right under the grid in place of a map's courses (on a
   phone under its tile) and scrolls to the box chosen.

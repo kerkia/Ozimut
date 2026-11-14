@@ -6,9 +6,9 @@
 // - Résultats: a map, then a circuit, its runs as Stats' race results: place, runner, time, gap, the runner's virtual index and
 //   the run's virtual score with its gap (games/vindex.js: the Ozimut method's rules on the virtual runs, explained there).
 // - Classement: the runners by their virtual index (competitions only: owner, 2026-11-11).
-// - Analyse: one's own run replayed on the map, its legs (time lost as « Analyse de course » counts it, trace/legs.js), the
-//   pace under the map (trace/pacestrip.js), other runners of the same circuit beside it. A virtual run is a perfect trace
-//   in the map's frame: no calibration.
+// - Analyse: Coach's map analysis (pages/shared.js) on a Pixel map's runs (owner, 2026-11-14: « like coach analyses »): each
+//   runner's run made a GPS trace by pages/virtuallysrc.js, every view of Coach's — the replay and its start modes, the splits,
+//   the gaps, the route choices, the computed routes, the 3D view —, read only; a map chosen above it.
 // - Orga: the organisers' events (pages/virtuallyorga.js): a training or a competition made from their own OCAD map (an
 //   administrator also from the LiDAR alone), built on GitHub; the published ones are offered in Entraînement beside the maps,
 //   their runs kept by api/virtual/events (a competition once per account and course) and read here as the maps' runs.
@@ -447,26 +447,52 @@ ${ci.kind === "training" ? html` · <span class="tag">${t("vt.res.trainingTag")}
   }
 
   // ---- Analyse -----------------------------------------------------------------------------------------------------------
+  // Coach's map analysis on a Pixel map's runs (pages/virtuallysrc.js, pages/shared.js `useSource`): a map chosen above it — the
+  // one of the run in the address, else the map chosen in Entraînement, else one's latest run's —, its circuits in Coach's own
+  // « Circuits » tab. The address keeps Coach's replay state beside Pixel's own (carte, run).
   async function analysis(el) {
     el.innerHTML = html`<div class="boot"><div class="spinner"></div></div>`;
     // the maps' and events' runs, and the « Cartes du jour »'s (every day's: the analysis makes the day's forest again)
     const [list, all, days] = await Promise.all([races(), allRuns(), getJson(`${API}runs?race=day`).then((d) => d.runs).catch(() => [])]);
-    const field = { runs: all.runs.concat(days), circuitKey: all.circuitKey };
-    const mineRuns = field.runs.filter((r) => r.mine).sort((a, b) => b.at.localeCompare(a.at));
-    if (!mineRuns.length) { el.innerHTML = html`<div class="card"><div class="empty">${t("vt.an.none")}</div></div>`; return null; }
-    const run = mineRuns.find((r) => r.id === sel.run) || mineRuns[0];
-    sel.run = run.id;
-    let race = list.find((r) => r.id === run.race);
-    if (!race && run.race.startsWith("day-")) {
-      el.innerHTML = html`<div class="boot"><div class="spinner"></div><p class="muted">${t("vt.an.dayMaking")}</p></div>`;
-      try { race = await dayRace(run.race); } catch (e) { console.error(e); race = null; }
-      if (race && race.sig !== run.event) race = null;                // another world than the run's: never mixed
+    const runs = all.runs.concat(days);
+    // the maps someone ran: Pixel's maps and events, then the « Cartes du jour » (newest first)
+    const ran = new Set(runs.map((r) => r.race));
+    const choices = [...list.filter((r) => ran.has(r.id)).map((r) => r.id), ...[...ran].filter((id) => id.startsWith("day-")).sort().reverse()];
+    if (!choices.length) { el.innerHTML = html`<div class="card"><div class="empty">${t("vt.an.empty")}</div></div>`; return null; }
+    const pinned = runs.find((r) => r.id === sel.run && r.mine);
+    const latest = runs.filter((r) => r.mine).sort((a, b) => b.at.localeCompare(a.at))[0];
+    const raceId = pinned?.race || (choices.includes(sel.race) ? sel.race : null) || latest?.race || choices[0];
+    let race = list.find((r) => r.id === raceId);
+    const sig = (id) => runs.find((r) => r.race === id)?.event;
+    el.innerHTML = html`<div class="vtp-anpick"><label>${t("vt.an.map")} <select id="vtp-anmap">${choices.map((id) => html`<option value="${id}" ${raw(id === raceId ? "selected" : "")}>
+        ${mapName(id)} · ${tn("vt.an.runs", runs.filter((r) => r.race === id).length)}</option>`)}</select></label>
+      <span class="muted" id="vtp-annote"></span></div><div class="vtp-coach"><div class="boot"><div class="spinner"></div></div></div>`;
+    $("#vtp-anmap", el).addEventListener("change", (e) => {
+      sel.race = e.target.value; sel.run = null;
+      // another map: Coach's replay state of the previous one goes
+      setQuery({ carte: sel.race, run: null, c: null, t: null, leg: null, show: null, sel: null, m: null, from: null, vue: null, ex: null });
+      draw("analyse");
+    });
+    const host = $(".vtp-coach", el);
+    if (!race && raceId.startsWith("day-")) {
+      host.innerHTML = html`<div class="boot"><div class="spinner"></div><p class="muted">${t("vt.an.dayMaking")}</p></div>`;
+      try { race = await dayRace(raceId); } catch (e) { console.error(e); race = null; }
+      if (race && race.sig !== sig(raceId)) race = null;              // another world than the runs': never mixed
     }
-    const course = race?.race.courses.find((c) => c.id === run.course);
-    if (!race || !course) { el.innerHTML = html`<div class="card"><div class="empty">${t("vt.an.gone")}</div></div>`; return null; }
-    const mod = await import("./virtuallyan.js");
-    return mod.drawAnalysis(el, { run, race, course, all: field, mineRuns, list, mapName, courseName, canSee,
-      onRun: (id) => { sel.run = id; setQuery({ run: id }); draw("analyse"); } });
+    if (!race) { host.innerHTML = html`<div class="card"><div class="empty">${t("vt.an.gone")}</div></div>`; return null; }
+    const [{ pixelAnalysis, drawRaceMap }, { useSource, openSourced }] = await Promise.all([import("./virtuallysrc.js"), import("./shared.js")]);
+    const mine = runs.filter((r) => r.race === race.id && (!race.gen || r.event === race.sig));
+    const src = pixelAnalysis({ race, runs: mine, pick: pinned?.id, canSee, mapOf: drawRaceMap, title: mapName(race.id), courseName });
+    // what is not shown: the circuits' older runners beyond 100, a competition's others before its end
+    const courses = race.race.courses || [], capped = courses.some((c) => src.counts(c.id).total > 101);
+    const hidden = mine.filter((r) => !r.mine && !canSee(r)).length;
+    $("#vtp-annote", el).textContent = [capped ? t("vt.an.cappedAll", { n: 100 }) : "", hidden ? tn("vt.an.compHidden", hidden) : ""].filter(Boolean).join(" ");
+    const forget = useSource(src);
+    // the circuit: the run's, else the one in the address, else the first one run; one's own runner chosen
+    const q = Object.fromEntries(new URLSearchParams(location.hash.split("?")[1] || ""));
+    const courseN = pinned ? src.circuitN(pinned.course) : q.c != null ? Number(q.c) : Math.max(0, courses.findIndex((c) => mine.some((r) => r.course === c.id)));
+    const res = await openSourced(host, src.id, { ...q, c: String(courseN), ...(q.sel || !src.myUid() ? {} : { sel: String(src.myUid()) }) });
+    return () => { res?.cleanup?.(); forget(); };
   }
 
   return { title: t("nav.virtually"), cleanup: () => { game?.stop(); stopAn?.(); stopOrga?.(); } };

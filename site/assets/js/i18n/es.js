@@ -5305,6 +5305,7 @@ export default {
   "rc.leg.show": "Ver este tramo en el mapa",
   "rc.tab.offHint": "Para cada tramo, Ozimut calcula las rutas más rápidas en el mapa tal como lo lee, y mide la de cada corredor.",
   "sh.kind.club": "Entrenamiento de club",
+  "sh.kind.pixel": "Entrenamiento Pixel",
   "sh.access.all": "Acceso: abierto a todos, incluidos los visitantes sin cuenta",
   "sh.access.public": "Acceso: todas las cuentas",
   "sh.access.club": "Acceso restringido: miembros del club",

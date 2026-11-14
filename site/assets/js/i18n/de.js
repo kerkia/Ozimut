@@ -5305,6 +5305,7 @@ export default {
   "rc.leg.show": "Diesen Posten auf der Karte zeigen",
   "rc.tab.offHint": "Für jeden Posten berechnet Ozimut die schnellsten Routen auf der Karte, so wie es sie liest, und misst die jedes Läufers.",
   "sh.kind.club": "Vereinstraining",
+  "sh.kind.pixel": "Pixel-Training",
   "sh.access.all": "Zugang: für alle offen, auch für Besucher ohne Konto",
   "sh.access.public": "Zugang: alle Konten",
   "sh.access.club": "Eingeschränkter Zugang: Vereinsmitglieder",

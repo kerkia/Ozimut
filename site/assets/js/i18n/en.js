@@ -5089,6 +5089,7 @@ export default {
   "rc.leg.show": "Show this leg on the map",
   "rc.tab.offHint": "For each leg, Ozimut computes the fastest routes on the map as it reads it, and measures each runner's.",
   "sh.kind.club": "Club training",
+  "sh.kind.pixel": "Pixel training",
   "sh.access.all": "Access: open to all, visitors without an account included",
   "sh.access.public": "Access: every account",
   "sh.access.club": "Restricted access: club members",

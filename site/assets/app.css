@@ -4458,11 +4458,8 @@ html.vt-fs-on, html.vt-fs-on body { overflow: hidden; }
 .vtp-info { width: 18px; height: 18px; border-radius: 50%; border: 1.5px solid currentColor; background: none; color: var(--ink-2);
   font: 600 11px/1 Georgia, serif; font-style: italic; padding: 0; cursor: help; display: inline-flex; align-items: center; justify-content: center; }
 .vtp-info:hover, .vtp-info[aria-expanded="true"] { color: var(--ink); }
-.vtp-mode { display: inline-flex; gap: 0; margin-right: 6px; }
-.vtp-mode .btn { border-radius: 0; }
-.vtp-mode .btn:first-child { border-radius: 6px 0 0 6px; }
-.vtp-mode .btn:last-child { border-radius: 0 6px 6px 0; margin-left: -1px; }
-.vtp-mode .btn[aria-pressed="true"] { background: var(--forest-wash, rgba(0, 128, 0, 0.12)); font-weight: 600; }
+.vtp-anpick { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin: 4px 0 10px; }
+.vtp-anpick select { margin-left: 6px; }
 .vtp-gh-what { flex: 0 0 100%; order: 9; margin: 0; font-size: 0.85rem; }
 .vt-gh-brief { margin: 4px 0 8px; font-size: 0.9rem; opacity: 0.9; }
 .vt-gh-h { font-size: 0.95rem; margin: 12px 0 2px; }
@@ -4529,22 +4526,6 @@ html.vt-fs-on, html.vt-fs-on body { overflow: hidden; }
 .vtp-me td { background: color-mix(in srgb, var(--flag) 10%, var(--surface)); }
 .vtp-how { margin: 14px 0; max-width: 80ch; }
 .vtp-how summary { cursor: pointer; font-weight: 600; }
-.vtp-anhead { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; margin: 4px 0 8px; }
-.vtp-cmp { display: flex; gap: 6px 12px; align-items: center; flex-wrap: wrap; margin: 0 0 8px; }
-.vtp-chip { display: inline-flex; gap: 5px; align-items: center; cursor: pointer; }
-.vtp-an { display: grid; grid-template-columns: minmax(0, 1fr) minmax(300px, 420px); gap: 12px; align-items: start; }
-.vtp-anmap { position: relative; height: max(320px, calc(100vh - 360px)); border: 1px solid var(--border); border-radius: 8px; overflow: hidden; background: #fff; }
-.vtp-anmap canvas { width: 100%; height: 100%; display: block; cursor: grab; touch-action: none; }
-.vtp-anbar { position: absolute; right: 8px; top: 8px; display: flex; flex-direction: column; gap: 4px; }
-.vtp-anload { position: absolute; inset: 0; display: grid; place-content: center; }
-.vtp-transport { display: flex; gap: 8px; align-items: center; margin: 6px 0; }
-.vtp-transport input[type=range] { flex: 1; min-width: 80px; }
-.vtp-strip { width: 100%; height: 110px; display: block; cursor: pointer; }
-.vtp-legs tr[data-leg] { cursor: pointer; }
-.vtp-legs tr.vtp-cur td { background: color-mix(in srgb, var(--water) 12%, var(--surface)); }
-.vtp-legs tr.vtp-err td:nth-child(5) { color: var(--bad); font-weight: 600; }
-.vtp-legnote { font-size: 0.85rem; margin: 6px 0; }
-@media (max-width: 900px) { .vtp-an { grid-template-columns: 1fr; } .vtp-anmap { height: 60vh; } }
 
 /* ---- « Orga › Gérer » (pages/manage.js, owner 2026-11-11): the organiser's events as Arena's list, an event's tabs ---- */
 .mg-filters { align-items: flex-end; }

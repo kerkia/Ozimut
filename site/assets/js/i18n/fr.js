@@ -4261,6 +4261,7 @@ export default {
   "rc.leg.show": "Voir ce poste sur la carte",
   "rc.tab.offHint": "Pour chaque poste, Ozimut calcule les itinéraires les plus rapides sur la carte telle qu'il la lit, et mesure celui de chaque coureur.",
   "sh.kind.club": "Entraînement club",
+  "sh.kind.pixel": "Entraînement Pixel",
   "sh.access.all": "Accès : ouvert à tous, visiteurs sans compte compris",
   "sh.access.public": "Accès : tous les comptes",
   "sh.access.club": "Accès restreint : membres du club",

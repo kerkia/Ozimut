@@ -15,7 +15,8 @@
 // passes. After World of O's 2DRerun (2026-10-24): routes coloured by pace, leg time or route choice; the runners' paces
 // under the map; under the replay one runner's legs, the gaps along the race, the route choices of a leg, a training's
 // corridor and compass exercises (pages/sharedviews.js); a headcam video in step (pages/sharedvideo.js); the replay's
-// state in the address. Stored by /api/analyses (R2).
+// state in the address. Stored by /api/analyses (R2). Other sources (owner, 2026-11-14): Pixel's runs (pages/virtuallysrc.js) are
+// served to the same page through `useSource` — an analysis « px~<race> », read only (`readonly`: no trace added, no comment).
 
 import { html, raw, $, $$, fmt, fmtDate, traceAccept, touchScreen } from "../util.js";
 import { t, tn, locale } from "../i18n.js";
@@ -107,7 +108,16 @@ const today = () => new Date().toISOString().slice(0, 10);
 const keyOf = (id) => { try { return sessionStorage.getItem(`ocn.an.key.${id}`) || ""; } catch (e) { return ""; } };
 const setKey = (id, k) => { try { sessionStorage.setItem(`ocn.an.key.${id}`, k); } catch (e) { /* this visit only */ } };
 
+// analyses served by the browser itself: id → { api(path, opts) } (Pixel's runs: pages/virtuallysrc.js)
+const SOURCES = new Map();
+/** Serves an analysis from the browser (its id, its api); returns the function that forgets it. */
+export function useSource(src) { SOURCES.set(src.id, src); return () => SOURCES.delete(src.id); }
+/** Coach's analysis page for an analysis of another source (the page that holds it gives its element and the address's state). */
+export const openSourced = (main, id, query = {}) => eventPage(main, "club", id, false, query);
+
 async function api(path, { method = "GET", body, type, key } = {}) {
+  const src = SOURCES.get(/^\/([^/?]+)/.exec(path)?.[1]);
+  if (src) return src.api(path, { method, body });
   // a visitor without an account (owner, 2026-11-02): read only, the analyses their organiser opened to visitors
   if (!auth.session() && method === "GET") path = `/v${path}`;
   const headers = {};
@@ -438,7 +448,7 @@ async function eventPage(main, kind, id, org = false, query = {}) {
   let courseN = A.courses.some((c) => String(c.n) === query.c) ? Number(query.c) : A.courses[0]?.n ?? null, viewer = null, initial = query;
   main.innerHTML = html`
     <div class="sh-top sh-top3"><span class="sh-top-l">
-      <b class="sh-title">${A.title}</b><span class="muted">${fmtDate(A.date)} · ${t(A.kind === "race" ? "ma.kind.race" : "sh.kind.club")}</span>
+      <b class="sh-title">${A.title}</b><span class="muted">${fmtDate(A.date)} · ${t(A.via === "pixel" ? "sh.kind.pixel" : A.kind === "race" ? "ma.kind.race" : "sh.kind.club")}</span>
       </span><span class="sh-tabs" id="sh-tabs"></span><span class="sh-top-r">
       ${organiser && A.draft ? html`<span class="tag sh-m-draft" title="${t("sh.m.draft.tip")}">${t("sh.m.state.draft")}</span>` : ""}
       <span class="sh-top-add" id="sh-top-add"></span>
@@ -1591,7 +1601,7 @@ async function replay(box, { A, id, course, race, init = {}, traces, allTraces =
     <div class="sh-layout" id="sh-layout">
       ${raw(panelHtml({ id: "sh-lp", side: "left", cls: "sh-lp", tabs: [{ key: "runners", label: t("sh.tab.circuits"), tip: t("sh.tab.circuits.tip") }, { key: "legs", label: t("an.tab.legs"), tip: t("sh.tab.legs.tip") },
         { key: "views", label: t("sh.tab.views"), tip: t("sh.tab.views.tip") }, ...(routesOn ? [{ key: "routes", label: t("an.tab.routes"), tip: t("an.tab.routes.tip") }] : []),
-        ...(you.visitor ? [] : [{ key: "own", label: t("an.tab.graphs"), tip: t("sh.tab.own.tip") }])],
+        ...(you.visitor || A.readonly ? [] : [{ key: "own", label: t("an.tab.graphs"), tip: t("sh.tab.own.tip") }])],
         inner: { runners: html`<div id="sh-left"></div>`, legs: html`<div class="sh-views" id="sh-legs"></div>`, views: html`<div class="sh-views" id="sh-views"></div>`, routes: html`<div class="rc-leg" id="rc-leg"></div>`, own: html`<div class="sh-curves" id="sh-curves"></div>` } }))}
       <div class="an-split" id="sh-split-l" title="${t("an.split")}"></div>
       <div class="sh-mapcol"><div class="an-bar sh-bar" id="sh-bar"></div><div class="sh-map"><div class="an-3d" id="sh-3d-host" hidden></div><canvas id="sh-canvas"></canvas>
@@ -2098,11 +2108,11 @@ async function replay(box, { A, id, course, race, init = {}, traces, allTraces =
           <span class="sh-name">${leg && legTime(r, leg) != null ? html`<span class="sh-vtag" style="--v:${routeVar(r).c}" title="${routeVar(r).name}">${routeVar(r).key}</span> ` : ""}${r.name}${r.mine ? html` <span class="tag">${t("sh.me")}</span>` : ""}${r.test ? html` <span class="tag">${t("sh.test.tag")}</span>` : ""}</span>
           <button type="button" class="sh-follow-one${r === sel && follow === "sel" ? " on" : ""}" data-follow="${r.uid}" aria-pressed="${r === sel && follow === "sel"}" title="${t("sh.followOne")}">⌖</button>
           <span class="num muted">${leg ? (lt != null ? html`${clock(lt)}${lt > bestLeg ? html` <span class="sh-behind">${signed(lt - bestLeg)}</span>` : ""}` : "—")
-            : r.official?.time != null ? clock(r.official.time) : total(r) != null ? html`<span class="sh-est" title="${t("sh.time.est")}">~${clock(total(r))}</span>` : "—"}</span>
+            : r.official?.time != null ? clock(r.official.time) : total(r) != null ? (A.via === "pixel" ? clock(total(r)) : html`<span class="sh-est" title="${t("sh.time.est")}">~${clock(total(r))}</span>`) : "—"}</span>
           ${score ? html`<span class="sh-sub muted">${t("sh.score.n", { n: visitsOf(r).length, m: scoreN })}</span>` : leg && dist != null ? html`<span class="sh-sub muted">${fmt(dist)} m · ${pace(dist / lt)}</span>` : r.official?.place ? html`<span class="sh-sub muted">${t("sh.place", { p: r.official.place })}</span>` : ""}
           ${notesOn && r.note ? html`<span class="sh-note" title="${t("sh.note.of", { r: r.name })}">${r.note}</span>` : ""}</div>`; })}</div>`
         : html`<div class="empty">${t("sh.noTraces")}</div>`}
-      ${you.visitor ? html`<p class="hint sh-visitor">${t("sh.visitor.note")}</p>` : html`<div class="sh-mine">
+      ${A.readonly ? "" : you.visitor ? html`<p class="hint sh-visitor">${t("sh.visitor.note")}</p>` : html`<div class="sh-mine">
         ${runners.some((r) => r.mine) ? html`<button type="button" class="btn btn-sm" id="sh-rm">${t("sh.trace.remove")}</button>` : ""}
         ${canAdd ? "" : html`<p class="hint" style="margin:6px 0 0">${t("sh.closed")}</p>`}</div>
       ${myRun() && (notesOn || A.visitors) ? html`<div class="sh-mine sh-note-box">${notesOn ? html`<label for="sh-note"><b>${t("sh.note.mine")}</b></label>
@@ -2269,7 +2279,7 @@ async function replay(box, { A, id, course, race, init = {}, traces, allTraces =
         <span class="sh-clock"><b id="sh-t"></b> <span class="muted" id="sh-t-sub"></span></span>
         </div>`;
     const topAdd = $("#sh-top-add");
-    if (topAdd) topAdd.innerHTML = you.visitor ? "" : html`${!canAdd ? "" : runners.some((r) => r.mine) ? html`<button type="button" class="btn btn-sm ico-btn" id="sh-bar-add" title="${t("sh.trace.replace")}" aria-label="${t("sh.trace.replace")}">${raw(iconLabel("add", t("sh.trace.replace")))}</button>`
+    if (topAdd) topAdd.innerHTML = you.visitor || A.readonly ? "" : html`${!canAdd ? "" : runners.some((r) => r.mine) ? html`<button type="button" class="btn btn-sm ico-btn" id="sh-bar-add" title="${t("sh.trace.replace")}" aria-label="${t("sh.trace.replace")}">${raw(iconLabel("add", t("sh.trace.replace")))}</button>`
       : html`<button type="button" class="btn btn-sm btn-primary ico-btn" id="sh-bar-add" title="${t("sh.trace.add")}" aria-label="${t("sh.trace.add")}">${raw(iconLabel("add", t("sh.trace.add")))}</button>`}`;
     // the one runner shown, coloured by runner: their colour can be chosen (owner, 2026-11-07)
     const shownNow = runners.filter((r) => r.visible), one = cmode() === "runner" && shownNow.length === 1 ? shownNow[0] : null;
