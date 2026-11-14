@@ -178,9 +178,9 @@ export function mount(root, raceId, opts = {}) {
         <div class="vt-mapbar">
           <button type="button" data-z="1.5" title="${t("vt.map.zoomIn")}">+</button><button type="button" data-z="0.67" title="${t("vt.map.zoomOut")}">−</button>
           <button type="button" id="vt-mnext" title="${t("vt.map.next")}">◎</button><button type="button" id="vt-msize" title="${t("vt.map.size")}">⤢</button>
-          <button type="button" id="vt-morient" class="vt-morient"></button>
-          <button type="button" id="vt-mcomp" class="vt-mcomp" title="${t("vt.map.compline")}" aria-label="${t("vt.map.compline")}"><svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true"><path d="M3 13 13 3M13 3H8.5M13 3v4.5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg></button>
-          <button type="button" id="vt-mrotl" title="${t("vt.map.rotL")}" aria-label="${t("vt.map.rotL")}" hidden>↺</button><button type="button" id="vt-mrotr" title="${t("vt.map.rotR")}" aria-label="${t("vt.map.rotR")}" hidden>↻</button>
+          <button type="button" id="vt-orun" class="vt-morient"></button><button type="button" id="vt-oleg" class="vt-morient"></button>
+          <button type="button" id="vt-mrotl" title="${t("vt.map.rotL")}" aria-label="${t("vt.map.rotL")}">↺</button><button type="button" id="vt-mrotr" title="${t("vt.map.rotR")}" aria-label="${t("vt.map.rotR")}">↻</button>
+          <button type="button" id="vt-mcomp" class="vt-mcomp" title="${t("vt.map.compline")}" aria-label="${t("vt.map.compline")}"><svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true"><path d="M3 13 13 3M13 3H8.5M13 3v4.5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg></button><button type="button" id="vt-onorth" class="vt-morient" hidden></button>
         </div>
       </div>
       <div class="vt-sheet" id="vt-sheet"></div>
@@ -268,21 +268,18 @@ export function mount(root, raceId, opts = {}) {
     // ---- the map panel ----
     const ppm = mapImg.ppm, mPer = ppm / race.k;                    // map canvas px per world metre
     const mv = { cx: course[0].x * mPer, cy: course[0].z * mPer, zoom: 1, drag: null, ang: 0, free: 0, spin: null };
-    // the map's orientation (owner, 2026-11-11): north up, the leg being run up, or the way the runner faces up; kept in this browser.
-    // And by hand (owner, 2026-11-12: « to test them all »): ↺ ↻ on the map's bar, Shift + wheel or the right button, two fingers, , and .
-    const ORIENTS = ["north", "leg", "run", "free"];
-    let orient = "north";
-    try { const o = localStorage.getItem("ocn.vt.orient"); if (ORIENTS.includes(o)) orient = o; } catch (e) { /* none kept */ }
-    /** The canvas's turn (radians, clockwise on screen) that puts the chosen direction up; north up at the finish. */
-    const mapAngle = () => {
-      if (orient === "north" || st.phase === "done") return 0;
-      if (orient === "run") return -st.yaw;
-      if (orient === "free") return mv.free;
-      const a = course[Math.max(0, Math.min(st.next, course.length - 1) - 1)], b = course[Math.min(st.next, course.length - 1)];
-      return a === b ? 0 : -Math.atan2(b.x - a.x, -(b.z - a.z));
-    };
+    // The map's orientation (owner, 2026-11-14: « juste le mode d'orientation manuel »): turned by hand only — ↺ ↻ on the map's bar,
+    // Shift + wheel or the right button, two fingers, , and . —, as a real map in the hand. Two one-shot buttons turn it once, the way
+    // the runner faces or the current leg up, and cost ORIENT_S of blank map (the time it takes to set a map by the compass); north up
+    // only at the start (no cost), where the map first lies along the start corridor. The north-up, leg-up and run-up modes of
+    // 2026-11-11 are gone. North up at the finish.
+    const orient = "free", ORIENT_S = 3, START_R = 60;
+    let blankUntil = 0;
+    /** The canvas's turn (radians, clockwise on screen); north up at the finish. */
+    const mapAngle = () => (st.phase === "done" ? 0 : mv.free);
     /** A shift on the screen (px) as a shift on the map's canvas (its px), the turn undone. */
     const unturn = (dx, dy) => { const c = Math.cos(-mv.ang), s = Math.sin(-mv.ang); return [(dx * c - dy * s) / mv.zoom, (dx * s + dy * c) / mv.zoom]; };
+    const barW = () => $(".vt-mapbar", root)?.offsetWidth || 0;   // the map's buttons along its right edge
     const fitZoom = (metres) => { mv.zoom = Math.max(0.05, mapEl.clientWidth / (metres * mPer)); };
     function drawMapPanel() {
       const w = mapEl.clientWidth, h = mapEl.clientHeight, dpr = Math.min(devicePixelRatio || 1, 2);
@@ -290,6 +287,18 @@ export function mount(root, raceId, opts = {}) {
       if (mapC.width !== Math.round(w * dpr)) { mapC.width = Math.round(w * dpr); mapC.height = Math.round(h * dpr); }
       const g = mapC.getContext("2d");
       g.setTransform(dpr, 0, 0, dpr, 0, 0); g.fillStyle = "#fff"; g.fillRect(0, 0, w, h);
+      if (blankUntil && performance.now() < blankUntil) {            // the map being set by the compass: a blank sheet
+        g.fillStyle = "#e7e3d8"; g.fillRect(0, 0, w, h); g.fillStyle = "#555"; g.textAlign = "center"; g.textBaseline = "middle";
+        const free = Math.max(80, w - barW() - 8), fs = Math.max(11, Math.min(15, free / 12));
+        g.font = `bold ${fs}px Arial`;
+        const lines = [];                                          // the words wrapped in the part the buttons leave
+        for (const word of t("vt.map.orienting").split(" ")) {
+          const l = lines.length ? `${lines[lines.length - 1]} ${word}` : word;
+          if (lines.length && g.measureText(l).width <= free - 12) lines[lines.length - 1] = l; else lines.push(word);
+        }
+        lines.forEach((l, i) => g.fillText(l, free / 2, h / 2 + (i - (lines.length - 1) / 2) * fs * 1.3));
+        return;
+      }
       if (!(memoShown = mapShown())) {                              // « map at the controls only »: a blank sheet between them
         g.fillStyle = "#e7e3d8"; g.fillRect(0, 0, w, h); g.fillStyle = "#555"; g.textAlign = "center"; g.textBaseline = "middle";
         g.font = `bold ${Math.max(11, Math.min(15, w / 18))}px Arial`; g.fillText(t("vt.mo.hidden"), w / 2, h / 2 - 9);
@@ -439,9 +448,30 @@ export function mount(root, raceId, opts = {}) {
     // sizes: small and large in the bottom left corner, the compass beside it (app.css), hidden, and « full » at the finish
     const mapSize = (s) => { mapEl.dataset.size = s; box.dataset.map = s; requestAnimationFrame(drawMapPanel); };
     $$$(root, ".vt-mapbar [data-z]").forEach((b) => b.addEventListener("click", () => { mv.zoom *= +b.dataset.z; drawMapPanel(); }));
-    $("#vt-mnext", root).addEventListener("click", () => { const c = course[Math.min(st.next, course.length - 1)]; mv.cx = c.x * mPer; mv.cy = c.z * mPer; drawMapPanel(); });
+    // ◎ frames the leg being run, its two controls whole (owner, 2026-11-14: « le bon niveau de zoom, pas que la direction »); pressed
+    // again within 4 s, the next leg, then the current one again
+    let legShown = { at: 0, k: 0 };
+    function frameLeg(k) {
+      const last = course.length - 1, i = Math.max(1, Math.min(k, last)), a = course[i - 1], b = course[i];
+      // in the part of the panel the buttons leave free
+      const W = mapEl.clientWidth || 300, bw = barW(), w = Math.max(60, W - bw), h = mapEl.clientHeight || 300;
+      const ang = mapAngle(), c = Math.cos(ang), sn = Math.sin(ang);
+      const dx = (b.x - a.x) * mPer, dy = (b.z - a.z) * mPer, rx = Math.abs(dx * c - dy * sn), ry = Math.abs(dx * sn + dy * c);
+      const r = 4 * ppm, pad = 18;                                    // a control circle's radius on the canvas, and a margin
+      mv.zoom = Math.max(0.05, Math.min((w - 2 * pad) / (rx + 2 * r), (h - 2 * pad) / (ry + 2 * r), 3));
+      // the leg's middle at the free part's centre, -bw/2 from the canvas's: undo the turn and the zoom of that shift
+      const ox = -bw / 2, ux = (ox * c) / mv.zoom, uy = (-ox * sn) / mv.zoom;
+      mv.cx = ((a.x + b.x) / 2) * mPer - ux; mv.cy = ((a.z + b.z) / 2) * mPer - uy;
+      legShown = { at: performance.now(), k: i };
+      drawMapPanel();
+    }
+    const showLeg = () => {
+      const cur = Math.min(st.next, course.length - 1), again = performance.now() - legShown.at < 4000;
+      frameLeg(again && legShown.k === cur && cur < course.length - 1 ? cur + 1 : cur);
+    };
+    $("#vt-mnext", root).addEventListener("click", () => { showLeg(); box.focus(); });
     $("#vt-msize", root).addEventListener("click", () => { const big = st.phase === "done" ? "full" : "large"; mapSize(mapEl.dataset.size === big ? "small" : big); });
-    const turning = () => orient === "free" && st.phase !== "done";
+    const turning = () => st.phase !== "done";
     const turnBy = (d) => { if (!turning()) return; mv.free += d; drawMapPanel(); };
 
     const ptrs = new Map();
@@ -487,8 +517,7 @@ export function mount(root, raceId, opts = {}) {
       const f = e.deltaY < 0 ? 1.2 : 1 / 1.2, rc = mapC.getBoundingClientRect();
       const px = e.clientX - rc.left - rc.width / 2, py = e.clientY - rc.top - rc.height / 2;
       const [ux, uy] = unturn(px, py); mv.cx += ux - ux / f; mv.cy += uy - uy / f; mv.zoom *= f; drawMapPanel(); }, { passive: false });
-    // the orientation's button: its icon and tooltip say the current choice; a click (or O) takes the next
-    const orientBtn = $("#vt-morient", root);
+    // the one-shot orientations (N at the start, O the way run, L the leg)
     const ORIENT_ICON = {
       north: '<svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path d="M12 3 17 15 12 12 7 15Z" fill="currentColor"/><text x="12" y="22.5" font-size="8" font-weight="700" text-anchor="middle" fill="currentColor">N</text></svg>',
       leg: '<svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true" fill="none" stroke="#f06ad8" stroke-width="2.2"><circle cx="12" cy="19" r="3.2"/><circle cx="12" cy="5" r="3.2"/><path d="M12 15.6V8.4"/></svg>',
@@ -502,20 +531,32 @@ export function mount(root, raceId, opts = {}) {
         iv = setInterval(() => { const n = performance.now(); turnBy((dir * turnRate(t0) * (n - last)) / 1000); last = n; }, 30); });
       for (const ev of ["pointerup", "pointerleave", "pointercancel"]) b.addEventListener(ev, stop);
     }
-    const showOrient = () => {
-      $("#vt-mrotl", root).hidden = $("#vt-mrotr", root).hidden = orient !== "free";
-      orientBtn.innerHTML = ORIENT_ICON[orient];
-      orientBtn.title = t(`vt.map.orient.${orient}`); orientBtn.setAttribute("aria-label", orientBtn.title);
-    };
-    const nextOrient = () => {
-      const was = mv.ang;
-      orient = ORIENTS[(ORIENTS.indexOf(orient) + 1) % ORIENTS.length];
-      if (orient === "free") mv.free = was;                           // by hand from where the map stood
-      try { localStorage.setItem("ocn.vt.orient", orient); } catch (e) { /* kept for the visit */ }
-      showOrient(); drawMapPanel(); toast(t(`vt.map.orient.set.${orient}`)); box.focus();
-    };
-    orientBtn.addEventListener("click", nextOrient);
-    showOrient();
+    const atStart = () => st.next === 1 && Math.hypot(st.x - course[0].x, st.z - course[0].z) < START_R;
+    for (const [id, k] of [["#vt-onorth", "north"], ["#vt-orun", "run"], ["#vt-oleg", "leg"]]) {
+      const b = $(id, root); b.innerHTML = ORIENT_ICON[k];
+      b.title = t(`vt.map.orient.${k}`, { s: ORIENT_S }); b.setAttribute("aria-label", b.title);
+      b.addEventListener("click", () => { orientOnce(k); box.focus(); });
+    }
+    const northBtn = $("#vt-onorth", root);
+    let northShown = false;
+    const showNorth = () => { const on = st.phase !== "done" && atStart(); if (on !== northShown) { northShown = on; northBtn.hidden = !on; } };
+    /** Turn the map once: north up (the start only, free), the way the runner faces up or the leg up (ORIENT_S of blank map). */
+    function orientOnce(k) {
+      if (st.phase === "done") return;
+      if (k === "north") {
+        if (!atStart()) { toast(t("vt.map.orient.northOnly"), false); return; }
+        mv.free = 0; drawMapPanel(); toast(t("vt.map.orient.set.north")); return;
+      }
+      if (st.phase !== "run") return;
+      if (blankUntil && performance.now() < blankUntil) return;
+      if (k === "run") mv.free = -st.yaw;
+      else {
+        const last = course.length - 1, a = course[Math.max(0, Math.min(st.next, last) - 1)], b = course[Math.min(st.next, last)];
+        mv.free = a === b ? mv.free : -Math.atan2(b.x - a.x, -(b.z - a.z));
+      }
+      blankUntil = performance.now() + ORIENT_S * 1000;
+      drawMapPanel(); toast(t(`vt.map.orient.set.${k}`, { s: ORIENT_S }));
+    }
     // ---- the compass ----
     function drawCompass() {
       const g = comp.getContext("2d"), s = comp.width, c = s / 2, R = s * 0.42;
@@ -570,7 +611,9 @@ export function mount(root, raceId, opts = {}) {
         if (e.code === "Space" && st.phase === "run") punch();
         // M by its letter (owner, 2026-11-14: « M ça marche pas »: on an AZERTY keyboard M's key is « Semicolon », and KeyM is « , »)
         else if (e.key === "m" || e.key === "M") mapSize(mapEl.dataset.size === "small" ? "large" : mapEl.dataset.size === "large" ? "hidden" : "small");
-        else if (e.code === "KeyO") nextOrient();
+        else if (e.code === "KeyO") orientOnce("run");
+        else if (e.code === "KeyL") orientOnce("leg");
+        else if (e.code === "KeyN") orientOnce("north");
         else if (e.code === "KeyB") toggleComp();
         else if (e.code === "Tab" && st.phase === "run") setView(VIEWS[(VIEWS.indexOf(box.dataset.view) + 1) % VIEWS.length]);
         else if (e.code === "KeyC") toggleSheet();
@@ -702,7 +745,12 @@ export function mount(root, raceId, opts = {}) {
       if (mapImg.canvas !== layered) mapImg.canvas = layered;        // the finish drew the whole map
       Object.assign(st, { phase: "ready", t: 0, punchT: -1e9, x: START.x, z: START.z, yaw: START.yaw, next: 1, splits: [], track: [], dist: 0, lastTrack: -1,
         posLeft: 0, posN: 0, pen: 0, legPen: [], level: 0, energy: 1, paceT: {} });
-      showPosBtn(); showSpeed(); showEnergy(); setView("scene"); sheet.hidden = false; describe(); mapSize("small"); mv.cx = course[0].x * mPer; mv.cy = course[0].z * mPer; fitZoom(700); drawMapPanel();
+      // the start corridor's way (the course's `startDir`, a heading as st.yaw, when the race has one), else toward the first control:
+      // the runner faces it and the map lies along it (owner, 2026-11-14: « au départ carte orientée dans le sens du couloir de départ »)
+      const s0 = course[0], c1 = course[1] || s0;
+      st.yaw = Number.isFinite(C0.startDir) ? C0.startDir : Math.atan2(c1.x - s0.x, -(c1.z - s0.z));
+      mv.free = -st.yaw; blankUntil = 0;
+      showPosBtn(); showSpeed(); showEnergy(); setView("scene"); sheet.hidden = false; describe(); mapSize("small"); mv.cx = course[0].x * mPer; mv.cy = course[0].z * mPer; fitZoom(700); drawMapPanel(); showNorth();
     }
     function finished() {
       st.phase = "done"; keys.clear(); st.posLeft = 0; showPosBtn(); help(false);
@@ -868,7 +916,9 @@ export function mount(root, raceId, opts = {}) {
       } else cueEl.hidden = true;
       if (st.msgUntil && now > st.msgUntil) { $("#vt-toast", root).hidden = true; st.msgUntil = 0; }
       const ml = keys.has("Comma"), mr = keys.has("Period");
-      if (run && orient === "free" && ml !== mr) turnBy((mr ? 1 : -1) * turnRate(heldSince(mr ? MAPR : MAPL)) * dt);
+      if (run && ml !== mr) turnBy((mr ? 1 : -1) * turnRate(heldSince(mr ? MAPR : MAPL)) * dt);
+      if (blankUntil && now >= blankUntil) { blankUntil = 0; drawMapPanel(); }
+      if (freeTick % 15 === 0) showNorth();
       if (freeTick++ % 8 === 0) measureFree();
       if (viewTarget !== viewOff) {
         viewOff += (viewTarget - viewOff) * Math.min(1, dt * 6);
@@ -883,7 +933,7 @@ export function mount(root, raceId, opts = {}) {
       $("#vt-next", root).textContent = st.next >= course.length - 1 ? `→ ${t("vt.finish")}` : `→ ${st.next} (${course[st.next].code})`;
       if (memo && mapShown() !== memoShown) drawMapPanel();
       else if (st.posLeft > 0 && run && (mapTick++ % 6 === 0)) drawMapPanel();
-      else if ((orient !== "north" || (compLine && st.phase === "run")) && mapEl.dataset.size !== "hidden") {
+      else if (mapEl.dataset.size !== "hidden") {
         const d = mapAngle() - mv.ang, dy = st.yaw - mv.yaw;        // the map turned, or the compass line with the runner
         if (Math.abs(Math.atan2(Math.sin(d), Math.cos(d))) > 0.004 || (compLine && Math.abs(Math.atan2(Math.sin(dy), Math.cos(dy))) > 0.004)) drawMapPanel();
       }
