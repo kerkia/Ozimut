@@ -38,7 +38,29 @@ export const clock = (s) => {
 const gapClock = (s) => (s == null || Math.round(s) <= 0 ? "" : `+${clock(s)}`);
 const EVENTS = new Map();                 // the events' records, by id (an event is played as a map)
 /** A map's name: an event's own, its catalogue entry, else its id. */
-const mapName = (id) => { if (EVENTS.has(id)) return EVENTS.get(id).name; const k = `vt.map.${id}`, v = t(k); return v === k ? id : v; };
+const mapName = (id) => {
+  if (EVENTS.has(id)) return EVENTS.get(id).name;
+  const day = /^day-(\d{4})(\d{2})(\d{2})$/.exec(id);              // a « Carte du jour » (pages/virtuallygen.js)
+  if (day) return t("vtg.name.day", { date: fmtDate(`${day[1]}-${day[2]}-${day[3]}`) });
+  const k = `vt.map.${id}`, v = t(k); return v === k ? id : v;
+};
+/** May this account see another's run of the circuit in the analysis? A training's always (owner, 2026-11-14: every training open
+ *  to analysis); a competition's once its event's last day is past (the server's rule, api/virtual), an administrator always. */
+const canSee = (r) => r.mine || r.kind !== "competition" || !!auth.session()?.admin
+  || (EVENTS.has(r.race) && !!EVENTS.get(r.race).to && EVENTS.get(r.race).to < new Date().toISOString().slice(0, 10));
+const DAY_RACES = new Map();
+/** A « Carte du jour » made again in this browser for its runs' analysis (the generator is deterministic: games/vgenpack.js), as
+ *  the analysis reads a map: { id, gen, sig, race: { courses }, load() → the package }. */
+function dayRace(id, onStep) {
+  if (!DAY_RACES.has(id)) DAY_RACES.set(id, (async () => {
+    const P = await import("../games/vgenpack.js");
+    const res = await P.makeWorld(P.dayOpts(id.slice(4)), onStep);
+    let data = null;
+    return { id, gen: true, sig: P.courseSig(res.courses), race: { id, courses: res.courses },
+      load: async () => (data ||= await P.packageOf(res, { id, title: mapName(id) })) };
+  })().catch((e) => { DAY_RACES.delete(id); throw e; }));
+  return DAY_RACES.get(id);
+}
 /** A course's name: its level's, else its own. */
 const courseName = (c) => (LEVELS.includes(c.id) ? t(`vt.lvl.${c.id}`) : c.name || c.id);
 const swatch = (id) => html`<span class="vtp-sw" style="background:${LEVEL_COLOUR[id] || "#888"}"></span>`;
@@ -126,8 +148,9 @@ export async function render(main, { query }) {
   if (location.hash.startsWith("#/jeux")) history.replaceState(null, "", "#/virtually");     // « Jeux »'s tab of before
   const tabs = [["entrainement", t("vt.tab.training")], ["resultats", t("vt.tab.results")], ["classement", t("vt.tab.ranking")], ["analyse", t("vt.tab.analysis")],
     ["avatar", t("vt.tab.avatar")], ...(auth.session()?.orga !== false ? [["orga", t("vt.tab.orga")]] : [])]
-    // every account sees Pixel since 2026-11-12, the administrators alone its other tabs (owner: Entraînement and Avatar for all)
-    .filter(([k]) => auth.session()?.admin || k === "entrainement" || k === "avatar");
+    // every account sees Pixel since 2026-11-12 (owner: Entraînement and Avatar for all), Analyse since 2026-11-14 (owner: every
+    // training open to solo and multi analysis); Résultats, Classement and Orga stay the administrators'
+    .filter(([k]) => auth.session()?.admin || k === "entrainement" || k === "avatar" || k === "analyse");
   const tab = tabFrom(tabs, query);
   const sel = { race: query.carte || null, course: query.circuit || null, run: query.run || null };
   main.innerHTML = html`
@@ -409,15 +432,24 @@ ${ci.kind === "training" ? html` · <span class="tag">${t("vt.res.trainingTag")}
   // ---- Analyse -----------------------------------------------------------------------------------------------------------
   async function analysis(el) {
     el.innerHTML = html`<div class="boot"><div class="spinner"></div></div>`;
-    const [list, all] = await Promise.all([races(), allRuns()]);
-    const mineRuns = all.runs.filter((r) => r.mine).sort((a, b) => b.at.localeCompare(a.at));
+    // the maps' and events' runs, and the « Cartes du jour »'s (every day's: the analysis makes the day's forest again)
+    const [list, all, days] = await Promise.all([races(), allRuns(), getJson(`${API}runs?race=day`).then((d) => d.runs).catch(() => [])]);
+    const field = { runs: all.runs.concat(days), circuitKey: all.circuitKey };
+    const mineRuns = field.runs.filter((r) => r.mine).sort((a, b) => b.at.localeCompare(a.at));
     if (!mineRuns.length) { el.innerHTML = html`<div class="card"><div class="empty">${t("vt.an.none")}</div></div>`; return null; }
     const run = mineRuns.find((r) => r.id === sel.run) || mineRuns[0];
     sel.run = run.id;
-    const race = list.find((r) => r.id === run.race), course = race?.race.courses.find((c) => c.id === run.course);
+    let race = list.find((r) => r.id === run.race);
+    if (!race && run.race.startsWith("day-")) {
+      el.innerHTML = html`<div class="boot"><div class="spinner"></div><p class="muted">${t("vt.an.dayMaking")}</p></div>`;
+      try { race = await dayRace(run.race); } catch (e) { console.error(e); race = null; }
+      if (race && race.sig !== run.event) race = null;                // another world than the run's: never mixed
+    }
+    const course = race?.race.courses.find((c) => c.id === run.course);
     if (!race || !course) { el.innerHTML = html`<div class="card"><div class="empty">${t("vt.an.gone")}</div></div>`; return null; }
     const mod = await import("./virtuallyan.js");
-    return mod.drawAnalysis(el, { run, race, course, all, mineRuns, list, mapName, courseName, onRun: (id) => { sel.run = id; setQuery({ run: id }); draw("analyse"); } });
+    return mod.drawAnalysis(el, { run, race, course, all: field, mineRuns, list, mapName, courseName, canSee,
+      onRun: (id) => { sel.run = id; setQuery({ run: id }); draw("analyse"); } });
   }
 
   return { title: t("nav.virtually"), cleanup: () => { game?.stop(); stopAn?.(); stopOrga?.(); } };

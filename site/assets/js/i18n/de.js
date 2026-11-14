@@ -5667,7 +5667,7 @@ export default {
   "g.learntest.tab": "Welcher Posten?",
   "nav.virtually": "Pixel",
   "mt.virtually": "Virtuelle Läufe in einem 3D-Wald nach echten Karten",
-  "vtp.lede": "Virtuelle OL-Läufe in einem 3D-Wald nach echten Karten: trainieren, Zeiten vergleichen, in die Rangliste kommen, den Lauf analysieren. Vorerst nur für Administratoren.",
+  "vtp.lede": "Virtuelle OL-Läufe in einem 3D-Wald nach echten Karten: trainieren, mit Geistern laufen, den Lauf allein oder mit den anderen analysieren.",
   "g.learntest.desc": "Ein Foto des Geländes – und auf der Stufe Einsteiger der Name des Objekts –, vier Kartenausschnitte mit einem Postenkreis: Welcher liegt auf dem Objekt? 10 Sekunden pro Frage.",
   "g.lvl.advanced": "Fortgeschritten",
   "g.lvl.beginner": "Einsteiger",

@@ -1,12 +1,15 @@
 // /api/virtual/… — « Virtually » (Ozimut Pixel, pages/virtually.js). Every account since 2026-11-12 (owner: Pixel for all, its
 // Entraînement and Avatar pages): the maps, their packages, the runs' list (the training's palmarès), one's own training runs;
-// a run's route (the analysis) and competitions stay the administrators' (administrators only 2026-11-10 to 12).
+// a run's route (the analysis: every account's since 2026-11-14) — any training run's, a competition's once its event is over;
+// running competitions on the built-in maps stays the administrators' (administrators only 2026-11-10 to 12).
 //   GET  races                         the maps: [{ id, race }] (each race.json, read here so that the page asks once)
 //   GET  <race>/<file>                 a map's package (made offline by tools/virtually: race.json — its courses —, h.png,
 //                                      cls.png, veg.png, ground.jpg, feats.json, trees.bin when LiDAR, map.ocd, thumb.webp; a town's town.json, town.bin, surf.png and facades.webp, tools/virtually/town_3d.py)
-//   GET  runs?race=<id>                every finished run of that map: [{ id, u, name, course, t, sp, d, at, help, seed, mo, mine }]
-//   GET  runs/<race>/<run>             one run with its route (the analysis): one's own, any to an administrator, and any
-//                                      training run to every account — the ghosts the Training tab replays (owner, 2026-11-12)
+//   GET  runs?race=<id>                every finished run of that map: [{ id, race, u, name, course, t, sp, d, at, help, seed, mo, mine }]
+//   GET  runs?race=day                 every « Carte du jour »'s runs, all days (the analysis of an invented forest's run)
+//   GET  runs/<race>/<run>             one run with its route (the analysis, the ghosts): one's own, any to an administrator, any
+//                                      training run to every account (owner, 2026-11-12: the ghosts; 2026-11-14: « every training
+//                                      open to solo and multi analysis »), a competition's once its event's last day is past
 //   POST runs { race, course, kind, event, t, sp, d, help, seed, mo, route }   a run just finished, kept under the account's name;
 //                                      kind "training" (played as often as one likes; a map's own courses) or "competition"
 //                                      (owner, 2026-11-11: played once — a second run of one event and course is refused, 409;
@@ -35,6 +38,15 @@ const parisDay = (back = 0) => {
   return `${p.year}${p.month}${p.day}`;
 };
 
+/** Is this race an event whose last day is past (api/virtual/events: its `to`, UTC days as the events' own dates)? A competition on
+ *  a built-in map, or an event without an end date, is never over. */
+async function eventOver(env, race) {
+  if (!/^e[a-z0-9]{9}$/.test(race)) return false;
+  const o = await env.BUCKET.get(`virtual-events/${race}.json`);
+  const ev = o ? await o.json().catch(() => null) : null;
+  return !!ev?.to && ev.to < new Date().toISOString().slice(0, 10);
+}
+
 async function listAll(env, prefix, opts = {}) {
   const out = []; let cursor;
   do {
@@ -50,7 +62,7 @@ const LAYERS = ["nopaths", "noveg", "relief", "contours"];
 const cleanMo = (s) => { const p = String(s || "").split("+"); return [p.find((x) => LAYERS.includes(x)), p.includes("mem") ? "mem" : ""].filter(Boolean).join("+"); };
 const summary = (o, me) => {
   const m = o.customMetadata || {}, parts = o.key.slice(RUNS.length).split("/");
-  return { id: parts[2].replace(/\.json$/, ""), course: parts[1], u: m.u, name: m.n || "", t: Number(m.t), d: Number(m.d) || 0,
+  return { id: parts[2].replace(/\.json$/, ""), race: parts[0], course: parts[1], u: m.u, name: m.n || "", t: Number(m.t), d: Number(m.d) || 0,
     sp: String(m.sp || "").split(",").filter(Boolean).map(Number), at: m.at || "", help: m.h === "1", seed: Number(m.s) || null,
     kind: m.k === "competition" ? "competition" : "training", event: m.e || "", mo: m.mo || "", mine: m.u === me };
 };
@@ -79,7 +91,8 @@ export const onRequestGet = withUser(async ({ request, env, params }, user) => {
     if (path.length === 1) {
       const race = new URL(request.url).searchParams.get("race") || "";
       if (!ID.test(race)) return json({ error: "bad request" }, 400);
-      const objs = await listAll(env, `${RUNS}${race}/`, { include: ["customMetadata"] });
+      // « day »: every Carte du jour's runs (their races day-YYYYMMDD), for the analysis
+      const objs = await listAll(env, race === "day" ? `${RUNS}day-` : `${RUNS}${race}/`, { include: ["customMetadata"] });
       return json({ runs: objs.map((o) => summary(o, me)).filter((r) => r.u && Number.isFinite(r.t)) }, 200, { "Cache-Control": "private, no-store" });
     }
     const [, race, run] = path;
@@ -87,8 +100,9 @@ export const onRequestGet = withUser(async ({ request, env, params }, user) => {
     const found = await env.BUCKET.list({ prefix: `${RUNS}${race}/`, include: ["customMetadata"] });
     const o = found.objects.find((x) => x.key.endsWith(`/${run}.json`));
     if (!o) return json({ error: "not found" }, 404);
-    // the analysis of another's run: the administrators'; a training run's route: everyone's, for the ghosts
-    if (!run.startsWith(`${me}-`) && !isAdmin(env, user) && o.customMetadata?.k === "competition") return json({ error: "forbidden" }, 403);
+    // another's run: a training's route is everyone's (the ghosts, the analysis); a competition's once its event is over
+    if (!run.startsWith(`${me}-`) && !isAdmin(env, user) && o.customMetadata?.k === "competition" && !(await eventOver(env, race)))
+      return json({ error: "forbidden" }, 403);
     const body = await env.BUCKET.get(o.key);
     if (!body) return json({ error: "not found" }, 404);
     return json({ ...summary(o, me), route: (await body.json()).route || [] }, 200, { "Cache-Control": "private, max-age=3600" });

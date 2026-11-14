@@ -3,9 +3,12 @@
 // (time, rank and best of the circuit, the time lost and the mistakes as « Analyse de course » counts them: trace/legs.js, the
 // distance run against the straight line, the pace), the pace under the map (trace/pacestrip.js); other runners of the same
 // circuit shown beside it, each in their colour. A virtual run is a perfect trace in the map's own frame: nothing to calibrate.
+// Every account's since 2026-11-14 (owner: « every training open to both multi and solo analyses, as regular trainings would be »):
+// « Seul » shows one's own run alone, « Avec tous » every other runner of the circuit (each one's first run); a competition's other
+// runs once its event is over (canSee, the server's rule); a « Carte du jour »'s run on its forest made again in the browser.
 
 import { html, raw, $, $$, fmt, fmtDate, displayName } from "../util.js";
-import { t } from "../i18n.js";
+import { t, tn } from "../i18n.js";
 import { refLegs, legLoss, bestLegs } from "../trace/legs.js";
 import { drawPaceStrip, stripSamples, stripFraction } from "../trace/pacestrip.js";
 import { clock } from "./virtually.js";
@@ -31,6 +34,10 @@ const routeOf = (race, id) => {
  *  file or, for an event made from the LiDAR alone (race.map "webp"), the generated map's image. { canvas, ppm, k }. */
 async function mapOf(race) {
   if (!mapCache.has(race.id)) mapCache.set(race.id, (async () => {
+    if (race.gen) {                                          // an invented forest: its package made in this browser
+      const data = await race.load(), { drawMap } = await import("../games/virtually.js");
+      return { ...(await drawMap(data)), k: data.race.k };
+    }
     const base = race.event ? `${API}events/${race.id}/pkg/` : `${API}${race.id}/`;
     const get = async (f) => {
       const r = await fetch(base + f, { credentials: "same-origin" });
@@ -68,7 +75,7 @@ const legsOf = (sp) => sp.map((s, i) => s - (i ? sp[i - 1] : 0));
 const paceTxt = (s, m) => (m > 0 ? clock((s / m) * 1000) : "—");
 
 /** Draws the analysis of `run` in `el`; returns stop(). */
-export async function drawAnalysis(el, { run, race, course, all, mineRuns, mapName, courseName, onRun }) {
+export async function drawAnalysis(el, { run, race, course, all, mineRuns, mapName, courseName, onRun, canSee = () => true }) {
   const ctl = course.controls, nL = ctl.length - 1;
   const circuit = all.runs.filter((r) => all.circuitKey(r) === all.circuitKey(run));
   // the field the legs are compared with: each runner's first run of the circuit (one's own run itself always), splits complete
@@ -80,15 +87,21 @@ export async function drawAnalysis(el, { run, race, course, all, mineRuns, mapNa
   const ref = refLegs(fieldLegs, nL), best = bestLegs(fieldLegs, nL);
   const mine = legsOf(run.sp), loss = run.sp.length === nL ? legLoss(mine, ref) : mine.map(() => ({ lost: null, mistake: false }));
   const rankOf = (i) => (mine[i] == null ? null : 1 + fieldLegs.filter((l) => l[i] < mine[i]).length);
-  const others = field.filter((r) => r !== run && r.u !== run.u).sort((a, b) => a.t - b.t);
+  const others = field.filter((r) => r !== run && r.u !== run.u && canSee(r)).sort((a, b) => a.t - b.t);
+  const hidden = field.filter((r) => r !== run && r.u !== run.u && !canSee(r)).length;   // a competition not over yet
   const lost = loss.reduce((s, l) => s + (l.lost > 0 ? l.lost : 0), 0);
 
   el.innerHTML = html`<div class="vtp-anhead">
       <select id="vtp-run" aria-label="${t("vt.an.run")}">${mineRuns.map((r) => html`<option value="${r.id}" ${raw(r.id === run.id ? "selected" : "")}>${mapName(r.race)} · ${courseName({ id: r.course })} · ${fmtDate(String(r.at).slice(0, 10))} · ${clock(r.t)}</option>`)}</select>
       <span class="muted">${t("vt.an.summary", { time: clock(run.t), km: fmt((run.d || 0) / 1000, 2), lost: clock(lost) })}${run.help ? html` · <span class="tag">${t("vt.why.help")}</span>` : ""}${run.mo ? html` · <span class="tag" title="${t("vt.mo.label")}">${mapOptText(t, moOf(run.mo))}</span>` : ""}</span>
     </div>
-    ${others.length ? html`<div class="vtp-cmp"><span class="muted">${t("vt.an.compare")}</span>${others.map((r, i) => html`<label class="vtp-chip"><input type="checkbox" data-other="${r.id}">
-      <span class="vtp-sw" style="background:${OTHERS[i % OTHERS.length]}"></span>${displayName(r.name)} <span class="muted">${clock(r.t)}</span></label>`)}</div>` : ""}
+    ${others.length ? html`<div class="vtp-cmp"><span class="vtp-mode" role="group" aria-label="${t("vt.an.modeLabel")}">
+        <button type="button" class="btn btn-sm" id="vtp-solo" aria-pressed="true" title="${t("vt.an.soloTip")}">${t("vt.an.solo")}</button>
+        <button type="button" class="btn btn-sm" id="vtp-multi" aria-pressed="false" title="${t("vt.an.multiTip")}">${t("vt.an.multi")}</button></span>
+      <span class="muted">${t("vt.an.compare")}</span>${others.map((r, i) => html`<label class="vtp-chip"><input type="checkbox" data-other="${r.id}">
+      <span class="vtp-sw" style="background:${OTHERS[i % OTHERS.length]}"></span>${displayName(r.name)} <span class="muted">${clock(r.t)}</span></label>`)}</div>`
+      : hidden ? "" : html`<p class="muted vtp-cmp">${t("vt.an.alone")}</p>`}
+    ${hidden ? html`<p class="muted vtp-cmp">${tn("vt.an.compHidden", hidden)}</p>` : ""}
     <div class="vtp-an">
       <div class="vtp-anmain">
         <div class="vtp-anmap"><canvas></canvas><div class="vtp-anbar"><button type="button" class="btn btn-sm" data-z="1.4" title="${t("vt.map.zoomIn")}">+</button>
@@ -205,14 +218,20 @@ export async function drawAnalysis(el, { run, race, course, all, mineRuns, mapNa
     const pts = [[ctl[i].x, ctl[i].z], [ctl[i + 1].x, ctl[i + 1].z], ...shown.get(run.id).route.filter((p) => p[0] >= a && p[0] <= b).map((p) => [p[1], p[2]])];
     fit(pts); legSel = i; setPlay(false); seek(a);
   }));
-  // the others
-  $$("[data-other]", el).forEach((cb, i) => cb.addEventListener("change", async () => {
+  // the others: ticked one by one (multi), « Avec tous » every one, « Seul » none (solo)
+  const modeMark = () => { const n = $$("[data-other]", el).filter((c) => c.checked).length;
+    $("#vtp-solo", el)?.setAttribute("aria-pressed", String(n === 0)); $("#vtp-multi", el)?.setAttribute("aria-pressed", String(n === others.length)); };
+  const showOther = async (cb, i) => {
     const r = others.find((x) => x.id === cb.dataset.other);
-    if (!cb.checked) { shown.delete(r.id); redraw(); return; }
+    if (!cb.checked) { shown.delete(r.id); redraw(); modeMark(); return; }
     shown.set(r.id, { colour: OTHERS[i % OTHERS.length], route: [] });
-    try { shown.get(r.id).route = await routeOf(r.race, r.id); } catch (e) { cb.checked = false; shown.delete(r.id); }
+    modeMark();
+    try { shown.get(r.id).route = await routeOf(r.race, r.id); } catch (e) { cb.checked = false; shown.delete(r.id); modeMark(); }
     redraw();
-  }));
+  };
+  $$("[data-other]", el).forEach((cb, i) => cb.addEventListener("change", () => showOther(cb, i)));
+  $("#vtp-solo", el)?.addEventListener("click", () => $$("[data-other]", el).forEach((cb, i) => { if (cb.checked) { cb.checked = false; showOther(cb, i); } }));
+  $("#vtp-multi", el)?.addEventListener("click", () => $$("[data-other]", el).forEach((cb, i) => { if (!cb.checked) { cb.checked = true; showOther(cb, i); } }));
   const ro = new ResizeObserver(() => redraw()); ro.observe(box); ro.observe(strip);
 
   // the map and one's route

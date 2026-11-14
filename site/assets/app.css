@@ -4447,6 +4447,11 @@ html.vt-fs-on, html.vt-fs-on body { overflow: hidden; }
 .vtp-info { width: 18px; height: 18px; border-radius: 50%; border: 1.5px solid currentColor; background: none; color: var(--ink-2);
   font: 600 11px/1 Georgia, serif; font-style: italic; padding: 0; cursor: help; display: inline-flex; align-items: center; justify-content: center; }
 .vtp-info:hover, .vtp-info[aria-expanded="true"] { color: var(--ink); }
+.vtp-mode { display: inline-flex; gap: 0; margin-right: 6px; }
+.vtp-mode .btn { border-radius: 0; }
+.vtp-mode .btn:first-child { border-radius: 6px 0 0 6px; }
+.vtp-mode .btn:last-child { border-radius: 0 6px 6px 0; margin-left: -1px; }
+.vtp-mode .btn[aria-pressed="true"] { background: var(--forest-wash, rgba(0, 128, 0, 0.12)); font-weight: 600; }
 .vtp-gh-what { flex: 0 0 100%; order: 9; margin: 0; font-size: 0.85rem; }
 .vt-gh-brief { margin: 4px 0 8px; font-size: 0.9rem; opacity: 0.9; }
 .vt-gh-h { font-size: 0.95rem; margin: 12px 0 2px; }

@@ -271,7 +271,7 @@ organisers, and it works on a phone — every signed-in account, no Orga needed,
 ribbon in full window and under 900 px (`mapper/editor.js` `placeTop`; owner, 2026-11-12); a home-page
 section (`tour.js` `carto`, no screenshot yet) and a column in the pricing table. **Ozimut Pixel** (`#/pixel`, route `virtually`;
 `#/virtually` still opens it): « Virtually » renamed and out of Coach, in teal (`--pixel`); **every account's since 2026-11-12**
-(owner), its Entraînement and Avatar tabs only — Résultats, Classement, Analyse and Orga stay the administrators' (`pages/virtually.js`
+(owner), its Entraînement and Avatar tabs, and Analyse since 2026-11-14 — Résultats, Classement and Orga stay the administrators' (`pages/virtually.js`
 filters the tabs, `app.moduleShown` no longer hides Pixel, `NUTRITION_ROUTES` no longer names it); no documentation
 (its page explains itself: the documentation lists `DOC_MODS`, Pixel apart) and no home-page section yet. The modules page's cards of
 one-page modules list what they offer (`hub.js` `STEPS`, `hub.<module>.step.<key>`); Orga's card is still hidden on a phone, Carto's
@@ -927,8 +927,8 @@ Every multiple-choice game was played through to its score page at phone size, w
   `games/vworld.js`; owner, 2026-11-10, after Catching Features and Virtual-O — a tab of « Jeux » that day, a Coach page of its own
   since 2026-11-11, `#/jeux?onglet=virtually` leading there; administrators only until 2026-11-12, then every account for its
   Entraînement and Avatar tabs (« Ozimut Pixel » above): `functions/api/virtual` serves every account the maps, their packages, the
-  runs' list and their own training runs; a run's route (the analysis) is one's own or an administrator's, competitions the
-  administrators'). **Owner, 2026-11-12, the phone and the start**: the briefing — a card over the game's box from the click on
+  runs' list and their own training runs; a run's route: one's own, an administrator's, any training run's — the ghosts, the
+  analysis —, a competition's once its event is over). **Owner, 2026-11-12, the phone and the start**: the briefing — a card over the game's box from the click on
   « Commencer », while the package loads: the course, its description sheet (`briefSheet`, from the page's race.json and the
   symbols, before the world exists; the race's own sheet once built), the commands (`keysHtml`: the keyboard's, or a touch screen's
   own list), « Partir » greyed beside a status line until the chunks round the start are built (Enter starts too); the same card
@@ -1003,6 +1003,16 @@ Every multiple-choice game was played through to its score page at phone size, w
   the route run so far and the runner, play / speed / time slider, drag and wheel; the legs' table (time, rank, best, the time lost
   and the mistakes by `trace/legs.js` `refLegs` / `legLoss` over each runner's first run of the circuit, distance run, pace), a leg
   clicked framed and replayed; the pace under the map (`trace/pacestrip.js`); other runners of the circuit ticked beside it.
+  **Every account's since 2026-11-14** (owner: « Add Analyse back in pixel, assuming the proposed trainings are all automatically
+  opened for both multi and solo analyses, as regular trainings would be »): every training — the maps' courses, the training
+  events, the « Cartes du jour » — open to both with nothing to open: « Seul » (one's run alone, solo) and « Avec tous » (every
+  other runner of the circuit, each one's first run, multi; or ticked one by one) above the map. **A competition's** other runs
+  open once its event's last day is past (`api/virtual` `eventOver`, the page's `canSee`; a competition on a built-in map — the
+  administrators' tests — never), said under the chips (`vt.an.compHidden`); the legs' ranks count them all the same (their
+  splits, not their routes). **A « Carte du jour »'s run** (`GET runs?race=day`: every day's runs) is analysed on its forest made
+  again in the browser (`dayRace`: `vgenpack.makeWorld(dayOpts(day))`, its courses' signature checked against the run's event, its
+  package drawn by `drawMap`; a few seconds, said). Visitors without an account: nothing — Pixel is not among `GUEST_ROUTES`, and a
+  run is kept only under an account. Tested 2026-11-14 with two local accounts (`work\vr3d\anpost.mjs`, `antest.mjs`).
   **Runs** (`functions/api/virtual/[[path]].js`): R2 `virtual-runs/<race>/<course>/<hash>-<time>.json` — the route `[[t, x, z]]`
   (world metres, 0.1) in the object, the summary in custom metadata (u, n name, t, sp cumulative splits, d metres run, at, h the
   position shown, s seed, k kind, e event) so that one R2 list gives a map's results; `u` = 12 hex digits of SHA-256 over the

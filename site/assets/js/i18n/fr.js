@@ -4625,7 +4625,7 @@ export default {
   "g.learntest.tab": "Quel poste ?",
   "nav.virtually": "Pixel",
   "mt.virtually": "Courses virtuelles dans une forêt en 3D faite d'après de vraies cartes",
-  "vtp.lede": "Des courses d'orientation virtuelles dans une forêt en 3D faite d'après de vraies cartes : s'entraîner, comparer ses temps, se classer, analyser sa course. Réservé aux administrateurs pour l'instant.",
+  "vtp.lede": "Des courses d'orientation virtuelles dans une forêt en 3D faite d'après de vraies cartes : s'entraîner, courir avec des fantômes, analyser sa course seul ou avec les autres.",
   "g.learntest.desc": "Une photo du terrain — et le nom de l'élément au niveau Débutant —, quatre extraits de carte avec un cercle de poste : lequel est sur l'élément ? 10 secondes par question.",
   "g.lvl.advanced": "Avancé",
   "g.lvl.beginner": "Débutant",

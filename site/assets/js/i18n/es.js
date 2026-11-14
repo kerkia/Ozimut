@@ -5667,7 +5667,7 @@ export default {
   "g.learntest.tab": "¿Qué control?",
   "nav.virtually": "Pixel",
   "mt.virtually": "Carreras virtuales en un bosque en 3D hecho a partir de mapas reales",
-  "vtp.lede": "Carreras de orientación virtuales en un bosque en 3D hecho a partir de mapas reales: entrénate, compara tus tiempos, clasifícate, analiza tu carrera. Por ahora solo para administradores.",
+  "vtp.lede": "Carreras de orientación virtuales en un bosque en 3D hecho a partir de mapas reales: entrénate, corre con fantasmas, analiza tu carrera solo o con los demás.",
   "g.learntest.desc": "Una foto del terreno —y el nombre del elemento en el nivel Principiante—, cuatro extractos de mapa con un círculo de control: ¿cuál está sobre el elemento? 10 segundos por pregunta.",
   "g.lvl.advanced": "Avanzado",
   "g.lvl.beginner": "Principiante",

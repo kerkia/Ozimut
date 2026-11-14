@@ -5451,7 +5451,7 @@ export default {
   "g.learntest.tab": "Which control?",
   "nav.virtually": "Pixel",
   "mt.virtually": "Virtual races in a 3D forest made from real maps",
-  "vtp.lede": "Virtual orienteering races in a 3D forest made from real maps: train, compare your times, get ranked, analyse your race. Administrators only for now.",
+  "vtp.lede": "Virtual orienteering races in a 3D forest made from real maps: train, run with ghosts, analyse your race alone or with the others.",
   "g.learntest.desc": "A photo of the terrain — and the feature's name at the Beginner level —, four map extracts with a control circle: which one is on the feature? 10 seconds a question.",
   "g.lvl.advanced": "Advanced",
   "g.lvl.beginner": "Beginner",
