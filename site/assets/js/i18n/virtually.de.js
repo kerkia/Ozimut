@@ -37,7 +37,7 @@ export default {
   "vt.src.photos": "Die {n} verwendeten Panoramax-Fotos",
   "vt.keys.move": "W oder ↑: schneller · S oder ↓: langsamer — das Tempo bleibt ohne Taste erhalten, von 0 (stehen) bis ×3 in Schritten von 0,5; 0 bis 3 auf der Tastatur",
   "vt.keys.turn": "A D oder ← →: drehen",
-  "vt.keys.strafe": "Q E: seitwärts",
+  "vt.keys.strafe": "Q E (gedrückt halten): seitwärts, auch im Laufen, um einen Baum zu umgehen",
   "vt.keys.walk": "Umschalt gedrückt halten: gehen (Tempo ×0,5)",
   "vt.keys.look": "Maus über die Ansicht ziehen: umsehen",
   "vt.keys.punch": "Leertaste: stempeln, nahe an einem Posten",

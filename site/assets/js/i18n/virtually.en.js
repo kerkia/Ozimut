@@ -37,7 +37,7 @@ export default {
   "vt.src.photos": "The {n} Panoramax photos used",
   "vt.keys.move": "W or ↑: faster · S or ↓: slower — the speed is kept with no key pressed, from 0 (standing) to ×3 in steps of 0.5; 0 to 3 on the keyboard",
   "vt.keys.turn": "A D or ← →: turn",
-  "vt.keys.strafe": "Q E: sidestep",
+  "vt.keys.strafe": "Q E (held): step sideways, also while running, to get round a tree",
   "vt.keys.walk": "Hold Shift: walk (pace ×0.5)",
   "vt.keys.look": "Drag the mouse on the view: look around",
   "vt.keys.punch": "Space: punch, close to a control",

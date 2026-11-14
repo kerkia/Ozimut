@@ -37,7 +37,7 @@ export default {
   "vt.src.photos": "Las {n} fotos de Panoramax utilizadas",
   "vt.keys.move": "W o ↑: más rápido · S o ↓: más despacio — la velocidad se mantiene sin pulsar ninguna tecla, de 0 (parado) a ×3 en pasos de 0,5; 0 a 3 en el teclado",
   "vt.keys.turn": "A D o ← →: girar",
-  "vt.keys.strafe": "Q E: paso lateral",
+  "vt.keys.strafe": "Q E (mantenidas): paso lateral, también corriendo, para rodear un árbol",
   "vt.keys.walk": "Mantén Mayús: andar (ritmo ×0,5)",
   "vt.keys.look": "Arrastrar el ratón sobre la vista: mirar alrededor",
   "vt.keys.punch": "Espacio: picar, cerca de una baliza",

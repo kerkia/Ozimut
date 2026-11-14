@@ -47,7 +47,7 @@ export const coursesOf = (race) => race.courses || (race.course ? [{ id: "course
 
 // ---- the commands, before the start, at the pause and at any time of the race (« ? » or H; owner, 2026-11-12) ------------------
 const touchScreen = () => matchMedia("(hover: none) and (pointer: coarse)").matches;
-const KEYS = ["move", "turn", "look", "punch", "map", "views", "sheet", "orient", "compline", "view", "help", "pause", "pos", "speed", ...(STAMINA ? ["energy"] : [])];
+const KEYS = ["move", "turn", "strafe", "look", "punch", "map", "views", "sheet", "orient", "compline", "view", "help", "pause", "pos", "speed", ...(STAMINA ? ["energy"] : [])];
 const TOUCH_KEYS = ["touch.move", "touch.look", "touch.punch", "touch.map", "touch.views", "touch.pause", "pos", "speed", ...(STAMINA ? ["energy"] : [])];
 const keysHtml = () => html`<ul class="vt-keys">${(touchScreen() ? TOUCH_KEYS : KEYS).map((k) => html`<li>${t(`vt.keys.${k}`)}</li>`)}</ul>`;
 
@@ -537,7 +537,7 @@ export function mount(root, raceId, opts = {}) {
       g.fillText(`${Math.round((((st.yaw * 180) / Math.PI) % 360 + 360) % 360)}°`, c, s - 12);
     }
     // ---- input ----
-    const GAMEKEYS = new Set(["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight", "KeyW", "KeyA", "KeyS", "KeyD", "Space", "Tab", "Comma", "Period"]);
+    const GAMEKEYS = new Set(["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight", "KeyW", "KeyA", "KeyS", "KeyD", "KeyQ", "KeyE", "Space", "Tab", "Comma", "Period"]);
     const UP = ["ArrowUp", "KeyW", "KeyR"], DOWN = ["ArrowDown", "KeyS", "KeyF"];
     let lvAt = 0;
     /** A key or a pad button just pressed: its first step of turning, and when it was pressed. */
@@ -566,7 +566,8 @@ export function mount(root, raceId, opts = {}) {
         if (e.code === "Enter" && st.phase === "ready") { const go = $("#vt-go", root); if (go && !go.disabled) { e.preventDefault(); go.click(); } return; }
         if (st.phase === "run") pressStep(e.code);
         if (e.code === "Space" && st.phase === "run") punch();
-        else if (e.code === "KeyM") mapSize(mapEl.dataset.size === "small" ? "large" : mapEl.dataset.size === "large" ? "hidden" : "small");
+        // M by its letter (owner, 2026-11-14: « M ça marche pas »: on an AZERTY keyboard M's key is « Semicolon », and KeyM is « , »)
+        else if (e.key === "m" || e.key === "M") mapSize(mapEl.dataset.size === "small" ? "large" : mapEl.dataset.size === "large" ? "hidden" : "small");
         else if (e.code === "KeyO") nextOrient();
         else if (e.code === "KeyB") toggleComp();
         else if (e.code === "Tab" && st.phase === "run") setView(VIEWS[(VIEWS.indexOf(box.dataset.view) + 1) % VIEWS.length]);
@@ -785,13 +786,17 @@ export function mount(root, raceId, opts = {}) {
       const tl = LEFT.some((c) => keys.has(c)), tr = RIGHT.some((c) => keys.has(c));
       if (tl !== tr) st.yaw += (tr ? 1 : -1) * turnRate(heldSince(tr ? RIGHT : LEFT)) * dt;
       const L = st.level;
+      // a side step, held (A / E on AZERTY, Q / E on QWERTY), also while running on (owner, 2026-11-14: round a tree « quand Z est
+      // appuyé »): at standstill at a walk's pace, while moving the way slants by up to 45°, the pace kept
+      const side = (keys.has("KeyE") ? 1 : 0) - (keys.has("KeyQ") ? 1 : 0);
       let v = 0;                                            // the ground covered a race second (the animation's speed)
-      if (L > 0) {
+      if (L > 0 || side) {
         const f = (world.terrainSpeed(st.x, st.z) || 0.3) * world.rough(st.x, st.z);
-        const dx0 = Math.sin(st.yaw), dz0 = -Math.cos(st.yaw);
+        const fw = L > 0 ? 1 : 0, sx = Math.sin(st.yaw) * fw + Math.cos(st.yaw) * side, sz = -Math.cos(st.yaw) * fw + Math.sin(st.yaw) * side;
+        const ln = Math.hypot(sx, sz), dx0 = sx / ln, dz0 = sz / ln;
         const ahead = world.heightAt(st.x + dx0 * 2, st.z + dz0 * 2) - world.heightAt(st.x, st.z), grade = ahead / 2 / world.VX;   // the true grade (the 3D's relief is × VX)
         const slope = grade > 0 ? 1 / (1 + 7 * grade) : 1 / (1 + 2.5 * Math.max(0, -grade - 0.12));
-        const d = RUN * f * slope * L * dt, nx = st.x + dx0 * d, nz = st.z + dz0 * d;   // a real runner's speed × L, over the wall clock
+        const d = RUN * f * slope * (L > 0 ? L : 0.5) * dt, nx = st.x + dx0 * d, nz = st.z + dz0 * d;   // a real runner's speed × L, over the wall clock
         const free = (x, z) => world.terrainSpeed(x, z) > 0 && !world.hits(x, z, 0.3);
         let moved = d;
         if (free(nx, nz)) { st.x = nx; st.z = nz; }
