@@ -498,7 +498,7 @@ def _once(doc, fix, frame, log, what, areas_only=False, decks=None):
     r = gap_m / 2
     G = I.buffer(r).buffer(-r).difference(I).intersection(frame)
     tree = shapely.STRtree(imp_g)
-    fills = {}
+    fills, cands = {}, []
     def wedge(comp, touch):
         zone = comp.buffer(3 * gap_m)
         parts = [(imp[m]["i"], imp_g[m].intersection(zone)) for m in touch]
@@ -556,10 +556,56 @@ def _once(doc, fix, frame, log, what, areas_only=False, decks=None):
             rep.add(kind, comp, f"between {'/'.join(sorted(codes_t))}")
             continue
         if fix:
-            fills.setdefault(fill, []).append(comp.buffer(0.05))     # over its neighbours' edges: no hairline once rounded
-            rep.fix(kind)
+            cands.append((comp, fill, touch, kind))
         else:
             rep.add(kind, comp, f"{comp.area:.1f} m² between {'/'.join(sorted(codes_t))}")
+    # a gap whose closing would shut off ground no way then reaches is widened to the gap instead, just enough (the owner,
+    # 2026-11-15: « widen the entrances just enough » — a block of flats' courtyard behind a 1.4 m entrance had been closed, then
+    # made 520): the olive or the hedge beside it pushed back to 0.4 mm from the feature across, one entrance for each piece of
+    # ground so shut off (the widest gap that opens on ground reached from the map's edge); the others close as before
+    widen = set()
+    if fix and cands:
+        allc = unary_union([c_[0] for c_ in cands])
+        free_ = shapely.make_valid(frame.difference(unary_union([I, allc])))
+        polys_ = as_polys(free_)
+        reached = unary_union([q for q in polys_ if q.distance(frame.exterior) <= 1.0] or [Polygon()])
+        shut = [q for q in polys_ if q.area >= 20 and q.distance(frame.exterior) > 1.0]
+        if shut:
+            ctree = shapely.STRtree([c_[0] for c_ in cands])
+
+            def gap_width(j):
+                fs_ = {}
+                for m in cands[j][2]:
+                    fs_.setdefault(imp[m]["i"], []).append(imp_g[m])
+                gs_ = [unary_union(v) for v in fs_.values()]
+                return min((gs_[u].distance(gs_[v]) for u in range(len(gs_)) for v in range(u + 1, len(gs_))), default=0)
+
+            for q in shut:
+                near_ = [j for j in ctree.query(q.buffer(0.1)) if cands[j][0].distance(q) < 0.1
+                         and not reached.is_empty and cands[j][0].distance(reached) < 0.1
+                         and any(imp[m]["c"] in ("520", "411", "521") for m in cands[j][2])]
+                if near_:
+                    widen.add(max(near_, key=gap_width))
+    for j, (comp, fill, touch, kind) in enumerate(cands):
+        if j in widen:
+            # (the olive or the hedge pushed back first; between two buildings, one of them: a mapper widens a passage between
+            # buildings to 0.4 mm, ISSprOM 521's minimum gap)
+            mt = min((m for m in touch if imp[m]["c"] in ("520", "411", "521")), key=lambda m: ("520", "411", "521").index(imp[m]["c"]))
+            tc = imp[mt]["c"]
+            other_g = unary_union([imp_g[m] for m in touch if imp[m]["i"] != imp[mt]["i"]] or [Polygon()])
+            if not other_g.is_empty:
+                carve = other_g.buffer(gap_m + 0.05).difference(other_g).intersection(comp.buffer(gap_m + 0.3))
+                carve = shapely.make_valid(carve).intersection(shapely.make_valid(cover[tc]))
+                if not carve.is_empty and carve.area > 0.01:
+                    cover[tc] = shapely.make_valid(cover[tc]).difference(carve); changed.add(tc)
+                    gc = max((c_ for c_ in ground if c_ not in ("520", "411", "301", "521") and not cover[c_].is_empty),
+                             key=lambda c_: cover[c_].intersection(comp.buffer(1.0)).area, default=None)
+                    if gc is not None:
+                        cover[gc] = unary_union([cover[gc], carve]); changed.add(gc)
+                    rep.fix("gap")
+                    continue
+        fills.setdefault(fill, []).append(comp.buffer(0.05))     # over its neighbours' edges: no hairline once rounded
+        rep.fix(kind)
     if fills:
         cut_ground = unary_union([g for c, gs in fills.items() if c not in ("521", "709") for g in gs])
         for c, gs in fills.items():
@@ -579,43 +625,6 @@ def _once(doc, fix, frame, log, what, areas_only=False, decks=None):
             cover[a] = shapely.make_valid(cover[a]).difference(unary_union(x)); changed.add(a)
             rep.fix("combo", sum(1 for p in x if p.area >= 0.5))
     step("overlaps")
-    # ---- 3b. ground no way reaches (ISSprOM 520: « areas entirely enclosed within uncrossable features should be filled with this
-    # symbol »; 521: inside a building block, part of the building), once the gaps above are closed: the uncrossable areas and
-    # lines cut the frame into pieces; a piece that does not reach the frame's edge becomes 520, or 521 when buildings make 85 %
-    # of its edge (2026-11-14: courtyards whose 1.5 m entrance the gap fix had closed stayed paving)
-    _bar = [cover[c] for c in ("521", "520", "411", "301", "709") if c in cover and not cover[c].is_empty]
-    for c_, w_ in (("515", 0.4), ("518", 0.4), ("529", 0.4), ("509.1", 0.3)):
-        _bar += [f["g"].buffer(w_ * k / 2, cap_style="flat") for f in line_feats([c_])]
-    _opens = unary_union([PASS] + [f["g"] for c_ in ("522", "512.3") for f in by.get(c_, []) if f["otp"] == 3])
-    BARR = shapely.make_valid(unary_union(_bar))
-    if not _opens.is_empty:
-        BARR = BARR.difference(_opens)
-    _free = shapely.make_valid(frame.difference(BARR))
-    _Bb = shapely.make_valid(cover["521"]).buffer(0.4) if not cover["521"].is_empty else Polygon()
-    _ol, _bf = [], []
-    for q in as_polys(_free):
-        if q.area < 0.5 or q.distance(frame.exterior) <= 1.0:
-            continue
-        L_ = q.exterior.length
-        to_b = L_ > 0 and not _Bb.is_empty and q.exterior.intersection(_Bb).length >= 0.85 * L_
-        if fix:
-            (_bf if to_b else _ol).append(q)
-        else:
-            rep.add("enclosed", q, f"{'521' if to_b else '520'} {q.area:.0f} m² no way reaches")
-    if fix and (_ol or _bf):
-        U_ = unary_union(_ol + _bf).buffer(0.02)
-        for c_ in ground:
-            if c_ in cover and c_ not in ("520",) and not cover[c_].is_empty and cover[c_].intersects(U_):
-                cover[c_] = shapely.make_valid(cover[c_]).difference(U_); changed.add(c_)
-        if _ol:
-            cover["520"] = unary_union([cover["520"]] + [q.buffer(0.02) for q in _ol]); changed.add("520")
-        if _bf:
-            cover["521"] = unary_union([cover["521"]] + [q.buffer(0.02) for q in _bf]); changed.add("521")
-        rep.fix("enclosed", len(_ol) + len(_bf))
-        for f in by.get("522", []):                           # (a canopy over ground no way reaches: that ground's, not drawn)
-            if f["otp"] == 3 and f["i"] not in drop and f["g"].area > 0 and f["g"].intersection(U_).area >= 0.5 * f["g"].area:
-                drop.add(f["i"])
-    step("enclosed")
     # ---- 2. width, slivers and small areas
     def width_of(c):
         return (mins(c).get("width") or RULES["minWidthDefaultMm"]) * k
@@ -665,6 +674,23 @@ def _once(doc, fix, frame, log, what, areas_only=False, decks=None):
         best = max(acc, key=acc.get) if acc else None
         return best if best and acc[best] > 0.02 else None
 
+    def finger(s, c):
+        # a narrow part of impassable ground that the rest of its area holds by one end only, open on its other sides: a finger
+        # poking into the open (olive running 4 m into the paving, 0.4 m wide) is given away, not widened; a strip that joins two
+        # parts, or stands alone, keeps its place (2026-11-15, remark 5's test)
+        rest = shapely.make_valid(local(c, s, pad=1.0)).difference(s.buffer(0.02))
+        if rest.is_empty:
+            return False
+        ls_ = as_lines(s.boundary.intersection(rest.buffer(0.05)))
+        if not ls_:
+            return False
+        touch = shapely.line_merge(shapely.MultiLineString(ls_))
+        parts = [g for g in getattr(touch, "geoms", [touch]) if not g.is_empty and g.length > 0.05]
+        if len(parts) != 1:
+            return False
+        q = parts[0]
+        return q.length < 0.4 * s.boundary.length and math.dist(q.coords[0], q.coords[-1]) < 2.5 * width_of(c)
+
     moves = []                                                 # (sliver, from, to)
     widen = {}
     for c in ground + ["white"]:
@@ -684,7 +710,7 @@ def _once(doc, fix, frame, log, what, areas_only=False, decks=None):
             if not fix:
                 rep.add(rule, s, f"{c} {2 * s.area / max(s.length, 1e-6):.1f} m wide, minimum {w:.1f} m")
                 continue
-            if c in impassable_ground:
+            if c in impassable_ground and not finger(s, c):
                 est = 2 * s.area / max(s.length, 1e-6)
                 widen.setdefault(c, []).append(s.buffer(max(0.0, (w - est) / 2 + 0.03)))
                 rep.fix(rule)
@@ -783,6 +809,43 @@ def _once(doc, fix, frame, log, what, areas_only=False, decks=None):
             rep.add("path_paved", f["g"].intersection(PAVE_IN), f"{f['c']} {on:.0f} m on paving")
 
     step("stairs and paths")
+    # ---- 3b. ground no way reaches (ISSprOM 520: « areas entirely enclosed within uncrossable features should be filled with this
+    # symbol »; 521: inside a building block, part of the building), once the gaps above are closed and the stairways paved: the uncrossable areas and
+    # lines cut the frame into pieces; a piece that does not reach the frame's edge becomes 520, or 521 when buildings make 85 %
+    # of its edge (2026-11-14: courtyards whose 1.5 m entrance the gap fix had closed stayed paving)
+    _bar = [cover[c] for c in ("521", "520", "411", "301", "709") if c in cover and not cover[c].is_empty]
+    for c_, w_ in (("515", 0.4), ("518", 0.4), ("529", 0.4), ("509.1", 0.3)):
+        _bar += [f["g"].buffer(w_ * k / 2, cap_style="flat") for f in line_feats([c_])]
+    _opens = unary_union([PASS] + [f["g"] for c_ in ("522", "512.3") for f in by.get(c_, []) if f["otp"] == 3])
+    BARR = shapely.make_valid(unary_union(_bar))
+    if not _opens.is_empty:
+        BARR = BARR.difference(_opens)
+    _free = shapely.make_valid(frame.difference(BARR))
+    _Bb = shapely.make_valid(cover["521"]).buffer(0.4) if not cover["521"].is_empty else Polygon()
+    _ol, _bf = [], []
+    for q in as_polys(_free):
+        if q.area < 0.5 or q.distance(frame.exterior) <= 1.0:
+            continue
+        L_ = q.exterior.length
+        to_b = L_ > 0 and not _Bb.is_empty and q.exterior.intersection(_Bb).length >= 0.85 * L_
+        if fix:
+            (_bf if to_b else _ol).append(q)
+        else:
+            rep.add("enclosed", q, f"{'521' if to_b else '520'} {q.area:.0f} m² no way reaches")
+    if fix and (_ol or _bf):
+        U_ = unary_union(_ol + _bf).buffer(0.02)
+        for c_ in ground:
+            if c_ in cover and c_ not in ("520",) and not cover[c_].is_empty and cover[c_].intersects(U_):
+                cover[c_] = shapely.make_valid(cover[c_]).difference(U_); changed.add(c_)
+        if _ol:
+            cover["520"] = unary_union([cover["520"]] + [q.buffer(0.02) for q in _ol]); changed.add("520")
+        if _bf:
+            cover["521"] = unary_union([cover["521"]] + [q.buffer(0.02) for q in _bf]); changed.add("521")
+        rep.fix("enclosed", len(_ol) + len(_bf))
+        for f in by.get("522", []):                           # (a canopy over ground no way reaches: that ground's, not drawn)
+            if f["otp"] == 3 and f["i"] not in drop and f["g"].area > 0 and f["g"].intersection(U_).area >= 0.5 * f["g"].area:
+                drop.add(f["i"])
+    step("enclosed")
     # passes after the first mend the areas their fixes left (scraps, notches): the lines and points are done
     if not areas_only:
         # ---- 4. overlap: lines and points inside buildings, points over points, ground areas over each other
@@ -1198,6 +1261,9 @@ def _once(doc, fix, frame, log, what, areas_only=False, decks=None):
                 if f["otp"] == 3:
                     drop.add(f["i"])
             g = shapely.make_valid(cover[c]).intersection(frame)
+            if c == "521":                                     # (pieces under 0.6 m apart welded, notches under 0.6 m filled: no
+                # outline with building on both sides — a slot of paving 0.25-0.5 m wide, 1.8 m into a building; 2026-11-15)
+                g = shapely.make_valid(g.buffer(0.3, join_style="mitre").buffer(-0.3, join_style="mitre"))
             for p in as_polys(g):
                 if p.area < 0.5:
                     continue

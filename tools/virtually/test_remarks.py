@@ -18,6 +18,7 @@ from pathlib import Path
 
 import numpy as np
 import shapely
+import shapely.ops
 from shapely.geometry import LineString, Point, Polygon, box as sbox
 from shapely.ops import unary_union
 
@@ -309,6 +310,11 @@ def t5(M):
             q = shapely.transform(shapely.geometry.shape(f["geometry"]), lambda c: np.c_[tr.transform(c[:, 0], c[:, 1])])
             if q.intersects(M.box):
                 parcels.append(shapely.make_valid(q))
+    # open ground one comes from: runnable ground joined to the map's edge (a pocket of paving wedged between a building and the
+    # olive is no way in; 2026-11-15)
+    R = runnable(M)
+    REACHED = unary_union([q for q in getattr(R, "geoms", [R]) if q.geom_type == "Polygon" and q.distance(M.box.exterior) <= 1.0]
+                          or [Polygon()])
     bad = []
     for f in d["features"]:
         p = f["properties"]
@@ -329,9 +335,12 @@ def t5(M):
         free = unary_union(own).difference(M.local(["521"], g, pad=30))
         op = free.intersection(M.local(["520"], g, pad=30))
         op = unary_union([q for q in getattr(op, "geoms", [op]) if q.geom_type in ("Polygon", "MultiPolygon")] or [Polygon()])
+        # (the cadastre's parcels and the map's boundaries differ by a metre or so: olive within 1 m of the parcel's edge is the
+        # neighbour's garden, not this parcel's; 2026-11-15)
+        op = shapely.make_valid(op.difference(unary_union(own).boundary.buffer(1.0)))
         if op.area < 5 or op.area < 0.3 * free.area:
             continue
-        acc = M.local(ACC, op, pad=1.0)
+        acc = M.local(ACC, op, pad=1.0).intersection(REACHED.buffer(0.05))
         walls = unary_union([x.buffer(0.6) for c in ("411", "513.1", "513.2", "515", "516", "518", "529") for x in M.gs(c, otp=2)
                              if x.distance(op) < 2] or [Polygon()])
         if op.boundary.intersection(acc.buffer(0.3)).difference(walls).length >= 3.0:
@@ -536,6 +545,12 @@ def t17(M):
             d_pav = pl.distance(e) if not pl.is_empty else 99
             d = min(d_line, d_pav)
             if 0.3 < d < 4.0 and d_line > 0.3 and d_pav > 0.3:
+                # (a join across a building or the olive is no gap: the path stops at what may not be crossed, remark 13)
+                tgt = pl if d_pav <= d_line else min((ls[j] for j in tree.query(e.buffer(4.0)) if j != i), key=lambda q_: q_.distance(e))
+                tp = shapely.ops.nearest_points(e, tgt)[1]
+                seg = LineString([e, tp])
+                if seg.intersection(M.local(["521", "520"], seg, pad=1.0)).length > 0.02:
+                    continue
                 gaps.append(e)
     out.append(fail_list(gaps, "path ends 0.3-4 m from another path or the paving"))
     return [m for m in out if m]

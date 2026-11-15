@@ -1197,7 +1197,9 @@ if GEOM.get("private") is not None and not GEOM["private"].is_empty:
                 keep.append(q); continue                              # (a public path's corridor stays)
             bd = q.exterior; bx = q.buffer(0.2).bounds
             o_len = bd.intersection(near(OT, bx)).length
-            if o_len > 0 and o_len + bd.intersection(near(BT_, bx)).length >= 0.95 * bd.length:
+            # (open on less than a metre: an entrance wider than that is a way in — the check widens it to 0.4 mm if needed;
+            # the owner, 2026-11-15: « widen the entrances just enough »)
+            if o_len > 0 and bd.length - (o_len + bd.intersection(near(BT_, bx)).length) < 1.0:
                 isl.append(q)
             else:
                 keep.append(q)
@@ -1249,7 +1251,8 @@ if GEOM.get("imp_veg") is not None and not GEOM["imp_veg"].is_empty and GEOM.get
     _ob = GEOM["private"].buffer(0.3)
     _in, _keep = [], []
     for q in getattr(GEOM["imp_veg"], "geoms", [GEOM["imp_veg"]]):
-        (_in if q.geom_type == "Polygon" and q.exterior.intersection(_ob).length >= 0.6 * q.exterior.length else _keep).append(q)
+        # (90 %: a hedge between a garden and the street is the garden's boundary, kept; 2026-11-15, remark 5's test)
+        (_in if q.geom_type == "Polygon" and q.exterior.intersection(_ob).length >= 0.9 * q.exterior.length else _keep).append(q)
     if _in:
         GEOM["imp_veg"] = unary_union(_keep) if _keep else Polygon()
         GEOM["private"] = _poly(unary_union([GEOM["private"]] + _in))
@@ -1277,7 +1280,9 @@ inside = frame.buffer(-0.01)
 # the borders, nobody cares »); a shed of under 20 m² inside the ground not to be entered is left out (what lies there is
 # generalised: the runner never goes in)
 OLIVE_IN = unary_union([PRIVATE] + COVER.get("private", [])).buffer(-1.0)     # (the olive as drawn: its islands too)
-blocks = unary_union([g.buffer(0.15, join_style="mitre") for g, _ in buildings] + [ENCL_BUILD]).buffer(-0.15, join_style="mitre")
+# (welded within 0.7 m: a notch narrower than that in an outline is drawn closed — an outline with building on both sides of it;
+# 2026-11-15, remark 12's test)
+blocks = unary_union([g.buffer(0.35, join_style="mitre") for g, _ in buildings] + [ENCL_BUILD]).buffer(-0.35, join_style="mitre")
 # a passage through a building (a porch, a covered driveway) is no tunnel: the building cut there and the passage a canopy, 522
 # (ISSprOM: a roofed area one runs under), no 512 symbol (the owner's mapper, 2026-11-12)
 def _beyond(pc, d):
@@ -1748,6 +1753,47 @@ for line in ["legibility"] + LEG.lines():
     log(line)
 legibility.write_report(LEG, SRC / "legibility.json")
 objects = DOC["objects"]
+# path ends the check cut short (lines in buildings, in the olive, on paving) drawn on again to the paving or the path within
+# 4 m, unless that crosses a building or the olive (2026-11-15, remark 17's test: six ends 0.3-4 m short after the check)
+_K4 = SCALE / 1000
+_pl = [o for o in objects if o["otp"] == 2 and o["sym"] in (S(505), S(506)) and len(o["rings"][0]) >= 2]
+_pg = [LineString(o["rings"][0]) for o in _pl]
+
+
+def _poly_of(o):
+    try:
+        return shapely.make_valid(Polygon(o["rings"][0], [r for r in o["rings"][1:] if len(r) >= 3]))
+    except Exception:
+        return Polygon()
+
+
+_PAV = _poly(unary_union([_poly_of(o) for o in objects if o["otp"] == 3 and o["sym"] in (S(501), S(501, 4), S(501, 3))
+                          and len(o["rings"][0]) >= 3] or [Polygon()]))
+_BLK = unary_union([_poly_of(o) for o in objects if o["otp"] == 3 and o["sym"] in (S(521), S(520))
+                    and len(o["rings"][0]) >= 3] or [Polygon()])
+_ptree = shapely.STRtree(_pg) if _pg else None
+n_join = 0
+for i_, o in enumerate(_pl):
+    cs = [tuple(c) for c in o["rings"][0]]
+    for end in (0, -1):
+        e = Point(cs[end])
+        dl = [(_pg[j].distance(e), j) for j in _ptree.query(e.buffer(4.0 / _K4)) if j != i_]
+        d_line, j_ = min(dl) if dl else (99.0, None)
+        d_pav = _PAV.distance(e) if not _PAV.is_empty else 99.0
+        if min(d_line, d_pav) * _K4 <= 0.3 or min(d_line, d_pav) * _K4 >= 4.0:
+            continue
+        tgt = _PAV if d_pav <= d_line else _pg[j_]
+        if tgt is None or tgt.is_empty:
+            continue
+        tp = shapely.ops.nearest_points(e, tgt)[1]
+        seg = LineString([e, tp])
+        if not _BLK.is_empty and seg.intersection(_BLK).length > 0.02:
+            continue
+        cs = ([(round(tp.x, 3), round(tp.y, 3))] + cs) if end == 0 else (cs + [(round(tp.x, 3), round(tp.y, 3))])
+        n_join += 1
+    o["rings"][0] = [list(c) for c in cs]
+    _pg[i_] = LineString(cs)
+log("path ends joined after the check", n_join)
 # the unpaved paths' junctions (the owner, 2026-11-13: « the intersections are still wrong »): 505 is a double line (black edges over
 # a brown 30 % fill, the black printed above), so at a junction each path's edges cross the other's fill. A path loses its edges
 # wherever it runs inside another path's band — OCAD's « no left line / no right line » flags (x and y flag 4) on those segments,
@@ -1873,7 +1919,8 @@ def _corners_only(r, closed):
 
 
 # no needle (2026-11-14, remark 1's test: 37 spikes in the paving, rings running out and back along themselves after the areas'
-# overlays): a vertex where a ring turns back (over 170°) on a triangle under 0.5 m² is taken out, again until none is left
+# overlays): a vertex where a ring turns back (over 170°) on a triangle under 0.5 m², or a needle under 0.25 m wide, is taken out,
+# again until none is left
 
 
 def despike(r):
@@ -1881,6 +1928,17 @@ def despike(r):
     closed = len(pts) > 3 and pts[0] == pts[-1]
     if closed:
         pts = pts[:-1]
+    # (points under 10 cm apart made one first: a needle's tip of two points 3-9 cm apart — a crack 1.2 m into a building, its outline
+    # drawn with building on both sides; 2026-11-15, remark 12's test)
+    eps = 0.1 / (SCALE / 1000)
+    merged = []
+    for q in pts:
+        if not merged or math.dist(merged[-1], q) >= eps:
+            merged.append(q)
+    if len(merged) > 3 and math.dist(merged[0], merged[-1]) < eps:
+        merged.pop()
+    if len(merged) > 3:
+        pts = merged
     changed = True
     while changed and len(pts) > 3:
         changed = False
@@ -1888,11 +1946,22 @@ def despike(r):
         while i < len(pts) and len(pts) > 3:
             a, b_, c = pts[i - 1], pts[i], pts[(i + 1) % len(pts)]
             area2 = abs((b_[0] - a[0]) * (c[1] - a[1]) - (b_[1] - a[1]) * (c[0] - a[0]))
-            if a == b_ or (_turn(a, b_, c) > 170 and area2 < 1.0 / (SCALE / 1000) ** 2):     # (map mm: twice 0.5 m²)
+            ac = math.dist(a, c)
+            # (map mm: a triangle of twice 0.5 m², or a needle under 0.4 m (0.1 mm) wide at its base however long — a 25 m sliver
+            # of road, a crack 1.2 m into a building)
+            tb = _turn(a, b_, c)
+            if a == b_ or (tb > 170 and (area2 < 1.0 / (SCALE / 1000) ** 2 or (ac > 0 and area2 / ac < 0.25 / (SCALE / 1000))))                     or (tb > 150 and ac < 0.4 / (SCALE / 1000)):
                 pts.pop(i); changed = True
                 continue
             i += 1
     return [list(q) for q in pts] + ([list(pts[0])] if closed else [])
+
+
+def thin_hole(r):
+    # a hole under 0.3 m wide on average (twice its area over its perimeter; a triangle's half base) is a sliver left by a cut:
+    # no hole (2026-11-15, remark 1's test: triangles 5 m long, a few centimetres wide, drew spikes in the paving)
+    q = Polygon(r)
+    return q.length > 0 and 2 * abs(q.area) / q.length < 0.3 / (SCALE / 1000)
 
 
 n_spk = 0
@@ -1900,7 +1969,7 @@ for o in objects:
     if o["otp"] == 3:
         new_r = [despike(r) for r in o["rings"]]
         n_spk += sum(len(r0) - len(r1) for r0, r1 in zip(o["rings"], new_r))
-        o["rings"] = [r for k, r in enumerate(new_r) if k == 0 or len(r) >= 4]
+        o["rings"] = [r for k, r in enumerate(new_r) if k == 0 or (len(r) >= 4 and not thin_hole(r))]
 log("ring points of needles taken out", n_spk)
 n_curved = 0
 for o in objects:
