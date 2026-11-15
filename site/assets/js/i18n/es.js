@@ -2968,6 +2968,7 @@ export default {
   "an.v3.noWebgl": "La vista 3D necesita WebGL, que este navegador no ofrece.",
   "an.v3.failed": "No se ha podido cargar el relieve: la vista 3D no está disponible por ahora.",
   "an.v3.ex": "Exageración del relieve",
+  "an.v3.exBtn": "Exageración del relieve: estirar las pendientes en altura para verlas mejor (× 1 a × 3)", "an.v3.exLess": "Menos relieve", "an.v3.exMore": "Más relieve", "lg.ex3d.d": "Solo en la vista 3D: estira el relieve en altura, de × 1 (el real) a × 3, para ver mejor las pendientes. El mismo ajuste que en «{display}».",
   "an.v3.cached": "ya cargado",
   "an.v3.relief.choice": "Relieve",
   "an.v3.relief.dem": "modelo digital",

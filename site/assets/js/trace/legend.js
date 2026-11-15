@@ -5,6 +5,7 @@
 import { html, raw } from "../util.js";
 import { t } from "../i18n.js";
 import { ICONS, PAN_ICON, drawers } from "./sidepanel.js";
+import { EX_ICON, exLabel } from "./ex3dbtn.js";
 
 const btn = (s) => `<span class="lg-btn">${s}</span>`;
 
@@ -36,6 +37,8 @@ export function keyHtml(o = {}) {
   groups.push([t("lg.h.bar"), bar]);
   groups.push([t("lg.h.map"), [
     [btn("3D"), t("an.v3.title"), t("an.v3.hint")],
+    // the relief's exaggeration, shown under « 3D » while the 3D view is on (owner, 2026-11-15)
+    [btn(`${EX_ICON}${exLabel(1.5)}`), t("an.v3.ex"), t("lg.ex3d.d", { display: t("an.display") })],
     [`${btn("+")}${btn("−")}`, t("lg.zoom"), t("lg.zoom.d")],
     [btn(ICONS.fit), t(o.multi ? "sh.fit" : "an.fitTrace"), t(o.multi ? "lg.fitc.d" : "lg.fitt.d")],
     [btn("▭"), t("an.fitMap"), t("lg.fitm.d")],

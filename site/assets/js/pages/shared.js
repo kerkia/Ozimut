@@ -32,6 +32,7 @@ import { toPx, toM, fitSimilarity } from "../trace/geom.js";
 import * as RC from "../trace/routeplan.js";
 import { panelHtml, bindPanel, bindSplitter, PAN_ICON, drawers, stripArrow, iconLabel, floatBar, clearHandle, ICONS, legPickHtml, bindLegPick, legArrows, mapOnlyButton, bindMapOnly, leaveMapOnly } from "../trace/sidepanel.js";
 import { keyHtml } from "../trace/legend.js";
+import { exHtml, bindEx } from "../trace/ex3dbtn.js";
 import { drawCourse } from "../trace/coursedraw.js";
 import { readVector, throughGeo, cover } from "../trace/vectorroutes.js";
 import { gridPlan, loadGrid, heightAt, CREDIT } from "../trace/terrain.js";
@@ -1577,6 +1578,7 @@ async function replay(box, { A, id, course, race, init = {}, traces, allTraces =
   let graph = GRAPHS.includes(prefs.graph) ? prefs.graph : "speed";
   let showStrip = prefs.strip !== false && !drawers();     // the runners' paces under the map (a phone: slid down at the opening)
   let ex3d = [1, 1.25, 1.5, 1.75, 2, 2.25, 2.5, 2.75, 3].includes(prefs.ex3d) ? prefs.ex3d : 1.5;   // the 3D view's vertical exaggeration
+  let exCtl = null;                                            // trace/ex3dbtn.js, the exaggeration on the 3D view itself
   // the picture exported (« Export »): the part of the map in view or all of it, PNG or JPEG, with a title and the runners' colours
   const shot = { zone: ["race", "map"].includes(prefs.shotZone) ? prefs.shotZone : "view", type: prefs.shotType === "jpeg" ? "jpeg" : "png", legend: prefs.shotLegend !== false };
   const savePrefs = () => { try { localStorage.setItem(LAY, JSON.stringify({ lw, rw })); localStorage.setItem(PREFS_KEY, JSON.stringify({ shotZone: shot.zone, shotType: shot.type, shotLegend: shot.legend, tail, width, wv: 2, future, showCourse: courseOn, courseOver, mapAlpha, traceAlpha, colourBy, strip: showStrip, graph, lw, rw, ltab: lp.tab, rtab: rp.tab, lcol: lp.collapsed, rcol: rp.collapsed, ex3d, orient })); } catch (e) { /* not kept */ } };
@@ -1605,7 +1607,7 @@ async function replay(box, { A, id, course, race, init = {}, traces, allTraces =
         inner: { runners: html`<div id="sh-left"></div>`, legs: html`<div class="sh-views" id="sh-legs"></div>`, views: html`<div class="sh-views" id="sh-views"></div>`, routes: html`<div class="rc-leg" id="rc-leg"></div>`, own: html`<div class="sh-curves" id="sh-curves"></div>` } }))}
       <div class="an-split" id="sh-split-l" title="${t("an.split")}"></div>
       <div class="sh-mapcol"><div class="an-bar sh-bar" id="sh-bar"></div><div class="sh-map"><div class="an-3d" id="sh-3d-host" hidden></div><canvas id="sh-canvas"></canvas>
-        <div class="an-tools">${view3dOn ? html`<button type="button" class="btn btn-sm an-3d-btn" id="sh-3d" aria-pressed="false" title="${t("an.v3.hint")}">3D</button>` : ""}<button type="button" class="btn btn-sm" id="sh-zin" title="${t("lg.zin.t")}" aria-label="${t("lg.zin.t")}">+</button><button type="button" class="btn btn-sm" id="sh-zout" title="${t("lg.zout.t")}" aria-label="${t("lg.zout.t")}">−</button>
+        <div class="an-tools">${view3dOn ? html`<button type="button" class="btn btn-sm an-3d-btn" id="sh-3d" aria-pressed="false" title="${t("an.v3.hint")}">3D</button>${exHtml("sh")}` : ""}<button type="button" class="btn btn-sm" id="sh-zin" title="${t("lg.zin.t")}" aria-label="${t("lg.zin.t")}">+</button><button type="button" class="btn btn-sm" id="sh-zout" title="${t("lg.zout.t")}" aria-label="${t("lg.zout.t")}">−</button>
           <button type="button" class="btn btn-sm" id="sh-fit" title="${t("sh.fit")}" aria-label="${t("sh.fit")}">${raw(ICONS.fit)}</button><button type="button" class="btn btn-sm" id="sh-fitmap" title="${t("an.fitMap")}">▭</button>
           <button type="button" class="btn btn-sm an-measure" id="sh-measure" aria-pressed="false" title="${t("an.measure.hint")}">📏</button>${videoOn ? html`<button type="button" class="btn btn-sm" id="sh-video-btn" title="${t("sh.video.add")}">🎥</button><input type="file" id="sh-video-file" accept="video/*" hidden>` : ""}</div>
         <div class="an-legchip" id="sh-legchip" hidden><span id="sh-legchip-t"></span><button type="button" class="btn btn-sm ico-btn" id="sh-leg-all" hidden title="${t("lg.whole")}" aria-label="${t("lg.whole")}">${raw(ICONS.course)}</button></div><div class="an-measure-out" id="sh-measure-out" hidden></div><div class="an-northarrow" id="sh-northarrow" hidden title="${t("an.orient.n")}"><span>N</span></div><div class="an-courseinfo" id="sh-courseinfo">${courseInfo}</div><div class="an-legend" id="sh-legend" hidden></div><div class="an-3d-credit" id="sh-3d-credit" hidden></div></div>
@@ -2955,7 +2957,7 @@ async function replay(box, { A, id, course, race, init = {}, traces, allTraces =
         traces: [], now: now3d, onUserMove: () => { pan = false; followMarks(); } });
       if (my !== v3token) { v.dispose(); return; }
       v3 = v;
-      v3.setExaggeration(ex3d);
+      v3.setExaggeration(ex3d); exCtl?.show(true);
       sync3d();
       leg ? v3.fitTrace() : v3.fitTrace(ctrlBox());
       const c = CREDIT[g.source];
@@ -2975,7 +2977,7 @@ async function replay(box, { A, id, course, race, init = {}, traces, allTraces =
     if (v3) { v3.dispose(); v3 = null; }
     if (!v3on) return;
     v3on = false;
-    $("#sh-3d")?.setAttribute("aria-pressed", "false");
+    $("#sh-3d")?.setAttribute("aria-pressed", "false"); exCtl?.show(false);
     $("#sh-3d-host").hidden = true; $("#sh-canvas").hidden = false; v3note("");
     opts3d(); mv.draw();
   }
@@ -2989,7 +2991,7 @@ async function replay(box, { A, id, course, race, init = {}, traces, allTraces =
     el.innerHTML = html`<div class="an-3d-head">${t("an.v3.title")}</div><div class="an-opts">
       <label><span>${t("an.v3.ex")}</span><span class="an-3d-ex"><input type="range" id="sh-ex" min="1" max="3" step="0.25" value="${ex3d}"><b id="sh-ex-v">× ${fmt(ex3d, 2)}</b></span></label></div>
       ${g ? html`<p class="muted an-3d-info">${t(g.source === "tiles" ? "an.v3.info.tiles" : "an.v3.info.ign", { nx: g.nx, ny: g.ny, step: fmt(g.step, 1), s: g.cached ? t("an.v3.cached") : `${fmt((g.ms || 0) / 1000, 1)} s` })}</p>` : ""}`;
-    $("#sh-ex").addEventListener("input", (e) => { ex3d = Number(e.target.value); $("#sh-ex-v").textContent = `× ${fmt(ex3d, 2)}`; v3?.setExaggeration(ex3d); savePrefs(); });
+    $("#sh-ex").addEventListener("input", (e) => { ex3d = Number(e.target.value); $("#sh-ex-v").textContent = `× ${fmt(ex3d, 2)}`; v3?.setExaggeration(ex3d); savePrefs(); exCtl?.sync(); });
   }
   window.anDebug3d = () => ({ on: v3on, view: v3?.stats(), grid: rcm.grid && { nx: rcm.grid.nx, ny: rcm.grid.ny, source: rcm.grid.source } });
 
@@ -3068,6 +3070,11 @@ async function replay(box, { A, id, course, race, init = {}, traces, allTraces =
   $("#sh-zin").addEventListener("click", () => v3?.zoom(1.4));
   $("#sh-zout").addEventListener("click", () => v3?.zoom(1 / 1.4));
   $("#sh-3d")?.addEventListener("click", () => toggle3d());
+  // the exaggeration on the 3D view itself, in step with « Affichage »'s slider
+  exCtl = bindEx($("#sh-ex3d"), { get: () => ex3d, set: (k) => {
+    ex3d = k; v3?.setExaggeration(k); savePrefs();
+    const r = $("#sh-ex"); if (r) { r.value = String(k); $("#sh-ex-v").textContent = `× ${fmt(k, 2)}`; }
+  } });
   window.scrollTo(0, 0);
   applyLayout();
   mv.setAlpha(mapAlpha / 100);

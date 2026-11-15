@@ -2968,6 +2968,7 @@ export default {
   "an.v3.noWebgl": "Die 3D-Ansicht braucht WebGL, das dieser Browser nicht bietet.",
   "an.v3.failed": "Das Relief konnte nicht geladen werden: Die 3D-Ansicht ist im Moment nicht verfügbar.",
   "an.v3.ex": "Überhöhung des Reliefs",
+  "an.v3.exBtn": "Überhöhung des Reliefs: die Hänge in die Höhe strecken, damit man sie besser sieht (× 1 bis × 3)", "an.v3.exLess": "Weniger Relief", "an.v3.exMore": "Mehr Relief", "lg.ex3d.d": "Nur in der 3D-Ansicht: streckt das Relief in die Höhe, von × 1 (wirklich) bis × 3, damit man die Hänge besser sieht. Dieselbe Einstellung wie unter „{display}“.",
   "an.v3.cached": "bereits geladen",
   "an.v3.relief.choice": "Relief",
   "an.v3.relief.dem": "Höhenmodell",

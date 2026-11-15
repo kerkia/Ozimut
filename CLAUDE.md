@@ -2069,7 +2069,10 @@ Every multiple-choice game was played through to its score page at phone size, w
   (8192 elsewhere); the trace a ribbon whose two edges each sit on the ground (a level ribbon sank into steep slopes), coloured as in
   2D, the part run, the tail, the part to come faint or hidden; the runner a dot the same size on screen, seen through hills; the
   camera an orbit (drag, right/Shift-drag or two fingers to move, wheel or pinch) or, with « Suivre », a chase camera behind the
-  runner turning with their heading, never under the ground; vertical exaggeration × 1-3 (`ocn.an.prefs` `ex3d`). It runs on the
+  runner turning with their heading, never under the ground; vertical exaggeration × 1-3 (`ocn.an.prefs` `ex3d`; **on the 3D view itself** since 2026-11-15, owner: a button under « 3D »
+  in the map's tools, shown only while the view is on, saying « ×1,5 » — a tap opens − / a slider by quarters / + beside it, the relief
+  stretched live, the same pref as « Affichage »'s slider, each moving the other; Solo and the map analysis, `trace/ex3dbtn.js`; in
+  « Aide »; the Tracer's 3D bar already had its slider). It runs on the
   2D playback's clock (`clockNow`: interpolated between the timer's ticks), draws on requestAnimationFrame only when something
   changed, and goes with ↗ (`d3=1`) and full window. The credit of the heights' source in the view. Measured 2026-10-24 (headless
   Edge, Intel GPU, the invented test files): IGN grid 181 × 121 nodes at 5 m in 4.2-5.3 s (5 requests), 232 × 174 at 8.7 m in

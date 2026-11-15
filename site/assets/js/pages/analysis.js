@@ -48,6 +48,7 @@ import * as LM from "../trace/lidarmap.js";
 import * as RC from "../trace/routeplan.js";
 import { panelHtml, bindPanel, bindSplitter, PAN_ICON, drawers, stripArrow, floatBar, clearHandle, ICONS, legPickHtml, bindLegPick, legArrows, mapOnlyButton, bindMapOnly, leaveMapOnly } from "../trace/sidepanel.js";
 import { keyHtml } from "../trace/legend.js";
+import { exHtml, bindEx } from "../trace/ex3dbtn.js";
 import { drawPaceStrip, stripSamples, stripFraction, graphName, isPaceGraph } from "../trace/pacestrip.js";
 import { drawCourse } from "../trace/coursedraw.js";
 import { videoPanel } from "./sharedvideo.js";
@@ -224,7 +225,7 @@ export async function render(main, { query = {}, route } = {}) {
         <div class="an-split" id="an-split-g" title="${t("an.split")}" hidden></div>
         <div class="an-mapcol"><div class="an-bar sh-bar" id="an-bar" hidden></div>
         <div class="an-map"><div class="an-3d" id="an-3d-host" hidden></div><canvas id="an-canvas"></canvas>
-          <div class="an-tools"><button type="button" class="btn btn-sm an-3d-btn" id="an-3d" aria-pressed="false" title="${t("an.v3.hint")}" hidden>3D</button><button type="button" class="btn btn-sm" id="an-zin" title="${t("lg.zin.t")}" aria-label="${t("lg.zin.t")}">+</button><button type="button" class="btn btn-sm" id="an-zout" title="${t("lg.zout.t")}" aria-label="${t("lg.zout.t")}">−</button>
+          <div class="an-tools"><button type="button" class="btn btn-sm an-3d-btn" id="an-3d" aria-pressed="false" title="${t("an.v3.hint")}" hidden>3D</button>${exHtml("an")}<button type="button" class="btn btn-sm" id="an-zin" title="${t("lg.zin.t")}" aria-label="${t("lg.zin.t")}">+</button><button type="button" class="btn btn-sm" id="an-zout" title="${t("lg.zout.t")}" aria-label="${t("lg.zout.t")}">−</button>
             <button type="button" class="btn btn-sm" id="an-fit" title="${t("an.fitTrace")}" aria-label="${t("an.fitTrace")}">${raw(ICONS.fit)}</button><button type="button" class="btn btn-sm" id="an-map" title="${t("an.fitMap")}">▭</button>
             <button type="button" class="btn btn-sm an-measure" id="an-measure" aria-pressed="false" title="${t("an.measure.hint")}" hidden>📏</button><button type="button" class="btn btn-sm" id="an-video-btn" title="${t("sh.video.add")}" hidden>🎥</button><input type="file" id="an-video-file" accept="video/*" hidden></div>
           <div class="an-legchip" id="an-legchip" hidden><span id="an-legchip-t"></span><button type="button" class="btn btn-sm ico-btn" id="an-leg-all" hidden title="${t("lg.whole")}" aria-label="${t("lg.whole")}">${raw(ICONS.course)}</button></div><div class="an-measure-out" id="an-measure-out" hidden></div><div class="an-northarrow" id="an-northarrow" hidden title="${t("an.orient.n")}"><span>N</span></div><div class="an-legend" id="an-legend" hidden></div><div class="an-3d-credit" id="an-3d-credit" hidden></div><div class="an-gen-credit" id="an-gen-credit" hidden></div></div>
@@ -299,6 +300,7 @@ export async function render(main, { query = {}, route } = {}) {
   let gen = null, genToken = 0, genStyle = "";
   let v3relief = prefs.relief3d === "contours" ? "contours" : "dem", v3interval = prefs.interval3d === 2.5 ? 2.5 : 5;
   let v3ex = Number.isFinite(prefs.ex3d) && prefs.ex3d >= 1 && prefs.ex3d <= 3 ? prefs.ex3d : 1.5;
+  let exCtl = null;                                            // trace/ex3dbtn.js, bound with the map's tools
   // the playback's layout (owner, 2026-11-01: the map always whole in the window): the controls above the map, a panel of tabs
   // on each side of it (curves, legs, computed routes; display, computing), each resized by its splitter and folded to a rail
   const px = (v, lo, hi, d) => (Number.isFinite(v) && v >= lo && v <= hi ? Math.round(v) : d);
@@ -2324,6 +2326,11 @@ export async function render(main, { query = {}, route } = {}) {
   $("#an-fit").addEventListener("click", () => { if (!map) return; opening = false; if (v3) { setFollow(false); v3.setFollow(false); v3.fitTrace(); return; } if (calibrated) { fitTrace(); setFollow(false); } else fitView(); draw(); });
   $("#an-map").addEventListener("click", () => { opening = false; if (v3) { setFollow(false); v3.setFollow(false); v3.fitMap(); return; } if (map) { fitView(); draw(); } });
   $("#an-3d").addEventListener("click", () => toggle3d());
+  // the exaggeration on the 3D view itself, in step with « Affichage »'s slider
+  exCtl = bindEx($("#an-ex3d"), { get: () => v3ex, set: (k) => {
+    v3ex = k; v3?.setExaggeration(k); savePrefs();
+    const r = $("#an-ex"); if (r) { r.value = String(k); $("#an-ex-v").textContent = `× ${fmt(k, 2)}`; }
+  } });
   // a headcam video in step with the race (pages/sharedvideo.js, as « Analyse de carte »'s; owner, 2026-11-05): a file of this
   // device, never sent; its offset kept on this device per trace
   const SOLO = { uid: 0, get name() { return (withTimes && runner()?.name) || t("an.perso.title"); } };
@@ -2824,7 +2831,7 @@ export async function render(main, { query = {}, route } = {}) {
         track, i0: indexAt(track, offset), i1: indexAt(track, offset + total), now: clockNow, onUserMove: () => setFollow(false) });
       if (my !== v3token) { v.dispose(); return; }
       v3 = v; v3info = g;
-      v3.setExaggeration(v3ex);
+      v3.setExaggeration(v3ex); exCtl?.show(true);
       if (v3relief === "contours") applyRelief();
       const c = g.source === "lidar" ? g.credit || LM.creditOf(files.map?.name) : CREDIT[g.source];
       v3note(html`${t("an.v3.relief")} <a href="${c.url}" target="_blank" rel="noopener">${c.text}</a>`);
@@ -2842,7 +2849,7 @@ export async function render(main, { query = {}, route } = {}) {
     if (v3) { v3.dispose(); v3 = null; }
     if (!v3on) return;
     v3on = false;
-    $("#an-3d").setAttribute("aria-pressed", "false");
+    $("#an-3d").setAttribute("aria-pressed", "false"); exCtl?.show(false);
     $("#an-3d-host").hidden = true; canvas.hidden = false; v3note("");
     const o = $("#an-3d-opts"); if (o) o.hidden = true;
   }
@@ -2866,7 +2873,7 @@ export async function render(main, { query = {}, route } = {}) {
       <label id="an-interval-row" ${raw(v3relief === "contours" ? "" : "hidden")}><span>${t("an.v3.interval")}</span><select id="an-interval"><option value="5" ${raw(v3interval === 5 ? "selected" : "")}>5 m</option><option value="2.5" ${raw(v3interval === 2.5 ? "selected" : "")}>${fmt(2.5, 1)} m</option></select></label></div>
       <p class="muted an-3d-info">${t(g.source === "tiles" ? "an.v3.info.tiles" : g.source === "lidar" ? "an.v3.info.lidar" : "an.v3.info.ign", { nx: g.nx, ny: g.ny, step: fmt(g.step, 1), s: g.cached ? t("an.v3.cached") : `${fmt(g.ms / 1000, 1)} s` })}</p>
       <p class="muted an-3d-info" id="an-relief-info"></p>`;
-    $("#an-ex").addEventListener("input", (e) => { v3ex = Number(e.target.value); $("#an-ex-v").textContent = `× ${fmt(v3ex, 2)}`; v3?.setExaggeration(v3ex); savePrefs(); });
+    $("#an-ex").addEventListener("input", (e) => { v3ex = Number(e.target.value); $("#an-ex-v").textContent = `× ${fmt(v3ex, 2)}`; v3?.setExaggeration(v3ex); savePrefs(); exCtl?.sync(); });
     $("#an-relief").addEventListener("change", (e) => { v3relief = e.target.value; $("#an-interval-row").hidden = v3relief !== "contours"; savePrefs(); applyRelief(); });
     $("#an-interval").addEventListener("change", (e) => { v3interval = Number(e.target.value); savePrefs(); applyRelief(); });
     reliefInfo();

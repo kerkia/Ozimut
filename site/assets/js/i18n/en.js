@@ -2809,6 +2809,7 @@ export default {
   "an.v3.loading": "Terrain: loading…", "an.v3.loadingPct": "Terrain: loading… {p}%", "an.v3.relief": "Terrain:",
   "an.v3.noWebgl": "The 3D view needs WebGL, which this browser does not offer.", "an.v3.failed": "The terrain could not be loaded: the 3D view is not available for now.",
   "an.v3.ex": "Vertical exaggeration", "an.v3.cached": "already loaded",
+  "an.v3.exBtn": "Vertical exaggeration: stretch the slopes upwards to see them better (× 1 to × 3)", "an.v3.exLess": "Less relief", "an.v3.exMore": "More relief", "lg.ex3d.d": "In the 3D view only: stretches the relief upwards, from × 1 (true) to × 3, to see the slopes better. The same setting as under « {display} ».",
   "an.v3.relief.choice": "Terrain", "an.v3.relief.dem": "elevation model", "an.v3.relief.contours": "+ the map's contours (trial)", "an.v3.interval": "Contour interval",
   "an.v3.contours.reading": "Reading the map's contour lines…", "an.v3.contours.none": "Too few contour lines read on the map: the terrain stays the model's.",
   "an.v3.contours.info": "{n} pieces of contour read on the map ({s} s).",

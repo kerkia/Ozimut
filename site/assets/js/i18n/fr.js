@@ -2092,6 +2092,7 @@ export default {
   "an.v3.loading": "Relief : chargement…", "an.v3.loadingPct": "Relief : chargement… {p} %", "an.v3.relief": "Relief :",
   "an.v3.noWebgl": "La vue 3D demande WebGL, que ce navigateur n’offre pas.", "an.v3.failed": "Le relief n’a pas pu être chargé : la vue 3D n’est pas disponible pour le moment.",
   "an.v3.ex": "Exagération du relief", "an.v3.cached": "déjà chargé",
+  "an.v3.exBtn": "Exagération du relief : étirer les pentes en hauteur pour mieux les voir (× 1 à × 3)", "an.v3.exLess": "Moins de relief", "an.v3.exMore": "Plus de relief", "lg.ex3d.d": "En vue 3D seulement : étire le relief en hauteur, de × 1 (le vrai) à × 3, pour mieux voir les pentes. Le même réglage que sous « {display} ».",
   "an.v3.relief.choice": "Relief", "an.v3.relief.dem": "modèle numérique", "an.v3.relief.contours": "+ courbes de la carte (essai)", "an.v3.interval": "Équidistance",
   "an.v3.contours.reading": "Lecture des courbes de niveau de la carte…", "an.v3.contours.none": "Trop peu de courbes de niveau lues sur la carte : le relief reste celui du modèle.",
   "an.v3.contours.info": "{n} morceaux de courbes lus sur la carte ({s} s).",
