@@ -527,7 +527,7 @@ categories' years, its bars' areas their shares; `tour2.mjs` scrolls its card un
 Organisers publish results (and often split times) on race day or the next, days before FFCO. `ffco_scraper/prov`
 collects them for the races of the agenda (upcoming ones are kept, with their website and place, since the agenda
 drops past races) and of FFCO's last month — relays excluded — and `update.py` runs it after each hourly update
-(`PROV_BUDGET` seconds, 240 by default), plus `--prov-only` runs every 20 min on Saturday and Sunday evenings (600 s);
+(`PROV_BUDGET` seconds, 240 by default), plus `--prov-only` runs every 20 min on Saturday and Sunday evenings (600 s) — **runs GitHub's schedule skips are started by the site** (owner, 2026-11-15: GitHub started 7 to 10 of the 24-45 runs planned a day from 8 November, none from 17:05 to 20:38 UTC that Sunday evening): `functions/_lib/ciwatch.js` `runsSoon`, from `/api/track` (signed-in page views, at most every 10 min an isolate and once every 10 min for the site, D1 rate key `ci:watch`), reads `update.yml`'s latest runs and, none running and the last scheduled or dispatched one older than 25 min (Sat/Sun 16-22 UTC, mode `prov`) or 70 min (else, mode `quick`), starts one through workflow_dispatch with `GH_DISPATCH_TOKEN`; the daily full and agenda runs are left to GitHub;
 a deploy only when something new was found — Pages' free plan counts deploys. A race is watched 14 days whether
 FFCO has published it or not (FFCO has no splits); a finished race comes back when a platform competition is
 newly matched to it. Sources: liveresultat.orientering.se (JSON API, matched by date + name/organiser), WinSplits
