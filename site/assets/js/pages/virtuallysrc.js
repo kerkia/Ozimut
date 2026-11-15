@@ -8,17 +8,76 @@
 //   100 most recent runners (owner, 2026-11-14) — their routes [[t, x, z]] (world metres, the map's frame) turned into one
 //   position a second in latitude and longitude, from the run's start (its saving time less its race time).
 // - Read only: nothing is added, commented or removed there (the analysis's `readonly`, its runners' switches off).
+// - Only the runs that completed the circuit as it is now (owner, 2026-11-15): a course set again after a run leaves that run's
+//   route off its controls. A run saved since carries the signature of the course it ran (`cs`, `courseSig`); one saved before
+//   is checked on its route — every control in order within reach (`completes`).
 // shared.js asks it through `api()` for the paths of an analysis « px~<race> »: /<id>, /<id>?poll=1, /<id>/map/<n>, /<id>/traces/<n>.
 
 const API = "/api/virtual/";
 const CAP = 100;                                             // the other runners of a circuit, the most recent
 const OCEAN = [-30, 40];                                     // an invented forest's place: [lon, lat], no land, no relief read
 const R_EARTH = 6371000;
+const REACH = 6 + 3;                                         // m: the game's punching reach (games/virtually.js), and some slack
 
 async function getJson(url) {
   const r = await fetch(url, { credentials: "same-origin", cache: "no-store" });
   if (!r.ok) throw Object.assign(new Error(`${url}: ${r.status}`), { status: r.status });
   return r.json();
+}
+
+/** A course's signature: its controls' places to the decimetre, hashed (FNV-1a), sent with each run saved. */
+export function courseSig(c) {
+  let h = 0x811c9dc5;
+  const s = (c?.controls || []).map((p) => `${Math.round(p.x * 10)},${Math.round(p.z * 10)}`).join(";");
+  for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 0x01000193); }
+  return (h >>> 0).toString(36);
+}
+/** Does a route ([[t, x, z]]) pass every control of the course after the start, in order, within reach? */
+function routeCompletes(route, controls) {
+  if (!route || route.length < 2) return false;
+  let j = 0;
+  for (let i = 1; i < controls.length; i++) {
+    const { x, z } = controls[i];
+    let hit = -1;
+    for (let k = j; k < route.length - 1 && hit < 0; k++) {
+      const [, ax, az] = route[k], [, bx, bz] = route[k + 1], dx = bx - ax, dz = bz - az, L = dx * dx + dz * dz;
+      const f = L ? Math.max(0, Math.min(1, ((x - ax) * dx + (z - az) * dz) / L)) : 0;
+      if (Math.hypot(ax + f * dx - x, az + f * dz - z) <= REACH) hit = k;
+    }
+    if (hit < 0) return false;
+    j = hit;
+  }
+  return true;
+}
+const ROUTES = new Map();                                    // the routes read, by race then run, for the visit
+/** Routes of runs of a race, read together (api/virtual runs/<race>/routes, 101 a request). */
+async function routesOf(raceId, list) {
+  if (!ROUTES.has(raceId)) ROUTES.set(raceId, new Map());
+  const have = ROUTES.get(raceId), want = list.filter((r) => !have.has(r.id)).map((r) => r.id);
+  for (let i = 0; i < want.length; i += 101) {
+    const got = await getJson(`${API}runs/${encodeURIComponent(raceId)}/routes?ids=${want.slice(i, i + 101).join(",")}`);
+    for (const id of want.slice(i, i + 101)) have.set(id, got[id]?.route || []);
+  }
+  return list.map((r) => have.get(r.id) || []);
+}
+/**
+ * The runs of a race that completed their circuit as it is now: a Set of run ids. courses: the race's ({ id, controls }).
+ * A run with its course's signature is judged on it; another on its splits' number, then its route (read once for the visit).
+ */
+export async function completeRuns(raceId, courses, runs) {
+  const byId = new Map(courses.map((c) => [c.id, c])), ok = new Set(), check = [];
+  for (const r of runs) {
+    const c = byId.get(r.course);
+    if (!c || !(r.t > 0)) continue;
+    if (r.cs) { if (r.cs === courseSig(c)) ok.add(r.id); continue; }
+    if (Array.isArray(r.sp) && r.sp.length && r.sp.length !== c.controls.length - 1) continue;
+    check.push(r);
+  }
+  if (check.length) {
+    const rs = await routesOf(raceId, check);
+    check.forEach((r, i) => { if (routeCompletes(rs[i], byId.get(r.course).controls)) ok.add(r.id); });
+  }
+  return ok;
 }
 /** The position ([x, z]) of a route at time s, interpolated; its ends outside. */
 function posAt(route, s) {
@@ -44,8 +103,12 @@ export function pixelAnalysis({ race, runs, pick, canSee, mapOf, title, courseNa
   const meU = runs.find((r) => r.mine)?.u;
   // a circuit's runs: a training's (a competition's on an event of that kind; the built-in maps' competitions are tests)
   const competition = race.event?.type === "competition";
+  // only the runs that completed their circuit (`completeRuns`), known once `ready()` has settled
+  let done = null, complete = new Set();
+  const ready = () => (done ||= completeRuns(race.id, courses, runs.filter((r) => r.t > 0 && (r.mine || canSee(r))))
+    .then((s) => { complete = s; }));
   const circuitRuns = (c) => {
-    const of = runs.filter((r) => r.course === c.id && r.t > 0 && (competition ? r.kind === "competition" || r.mine : r.kind !== "competition"));
+    const of = runs.filter((r) => r.course === c.id && r.t > 0 && complete.has(r.id) && (competition ? r.kind === "competition" || r.mine : r.kind !== "competition"));
     const best = new Map();
     for (const r of of) {
       if (!r.mine && !canSee(r)) continue;
@@ -58,8 +121,8 @@ export function pixelAnalysis({ race, runs, pick, canSee, mapOf, title, courseNa
     return { list: [...(mine ? [mine] : []), ...others], total: best.size };
   };
   let map = null, meta = null;
-  const routes = new Map();
   async function build() {
+    await ready();
     if (meta) return meta;
     const m = await (map ||= mapOf(race));
     const s = m.ppm / m.k;                                    // image pixels a world metre
@@ -83,15 +146,6 @@ export function pixelAnalysis({ race, runs, pick, canSee, mapOf, title, courseNa
     return meta;
   }
   const traceList = () => courses.flatMap((c, n) => circuitRuns(c).list.map((r) => ({ course: n, uid: uidOf.get(r.u), name: r.name, lic: "", updated: r.at, size: 0 })));
-  /** Routes of runs, read together (api/virtual runs/<race>/routes), kept for the visit. */
-  async function routesOf(list) {
-    const want = list.filter((r) => !routes.has(r.id)).map((r) => r.id);
-    for (let i = 0; i < want.length; i += 101) {
-      const got = await getJson(`${API}runs/${encodeURIComponent(race.id)}/routes?ids=${want.slice(i, i + 101).join(",")}`);
-      for (const [k, v] of Object.entries(got)) routes.set(k, v?.route || []);
-    }
-    return list.map((r) => routes.get(r.id) || []);
-  }
   /** A run as a shared trace: one point a second, millionths of a degree as deltas (trace/share.js encodeTrace's form). */
   function traceOf(r, route, n) {
     const { lon0, lat0, kx, ky, xc, zc } = meta.frame;
@@ -122,12 +176,12 @@ export function pixelAnalysis({ race, runs, pick, canSee, mapOf, title, courseNa
       return (m.blob ||= await new Promise((ok) => m.canvas.toBlob((b) => ok(b), "image/webp", 0.92)));
     }
     if (parts[1] === "traces") {
-      const list = circuitRuns(c).list, rs = await routesOf(list);
+      const list = circuitRuns(c).list, rs = await routesOf(race.id, list);
       return list.map((r, i) => (rs[i].length > 1 ? traceOf(r, rs[i], n) : null)).filter(Boolean);
     }
     throw notFound();                                          // layers, extras…: none (the routes are read from the map's colours)
   }
-  return { id, api, circuitN: (courseId) => courses.findIndex((c) => c.id === courseId), myUid: () => (meU ? uidOf.get(meU) : 0),
+  return { id, api, ready, circuitN: (courseId) => courses.findIndex((c) => c.id === courseId), myUid: () => (meU ? uidOf.get(meU) : 0),
     counts: (courseId) => { const c = courses.find((x) => x.id === courseId); return c ? circuitRuns(c) : { list: [], total: 0 }; } };
 }
 

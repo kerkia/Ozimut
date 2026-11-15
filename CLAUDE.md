@@ -1023,8 +1023,18 @@ Every multiple-choice game was played through to its score page at phone size, w
   one's best; the others' best, **the 100 most recent runners** (`CAP`, said above the page, `vt.an.cappedAll`); their routes read
   together (`GET runs/<race>/routes?ids=`, up to 101, the stored bodies joined unparsed). **Read only** (`readonly`, `via: "pixel"`):
   no trace added, no comment, no « Analyse solo » or Mes cartes, no admin test traces; the times without Coach's « ~ » (a Pixel run's
-  time is exact); « Entraînement Pixel » as its kind. A map chosen above it (Pixel's maps and events someone ran, then the « Cartes du
-  jour »), the circuit in Coach's « Circuits » tab; the address keeps Coach's replay state beside Pixel's. **Every account's since
+  time is exact); « Entraînement Pixel » as its kind. **The tab opens on the list of the analyses** (owner, 2026-11-15: « land on a
+  page that lists the available analyses, not directly in one »; `analysesList`): one row a map, event or « Carte du jour » with a
+  completed run the account may see — circuits, runners, one's own runs, the last run's day —, a click on the row opening it (`?an=`;
+  shared.js then writes `id=px~<map>`, which a reload reads back); « ‹ Toutes les analyses » above it leads back, and choosing the tab
+  from another always shows the list; one's own run named in the address (`run`: « Analyser ma course », Résultats' « Analyser ») still
+  opens its map's at once. The circuit in Coach's « Circuits » tab; the address keeps Coach's replay state beside Pixel's. **Only the
+  runs that completed their circuit as it is now** (owner, 2026-11-15: a runner listed who had not completed it — a course set
+  again after the run leaves its route off the new controls; `completeRuns`): a run saved since carries its course's signature
+  (`cs`, `courseSig`: its controls to the decimetre, FNV-1a, sent with the run, kept in the run's metadata by both POSTs and returned
+  by the listing), judged on it; one saved before on its splits' number, then its route — every control after the start, in order,
+  within 9 m (the game's 6 m reach and some slack). Tested 2026-11-15 on a local copy (foley Bleu: a run through every control kept,
+  one with the right splits 150 m off half the controls and one with another course's signature left out). **Every account's since
   2026-11-14** (owner: « every training open to both multi and solo analyses, as regular trainings would be »): the maps' courses,
   the training events, the « Cartes du jour ». **A competition's** other runs open once its event's last day is past (`api/virtual`
   `eventOver`, the page's `canSee`; a competition on a built-in map — the administrators' tests — never), said above it

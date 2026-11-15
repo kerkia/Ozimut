@@ -8,13 +8,16 @@
 // - Classement: the runners by their virtual index (competitions only: owner, 2026-11-11).
 // - Analyse: Coach's map analysis (pages/shared.js) on a Pixel map's runs (owner, 2026-11-14: « like coach analyses »): each
 //   runner's run made a GPS trace by pages/virtuallysrc.js, every view of Coach's — the replay and its start modes, the splits,
-//   the gaps, the route choices, the computed routes, the 3D view —, read only; a map chosen above it.
+//   the gaps, the route choices, the computed routes, the 3D view —, read only. The tab opens on the list of the maps someone
+//   completed a circuit of (owner, 2026-11-15), a row opening its analysis (?an=); a run named in the address (?run=, « Analyser
+//   ma course ») opens its own. Only the runs that completed their circuit as it is now are listed (virtuallysrc.js).
 // - Orga: the organisers' events (pages/virtuallyorga.js): a training or a competition made from their own OCAD map (an
 //   administrator also from the LiDAR alone), built on GitHub; the published ones are offered in Entraînement beside the maps,
 //   their runs kept by api/virtual/events (a competition once per account and course) and read here as the maps' runs.
 // - Avatar: the runner seen in the race — woman or man, skin, hair, shorts or long legs, the kit's colours (games/vavatar.js,
 //   kept in this browser), shown turning in a small scene.
-// The tab in the address (?onglet=resultats|classement|analyse|avatar|orga), the map and course too (?carte=, ?circuit=, ?run=).
+// The tab in the address (?onglet=resultats|classement|analyse|avatar|orga), the map and course too (?carte=, ?circuit=, ?run=,
+// the analysis's map ?an=).
 
 import { html, raw, $, $$, fmt, fmtDate, displayName } from "../util.js";
 import { t, tn, loadArea } from "../i18n.js";
@@ -24,6 +27,7 @@ import { betaNote } from "../beta.js";
 import * as data from "../data.js";
 import { envText } from "../games/vweather.js";
 import { LAYERS, mapOptOf, mapOptText, imageMap, savedOpt, saveOpt, moOf } from "../games/vmapopt.js";
+import { courseSig } from "./virtuallysrc.js";
 
 const API = "/api/virtual/";
 // a sprint has no violet nor middle and long distances: its orange courses are short and long (orange_s, orange_l)
@@ -152,7 +156,9 @@ export async function render(main, { query }) {
     // training open to solo and multi analysis); Résultats, Classement and Orga stay the administrators'
     .filter(([k]) => auth.session()?.admin || k === "entrainement" || k === "avatar" || k === "analyse");
   const tab = tabFrom(tabs, query);
-  const sel = { race: query.carte || null, course: query.circuit || null, run: query.run || null };
+  const sel = { race: query.carte || null, course: query.circuit || null, run: query.run || null,
+    // the analysis open: ?an=, else Coach's own address of it (?id=px~<map>, written by pages/shared.js once open)
+    an: query.an || (String(query.id || "").startsWith("px~") ? String(query.id).slice(3) : null) };
   main.innerHTML = html`
     <div class="page-head"><div><h1>${t("nav.virtually")}</h1><p class="lede">${t("vtp.lede")}</p></div></div>
     ${raw(betaNote("pixel"))}
@@ -180,6 +186,8 @@ export async function render(main, { query }) {
       panel(k).innerHTML = html`<div class="card"><div class="empty">${t(e.status === 403 ? "vt.forbidden" : "vt.error")}<br><span class="muted">${String(e.message || e)}</span></div></div>`;
     }
   };
+  // the Analyse tab chosen opens on its list of analyses (owner, 2026-11-15), not on the one seen last
+  $('[data-ptab="analyse"]', main)?.addEventListener("click", () => { if (!panel("analyse").hidden) return; closeAnalysis(); });
   const show = bindPageTabs(main, tabs, tab, (k) => { if (!drawn.has(k) || (k !== "entrainement" && k !== "orga")) { drawn.add(k); draw(k); } });
   /** The organisers try their event (the Orga tab) in the training tab: their own runs are trainings. */
   const tryEvent = async (ev, course) => {
@@ -299,7 +307,7 @@ export async function render(main, { query }) {
           try {
             // an event's runs go to its own address, which decides their kind (a competition: once per account and course)
             const r = await fetch(ev ? `/api/virtual/events/${ev.id}/runs` : `${API}runs`, { method: "POST", credentials: "same-origin",
-              headers: { "Content-Type": "application/json" }, body: JSON.stringify({ race: race.id, kind: "training", event: race.sig || "", ...run, seed: await seed }) });
+              headers: { "Content-Type": "application/json" }, body: JSON.stringify({ race: race.id, kind: "training", event: race.sig || "", ...run, cs: courseSig(course), seed: await seed }) });
             if (r.status === 409) { if (note()) note().textContent = t("vo.already"); return; }
             if (!r.ok) throw new Error(String(r.status));
             if (ev?.type === "competition" && !ev.mine) { ev.played = [...(ev.played || []), course.id]; RACES = null; }
@@ -447,32 +455,83 @@ ${ci.kind === "training" ? html` · <span class="tag">${t("vt.res.trainingTag")}
   }
 
   // ---- Analyse -----------------------------------------------------------------------------------------------------------
-  // Coach's map analysis on a Pixel map's runs (pages/virtuallysrc.js, pages/shared.js `useSource`): a map chosen above it — the
-  // one of the run in the address, else the map chosen in Entraînement, else one's latest run's —, its circuits in Coach's own
-  // « Circuits » tab. The address keeps Coach's replay state beside Pixel's own (carte, run).
+  // Coach's map analysis on a Pixel map's runs (pages/virtuallysrc.js, pages/shared.js `useSource`). The tab opens on the list of
+  // the analyses — the maps, events and « Cartes du jour » someone completed a circuit of —, a row opening its own (?an=), with
+  // a way back; one's own run named in the address (?run=) opens its map's at once. The address keeps Coach's replay state
+  // beside Pixel's own (an, run).
+  // (function declarations: the tabs draw before these lines run)
+  function coachCleared() {
+    return Object.fromEntries(["id", "c", "t", "leg", "show", "sel", "m", "from", "vue", "ex", "p", "f", "ref", "v", "lo", "g", "gx", "gm", "da"].map((k) => [k, null]));
+  }
+  /** Back to the list: the analysis's map, run and Coach's replay state forgotten. */
+  function closeAnalysis() {
+    sel.an = null; sel.run = null;
+    setQuery({ an: null, run: null, ...coachCleared() });
+  }
+  /** The analyses' runs: every map's and event's, and the « Cartes du jour »'s (every day's: the analysis makes the day's forest again). */
+  async function analysisRuns() {
+    const [list, all, days] = await Promise.all([races(), allRuns(), getJson(`${API}runs?race=day`).then((d) => d.runs).catch(() => [])]);
+    return { list, runs: all.runs.concat(days) };
+  }
   async function analysis(el) {
     el.innerHTML = html`<div class="boot"><div class="spinner"></div></div>`;
-    // the maps' and events' runs, and the « Cartes du jour »'s (every day's: the analysis makes the day's forest again)
-    const [list, all, days] = await Promise.all([races(), allRuns(), getJson(`${API}runs?race=day`).then((d) => d.runs).catch(() => [])]);
-    const runs = all.runs.concat(days);
-    // the maps someone ran: Pixel's maps and events, then the « Cartes du jour » (newest first)
-    const ran = new Set(runs.map((r) => r.race));
-    const choices = [...list.filter((r) => ran.has(r.id)).map((r) => r.id), ...[...ran].filter((id) => id.startsWith("day-")).sort().reverse()];
-    if (!choices.length) { el.innerHTML = html`<div class="card"><div class="empty">${t("vt.an.empty")}</div></div>`; return null; }
+    const { list, runs } = await analysisRuns();
     const pinned = runs.find((r) => r.id === sel.run && r.mine);
-    const latest = runs.filter((r) => r.mine).sort((a, b) => b.at.localeCompare(a.at))[0];
-    const raceId = pinned?.race || (choices.includes(sel.race) ? sel.race : null) || latest?.race || choices[0];
+    const open = pinned?.race || sel.an;
+    if (open) return analysisOf(el, open, { list, runs, pinned });
+    await analysesList(el, { list, runs });
+    return null;
+  }
+
+  /** The list of the analyses: one row a map (or event, or day) with a completed run this account may see. */
+  async function analysesList(el, { list, runs }) {
+    const { completeRuns } = await import("./virtuallysrc.js");
+    const ids = [...new Set(runs.map((r) => r.race))];
+    const rows = (await Promise.all(ids.map(async (id) => {
+      const race = list.find((r) => r.id === id), day = id.startsWith("day-");
+      if (!race && !day) return null;                           // a map withdrawn: nothing to draw it on
+      const competition = race?.event?.type === "competition";
+      const seen = runs.filter((r) => r.race === id && r.t > 0 && (r.mine || canSee(r))
+        && (competition ? r.kind === "competition" || r.mine : r.kind !== "competition"));
+      // a « Carte du jour »'s circuits are its runs' own (the analysis makes the day's forest again); a map's checked here
+      const done = day ? seen : await completeRuns(id, race.race?.courses || [], seen).then((ok) => seen.filter((r) => ok.has(r.id))).catch(() => seen);
+      if (!done.length) return null;
+      return { id, name: mapName(id), kind: race?.event ? "event" : day ? "day" : "map",
+        circuits: new Set(done.map((r) => r.course)).size, runners: new Set(done.map((r) => r.u)).size,
+        mine: done.filter((r) => r.mine).length, last: done.reduce((a, r) => (r.at > a ? r.at : a), "") };
+    }))).filter(Boolean);
+    if (!rows.length) { el.innerHTML = html`<div class="card"><div class="empty">${t("vt.an.empty")}</div></div>`; return; }
+    el.innerHTML = html`<p class="muted">${t("vt.an.listHint")}</p><div id="vtp-anlist"></div>`;
+    dataTable($("#vtp-anlist", el), {
+      columns: [
+        { key: "name", label: t("vt.an.col.map"), render: (r) => html`<a href="#" data-open="${r.id}">${r.name}</a>${r.kind !== "map" ? html` <span class="tag">${t(`vt.an.kind.${r.kind}`)}</span>` : ""}`, sort: (r) => r.name },
+        { key: "circuits", label: t("vt.an.col.circuits"), align: "num", render: (r) => fmt(r.circuits), sort: (r) => r.circuits },
+        { key: "runners", label: t("vt.an.col.runners"), align: "num", render: (r) => fmt(r.runners), sort: (r) => r.runners },
+        { key: "mine", label: t("vt.an.col.mine"), align: "num", render: (r) => (r.mine ? fmt(r.mine) : ""), sort: (r) => r.mine },
+        { key: "last", label: t("vt.col.last"), render: (r) => fmtDate(String(r.last).slice(0, 10)), sort: (r) => r.last },
+      ],
+      rows, sortKey: "last", sortDir: -1, rowClass: () => "vtp-anrow", compact: true,
+    });
+    // a click anywhere on a row opens its analysis
+    el.onclick = (e) => {
+      const tr = e.target.closest("tr"), a = tr?.querySelector("[data-open]");
+      if (!a || !el.contains(tr)) return;
+      e.preventDefault();
+      el.onclick = null;
+      sel.an = a.dataset.open; sel.run = null;
+      setQuery({ an: sel.an, run: null, ...coachCleared() });
+      draw("analyse");
+    };
+  }
+
+  /** One map's analysis: its circuits in Coach's own « Circuits » tab, the way back to the list above it. */
+  async function analysisOf(el, raceId, { list, runs, pinned }) {
+    el.onclick = null;
     let race = list.find((r) => r.id === raceId);
     const sig = (id) => runs.find((r) => r.race === id)?.event;
-    el.innerHTML = html`<div class="vtp-anpick"><label>${t("vt.an.map")} <select id="vtp-anmap">${choices.map((id) => html`<option value="${id}" ${raw(id === raceId ? "selected" : "")}>
-        ${mapName(id)} · ${tn("vt.an.runs", runs.filter((r) => r.race === id).length)}</option>`)}</select></label>
+    el.innerHTML = html`<div class="vtp-anpick"><button type="button" class="btn btn-sm" id="vtp-anback">${t("vt.an.back")}</button>
       <span class="muted" id="vtp-annote"></span></div><div class="vtp-coach"><div class="boot"><div class="spinner"></div></div></div>`;
-    $("#vtp-anmap", el).addEventListener("change", (e) => {
-      sel.race = e.target.value; sel.run = null;
-      // another map: Coach's replay state of the previous one goes
-      setQuery({ carte: sel.race, run: null, c: null, t: null, leg: null, show: null, sel: null, m: null, from: null, vue: null, ex: null });
-      draw("analyse");
-    });
+    $("#vtp-anback", el).addEventListener("click", () => { closeAnalysis(); draw("analyse"); });
     const host = $(".vtp-coach", el);
     if (!race && raceId.startsWith("day-")) {
       host.innerHTML = html`<div class="boot"><div class="spinner"></div><p class="muted">${t("vt.an.dayMaking")}</p></div>`;
@@ -483,14 +542,18 @@ ${ci.kind === "training" ? html` · <span class="tag">${t("vt.res.trainingTag")}
     const [{ pixelAnalysis, drawRaceMap }, { useSource, openSourced }] = await Promise.all([import("./virtuallysrc.js"), import("./shared.js")]);
     const mine = runs.filter((r) => r.race === race.id && (!race.gen || r.event === race.sig));
     const src = pixelAnalysis({ race, runs: mine, pick: pinned?.id, canSee, mapOf: drawRaceMap, title: mapName(race.id), courseName });
+    await src.ready();                                                // only the runs that completed their circuit
     // what is not shown: the circuits' older runners beyond 100, a competition's others before its end
     const courses = race.race.courses || [], capped = courses.some((c) => src.counts(c.id).total > 101);
     const hidden = mine.filter((r) => !r.mine && !canSee(r)).length;
     $("#vtp-annote", el).textContent = [capped ? t("vt.an.cappedAll", { n: 100 }) : "", hidden ? tn("vt.an.compHidden", hidden) : ""].filter(Boolean).join(" ");
+    const shownOf = (c) => !!c && src.counts(c.id).list.length > 0;
+    if (!courses.some(shownOf)) { host.innerHTML = html`<div class="card"><div class="empty">${t("vt.an.noneDone")}</div></div>`; return null; }
     const forget = useSource(src);
-    // the circuit: the run's, else the one in the address, else the first one run; one's own runner chosen
+    // the circuit: the run's, else the one in the address, else the first one with a run shown; one's own runner chosen
     const q = Object.fromEntries(new URLSearchParams(location.hash.split("?")[1] || ""));
-    const courseN = pinned ? src.circuitN(pinned.course) : q.c != null ? Number(q.c) : Math.max(0, courses.findIndex((c) => mine.some((r) => r.course === c.id)));
+    const courseN = pinned && shownOf(courses[src.circuitN(pinned.course)]) ? src.circuitN(pinned.course)
+      : q.c != null ? Number(q.c) : Math.max(0, courses.findIndex(shownOf));
     const res = await openSourced(host, src.id, { ...q, c: String(courseN), ...(q.sel || !src.myUid() ? {} : { sel: String(src.myUid()) }) });
     return () => { res?.cleanup?.(); forget(); };
   }

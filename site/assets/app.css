@@ -4475,6 +4475,7 @@ html.vt-fs-on, html.vt-fs-on body { overflow: hidden; }
   font: 600 11px/1 Georgia, serif; font-style: italic; padding: 0; cursor: help; display: inline-flex; align-items: center; justify-content: center; }
 .vtp-info:hover, .vtp-info[aria-expanded="true"] { color: var(--ink); }
 .vtp-anpick { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin: 4px 0 10px; }
+.vtp-anrow { cursor: pointer; }
 .vtp-anpick select { margin-left: 6px; }
 .vtp-gh-what { flex: 0 0 100%; order: 9; margin: 0; font-size: 0.85rem; }
 .vt-gh-brief { margin: 4px 0 8px; font-size: 0.9rem; opacity: 0.9; }

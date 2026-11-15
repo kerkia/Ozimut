@@ -232,6 +232,7 @@ export async function onRequestPost(ctx) {
       at, h: b?.help ? "1" : "0", d: Number.isFinite(d) ? String(Math.round(d)) : "0", s: seed > 0 && seed < 20000 ? String(Math.round(seed)) : "", k: kind, e: ev.id };
     const mo = moCode(cleanMapOpt(ev.mapOpt, ev));         // the event's own options, whatever the page sent
     if (mo) meta.mo = mo;
+    if (/^[0-9a-z]{1,8}$/.test(String(b?.cs || ""))) meta.cs = String(b.cs);   // the signature of the course run (pages/virtuallysrc.js courseSig)
     await env.BUCKET.put(`${RUNS}${ev.id}/${course}/${id}.json`, JSON.stringify({ route }), { httpMetadata: { contentType: "application/json" }, customMetadata: meta });
     return json({ id, at, kind });
   }

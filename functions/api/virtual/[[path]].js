@@ -6,14 +6,14 @@
 //   GET  <race>/<file>                 a map's package (made offline by tools/virtually: race.json — its courses —, h.png,
 //                                      cls.png, veg.png, ground.jpg, feats.json, trees.bin when LiDAR, map.ocd, thumb.webp; a town's town.json, town.bin, surf.png and facades.webp, tools/virtually/town_3d.py; town.bin.gz and map.ocd.gz the same
 //                                      gzipped, tools/virtually/pkggz.py, which games/vworld.js inflates)
-//   GET  runs?race=<id>                every finished run of that map: [{ id, race, u, name, course, t, sp, d, at, help, seed, mo, mine }]
+//   GET  runs?race=<id>                every finished run of that map: [{ id, race, u, name, course, t, sp, d, at, help, seed, mo, cs, mine }]
 //   GET  runs?race=day                 every « Carte du jour »'s runs, all days (the analysis of an invented forest's run)
 //   GET  runs/<race>/routes?ids=a,b,…  the routes of up to 101 runs of a map at once, { <id>: { route } } — the ones this account
 //                                      may read, as below (Pixel › Analyse, Coach's analysis of a map's runs: owner, 2026-11-14)
 //   GET  runs/<race>/<run>             one run with its route (the analysis, the ghosts): one's own, any to an administrator, any
 //                                      training run to every account (owner, 2026-11-12: the ghosts; 2026-11-14: « every training
 //                                      open to solo and multi analysis »), a competition's once its event's last day is past
-//   POST runs { race, course, kind, event, t, sp, d, help, seed, mo, route }   a run just finished, kept under the account's name;
+//   POST runs { race, course, kind, event, t, sp, d, help, seed, mo, cs, route }   a run just finished, kept under the account's name;
 //                                      kind "training" (played as often as one likes; a map's own courses) or "competition"
 //                                      (owner, 2026-11-11: played once — a second run of one event and course is refused, 409;
 //                                      only competitions make the virtual index and the ranking), event its event's id
@@ -62,12 +62,13 @@ async function listAll(env, prefix, opts = {}) {
 
 /** A run's map options as games/vmapopt.js writes them (« nopaths+mem »), anything else left out; "" the whole map. */
 const LAYERS = ["nopaths", "noveg", "relief", "contours"];
+const CS = /^[0-9a-z]{1,8}$/;
 const cleanMo = (s) => { const p = String(s || "").split("+"); return [p.find((x) => LAYERS.includes(x)), p.includes("mem") ? "mem" : ""].filter(Boolean).join("+"); };
 const summary = (o, me) => {
   const m = o.customMetadata || {}, parts = o.key.slice(RUNS.length).split("/");
   return { id: parts[2].replace(/\.json$/, ""), race: parts[0], course: parts[1], u: m.u, name: m.n || "", t: Number(m.t), d: Number(m.d) || 0,
     sp: String(m.sp || "").split(",").filter(Boolean).map(Number), at: m.at || "", help: m.h === "1", seed: Number(m.s) || null,
-    kind: m.k === "competition" ? "competition" : "training", event: m.e || "", mo: m.mo || "", mine: m.u === me };
+    kind: m.k === "competition" ? "competition" : "training", event: m.e || "", mo: m.mo || "", cs: m.cs || "", mine: m.u === me };
 };
 
 export const onRequestGet = withUser(async ({ request, env, params }, user) => {
@@ -167,6 +168,7 @@ export const onRequestPost = withUser(async ({ request, env, params }, user) => 
   const meta = { u, n: String(user.display_name || "").slice(0, 80), t: String(Math.round(t * 10) / 10), sp: sp.map((x) => Math.round(x * 10) / 10).join(","),
     at, h: b?.help ? "1" : "0", d: Number.isFinite(d) ? String(Math.round(d)) : "0", s: seed > 0 && seed < 20000 ? String(Math.round(seed)) : "", k: kind, e: event };
   if (cleanMo(b?.mo)) meta.mo = cleanMo(b.mo);           // the map options the runner chose (games/vmapopt.js)
+  if (CS.test(String(b?.cs || ""))) meta.cs = String(b.cs);   // the signature of the course run (pages/virtuallysrc.js courseSig)
   await env.BUCKET.put(`${RUNS}${race}/${course}/${id}.json`, JSON.stringify({ route }),
     { httpMetadata: { contentType: "application/json" }, customMetadata: meta });
   return json({ id, at });
