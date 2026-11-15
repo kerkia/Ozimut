@@ -82,7 +82,7 @@ export async function render(main, { query }) {
   const ix = index(file);
   const short = (c) => file.clubs[c]?.[0] || c;
   const full = (c) => file.clubs[c]?.[1] || "";
-  const years = [...new Set(Object.values(file.rows).flatMap((ys) => Object.keys(ys)))].map(Number).sort((a, b) => a - b);
+  const years = [...new Set(Object.entries(file.rows).filter(([c]) => !c.startsWith("rc")).flatMap(([, ys]) => Object.keys(ys)))].map(Number).sort((a, b) => a - b);
   const allYears = [];
   for (let y = years[0]; y <= years[years.length - 1]; y++) allYears.push(y);
   const myClub = auth.myClub();
@@ -93,7 +93,9 @@ export async function render(main, { query }) {
     html`<span><i style="background:${s.color}"></i>${s.name}</span>`)}</div>`;
   const medal = (p) => (p && p <= 3 ? html`<span class="rh-med rh-med-${p}" aria-hidden="true"></span>` : "");
 
+  const hasRc = Object.keys(file.rows).some((c) => c.startsWith("rc"));
   const TABS = [...(rel?.rows ? [["palmares", t("rh.tab.palmares")], ["annee", t("rh.tab.year")], ["editions", t("rh.tab.editions")], ["club", t("rh.tab.club")]] : []),
+    ...(hasRc ? [["rcat", t("rh.tab.rcat")]] : []),
     ...(champs?.editions ? [["champ", t("rh.tab.champ")], ["ceds", t("rh.tab.ceds")], ["crank", t("rh.tab.crank")]] : [])];
   const tab0 = tabFrom(TABS, query);
   const f = {
@@ -110,6 +112,9 @@ export async function render(main, { query }) {
     cd: DISCS.includes(query.cd) ? query.cd : "all", cf: FMTS.includes(query.cf) ? query.cf : "all", cg: CGROUPS[query.cg] ? query.cg : "all", cs: ["H", "D"].includes(query.cs) ? query.cs : "",
     cw: query.cw === "clubs" ? "clubs" : "runners", cde: Number(query.cde) || null, ca: Number(query.ca) || null,
     cc: CHAMPS.includes(query.cc) ? query.cc : "fmd", rc: CHAMPS.includes(query.rc) ? query.rc : "fmd", ry: Number(query.ry) || null, rk: query.rk || null,
+    // the relay championship by category's tab
+    qv: ["rank", "eds"].includes(query.qv) ? query.qv : "palm", qg: query.qg || "all", qs: ["H", "D"].includes(query.qs) ? query.qs : "",
+    qde: Number(query.qde) || null, qa: Number(query.qa) || null, qb: query.qb === "med" ? "med" : "pts", qy: Number(query.qy) || null, qk: query.qk || null,
   };
   const sync = () => replaceQuery({
     cat: f.group === "cfc1" ? null : f.group, de: f.from === years[0] ? null : f.from, a: f.to === years[years.length - 1] ? null : f.to,
@@ -117,6 +122,9 @@ export async function render(main, { query }) {
     club: f.club, ecomp: f.ecomp === "cfc" ? null : f.ecomp,
     cd: f.cd === "all" ? null : f.cd, cf: f.cf === "all" ? null : f.cf, cg: f.cg === "all" ? null : f.cg, cs: f.cs || null, cw: f.cw === "runners" ? null : f.cw,
     cde: f.cde && f.cde !== chYears[0] ? f.cde : null, ca: f.ca && f.ca !== chYears[chYears.length - 1] ? f.ca : null, cc: f.cc === "fmd" ? null : f.cc, rc: f.rc === "fmd" ? null : f.rc, ry: f.ry, rk: f.rk,
+    qv: f.qv === "palm" ? null : f.qv, qg: f.qg === "all" ? null : f.qg, qs: f.qs || null, qb: f.qb === "pts" ? null : f.qb,
+    qde: f.qde && f.qde !== rcYears[0] ? f.qde : null, qa: f.qa && f.qa !== rcYears[rcYears.length - 1] ? f.qa : null,
+    qy: f.qv === "rank" ? f.qy : null, qk: f.qv === "rank" ? f.qk : null,
   });
 
   main.innerHTML = html`
@@ -126,6 +134,7 @@ export async function render(main, { query }) {
     <div data-panel="annee"></div>
     <div data-panel="club"></div>
     <div data-panel="editions"></div>
+    <div data-panel="rcat"></div>
     <div data-panel="champ"></div>
     <div data-panel="ceds"></div>
     <div data-panel="crank"></div>
@@ -397,6 +406,160 @@ export async function render(main, { query }) {
     });
   };
 
+
+  // ---- Relais par catégorie ------------------------------------------------------------------------------------------
+  // the Championnat de France de Relais par catégorie (owner, 2026-11-15): one relay a category, each team of one club. Its own
+  // tab, three views: the clubs' palmarès over a period (points or medals; a category, a group of them, a sex), one edition's
+  // ranking of a category, the editions.
+  const RC = Object.keys(file.rows).filter((c) => c.startsWith("rc"));
+  const rcCat = (c) => fmtCat(c.slice(2));
+  const rcSex = (c) => c[2], rcAge = (c) => ageOf(c);
+  RC.sort((a, b) => rcSex(b).localeCompare(rcSex(a)) || rcAge(a) - rcAge(b));
+  const rcYears = [...new Set(RC.flatMap((c) => Object.keys(file.rows[c])))].map(Number).sort((a, b) => a - b);
+  const RCG = { all: () => true, elite: (c) => rcAge(c) === 21, young: (c) => rcAge(c) <= 20, vet: (c) => rcAge(c) >= 35 };
+  const rcIn = (g) => (RCG[g] ? RC.filter(RCG[g]) : RC.filter((c) => c === g));
+  const clubSpan = (c) => html`<span title="${full(c)}">${short(c)}</span>`;
+  draw.rcat = () => {
+    const el = $('[data-panel="rcat"]', main);
+    if (!rcYears.includes(f.qde)) f.qde = rcYears[0];
+    if (!rcYears.includes(f.qa)) f.qa = rcYears[rcYears.length - 1];
+    if (!RCG[f.qg] && !RC.includes(f.qg)) f.qg = "all";
+    const yearOpts = (ys, v) => ys.map((y) => html`<option value="${y}" ${raw(y === v ? "selected" : "")}>${y}</option>`);
+    const views = html`<div class="field"><span>${t("rhrc.f.view")}</span>${seg("rcv", [["palm", t("rhrc.v.palm")], ["rank", t("rhrc.v.rank")], ["eds", t("rhrc.v.eds")]], f.qv)}</div>`;
+    const num = (v) => (v ? fmt(v) : html`<span class="dim">·</span>`);
+    if (f.qv === "palm") {
+      sync();
+      const cats = rcIn(f.qg).filter((c) => !f.qs || rcSex(c) === f.qs);
+      const rows = standings(cats, f.qde, f.qa);
+      const medalSort = (r) => r.gold * 1e6 + r.silver * 1e3 + r.bronze + r.pts / 1e6;
+      rows.sort((a, b) => (f.qb === "med" ? medalSort(b) - medalSort(a) : b.pts - a.pts));
+      rows.forEach((r, i) => {
+        r.rank = i + 1;
+        r.won = cats.filter((c) => Object.entries(ix[c] || {}).some(([y, ed]) => Number(y) >= f.qde && Number(y) <= f.qa && ed.clubs.get(r.club)?.cplace === 1));
+      });
+      const champs = rows.filter((r) => r.gold).sort((a, b) => b.gold - a.gold);
+      const nEds = rcYears.filter((y) => y >= f.qde && y <= f.qa && cats.some((c) => file.rows[c][y])).length;
+      el.innerHTML = html`
+        <div class="filters">${views}
+          <label class="field"><span>${t("rh.f.cat")}</span><select id="rc-group">
+            ${Object.keys(RCG).map((g) => html`<option value="${g}" ${raw(g === f.qg ? "selected" : "")}>${t(`ch.grp.${g}`)}</option>`)}
+            <optgroup label="${t("rhrc.oneCat")}">${RC.map((c) => html`<option value="${c}" ${raw(c === f.qg ? "selected" : "")}>${rcCat(c)}</option>`)}</optgroup></select></label>
+          <div class="field"><span>${t("ch.f.sex")}</span>${seg("rcs", [["", t("ch.sex.all")], ["H", t("ch.sex.H")], ["D", t("ch.sex.D")]], f.qs)}</div>
+          <label class="field"><span>${t("rh.f.from")}</span><select id="rc-from">${yearOpts(rcYears, f.qde)}</select></label>
+          <label class="field"><span>${t("rh.f.to")}</span><select id="rc-to">${yearOpts(rcYears, f.qa)}</select></label>
+          <div class="field"><span>${t("rh.f.scale")}</span>${seg("rcb", [["pts", t("rh.scale.pts")], ["med", t("rh.scale.med")]], f.qb)}</div>
+        </div>
+        <div class="tiles" style="margin-bottom:16px">
+          ${tile(t("rh.tile.editions"), fmt(nEds))}
+          ${tile(t("rh.tile.champions"), fmt(champs.length))}
+          ${champs[0] ? tile(t("rh.tile.most"), short(champs[0].club), tn("rh.titles", champs[0].gold)) : ""}
+        </div>
+        <section class="card">
+          <div class="card-head"><div><h2>${t("rhrc.palm.title", { a: f.qde, b: f.qa })}</h2>
+            <div class="hint">${f.qb === "med" ? t("rh.palm.hint.med") : t("rh.palm.hint.pts")} ${t("rhrc.palm.hint")}</div></div></div>
+          <div id="rc-list"></div>
+        </section>`;
+      dataTable($("#rc-list", el), {
+        rows, sortKey: "rank", sortDir: 1,
+        rowClass: (r) => (myClub && r.club === myClub ? "me" : ""),
+        columns: [
+          { key: "rank", label: t("rh.col.rank"), cls: "rank num", sort: (r) => r.rank, defaultDir: 1 },
+          { key: "club", label: t("rh.col.club"), sort: (r) => short(r.club).toLowerCase(), defaultDir: 1, render: (r) => clubSpan(r.club) },
+          { key: "pts", label: t("rh.col.pts"), align: "r", cls: "num", sort: (r) => r.pts, render: (r) => html`<b>${fmt(r.pts)}</b>` },
+          { key: "gold", label: html`${medal(1)}<span class="sr-only">${t("rh.col.gold")}</span>`, align: "r", cls: "num", sort: (r) => r.gold, render: (r) => num(r.gold) },
+          { key: "silver", label: html`${medal(2)}<span class="sr-only">${t("rh.col.silver")}</span>`, align: "r", cls: "num", sort: (r) => r.silver, render: (r) => num(r.silver) },
+          { key: "bronze", label: html`${medal(3)}<span class="sr-only">${t("rh.col.bronze")}</span>`, align: "r", cls: "num", sort: (r) => r.bronze, render: (r) => num(r.bronze) },
+          { key: "top10", label: t("rh.col.top10"), align: "r", cls: "num", sort: (r) => r.top10, render: (r) => num(r.top10) },
+          { key: "starts", label: html`<span title="${t("rh.col.starts.tip")}">${t("rh.col.starts")}</span>`, align: "r", cls: "num", sort: (r) => r.starts },
+          { key: "best", label: t("rh.col.best"), align: "r", cls: "num", sort: (r) => -r.best, render: (r) => html`${medal(r.best)}${ord(r.best)}` },
+          { key: "won", label: t("rhrc.col.titles"), sort: (r) => r.won.length, render: (r) => r.won.map(rcCat).join(", ") },
+        ],
+      });
+      $("#rc-group", el).addEventListener("change", (e) => { f.qg = e.target.value; draw.rcat(); });
+      $$('[data-seg="rcs"]', el).forEach((b) => b.addEventListener("click", () => { f.qs = b.dataset.value; draw.rcat(); }));
+      $$('[data-seg="rcb"]', el).forEach((b) => b.addEventListener("click", () => { f.qb = b.dataset.value; draw.rcat(); }));
+      $("#rc-from", el).addEventListener("change", (e) => { f.qde = Math.min(Number(e.target.value), f.qa); draw.rcat(); });
+      $("#rc-to", el).addEventListener("change", (e) => { f.qa = Math.max(Number(e.target.value), f.qde); draw.rcat(); });
+    } else if (f.qv === "rank") {
+      const yrs = [...rcYears].reverse();
+      if (!yrs.includes(f.qy)) f.qy = yrs[0];
+      const cats = RC.filter((c) => file.rows[c][f.qy]);
+      if (!cats.includes(f.qk)) f.qk = cats.includes("rcH21") ? "rcH21" : cats[0];
+      sync();
+      const ed = ix[f.qk][f.qy];
+      const info = file.editions.rc?.[f.qy] || {};
+      const win = secs(ed.rows.find((r) => r.place === 1)?.time);
+      el.innerHTML = html`
+        <div class="filters">${views}
+          <label class="field"><span>${t("rh.f.year")}</span><select id="rc-year">${yearOpts(yrs, f.qy)}</select></label>
+          <label class="field"><span>${t("rh.f.cat")}</span><select id="rc-cat">
+            ${cats.map((c) => html`<option value="${c}" ${raw(c === f.qk ? "selected" : "")}>${rcCat(c)} (${ix[c][f.qy].rows.length})</option>`)}</select></label>
+        </div>
+        <section class="card">
+          <div class="card-head"><div><h2>${t("rh.comp.rc")} ${f.qy} · ${rcCat(f.qk)}</h2>
+            <div class="hint">${info.at ? html`${t("rh.at", { at: info.at, dep: info.dep })} · ` : ""}${tn("rh.teams", ed.rows.length)}
+              ${info.st && info.st !== "full" ? html` · <b>${t(`rh.st.${info.st}`)}</b>` : ""}</div></div></div>
+          <div id="rc-list"></div>
+        </section>`;
+      const rows = ed.rows.map((r, i) => ({ ...r, i, gap: win && secs(r.time) != null && r.place ? secs(r.time) - win : null }));
+      dataTable($("#rc-list", el), {
+        rows, sortKey: "i", sortDir: 1,
+        rowClass: (r) => (myClub && r.club === myClub ? "me" : ""),
+        columns: [
+          { key: "i", label: t("rh.col.place"), cls: "rank num", sort: (r) => r.i, defaultDir: 1,
+            render: (r) => (r.place ? html`${medal(r.place)}${r.place}` : html`<span class="dim">${t(`rh.status.${r.st || "nc"}`)}</span>`) },
+          { key: "team", label: t("rh.col.team"), sort: (r) => r.team.toLowerCase(), defaultDir: 1 },
+          { key: "club", label: t("rh.col.club"), sort: (r) => short(r.club).toLowerCase(), defaultDir: 1,
+            render: (r) => (r.club ? clubSpan(r.club) : html`<span class="dim">${t("rh.noClub")}</span>`) },
+          { key: "time", label: t("rh.col.time"), align: "r", cls: "num", sort: (r) => secs(r.time) ?? 1e9, defaultDir: 1, render: (r) => r.time || "" },
+          { key: "gap", label: t("rh.col.gap"), align: "r", cls: "num dim", sort: (r) => r.gap ?? 1e9, defaultDir: 1, render: (r) => (r.gap ? `+${clock(r.gap)}` : "") },
+          { key: "cplace", label: html`<span title="${t("rh.col.cplace.tip")}">${t("rh.col.cplace")}</span>`, align: "r", cls: "num",
+            sort: (r) => r.cplace ?? 1e9, defaultDir: 1, render: (r) => r.cplace || "" },
+          { key: "pts", label: t("rh.col.pts"), align: "r", cls: "num", sort: (r) => pointsOf(r.cplace),
+            render: (r) => (r.cplace && pointsOf(r.cplace) ? fmt(pointsOf(r.cplace)) : "") },
+        ],
+      });
+      $("#rc-year", el).addEventListener("change", (e) => { f.qy = Number(e.target.value); draw.rcat(); });
+      $("#rc-cat", el).addEventListener("change", (e) => { f.qk = e.target.value; draw.rcat(); });
+    } else {
+      sync();
+      const known = file.editions.rc || {};
+      const eds = Object.entries(known).map(([y, e]) => ({ y: Number(y), ...e }))
+        .concat(rcYears.filter((y) => !known[y]).map((y) => ({ y, st: "full" }))).sort((a, b) => b.y - a.y);
+      const winner = (c, y) => {
+        const w = [...(ix[c]?.[y]?.clubs.values() || [])].find((r) => r.cplace === 1);
+        return w ? clubSpan(w.club) : html`<span class="dim">—</span>`;
+      };
+      const teams = (y) => RC.reduce((n, c) => n + (ix[c]?.[y]?.rows.length || 0), 0);
+      const ncat = (y) => RC.filter((c) => ix[c]?.[y]).length;
+      el.innerHTML = html`
+        <div class="filters">${views}</div>
+        <section class="card">
+          <div class="card-head"><div><h2>${t("rh.comp.rc")}</h2><div class="hint">${t("rh.ed.hint.rc")}</div></div></div>
+          <div id="rc-list"></div>
+        </section>`;
+      dataTable($("#rc-list", el), {
+        rows: eds, sortKey: "y", sortDir: -1,
+        columns: [
+          { key: "y", label: t("rh.col.year"), cls: "num", sort: (r) => r.y,
+            render: (r) => (ncat(r.y) ? html`<a href="#" data-rc-year="${r.y}">${r.y}</a>` : String(r.y)) },
+          { key: "at", label: t("rh.col.at"), sort: (r) => r.at || "", render: (r) => (r.at ? `${r.at}${r.dep ? ` (${r.dep})` : ""}` : "") },
+          { key: "st", label: t("rh.col.archive"), sort: (r) => r.st, render: (r) => (r.st === "full" ? t("rh.st.full")
+            : html`<span class="${r.st === "cancelled" ? "dim" : ""}">${t(`rh.st.${r.st}`)}</span>`) },
+          { key: "ncat", label: t("rhrc.col.cats"), align: "r", cls: "num", sort: (r) => ncat(r.y), render: (r) => (ncat(r.y) ? fmt(ncat(r.y)) : "") },
+          { key: "teams", label: t("rh.col.teams"), align: "r", cls: "num dim", sort: (r) => teams(r.y), render: (r) => (teams(r.y) ? fmt(teams(r.y)) : "") },
+          ...["rcH21", "rcD21"].filter((c) => RC.includes(c)).map((c) => ({ key: c, label: rcCat(c),
+            sort: (r) => short([...(ix[c]?.[r.y]?.clubs.keys() || [])][0] || "~"), render: (r) => winner(c, r.y) })),
+        ],
+      });
+      $$("a[data-rc-year]", el).forEach((a) => a.addEventListener("click", (e) => {
+        e.preventDefault();
+        f.qv = "rank"; f.qy = Number(a.dataset.rcYear); f.qk = null;
+        draw.rcat();
+      }));
+    }
+    $$('[data-seg="rcv"]', el).forEach((b) => b.addEventListener("click", () => { f.qv = b.dataset.value; draw.rcat(); }));
+  };
 
   // ---- The individual championships ----------------------------------------------------------------------------------
   const chName = (c) => `${t(`ch.disc.${c[0]}`)} · ${t(`ch.fmt.${c.slice(1)}`)}`;

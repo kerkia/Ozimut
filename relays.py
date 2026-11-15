@@ -1,6 +1,7 @@
 """The national relays' history (« Relais nationaux », menu « Classement »; owner, 2026-10-26): the Championnat de France des
 Clubs (CFC, since 1999) and the Critérium National des Équipes (CNE, since 2006), every team of every edition found in the
-archives, each tied to its club, for the page `site/assets/js/pages/relayhistory.js`.
+archives, each tied to its club, for the page `site/assets/js/pages/relayhistory.js`; since 2026-11-05 the sprint relay
+championship (crs.csv), since 2026-11-15 the relay championship by category (rc.csv, 2003 on).
 
 The rankings were gathered by hand on 2026-10-26 from the archives (LIFCO, FFCO's former site archives.ffcorientation.fr,
 CO Mulhouse's former site, the organisers' own files, O'Live): two CSV files, kept out of the public repository like every
@@ -27,7 +28,7 @@ import paths
 
 SRC = paths.DATA_DIR / "relays"
 NAMES = paths.CACHE / "reference_names.json"       # FFCO's club list (build_site.reference_names)
-VERSION = 2   # 2026-11-05: the sprint relay championship (crs)
+VERSION = 3   # 2026-11-05: the sprint relay championship (crs); 2026-11-15: the relay championship by category (rc*)
 
 # the categories of the page: CFC's four divisions (D1-D4 2000-2006, N1/N2/Promotion Nationale/Promotion 2007-2009,
 # N1-N4 since 2010) and its youth relay, the Trophée Thierry Gueorgiou (since 2008); CNE's four relays. The open
@@ -38,6 +39,10 @@ CNE_CAT = {"Hommes": "cneH", "Dames": "cneD", "Jeunes": "cneJ", "Mini-relais": "
 # the Championnat de France de Relais Sprint (CFRS, since 2017; owner, 2026-11-05): one mixed relay of four, a woman's leg first
 # and last; gathered on 2026-11-05 from FFCO's archive (archives.ffcorientation.fr, each edition's « Résultats complets »): crs.csv
 CRS_CAT = {"Mixte": "crs"}
+# the Championnat de France de Relais par catégorie (owner, 2026-11-15): one relay a category (H/D 21, 35, 45…, the juniors'), each
+# team of two or three runners of one club; gathered on 2026-11-15 from the archives into rc.csv (`category` "H21", "D35"…): one
+# key a category, « rcH21 »
+RC_CAT = re.compile(r"[HD]\d{1,2}")
 STATUS = {"ok": "", "pm": "pm", "abandon": "ab", "aband": "ab", "absent": "abs", "disq": "dsq", "nc": "nc",
           "hors délai": "hd", "temps max": "hd"}
 
@@ -72,6 +77,20 @@ EDITIONS = {
         2020: ("", "", "cancelled"), 2021: ("Corrèze", "19", "full"), 2022: ("Argentat", "19", "full"),
         2023: ("Oyonnax-Bellignat", "01", "full"), 2024: ("Saint-Maximin-la-Sainte-Baume", "83", "full"),
         2025: ("Lacanau", "33", "full"), 2026: ("Mulhouse", "68", "full"),
+    },
+    # the category relays (rc.csv): 2001 and 2003's complete lists are on the Wayback Machine (ffco.asso.fr), which refused the PC;
+    # 2002 and 2006 nowhere found; 2005 cancelled (weather); 2007's venue not found (the CF week in the Tarn, 81); 2012 with the CF MD
+    "rc": {
+        2001: ("", "", "none"), 2002: ("", "", "none"), 2003: ("Besançon", "25", "partial"),
+        2004: ("La Tremblade", "17", "full"), 2005: ("Saint-Genest-Malifaux", "42", "cancelled"),
+        2006: ("Boucq", "54", "none"), 2007: ("", "", "full"), 2008: ("Mûr-de-Bretagne", "22", "full"),
+        2009: ("Antheuil", "21", "full"), 2010: ("Saint-Pée-sur-Nivelle", "64", "full"), 2011: ("Viam", "19", "full"),
+        2012: ("Chaud Clapier (Vercors)", "26", "full"), 2013: ("Couchey", "21", "full"),
+        2014: ("Dévoluy (Superdévoluy)", "05", "full"), 2015: ("Chartrier-Ferrière", "19", "full"),
+        2016: ("Huelgoat", "29", "full"), 2017: ("Saint-Jean-de-Bœuf", "21", "full"), 2018: ("Lans-en-Vercors", "38", "full"),
+        2019: ("Aillons-Margériaz", "73", "full"), 2020: ("", "", "cancelled"), 2021: ("La Plagne", "73", "full"),
+        2022: ("Risoul", "05", "full"), 2023: ("Gréalou", "46", "full"), 2024: ("Chenecey-Buillon", "25", "full"),
+        2025: ("Bugeat", "19", "full"), 2026: ("Claudon", "88", "full"),
     },
 }
 # what is known of the editions without a file: the champion of CFC's first division, CNE 2015's podium places
@@ -229,13 +248,15 @@ def _team(name: str) -> str:
     return s.strip(" -") or name
 
 
-def compile_(cfc: list[dict], cne: list[dict], names: dict[str, str], crs: list[dict] | None = None) -> dict:
-    crs = crs or []
-    clubs = Clubs(cfc + cne + crs, names)
+def compile_(cfc: list[dict], cne: list[dict], names: dict[str, str], crs: list[dict] | None = None,
+             rc: list[dict] | None = None) -> dict:
+    crs, rc = crs or [], rc or []
+    clubs = Clubs(cfc + cne + crs + rc, names)
+    rc_cat = {r["category"]: "rc" + r["category"] for r in rc if RC_CAT.fullmatch(r["category"])}
     rows: dict[str, dict[str, list]] = defaultdict(lambda: defaultdict(list))
     divs: dict[int, dict[str, str]] = defaultdict(dict)        # CFC: the divisions' names of each year
     used = Counter()
-    for src, key, table in ((cfc, "division", CFC_DIV), (cne, "category", CNE_CAT), (crs, "category", CRS_CAT)):
+    for src, key, table in ((cfc, "division", CFC_DIV), (cne, "category", CNE_CAT), (crs, "category", CRS_CAT), (rc, "category", rc_cat)):
         for r in src:
             cat = table.get(r[key])
             st = STATUS.get(r["status"].strip().lower())
@@ -274,7 +295,8 @@ def build(fr_out: Path, src: Path = SRC) -> bool:
     if not (src / "cfc.csv").exists() or not (src / "cne.csv").exists():
         return False
     names = json.loads(NAMES.read_text(encoding="utf-8"))["clubs"] if NAMES.exists() else {}
-    out = compile_(_read(src / "cfc.csv"), _read(src / "cne.csv"), names, _read(src / "crs.csv") if (src / "crs.csv").exists() else [])
+    opt = lambda name: _read(src / name) if (src / name).exists() else []
+    out = compile_(_read(src / "cfc.csv"), _read(src / "cne.csv"), names, opt("crs.csv"), opt("rc.csv"))
     text = json.dumps(out, ensure_ascii=False, separators=(",", ":"))
     path = fr_out / "relays.json"
     if path.exists() and path.read_text(encoding="utf-8") == text:
