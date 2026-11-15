@@ -522,12 +522,13 @@ def site_docs(con, race, f: Fetcher, lr: LiveResultat, ws: WinSplits, hy: Heyrie
                     changed += save(con, race["key"], url, kind, d)
             elif kind == "helga" and "lauf=" not in url:
                 continue                      # Helga's home page or lists: no event named
-            elif kind in ("helga", "olive", "routegadget"):
+            elif kind in ("helga", "olive", "routegadget", "oresults"):
                 # (Livelox is left out: it shows only the runners who sent their GPS track, and it refuses robots)
-                if kind == "helga":
+                if kind in ("helga", "oresults"):
                     f.note(url, "refused")
                 changed += save(con, race["key"], url, kind, None, kind="platform",
                                 note={"helga": "Helga : pages de résultats fermées aux robots",
+                                      "oresults": "OResults : résultats protégés contre les robots",
                                       "olive": "O'Live : résultats en direct", "routegadget": "RouteGadget"}[kind])
     return changed
 

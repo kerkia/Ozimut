@@ -63,7 +63,10 @@ FILE_HOSTS = ("res.cloudinary.com", "dl.dropboxusercontent.com", "www.dropbox.co
               "docs.google.com", "drive.google.com")
 PLATFORMS = {"liveresultat.orientering.se": "liveresultat", "obasen.orientering.se": "winsplits", "livelox.com": "livelox",
              "helga-o.com": "helga", "helga-o.live": "helga", "co-live.fr": "olive", "routegadget": "routegadget", "heyries.alwaysdata.net": "heyries",
-             "oreplay.es": "oreplay", "center.sportident.com": "sportident", "si.events": "sportident"}
+             "oreplay.es": "oreplay", "center.sportident.com": "sportident", "si.events": "sportident",
+             # OResults (2026-11-15, Balise 77's Larchant): its results pages ask a proof-of-work token of every reader
+             # (« results_viewer ») — a screen against robots, never worked around: noted, as Helga's
+             "oresults.eu": "oresults"}
 MEOSDJANGO_PATH = re.compile(r"^/competition/\d+(?:/|$)")
 
 
