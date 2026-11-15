@@ -243,7 +243,7 @@ def _parse(content: bytes, url: str) -> dict | None:
     classes = [c for c in (_check_class(c) for c in d["classes"]) if c]
     if not any(r["time_s"] is not None for c in classes for r in c["runners"]):
         return None
-    return model.doc(kind, classes, by=d["by"], title=d.get("title"), date=d.get("date"))
+    return model.doc(kind, classes, by=d["by"], title=d.get("title"), date=d.get("date"), printed=d.get("printed"))
 
 
 def _timed(d: dict) -> int:
@@ -332,11 +332,13 @@ def _meos_coded_split(text: str) -> list[tuple[str, float | None]] | None:
 
 
 def _parse_meos(pages: list[list[Line]], meta: dict) -> dict | None:
-    title, date, lines = None, None, []
+    title, date, printed, lines = None, None, None, []
     for lines_p in pages:
         for i, l in enumerate(lines_p):
             t = l.text
             if i == 0 and re.match(r"MeOS\b", t):                     # page banner: program, print time, class
+                m = re.match(r"MeOS\s+(\d{4}-\d{2}-\d{2})\b", t)
+                printed = printed or (m and m.group(1))
                 continue
             m = re.match(r"^R[ée]sultats?\b.*?[–-]\s*(.+)$", t)
             if m and i < 4 and not any(_PLACE_MEOS.match(w.text) for w in l.words):
@@ -407,7 +409,7 @@ def _parse_meos(pages: list[list[Line]], meta: dict) -> dict | None:
         if by == "circuit" and not by_cat_col:
             for r in c["runners"]:
                 r["category"] = None             # the class is a course, its name is not a category
-    return {"by": by, "title": title, "date": date, "classes": classes}
+    return {"by": by, "title": title, "date": date, "printed": printed, "classes": classes}
 
 
 def _by_names(classes: list[dict]) -> str:

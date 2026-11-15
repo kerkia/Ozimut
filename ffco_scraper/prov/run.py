@@ -203,7 +203,16 @@ def date_ok(parsed: dict | None, race) -> bool:
         gap = (date.fromisoformat(d) - date.fromisoformat(race["date_iso"])).days
     except ValueError:
         return True
-    return 0 <= gap <= 2
+    if 0 <= gap <= 2:
+        return True
+    # the competition's date mistyped in the timing software (Morbihan O'Tour, 15/11/2026: MeOS's competition dated
+    # « 2026-11-05 », its list printed on the 15th): a date of the month before the race on a list printed on the race's
+    # day or up to 2 days after is the race's
+    try:
+        printed = (date.fromisoformat(parsed["printed"]) - date.fromisoformat(race["date_iso"])).days
+    except (KeyError, TypeError, ValueError):
+        return False
+    return -31 <= gap < 0 and 0 <= printed <= 2
 
 
 WEEKDAYS = ("lundi", "mardi", "mercredi", "jeudi", "vendredi", "samedi", "dimanche")

@@ -143,8 +143,13 @@ def klass(name: str, runners: list[dict] | None = None, **kw) -> dict:
     return c
 
 
-def doc(kind: str, classes: list[dict], by: str = "unknown", title: str | None = None, date: str | None = None) -> dict:
-    return {"kind": kind, "by": by, "title": title, "date": date, "classes": [c for c in classes if c["runners"]]}
+def doc(kind: str, classes: list[dict], by: str = "unknown", title: str | None = None, date: str | None = None,
+        printed: str | None = None) -> dict:
+    """printed: the day the list was printed or exported (MeOS's page banner), when the file gives it."""
+    d = {"kind": kind, "by": by, "title": title, "date": date, "classes": [c for c in classes if c["runners"]]}
+    if printed:
+        d["printed"] = printed
+    return d
 
 
 def live_state(out: int, nxt: float | None, last: float | None, state: str | None = None) -> dict | None:
