@@ -524,11 +524,11 @@ def site_docs(con, race, f: Fetcher, lr: LiveResultat, ws: WinSplits, hy: Heyrie
                 continue                      # Helga's home page or lists: no event named
             elif kind in ("helga", "olive", "routegadget", "oresults"):
                 # (Livelox is left out: it shows only the runners who sent their GPS track, and it refuses robots)
-                if kind in ("helga", "oresults"):
+                if kind == "helga":
                     f.note(url, "refused")
                 changed += save(con, race["key"], url, kind, None, kind="platform",
                                 note={"helga": "Helga : pages de résultats fermées aux robots",
-                                      "oresults": "OResults : résultats protégés contre les robots",
+                                      "oresults": "OResults : résultats non lus (pas encore de lecteur)",
                                       "olive": "O'Live : résultats en direct", "routegadget": "RouteGadget"}[kind])
     return changed
 
@@ -1375,6 +1375,8 @@ def run(db: Path, out: Path, agenda: Path | None = None, days: int = KEEP_DAYS -
     t0 = time.monotonic()
     today = today or date.today()
     con = store.connect(db)
+    # (OResults was put on the owner's list of sites refusing robots by mistake for a run on 2026-11-15: it refuses nothing)
+    con.execute("DELETE FROM prov_blocked WHERE host = 'oresults.eu'")
     # catching up (the first runs: the WinSplits backlog, races never looked at): a larger budget until done
     if WinSplits(None, con).catching_up() or con.execute("SELECT COUNT(*) FROM prov_races WHERE last_check IS NULL").fetchone()[0] > 10:
         budget_s *= CATCH_UP
