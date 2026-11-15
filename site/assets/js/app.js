@@ -525,8 +525,16 @@ function fitNav() {
   const inner = $(".topbar-inner"), nav = $("#nav");
   if (!inner || !nav) return;
   inner.classList.remove("nav-fold");
+  // a page's own tabs (a race's results and analysis) sit in the bar while they fit, else back in the page under its name:
+  // folded behind the menu button, the split times' analysis was nowhere in sight (owner, 2026-11-15, Quiberon at 1 200 px)
+  if (barTabs?.home.isConnected) {
+    if (!nav.contains(barTabs.el)) nav.append(barTabs.el);
+    if (nav.scrollWidth > nav.clientWidth + 2) barTabs.home.after(barTabs.el);
+  }
   if (nav.scrollWidth > nav.clientWidth + 2) inner.classList.add("nav-fold");
 }
+// the page's [data-bar-tabs] lent to the bar, and the mark where it came from in the page (placeBarTabs)
+let barTabs = null;
 function renderHeader(r) {
   const { route } = r;
   const me = auth.session(), visitor = me || auth.guest();
@@ -745,9 +753,15 @@ document.addEventListener("change", (e) => { if (e.target.id === "method-pick") 
  *  [data-bar-tabs] element moves into the bar, where it keeps its own id and handlers — on a computer; on a phone, into the
  *  page's own menu (pageMenu). */
 function placeBarTabs(main, r) {
+  // (the page before's, lent again when the bar was drawn for this page while it still showed)
+  if (barTabs?.el.closest("#nav")) barTabs.el.remove();
+  barTabs = null;
   if (r.route !== "modtiles" && pageMenu(main, r)) return;
   const el = $("[data-bar-tabs]", main), nav = $("#nav");
   if (!el || !nav) return;
+  const home = document.createComment("bar-tabs");
+  el.before(home);
+  barTabs = { el, home };
   nav.append(el);
   $("#menu-btn")?.removeAttribute("hidden");
   fitNav();
