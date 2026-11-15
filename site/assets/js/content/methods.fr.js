@@ -1562,6 +1562,8 @@ export function build(X) {
             <li><span><b>Participation</b> : les grands chiffres saison par saison, pour tous, pour une ligue ou pour un club, dans une spécialité ou dans
               toutes.</span></li>
             <li><span><b>Âges</b> : la répartition des coureurs entre les catégories d'âge, dames à gauche, hommes à droite, en part de l'ensemble choisi.</span></li>
+            <li><span><b>Les plus actifs</b> : les coureurs qui ont couru le plus de courses, sur toutes les saisons, la dernière ou celle en cours, avec le nombre de
+              chaque type (longue et moyenne distance, nuit, sprint, VTT, ski). PM et abandons comptent : le coureur a pris le départ.</span></li>
           </ul>
         </section>`,
       relais: () => html`

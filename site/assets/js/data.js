@@ -290,6 +290,9 @@ export const officialTable = () => getJson("official.json");
 export const ageCurves = () => getJson("agecurve.json");
 /** Per season: [[club, terrain, competitors, results]] (site_extras.pyramid). */
 export const participation = async () => (await getJson("participation.json"))?.seasons || {};
+/** The runners with the most races (site_extras.most_races): { types, periods: { all|<season>: { from, to, runners, results,
+ *  rows: [[licence, races, [count by type], category, club, seasons, first day, last day]] } } }. */
+export const mostRaces = () => getJson("mostraces.json");
 /** Head-to-head accuracy of each method, per terrain and season (site_extras.validation). */
 export const validation = () => getJson("validation.json");
 /** The sound evaluation of the methods: per circuit, out of sample, bootstrap intervals (site_eval.py). */

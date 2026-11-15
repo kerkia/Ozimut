@@ -10,9 +10,9 @@ import { link } from "../app.js";
 import { setLede } from "../ui.js";
 import * as data from "../data.js";
 
-const MODES = ["leaders", "territories", "stats", "ages"];
+const MODES = ["leaders", "territories", "stats", "ages", "most"];
 
-/** current: "ego" | "leaders" | "territories" | "stats" | "ages" — the page's tabs (ui.pageTabs' look). */
+/** current: "ego" | "leaders" | "territories" | "stats" | "ages" | "most" — the page's tabs (ui.pageTabs' look). */
 export const modeSwitch = (current) => html`<nav class="page-tabs" role="tablist" aria-label="${t("nw.mode")}">
   ${MODES.filter((m) => m !== "territories" || data.loadedCountry() === "FR").map((m) => html`<button type="button" role="tab" data-net-mode="${m}" aria-selected="${m === current}">${t(`nw.mode.${m}`)}</button>`)}</nav>`;
 
@@ -23,7 +23,7 @@ export const netHead = (current, title, lede) => { setLede(lede); return ""; };
 export function modeHref(m) {
   const sp = new URLSearchParams(location.hash.split("?")[1] || "").get("t");
   return m === "territories" ? link.territories({ t: sp }) : m === "stats" ? link.stats({ t: sp })
-    : m === "ages" ? link.ages({ t: sp }) : link.networkLeaders();
+    : m === "ages" ? link.ages({ t: sp }) : m === "most" ? link.mostRaces() : link.networkLeaders();
 }
 
 /** The tabs are bound once by the page (network.render); the views' own call does nothing. */

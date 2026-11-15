@@ -94,7 +94,8 @@ ENGINE_VERSION = 14
 #   5 (2026-10-10): cfc.json, the Coupe de France des clubs recomputed (FFCO's 2026 rule), for Comparer des clubs
 #   6 (2026-10-14): evaluation.json, the duels called right weighted by each circuit's runners (not once per circuit)
 #   7 (2026-10-15): ask/*.parquet, the tables « IA » queries in the browser (site_ask.py)
-EXTRAS_VERSION = 7
+#   8 (2026-11-15): mostraces.json, the runners with the most races (Statistiques › « Les plus actifs »)
+EXTRAS_VERSION = 8
 COMPUTED = ("fair", "top6w")   # in this order: the Ozimut method (top6w) is derived from the usual level (fair)
 
 

@@ -83,12 +83,13 @@ async function coRunnersIn(lic, season, terrain) {
 // The Statistiques page: one head, its views as tabs, the view under them. A tab switches the view in place (the
 // address follows, the page around it stays), as the other pages' tabs do. A runner's network is a tab of the
 // Coureur page since 2026-10-12: #/reseau/<licence> leads there.
-const modeOf = (query) => (query.vue === "territoires" ? "territories" : query.vue === "ages" ? "ages"
+const modeOf = (query) => (query.vue === "territoires" ? "territories" : query.vue === "ages" ? "ages" : query.vue === "actifs" ? "most"
   : ["stats", "activite"].includes(query.vue) ? "stats" : "leaders");
 
 async function view(el, mode, lic, query) {
   if (mode === "territories") return (await import("./territory.js")).render(el, query);
   if (mode === "stats" || mode === "ages") return (await import("./stats.js")).render(el, query);   // « Activité »: merged
+  if (mode === "most") return (await import("./mostraces.js")).render(el, query);
   return global(el, query);
 }
 

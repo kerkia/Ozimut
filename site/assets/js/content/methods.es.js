@@ -1561,6 +1561,8 @@ export function build(X) {
             <li><span><b>Participación</b>: las grandes cifras temporada a temporada, para todos, para una liga regional o para un club, en una disciplina o en
               todas.</span></li>
             <li><span><b>Edades</b>: el reparto de los corredores entre las categorías de edad, mujeres a la izquierda, hombres a la derecha, como proporción del conjunto elegido.</span></li>
+            <li><span><b>Los más activos</b>: los corredores que más carreras corrieron, en todas las temporadas, la última o la actual, con el número de
+              cada tipo (larga y media distancia, nocturna, sprint, MTB-O, ski-O). Los errores de tarjeta y los abandonos cuentan: el corredor tomó la salida.</span></li>
           </ul>
         </section>`,
       relais: () => html`

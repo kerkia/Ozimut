@@ -207,6 +207,7 @@ export const link = {
   territories: (q) => "#/reseau" + qstr({ ...q, vue: "territoires" }),
   stats: (q) => "#/reseau" + qstr({ ...q, vue: "stats" }),
   ages: (q) => "#/reseau" + qstr({ ...q, vue: "ages" }),
+  mostRaces: (q) => "#/reseau" + qstr({ ...q, vue: "actifs" }),
 };
 function qstr(q) {
   if (!q) return "";

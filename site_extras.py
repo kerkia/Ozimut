@@ -17,6 +17,7 @@ Outputs (all under site/data/):
     pyramid/{season}.json   competitors of the season counted by category, club and discipline
                             (pyramid/all.json: every competitor once, as at their last race)
     participation.json      competitors and results per season, club and discipline (Réseau · Activité)
+    mostraces.json          the runners with the most races, by type, over every season, the last and the current one
     validation.json         how well each method's CN predicts who finishes ahead (season 2025;
                             built once - delete it to rebuild, as a method change does)
     evaluation.json         the same question measured soundly, every season (site_eval.py; built once too)
@@ -201,6 +202,75 @@ def member_pm(years: list[int]) -> dict:
             if per:
                 out[code][lic] = dict(per)
     return out
+
+
+# -- the runners who race the most ------------------------------------------------
+# Statistiques › « Les plus actifs » (owner, 2026-11-15): every race of a runner's results (pm and abandons included, the
+# « nc » rows are in no runner's results), counted by type — forest LD, MD and night, sprint, VTT and ski (all their formats),
+# a forest race of no known format apart —, over every season, the last one and the current one.
+MOST_TYPES = ("LD", "MD", "Nuit", "Spr", "VTT", "Ski", "Autre")
+MOST_TOP = 200                       # runners kept a period for each choice of the page (those tied with the last one too)
+
+
+def _most_age(cat: str) -> int:
+    m = re.search(r"\d+", cat or "")
+    return int(m.group()) if m else 0
+
+
+# the page's choices (mostraces.js GROUPS, sexes): the first MOST_TOP of each are kept, so that each list is whole
+MOST_GROUPS = (lambda c: True, lambda c: _most_age(c) == 21, lambda c: 0 < _most_age(c) <= 20, lambda c: _most_age(c) >= 35)
+
+
+def _most_type(terrain: str, epreuve: str) -> int:
+    if terrain == "For":
+        return MOST_TYPES.index(epreuve) if epreuve in ("LD", "MD", "Nuit") else MOST_TYPES.index("Autre")
+    return MOST_TYPES.index(terrain) if terrain in MOST_TYPES else MOST_TYPES.index("Autre")
+
+
+def most_races(years: list[int]) -> None:
+    """mostraces.json: {types, periods: {all|<season>: {from, to, runners, results, rows}}}, each row
+    [licence, races, [count by type], category, club, seasons raced, first day, last day], the category and club those of
+    the runner's last race of the period; sorted by races, the MOST_TOP first of each sex and group of categories kept."""
+    if not years:
+        return
+    cur, prev = str(years[-1]), str(years[-2]) if len(years) > 1 else None
+    keys = ["all", cur] + ([prev] if prev else [])
+    acc = {k: {} for k in keys}            # period -> licence -> [n, counts, cat, club, seasons, first, last]
+    results = dict.fromkeys(keys, 0)
+    for f in (OUT / "r").glob("*.json"):
+        for lic, races in load(f).items():
+            for r in races:
+                day, terrain, epreuve, cat, club = r[4], r[5], r[6] or "", r[8], r[9]
+                season = day[:4]
+                k = _most_type(terrain, epreuve)
+                for p in ("all", season):
+                    if p not in acc:
+                        continue
+                    x = acc[p].get(lic)
+                    if x is None:
+                        x = acc[p][lic] = [0, [0] * len(MOST_TYPES), cat, club, set(), day, day]
+                    x[0] += 1
+                    x[1][k] += 1
+                    x[4].add(season)
+                    if day >= x[6]:
+                        x[2], x[3], x[6] = cat, club, day
+                    if day < x[5]:
+                        x[5] = day
+                    results[p] += 1
+    periods = {}
+    for p in keys:
+        rows = sorted(acc[p].items(), key=lambda kv: (-kv[1][0], kv[1][6]))
+        keep = set()
+        for sex in ("", "H", "D"):
+            for grp in MOST_GROUPS:
+                sel = [(lic, x[0]) for lic, x in rows if (x[2] or "").startswith(sex) and grp(x[2] or "")]
+                cut = sel[MOST_TOP - 1][1] if len(sel) >= MOST_TOP else 0
+                keep.update(lic for lic, n in sel if n >= cut)
+        kept = [[lic, x[0], x[1], x[2] or "", x[3] or "", len(x[4]), x[5], x[6]] for lic, x in rows if lic in keep]
+        periods[p] = {"from": years[0] if p == "all" else int(p), "to": years[-1] if p == "all" else int(p),
+                      "runners": len(acc[p]), "results": results[p], "rows": kept}
+    dump(OUT / "mostraces.json", {"v": 1, "top": MOST_TOP, "types": list(MOST_TYPES), "periods": periods})
+    print(f"  most races: {len(acc['all']):,} runners, {results['all']:,} results")
 
 
 # -- elite results ---------------------------------------------------------------
@@ -563,6 +633,7 @@ def main(out: Path | None = None) -> None:
     age_curves(years)
     network(comps)
     pyramid(comps)
+    most_races(years)
     if fr:
         validation(comps)
         cfc(comps)

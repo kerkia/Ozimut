@@ -2486,6 +2486,14 @@ Every multiple-choice game was played through to its score page at phone size, w
   (`auth.logout`); requests to the providers omit cookies and the referrer. The answer is read by `askparse.js`, shared with the
   server. The privacy page says where the questions go (« Questions à l'IA »). Tested with each provider's replies simulated
   (request shape, parsing, cost from OpenRouter's `usage.cost`); a real key is to be tried by its owner.
+- **Les plus actifs** (Statistiques' fifth tab, `#/reseau?vue=actifs`, `pages/mostraces.js`; owner, 2026-11-15): the runners who race
+  the most, every race of their results together (pm and abandons count, « nc » rows are in no runner's results), each type counted
+  — forest LD, MD and night, sprint, VTT and ski (all their formats), a forest race of no known format as « Autre » —, with their
+  category and club at their last race of the period, as a palmarès (medals for the first three, equal counts sharing a place);
+  periods: every season, the last one and the current one (`?p=`), filters sex and group of categories (`?sexe=`, `?grp=`).
+  `site_extras.most_races` reads every runner's race file (r/) into `<cc>/mostraces.json` (`top`, `types`, `periods`: each one's
+  runners and results and the first `MOST_TOP` (200) of each sex × group, ties included: each filtered list whole; ~60 KB
+  gzipped for France); EXTRAS_VERSION 8. Every country with r/ files gets it.
 - **Category percentile and PM rate** (owner, 2026-10-15): `ranking.loadRanking` gives each row `pct[m]`, its percentile in
   its category over all of France at that month (percent_rank: the share of the category's ranked runners with a lower CN;
   100 = the best; `data.fmtPct` shows whole numbers), before any filter; « Classement » shows it as « Centile cat. » and the

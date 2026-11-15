@@ -1553,6 +1553,8 @@ export function build(X) {
             <li><span><b>Participation</b>: the key figures season by season, for everyone, for a region or for a club, in one discipline or in
               all of them.</span></li>
             <li><span><b>Ages</b>: how the runners are spread across the age classes, women on the left, men on the right, as a share of the chosen group.</span></li>
+            <li><span><b>Most active</b>: the runners who ran the most races, over all seasons, the last one or the current one, with the number of
+              each type (long and middle distance, night, sprint, MTB, ski). Mispunches and retirements count: the runner started.</span></li>
           </ul>
         </section>`,
       relais: () => html`

@@ -1563,6 +1563,8 @@ export function build(X) {
             <li><span><b>Teilnahme</b>: die großen Zahlen Saison für Saison, für alle, für einen Regionalverband oder für einen Verein, in einer Disziplin oder in
               allen.</span></li>
             <li><span><b>Alter</b>: die Verteilung der Läufer auf die Altersklassen, Damen links, Herren rechts, als Anteil der gewählten Gesamtheit.</span></li>
+            <li><span><b>Die Aktivsten</b>: die Läufer mit den meisten Läufen, über alle Saisons, die letzte oder die laufende, mit der Zahl jeder
+              Art (Lang- und Mitteldistanz, Nacht, Sprint, MTB-O, Ski-O). Fehlstempel und Aufgaben zählen: der Läufer ist gestartet.</span></li>
           </ul>
         </section>`,
       relais: () => html`
