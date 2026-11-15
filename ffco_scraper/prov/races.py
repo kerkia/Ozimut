@@ -161,6 +161,20 @@ def owners(group, text: str, plain_default: bool = True) -> set:
     toks = set(_words(text))
     toks |= {w for a in toks & ABBREV.keys() for w in ABBREV[a]}
     squash = re.sub(r"[^a-z0-9]", "", plain(text))
+    # a document naming a format is about the races of that format (2026-11-15: « MD 1 Morbihan O'Tour - Quiberon » went
+    # to « Quiberon 1 », the sprint, by its « 1 », where the format check refused it, and « Quiberon 2 », the MD, lost it):
+    # the foot races of another known format are left out, those of an unknown one kept; as run.not_this_race, a VTT or
+    # ski race's format is not judged, and a document saying VTT or ski is about such a race only
+    named = {k for k, ws in TYPE_WORDS.items() if toks & set(ws)}
+    bike, ski = bool(toks & {"vtt", "mtbo"}), "ski" in toks
+
+    def fits(r):
+        if bike and r["terrain"] != "VTT" or ski and r["terrain"] != "Ski":
+            return False
+        return r["terrain"] in ("VTT", "Ski") or not named or r["epreuve"] not in TYPE_WORDS or r["epreuve"] in named
+    fit = [r for r in group if fits(r)]
+    if fit:
+        group = fit
     # (the names with their abbreviations spelled out too: « D88 CF LD Open » and « Championnat de France Longue
     # Distance (WRE) » differ by « open » and « wre », not by « cf », « ld »)
     def spelled(name):

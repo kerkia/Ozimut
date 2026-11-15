@@ -46,7 +46,7 @@ const SPEC = { "Forêt": "Pédestre", Sprint: "Pédestre", VTT: "VTT", Ski: "Ski
 // results page (owner, 2026-10-30: today's, the coming and the past competitions in one list, three boxes to choose)
 const pastEvent = (r) => ({ kind: "c", id: `r:${r.key}`, past: r.key, date: r.date_iso, name: r.name, place: r.place, org: r.org,
   region: r.region || "", country: r.country, cn: !!r.cn, spec: SPEC[r.terrain] || "", epr: r.terrain === "Sprint" ? "Sprint" : r.epreuve || "",
-  docs: r.docs || 0, splits: !!r.splits, official: !!r.ffco_id, lics: r.lics || [], pos: r.pos || null });
+  docs: r.docs || 0, results: !!r.results, splits: !!r.splits, official: !!r.ffco_id, lics: r.lics || [], pos: r.pos || null });
 const declaredEvent = (r) => ({ kind: "c", id: r.key, declared: true, date: r.date_iso, name: r.name, place: r.place, org: r.org,
   country: r.country, site: r.url || null, spec: SPEC[r.terrain] || "", epr: r.terrain === "Sprint" ? "Sprint" : r.epreuve || "" });
 
@@ -426,7 +426,7 @@ export async function render(main, { query }) {
     e.wc ? html` <span class="tag tag-wre" title="${t("agd.wc.tip")}">${t("agd.wc")}</span>` : ""}${
     e.prelim ? html` <span class="tag" title="${t("agd.prelim.tip")}">${t("agd.prelim")}</span>` : ""}`;
   /** What « Résultats » found of a past competition: the organisers' results, split times, the official results. */
-  const pastTags = (e) => html`${e.docs ? html` <span class="tag">${t("agd.past.results")}</span>` : ""}${e.splits ? html` <span class="tag">${t("agd.past.splits")}</span>` : ""}${
+  const pastTags = (e) => html`${e.results ? html` <span class="tag">${t("agd.past.results")}</span>` : ""}${e.splits ? html` <span class="tag">${t("agd.past.splits")}</span>` : ""}${
     e.official ? html` <span class="tag" title="${t("prov.ffcoResults")}">${t("agd.past.official")}</span>` : ""}`;
   // Wide screen: list and details side by side. Phone: one at a time. Opening an event adds a history
   // entry, so the phone's own Back button (or the one in the details) returns to the list where it was.
