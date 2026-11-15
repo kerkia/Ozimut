@@ -21,12 +21,14 @@ const BASE = "/api/virtual/";
 const RUN = 3.7;                    // m/s on flat open ground (about 4:30 a km)
 // The runner's speed (owner, 2026-11-14: « les flèches bas/haut contrôlent la vitesse ; le coureur garde sa vitesse si aucune
 // touche n'est pressée ; de 0 à 3 par 0,5 »): a cruise level L set with ↑ / ↓ and kept, the runner going forward on their own.
-// L is how many times faster than a real runner the play goes: over the ground L × the real speed (RUN × the ground's factor ×
-// the slope's, a good club runner's), the race clock max(L, 1) × the wall clock. So from ×1 up every metre costs the same race
-// time — a real runner's on that ground —, a higher level only shortens the play (less time to read the map on the way); ×0.5
-// costs twice as much race time a metre (walking); standing still, the clock runs as the wall clock (real time spent reading).
-// The best strategy is no longer the top speed. Measured on Autrans' six courses (2026-11-14, perfect routes on a 2 m grid with
-// this model): violet long 71 race min, so 36 min of play at ×2 and 24 at ×3; violet middle 38 min, 19 at ×2.
+// The race clock runs CLOCK times the wall clock, always (owner, 2026-11-15: « x1 should make sure the play time is half the run
+// time »): race time = 2 × play time, whatever the level. L is the runner's speed against a real runner's (RUN × the ground's
+// factor × the slope's, a good club runner's): ×1 covers the ground as they would on the race clock, ×2 twice as fast — the race
+// time and the play both halved —, ×0.5 walks, 0 stands. So the level is the time: faster is a better time (the owner will decide
+// after testing whether ×3 should cost something). Measured on Autrans (2026-11-14, perfect routes on a 2 m grid, the race time
+// at ×1 being a real runner's): violet long 71 race min (35 of play) at ×1, 36 (18) at ×2, 24 (12) at ×3; violet middle 38 (19),
+// 19 (9.5), 13 (6.3). Until 2026-11-15 the clock ran max(L, 1) × the wall clock: from ×1 up a level only shortened the play.
+const CLOCK = 2;
 const LEVELS = [0, 0.5, 1, 1.5, 2, 2.5, 3];
 // The stamina of 2026-11-12 (the fast levels empty an energy bar, the slow ones fill it; empty, back to ×2): off for now (owner,
 // 2026-11-14: « enlever le simulateur de perte d'énergie, au moins pour le moment »); true brings it back.
@@ -854,7 +856,7 @@ export function mount(root, raceId, opts = {}) {
         const ln = Math.hypot(sx, sz), dx0 = sx / ln, dz0 = sz / ln;
         const ahead = world.heightAt(st.x + dx0 * 2, st.z + dz0 * 2) - world.heightAt(st.x, st.z), grade = ahead / 2 / world.VX;   // the true grade (the 3D's relief is × VX)
         const slope = grade > 0 ? 1 / (1 + 7 * grade) : 1 / (1 + 2.5 * Math.max(0, -grade - 0.12));
-        const d = RUN * f * slope * (L > 0 ? L : 0.5) * dt, nx = st.x + dx0 * d, nz = st.z + dz0 * d;   // a real runner's speed × L, over the wall clock
+        const d = RUN * f * slope * (L > 0 ? L : 0.5) * sdt, nx = st.x + dx0 * d, nz = st.z + dz0 * d;   // a real runner's speed × L, over the race clock
         const free = (x, z) => world.terrainSpeed(x, z) > 0 && !world.hits(x, z, 0.3);
         let moved = d;
         if (free(nx, nz)) { st.x = nx; st.z = nz; }
@@ -883,7 +885,7 @@ export function mount(root, raceId, opts = {}) {
       // MAX_FRAME s (a longer gap is a hiccup or a hidden tab), and the movement is done in sub-steps of SUB s of real time,
       // so that a fast frame at ×2 never jumps through a trunk.
       const dt = Math.min(MAX_FRAME, (now - last) / 1000); last = now;
-      const run = st.phase === "run", sdt = dt * (run ? Math.max(1, st.level) : 1);   // the race clock: max(L, 1) × the wall clock
+      const run = st.phase === "run", sdt = dt * (run ? CLOCK : 1);   // the race clock: CLOCK × the wall clock, whatever the level
       if (run) {
         if (st.posLeft > 0) { st.posLeft = Math.max(0, st.posLeft - dt); showPosBtn(); if (!st.posLeft) drawMapPanel(); }
         const n = Math.max(1, Math.ceil(dt / SUB));

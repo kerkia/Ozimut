@@ -47,7 +47,7 @@ export default {
   "vt.keys.view": "V: view behind the runner or through their eyes",
   "vt.keys.pause": "Esc: pause",
   "vt.keys.pos": "« My position » button: your position shows on the map for 10 s, and 30 s are added to your time",
-  "vt.keys.speed": "Speed ×1: a good real runner's on this ground; ×2, ×3: the game two or three times faster. From ×1 up every metre counts the same race time: going faster shortens the game, not your time, and leaves less time to read the map. ×0.5 counts double (walking); standing still, the clock runs at real time",
+  "vt.keys.speed": "Speed ×1: a good real runner's on this ground; ×2, ×3: two or three times faster, ×0.5: walking. The race clock always runs twice as fast as the game: a 40-minute race at ×1 plays in 20 minutes. Faster means a better time — and less time to read the map",
   "vt.pos.btn": "My position", "vt.pos.left": "{s} s",
   "vt.pos.tip": "Show my position on the map for 10 seconds: a 30-second penalty added to my time",
   "vt.pos.used": "Position shown for 10 s: +30 s to your time",

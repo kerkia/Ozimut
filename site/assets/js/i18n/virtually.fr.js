@@ -47,7 +47,7 @@ export default {
   "vt.keys.view": "V : vue derrière le coureur ou par ses yeux",
   "vt.keys.pause": "Échap : pause",
   "vt.keys.pos": "Bouton « Ma position » : votre position s'affiche 10 s sur la carte, et 30 s s'ajoutent à votre temps",
-  "vt.keys.speed": "Vitesse ×1 : celle d'un bon coureur réel sur ce terrain ; ×2, ×3 : le jeu deux ou trois fois plus vite. Dès ×1, chaque mètre compte le même temps de course : aller plus vite raccourcit la partie, pas votre temps, et laisse moins de temps pour lire la carte. ×0,5 compte double (marcher) ; à l'arrêt, le chrono avance au rythme réel",
+  "vt.keys.speed": "Vitesse ×1 : celle d'un bon coureur réel sur ce terrain ; ×2, ×3 : deux ou trois fois plus vite, ×0,5 : en marchant. Le chrono de course avance toujours deux fois plus vite que la partie : une course de 40 min à ×1 se joue en 20 min. Plus vite, c'est un meilleur temps — et moins de temps pour lire la carte",
   "vt.pos.btn": "Ma position", "vt.pos.left": "{s} s",
   "vt.pos.tip": "Montrer ma position sur la carte pendant 10 secondes : 30 secondes de pénalité ajoutées à mon temps",
   "vt.pos.used": "Position affichée 10 s : +30 s à votre temps",

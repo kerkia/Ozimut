@@ -47,7 +47,7 @@ export default {
   "vt.keys.view": "V: vista detrás del corredor o por sus ojos",
   "vt.keys.pause": "Esc: pausa",
   "vt.keys.pos": "Botón « Mi posición »: tu posición aparece 10 s en el mapa, y se suman 30 s a tu tiempo",
-  "vt.keys.speed": "Velocidad ×1: la de un buen corredor real en este terreno; ×2, ×3: el juego dos o tres veces más rápido. Desde ×1 cada metro cuenta el mismo tiempo de carrera: ir más rápido acorta la partida, no tu tiempo, y deja menos tiempo para leer el mapa. ×0,5 cuenta doble (andar); parado, el crono avanza a tiempo real",
+  "vt.keys.speed": "Velocidad ×1: la de un buen corredor real en este terreno; ×2, ×3: dos o tres veces más rápido, ×0,5: andando. El crono de carrera avanza siempre el doble de rápido que la partida: una carrera de 40 min a ×1 se juega en 20 min. Más rápido es mejor tiempo — y menos tiempo para leer el mapa",
   "vt.pos.btn": "Mi posición", "vt.pos.left": "{s} s",
   "vt.pos.tip": "Mostrar mi posición en el mapa durante 10 segundos: 30 segundos de penalización sumados a mi tiempo",
   "vt.pos.used": "Posición mostrada 10 s: +30 s a tu tiempo",

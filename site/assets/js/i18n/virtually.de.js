@@ -47,7 +47,7 @@ export default {
   "vt.keys.view": "V: Ansicht hinter dem Läufer oder durch seine Augen",
   "vt.keys.pause": "Esc: Pause",
   "vt.keys.pos": "Taste « Meine Position »: Deine Position erscheint 10 s auf der Karte, und 30 s kommen zu deiner Zeit hinzu",
-  "vt.keys.speed": "Tempo ×1: das eines guten echten Läufers in diesem Gelände; ×2, ×3: das Spiel zwei- oder dreimal so schnell. Ab ×1 zählt jeder Meter dieselbe Laufzeit: schneller verkürzt das Spiel, nicht deine Zeit, und lässt weniger Zeit zum Kartenlesen. ×0,5 zählt doppelt (gehen); im Stehen läuft die Uhr in Echtzeit",
+  "vt.keys.speed": "Tempo ×1: das eines guten echten Läufers in diesem Gelände; ×2, ×3: zwei- oder dreimal so schnell, ×0,5: gehen. Die Laufzeit läuft immer doppelt so schnell wie das Spiel: ein Lauf von 40 Minuten bei ×1 dauert 20 Minuten Spiel. Schneller heißt bessere Zeit — und weniger Zeit zum Kartenlesen",
   "vt.pos.btn": "Meine Position", "vt.pos.left": "{s} s",
   "vt.pos.tip": "Meine Position 10 Sekunden auf der Karte zeigen: 30 Sekunden Strafe zu meiner Zeit",
   "vt.pos.used": "Position 10 s gezeigt: +30 s auf deine Zeit",
