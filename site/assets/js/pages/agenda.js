@@ -103,7 +103,8 @@ export async function render(main, { query }) {
       const id = String(r.agenda_id || r.key.replace(/^a/, ""));
       eventOf.set(r.key, id);
       if (r.live) liveIds.set(id, r.live);
-      if (r.docs && !r.soon) resultsKey.set(id, r.key);
+      // (an organiser's results only: a start list alone has its own button, « Horaires de départ »; 2026-11-15, O'ray 2)
+      if (r.results && !r.soon) resultsKey.set(id, r.key);
       if (r.lics?.length) licsOf.set(id, r.lics);
       if (r.startlist && r.date_iso >= today) starts.set(id, r.key);
       if (/^d/.test(r.key) && r.date_iso >= today) declared.push(declaredEvent(r));
