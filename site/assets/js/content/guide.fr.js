@@ -92,7 +92,7 @@ export function build(X) {
           <p>Les résultats des 60 derniers jours paraissent tels que les organisateurs les publient, souvent le soir même, des jours avant la fédération.
             Ozimut les cherche lui-même plusieurs fois par jour, et toutes les 20 minutes les samedis et dimanches soir :</p>
           ${list([
-            html`sur les <b>plateformes</b> de résultats : liveresultat, WinSplits, Helga, O'Live, SPORTident Center, les sites MeOSDjango (dont Orientation Data) ;`,
+            html`sur les <b>plateformes</b> de résultats : liveresultat, WinSplits, Helga, O'Live, SPORTident Center, OResults, les sites MeOSDjango (dont Orientation Data) ;`,
             html`sur le <b>site du club</b> organisateur : ses pages et ses fichiers (HTML d'OE ou de MeOS, IOF XML, PDF) ;`,
             html`dans les <b>dépôts</b> des organisateurs et leurs <b>diffusions en direct</b> (voir la documentation d'${M("orga", "Orga")}).`,
           ])}
@@ -119,7 +119,7 @@ export function build(X) {
         </section>`}`,
       direct: () => html`
         ${slide("Arena", "En direct", html`
-          <p>Le jour de la course, « Suivre en direct » relaie les résultats publiés pendant la course sur liveresultat, O'Live, SPORTident Center, un site
+          <p>Le jour de la course, « Suivre en direct » relaie les résultats publiés pendant la course sur liveresultat, O'Live, SPORTident Center, OResults, un site
             MeOSDjango, ou envoyés par l'organisateur depuis son logiciel de chronométrage. Une compétition où un poste ou l'arrivée a enregistré un passage
             dans la dernière demi-heure est marquée « direct ».</p>
           ${list([

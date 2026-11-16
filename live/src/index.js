@@ -14,6 +14,7 @@ import * as mop from "./mop.js";
 import * as md from "./meosdjango.js";
 import * as ol from "./olive.js";
 import * as si from "./sportident.js";
+import * as orr from "./oresults.js";
 
 const UA = "Ozimut-live/1.0 (+https://ozimut.com; one reader per competition, relayed to its spectators)";
 const ACTIVE_MS = 15000, QUIET_MS = 30000;       // polling interval while passings keep coming / when nothing moves
@@ -65,6 +66,10 @@ const PUNCH_MS = 20000, PUNCH_GAP_MS = 1000;                              // car
 // event's file (its guid) is the directory's (/si)
 const SI_ACTIVE_MS = 20000, SI_QUIET_MS = 60000, SI_DONE_MS = 300000;   // the file changed in the last 5 min / runners out or to start / all through
 const SI_RECENT_MS = 300000;
+// OResults' events (2026-11-16, oresults.js): numbers from 500 000 000 (+ the event's id), its data read again while someone
+// watches — the changes since the last read first (a few bytes when nothing moved), then the whole event when something did
+const OR_ACTIVE_MS = 20000, OR_QUIET_MS = 60000, OR_DONE_MS = 300000;   // something happened in the last 5 min / runners out or to start / all through
+const OR_RECENT_MS = 300000;
 async function lr(env, params) {
   const r = await fetch(`${api(env)}?${new URLSearchParams(params)}`, { headers: { "User-Agent": UA } });
   if (!r.ok) throw new Error(`liveresultat ${r.status}`);
@@ -139,12 +144,13 @@ export class LiveRace extends DurableObject {
     if (!/^\d{1,9}$/.test(comp)) return new Response("Bad competition", { status: 400 });
     const m = await this.load();
     m.comp = comp;
-    if (md.isMd(comp) || ol.isOl(comp) || si.isSi(comp)) {
-      // a MeOSDjango, O'Live or SPORTident Center race: read once when nothing is held, then by the alarm while someone watches
+    if (md.isMd(comp) || ol.isOl(comp) || si.isSi(comp) || orr.isOr(comp)) {
+      // a MeOSDjango, O'Live, SPORTident Center or OResults race: read once when nothing is held, then by the alarm while
+      // someone watches
       if (!m.info) {
-        try { await (si.isSi(comp) ? this.readSi(m) : ol.isOl(comp) ? this.readOl(m) : this.readMd(m)); } catch (e) {
-          return new Response(si.isSi(comp) ? "SPORTident Center unavailable" : ol.isOl(comp) ? "O'Live unavailable" : "MeOSDjango unavailable",
-            { status: 502 });
+        try { await (orr.isOr(comp) ? this.readOr(m) : si.isSi(comp) ? this.readSi(m) : ol.isOl(comp) ? this.readOl(m) : this.readMd(m)); } catch (e) {
+          return new Response(orr.isOr(comp) ? "OResults unavailable" : si.isSi(comp) ? "SPORTident Center unavailable"
+            : ol.isOl(comp) ? "O'Live unavailable" : "MeOSDjango unavailable", { status: 502 });
         }
       }
       const [client, server] = Object.values(new WebSocketPair());
@@ -444,6 +450,31 @@ export class LiveRace extends DurableObject {
       timezone: ev.timezone }, order, classes }, { prune: true });
   }
 
+  /** An OResults event: its changes since the last read asked for (nothing moved: a few bytes, nothing passed on), the
+   *  whole event read when something did, the classes passed to `update` as a push (`prune`: the data holds the whole
+   *  event). Throws when the read fails: nothing half read is passed on. */
+  async readOr(m) {
+    m.or ||= { last: 0, act: null, out: false, wait: false };
+    const id = orr.eventOf(m.comp);
+    if (m.info && m.or.last) {
+      const d = await orr.changes(id, m.or.last);
+      if (d.status === 304 || !d.data || d.data.lastChangeId === m.or.last) return null;
+      const a = orr.lastActivity(d.data);
+      if (a) m.or.act = Math.max(m.or.act || 0, a);
+    }
+    const { data } = await orr.changes(id, 0);
+    if (!data?.event) throw new Error("unknown OResults event");
+    if (data.event.isRelay) throw new Error("OResults relay");
+    m.or.last = data.lastChangeId || 0;
+    m.or.act = Math.max(m.or.act || 0, orr.lastActivity(data) || 0) || null;
+    const { order, classes, info } = orr.compact(data);
+    m.or.out = orr.anyOut(classes);
+    m.or.wait = orr.anyWaiting(classes);
+    const e = data.event;
+    return this.update(m.comp, { info: { name: info.name, organizer: String(e.organization?.name || e.organizer || "").trim(),
+      date: info.date, timezone: info.timezone }, order, classes }, { prune: true });
+  }
+
   /** An O'Live race: its circuits' pages read (the race's page now and then for their list), then the cards of the runners
    *  finished since (their splits and start), the classes passed to `update` as a push (`prune`: when every circuit was
    *  read). Throws when a page fails: nothing half read is passed on. */
@@ -655,6 +686,14 @@ export class LiveRace extends DurableObject {
     }
     const sockets = this.ctx.getWebSockets();
     if (!sockets.length) return;                 // nobody watching: no more reads until someone comes back
+    if (orr.isOr(m.comp)) {
+      // an OResults event: its changes asked for, sooner while things keep happening
+      try { await this.readOr(m); } catch (e) { console.error(`race ${m.comp}: ${e.message || e}`); }
+      const recent = m.or?.act != null && Date.now() - m.or.act < OR_RECENT_MS;
+      const wait = recent ? OR_ACTIVE_MS : m.or?.out || m.or?.wait ? OR_QUIET_MS : OR_DONE_MS;
+      await this.ctx.storage.setAlarm(Date.now() + wait);
+      return;
+    }
     if (si.isSi(m.comp)) {
       // a SPORTident Center event: its file read again (a 304 when unchanged), sooner while it keeps changing
       try { await this.readSi(m); } catch (e) { console.error(`race ${m.comp}: ${e.message || e}`); }
@@ -768,7 +807,7 @@ const TZ_COUNTRY = {
 const countryOf = (tz) => (!tz ? "SE" : TZ_COUNTRY[tz] || (tz.startsWith("Australia/") ? "AU" : "?"));
 const LIST_MS = 240000;                 // liveresultat's list read at most this often
 const TZ_VERSION = 2;
-const MAX_INFO = 17;                    // races looked up per call (subrequest limit: 50, MD_LIST, OL_LIST and SI_LIST too); the rest next call
+const MAX_INFO = 14;                    // races looked up per call (subrequest limit: 50, MD_LIST, OL_LIST, SI_LIST and OR_LIST too); the rest next call
 // which races are live now (owner, 2026-10-22: « identify clearly which competitions are truly live »): each race of its own
 // today has its last passings read (with liveresultat's hash: an unchanged list costs a few bytes), at most every PROBE_MS
 // and MAX_PROBE a call, only when the list is asked for; a race is live while its last punch is under LIVE_S old
@@ -783,6 +822,9 @@ const OL_LIST = 4, OL_PROBE = 2;
 // SPORTident Center's events (sportident.js): its list (every country) at most every LIST_MS, today's events probed in turn
 // (a HEAD of the results file: the age is the time since it last changed); SI_LIST requests a call at most
 const SI_LIST = 4;
+// OResults' events (oresults.js): its list (every country) at most every OR_LIST_MS, today's events probed in turn (their
+// changes since the last probe: the age is the time since the latest finish or punch); OR_LIST requests a call at most
+const OR_LIST = 3, OR_LIST_MS = 600000;
 // two names of one race: the same words, accents and punctuation aside, or one's words all in the other's
 const nameWords = (s) => String(s || "").normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase().split(/[^a-z0-9]+/).filter(Boolean);
 function sameName(a, b) {
@@ -896,6 +938,7 @@ export class Directory extends DurableObject {
     try { mdComps = await this.mdComps(now); } catch (e) { console.error(`directory: MeOSDjango: ${e.message || e}`); }
     try { mdComps.push(...await this.olComps(now)); } catch (e) { console.error(`directory: O'Live: ${e.message || e}`); }
     try { mdComps.push(...await this.siComps(now)); } catch (e) { console.error(`directory: SPORTident: ${e.message || e}`); }
+    try { mdComps.push(...await this.orComps(now)); } catch (e) { console.error(`directory: OResults: ${e.message || e}`); }
     // a race on both (2026-10-23: OE 42 opened « Pélussin City Race » on liveresultat, never fed it, and ran its live on its
     // MeOSDjango site — listed twice, one empty): one entry, the MeOSDjango (or O'Live) one unless only liveresultat's has punches
     const twin = (c) => mdComps.find((m) => m[3] === c[3] && sameName(m[1], c[1]));
@@ -1039,6 +1082,44 @@ export class Directory extends DurableObject {
       const p = s.probes[e.id];
       return [si.raceId(e.id), e.name, e.organizer, e.date, 0, e.country || "?",
         today(e) && p?.modified ? Math.max(0, Math.round((now - p.modified) / 1000)) : null, si.HOST];
+    });
+  }
+
+  /** OResults' individual events of the last 3 and next 7 days, every country, in the list's form [id, name, organiser,
+   *  date, 0, country, age, host]: the list at most every OR_LIST_MS (kept when OResults does not answer), today's events
+   *  (in their own time zone) probed in turn, at most every PROBE_MS an event — the whole event the first time, then its
+   *  changes since —; the age is the time since its latest finish or punch. */
+  async orComps(now) {
+    const s = (await this.ctx.storage.get("or")) || { at: 0, events: [], probes: {} };
+    let budget = OR_LIST, changed = false;
+    if (now - s.at >= OR_LIST_MS) {
+      const day = (d) => new Date(now + d * 86400e3).toISOString().slice(0, 10);
+      budget--;
+      try { s.events = await orr.events(day(-3), day(7)); } catch (e) { /* the last list kept */ }
+      s.at = now; changed = true;
+    }
+    const today = (e) => e.date === localSeconds(e.timezone, 0).day;
+    s.probes = Object.fromEntries(s.events.filter((e) => today(e) && s.probes[e.id]).map((e) => [e.id, s.probes[e.id]]));
+    for (const e of s.events.filter(today).sort((a, b) => (s.probes[a.id]?.checked || 0) - (s.probes[b.id]?.checked || 0))) {
+      const p = s.probes[e.id] ||= { checked: 0, last: 0, act: null };
+      if (budget <= 0 || now - p.checked < PROBE_MS) continue;
+      budget--;
+      try {
+        const d = await orr.changes(e.id, p.last || 0);
+        if (d.data) {
+          const a = orr.lastActivity(d.data);
+          if (a) p.act = Math.max(p.act || 0, a);
+          p.last = d.data.lastChangeId || p.last;
+        }
+        p.checked = now;
+      } catch (e2) { /* next time */ }
+      changed = true;
+    }
+    if (changed) await this.ctx.storage.put("or", s);
+    return s.events.map((e) => {
+      const p = s.probes[e.id];
+      return [orr.raceId(e.id), e.name, e.organizer, e.date, 0, e.country || "?",
+        today(e) && p?.act ? Math.max(0, Math.round((now - p.act) / 1000)) : null, orr.HOST];
     });
   }
 

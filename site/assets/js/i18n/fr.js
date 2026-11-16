@@ -1257,11 +1257,11 @@ export default {
 
   // results uploaded by organisers (« Récemment »)
   "lv.title": "En direct",
-  "lv.lede": "Les courses en cours ou toutes proches publiées en direct sur liveresultat, O'Live, SPORTident Center ou un site MeOSDjango, dans le pays choisi en haut de la page. Pour chaque coureur reconnu : son {cnLow} et la place qu'il laisse attendre.",
+  "lv.lede": "Les courses en cours ou toutes proches publiées en direct sur liveresultat, O'Live, SPORTident Center, OResults ou un site MeOSDjango, dans le pays choisi en haut de la page. Pour chaque coureur reconnu : son {cnLow} et la place qu'il laisse attendre.",
   "lv.loading": "Chargement…",
   "lv.none": "Aucune course ne correspond.",
   "lv.unavailable": "Liste indisponible pour l'instant.",
-  "lv.source": "Résultats en direct publiés par les organisateurs sur liveresultat, O'Live, SPORTident Center ou un site MeOSDjango, relayés par Ozimut.",
+  "lv.source": "Résultats en direct publiés par les organisateurs sur liveresultat, O'Live, SPORTident Center, OResults ou un site MeOSDjango, relayés par Ozimut.",
   "lv.country.unknown": "Pays inconnu",
   "lv.noneCountry": "Aucune course en direct en ce moment dans ce pays ({c}).",
   "lv.now.title": "En direct maintenant",

@@ -16,7 +16,7 @@ import * as declare from "../declare.js";
 
 const orgCode = (org) => { const m = /^\s*(\d{3,4})\b/.exec(String(org || "")); return m ? m[1].padStart(4, "0") : null; };
 const norm = (s) => (s || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
-const SOURCE = { upload: t("src.uploadShort"), site: t("src.site"), winsplits: "WinSplits", heyries: "Orientation Data", helga: "Helga", liveresultat: "liveresultat", meosdjango: "MeOSDjango", olive: "O'Live", oreplay: "O-Replay", sportident: "SPORTident Center", direct: t("src.direct") };
+const SOURCE = { upload: t("src.uploadShort"), site: t("src.site"), winsplits: "WinSplits", heyries: "Orientation Data", helga: "Helga", liveresultat: "liveresultat", meosdjango: "MeOSDjango", olive: "O'Live", oreplay: "O-Replay", sportident: "SPORTident Center", oresults: "OResults", direct: t("src.direct") };
 
 export async function render(main, { query = {} } = {}) {
   const me = auth.session(), club = auth.myClub();

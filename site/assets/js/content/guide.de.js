@@ -90,7 +90,7 @@ export function build(X) {
           <p>Die Ergebnisse der letzten 60 Tage erscheinen so, wie die Veranstalter sie veröffentlichen, oft noch am selben Abend, Tage vor dem Verband.
             Ozimut sucht sie selbst mehrmals am Tag, samstags und sonntags abends alle 20 Minuten:</p>
           ${list([
-            html`auf den Ergebnis-<b>Plattformen</b>: liveresultat, WinSplits, Helga, O'Live, SPORTident Center, den MeOSDjango-Websites (darunter Orientation Data);`,
+            html`auf den Ergebnis-<b>Plattformen</b>: liveresultat, WinSplits, Helga, O'Live, SPORTident Center, OResults, den MeOSDjango-Websites (darunter Orientation Data);`,
             html`auf der <b>Website des veranstaltenden Vereins</b>: seine Seiten und Dateien (HTML von OE oder MeOS, IOF XML, PDF);`,
             html`in den <b>Uploads</b> der Veranstalter und ihren <b>Live-Übertragungen</b> (siehe die Dokumentation von ${M("orga", "Orga")}).`,
           ])}
@@ -117,7 +117,7 @@ export function build(X) {
         </section>`}`,
       direct: () => html`
         ${slide("Arena", "Live", html`
-          <p>Am Wettkampftag gibt „Live verfolgen“ die Ergebnisse weiter, die während des Laufs auf liveresultat, O'Live, SPORTident Center, einer
+          <p>Am Wettkampftag gibt „Live verfolgen“ die Ergebnisse weiter, die während des Laufs auf liveresultat, O'Live, SPORTident Center, OResults, einer
             MeOSDjango-Website veröffentlicht oder vom Veranstalter aus seiner Zeitmessungssoftware gesendet werden. Ein Wettkampf, bei dem ein Posten
             oder das Ziel in der letzten halben Stunde einen Durchgang registriert hat, ist als „live“ markiert.</p>
           ${list([

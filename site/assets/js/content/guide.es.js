@@ -90,7 +90,7 @@ export function build(X) {
           <p>Los resultados de los últimos 60 días aparecen tal como los publican los organizadores, a menudo esa misma tarde, días antes que la federación.
             Ozimut los busca por sí mismo varias veces al día, y cada 20 minutos los sábados y domingos por la tarde:</p>
           ${list([
-            html`en las <b>plataformas</b> de resultados: liveresultat, WinSplits, Helga, O'Live, SPORTident Center, los sitios MeOSDjango (entre ellos Orientation Data);`,
+            html`en las <b>plataformas</b> de resultados: liveresultat, WinSplits, Helga, O'Live, SPORTident Center, OResults, los sitios MeOSDjango (entre ellos Orientation Data);`,
             html`en la <b>web del club</b> organizador: sus páginas y sus archivos (HTML de OE o de MeOS, IOF XML, PDF);`,
             html`en las <b>subidas</b> de los organizadores y sus <b>emisiones en directo</b> (consulta la documentación de ${M("orga", "Orga")}).`,
           ])}
@@ -117,7 +117,7 @@ export function build(X) {
         </section>`}`,
       direct: () => html`
         ${slide("Arena", "En directo", html`
-          <p>El día de la carrera, «Seguir en directo» retransmite los resultados publicados durante la carrera en liveresultat, O'Live, SPORTident Center, un
+          <p>El día de la carrera, «Seguir en directo» retransmite los resultados publicados durante la carrera en liveresultat, O'Live, SPORTident Center, OResults, un
             sitio MeOSDjango, o enviados por el organizador desde su programa de cronometraje. Una competición en la que un control o la meta ha registrado
             una picada en la última media hora se marca «en directo».</p>
           ${list([

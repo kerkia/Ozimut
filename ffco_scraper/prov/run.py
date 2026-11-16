@@ -36,6 +36,7 @@ from .sources.liveresultat import API as LR_API, LiveResultat
 from .sources.meosdjango import MeOSDjango, is_meosdjango
 from .sources.olive import BASE as OL_BASE, OLive
 from .sources.sportident import PAGE as SI_PAGE, SportIdent
+from .sources.oresults import PAGE as OR_PAGE, OResults
 from .sources.oreplay import OReplay
 from .parsers import VERSION as PARSER_VERSION, coursedata
 from .sources.winsplits import BASE as WS_BASE, WinSplits
@@ -68,12 +69,14 @@ PLATFORM_URL = {"liveresultat": "https://liveresultat.orientering.se/followfull.
                 "helga": HG_BASE + "/splitsbrowser.php?lauf={}", "oreplay": "https://www.oreplay.es/competitions/{}",
                 "meosdjango": "https://{}/",            # (its ids: « host/competition/<n> », sources.meosdjango)
                 "olive": OL_BASE + "?Action=ChoixResultats&IdCourse={}",
-                "sportident": SI_PAGE + "/{}"}                # (its ids: « <slug>?event=<n> », sources.sportident)
+                "sportident": SI_PAGE + "/{}",                # (its ids: « <slug>?event=<n> », sources.sportident)
+                "oresults": OR_PAGE + "/{}"}
 PLATFORM_ID = {"liveresultat": r"liveresultat\.orientering\.se/.*[?&]comp=(\d+)", "winsplits": r"[?&]databaseId=(\d+)",
                "heyries": r"/competition/(\d+)", "helga": r"helga-o\.live/splits/\w+\.php\?lauf=(\d+)",
                "oreplay": r"oreplay\.es/competitions/([0-9a-f-]{36}/[0-9a-f-]{36})",
                "meosdjango": r"https?://([^/?#]+/competition/\d+)", "olive": r"co-live\.fr/olive/\w+\.php\?(?:.*&)?IdCourse=(\d+)",
-               "sportident": r"center\.sportident\.com/results/orienteering/([^#]+?\?event=\d+)"}
+               "sportident": r"center\.sportident\.com/results/orienteering/([^#]+?\?event=\d+)",
+               "oresults": r"oresults\.eu/events/(\d+)"}
 # The live competitions tied to a race, as the live relay numbers them (its /api/live/list): liveresultat's number, an
 # organiser's broadcast (« direct:<number> »), a MeOSDjango site's, O'Live's or SPORTident Center's « host/<n> » (the relay
 # numbers those itself). The Agenda links a race live now to its « En direct » page (owner, 2026-10-23).
@@ -81,13 +84,14 @@ LIVE_IDS = ((re.compile(r"liveresultat\.orientering\.se/.*[?&]comp=(\d+)"), lamb
             (re.compile(r"^direct:(\d+)"), lambda m: int(m[1])),
             (re.compile(r"^https?://([^/?#]+)/competition/(\d+)"), lambda m: f"{m[1]}/{m[2]}"),
             (re.compile(r"^https?://(?:www\.)?(co-live\.fr)/olive/\w+\.php\?(?:.*&)?IdCourse=(\d+)"), lambda m: f"{m[1]}/{m[2]}"),
-            (re.compile(r"^https?://(center\.sportident\.com)/results/orienteering/[^#]*\?event=(\d+)"), lambda m: f"{m[1]}/{m[2]}"))
+            (re.compile(r"^https?://(center\.sportident\.com)/results/orienteering/[^#]*\?event=(\d+)"), lambda m: f"{m[1]}/{m[2]}"),
+            (re.compile(r"^https?://(oresults\.eu)/events/(\d+)"), lambda m: f"{m[1]}/{m[2]}"))
 
 
 def live_ids(con, key: str) -> list | None:
     out = []
     for (url,) in con.execute("SELECT url FROM prov_docs WHERE race_key = ? AND source IN "
-                              "('liveresultat', 'direct', 'meosdjango', 'heyries', 'olive', 'sportident')", (key,)).fetchall():
+                              "('liveresultat', 'direct', 'meosdjango', 'heyries', 'olive', 'sportident', 'oresults')", (key,)).fetchall():
         for rx, conv in LIVE_IDS:
             m = rx.search(url or "")
             if m and conv(m) not in out:
@@ -124,7 +128,7 @@ def canonical_docs(con) -> int:
     """Platform documents saved under another spelling of their address: renamed, or dropped when the race already
     has that document (and Helga notes that name no event: its home page, its lists)."""
     n = 0
-    for row in con.execute("SELECT race_key, url, source FROM prov_docs WHERE source IN ('liveresultat', 'winsplits', 'heyries', 'helga', 'oreplay', 'meosdjango', 'olive', 'sportident')").fetchall():
+    for row in con.execute("SELECT race_key, url, source FROM prov_docs WHERE source IN ('liveresultat', 'winsplits', 'heyries', 'helga', 'oreplay', 'meosdjango', 'olive', 'sportident', 'oresults')").fetchall():
         pid = platform_id(row["source"], row["url"])
         if pid is None:
             if row["source"] == "helga" and "lauf=" not in row["url"]:
@@ -237,9 +241,10 @@ def not_this_race(race, text: str) -> bool:
 
 # ---- one race ------------------------------------------------------------------------------------------------
 def look(con, race, f: Fetcher, lr: LiveResultat, ws: WinSplits, hy: Heyries, cs: ClubSite, links: dict, reread: bool = False,
-         hg: Helga | None = None, md: MeOSDjango | None = None, ol: OLive | None = None, si: SportIdent | None = None) -> int:
+         hg: Helga | None = None, md: MeOSDjango | None = None, ol: OLive | None = None, si: SportIdent | None = None,
+         orr: OResults | None = None) -> int:
     """links: the platform competitions assigned to this race ({'liveresultat': id, 'winsplits': id, …})."""
-    changed = site_docs(con, race, f, lr, ws, hy, cs, reread, hg, md, ol, si)
+    changed = site_docs(con, race, f, lr, ws, hy, cs, reread, hg, md, ol, si, orr)
     matched = []
     # liveresultat and WinSplits: the competition of that day assigned to this race (races.assign); liveresultat's of the
     # race's country only (by its time zone)
@@ -265,8 +270,9 @@ def look(con, race, f: Fetcher, lr: LiveResultat, ws: WinSplits, hy: Heyries, cs
             save(con, race["key"], url, "winsplits", None, kind="empty", note=MATCHED)     # matched, nothing (left) to read
     # MeOSDjango sites (Orientation Data is one): a course at a time, read again only when the competition's page says
     # results came in (its counts of runners ranked and started: the fingerprint); O'Live likewise (its circuits' pages,
-    # the split times only when they moved); SPORTident Center's results file is asked for conditionally (304: unchanged)
-    for kind, reader in (("heyries", hy), ("meosdjango", md), ("olive", ol), ("sportident", si)):
+    # the split times only when they moved); SPORTident Center's results file is asked for conditionally (304: unchanged),
+    # OResults' data likewise
+    for kind, reader in (("heyries", hy), ("meosdjango", md), ("olive", ol), ("sportident", si), ("oresults", orr)):
         if not links.get(kind) or reader is None:
             continue
         url = PLATFORM_URL[kind].format(links[kind])
@@ -367,7 +373,8 @@ def adopt(con, found_by, d: dict, url: str, text: str, sha: str | None) -> str |
 
 
 def site_docs(con, race, f: Fetcher, lr: LiveResultat, ws: WinSplits, hy: Heyries, cs: ClubSite, reread: bool, hg,
-              md: MeOSDjango | None = None, ol: OLive | None = None, si: SportIdent | None = None) -> int:
+              md: MeOSDjango | None = None, ol: OLive | None = None, si: SportIdent | None = None,
+              orr: OResults | None = None) -> int:
     """The organiser's website: its result files, and the platform competitions it links to."""
     changed = 0
     sites = [s for s in dict.fromkeys([race["site"], races.club_site(con, race["org_code"])]) if s]
@@ -510,6 +517,16 @@ def site_docs(con, race, f: Fetcher, lr: LiveResultat, ws: WinSplits, hy: Heyrie
                     if d and d["classes"] and date_ok(d, race) and (not d.get("date") or d["date"] == race["date_iso"]):
                         changed += save(con, race["key"], PLATFORM_URL[kind].format(pid), kind, d)
                 continue
+            if kind == "oresults":
+                # OResults: the event its link names (« Résultats (provisoires) », Balise 77 for Larchant), of the race's day
+                pid = orr.resolve(url) if orr else None
+                if pid and PLATFORM_URL[kind].format(pid) not in seen and not f.out_of_time():
+                    seen.add(PLATFORM_URL[kind].format(pid))
+                    d = orr.read(pid)
+                    if d and d["classes"] and date_ok(d, race) and (not d.get("date") or d["date"] == race["date_iso"]):
+                        con.execute("DELETE FROM prov_docs WHERE race_key = ? AND url = ? AND kind = 'platform'", (race["key"], url))
+                        changed += save(con, race["key"], PLATFORM_URL[kind].format(pid), kind, d)
+                continue
             pid = platform_id(kind, url)
             if pid and not f.out_of_time() and (kind != "helga" or hg):
                 url = PLATFORM_URL[kind].format(pid)
@@ -522,13 +539,12 @@ def site_docs(con, race, f: Fetcher, lr: LiveResultat, ws: WinSplits, hy: Heyrie
                     changed += save(con, race["key"], url, kind, d)
             elif kind == "helga" and "lauf=" not in url:
                 continue                      # Helga's home page or lists: no event named
-            elif kind in ("helga", "olive", "routegadget", "oresults"):
+            elif kind in ("helga", "olive", "routegadget"):
                 # (Livelox is left out: it shows only the runners who sent their GPS track, and it refuses robots)
                 if kind == "helga":
                     f.note(url, "refused")
                 changed += save(con, race["key"], url, kind, None, kind="platform",
                                 note={"helga": "Helga : pages de résultats fermées aux robots",
-                                      "oresults": "OResults : résultats non lus (pas encore de lecteur)",
                                       "olive": "O'Live : résultats en direct", "routegadget": "RouteGadget"}[kind])
     return changed
 
@@ -661,7 +677,8 @@ INDEX_VERSION = 3
 #   Nord » took Helga's Belgian « NORD#3 »): the races of the window looked at again, such a match dropped.
 # 5 (2026-10-22): MeOSDjango sites (sources.meosdjango), Orientation Data read course by course (each runner once).
 # 6 (2026-10-24): SPORTident Center (sources.sportident).
-COLLECT_VERSION = 6
+# 7 (2026-11-16): OResults (sources.oresults; Larchant's results, 15 November, were only there).
+COLLECT_VERSION = 7
 _BY_DEPT = {d: region for region, ds in REGIONS.items() for d in ds.split()}
 
 
@@ -702,7 +719,8 @@ def region_of(org_code: str | None) -> str | None:
 # The order a race's documents are shown in (the first one opens): the organiser's own files (or a file sent to
 # Ozimut) are the reference; liveresultat comes last — live results are not corrected afterwards. A document missing
 # half the runners of the fullest one loses its rank; then a list by circuit (scored), with splits, the most runners.
-SOURCE_RANK = {"upload": 6, "site": 5, "direct": 5, "winsplits": 4, "heyries": 4, "meosdjango": 4, "oreplay": 4, "sportident": 4, "helga": 3,
+SOURCE_RANK = {"upload": 6, "site": 5, "direct": 5, "winsplits": 4, "heyries": 4, "meosdjango": 4, "oreplay": 4, "sportident": 4, "oresults": 4,
+               "helga": 3,
                "olive": 2,
                "liveresultat": 1}
 
@@ -1001,7 +1019,7 @@ def platform_start_lists(con, f: Fetcher, kind: str, reader, today: date) -> int
         seen[key] = now.isoformat(timespec="seconds")
         if d and d["classes"]:
             changed += save(con, key, PLATFORM_URL[kind].format(pid), kind, d,
-                            note=PLATFORM_STARTLIST.format({"heyries": "Orientation Data"}.get(kind, "MeOSDjango")))
+                            note=PLATFORM_STARTLIST.format({"heyries": "Orientation Data", "oresults": "OResults"}.get(kind, "MeOSDjango")))
     store.meta_set(con, f"startlists_{kind}", {k: v for k, v in seen.items() if any(r["key"] == k for r in soon)})
     con.commit()
     return changed
@@ -1429,7 +1447,7 @@ def run(db: Path, out: Path, agenda: Path | None = None, days: int = KEEP_DAYS -
         # a share of the budget only (2-3 s per WinSplits page): a long catch-up never leaves the races unlooked at
         stats["winsplits_new"] = len(ws.discover(limit=max(30, int(budget_s / 6))))
         lr, cs, hy, hg, md, ol = LiveResultat(f), ClubSite(f), Heyries(f), Helga(f, con), MeOSDjango(f, con), OLive(f)
-        si = SportIdent(f)
+        si, orr = SportIdent(f), OResults(f)
         stats["helga_new"] = hg.discover(limit=max(20, int(budget_s / 4)))
         looked = failed = 0
         changed = uploaded + stats["declared"] + stats["broadcasts"]
@@ -1486,17 +1504,24 @@ def run(db: Path, out: Path, agenda: Path | None = None, days: int = KEEP_DAYS -
             mine = [r for r in period if (r["country"] or "FR") == cc]
             si_map.update(races.assign(mine, [(c["id"], c["name"], c["organizer"], c["date"])
                                               for c in si.competitions(cc, lo, today.isoformat())]))
+        # OResults likewise (one list of every listed event, relays apart)
+        or_map = {}
+        for cc in sorted({r["country"] or "FR" for r in period}):
+            mine = [r for r in period if (r["country"] or "FR") == cc]
+            or_map.update(races.assign(mine, [(c["id"], c["name"], c["organizer"], c["date"])
+                                              for c in orr.competitions(cc, lo, today.isoformat())]))
         # a race comes back at once when a platform competition is newly matched to it (a WinSplits event found later
         # by the backward fill, a Helga event, an Orientation Data competition published after the last look) — a race
         # still watched too, rather than at its next daily look
         for kind, mp in (("liveresultat", lr_map), ("winsplits", ws_map), ("heyries", hy_map), ("helga", hg_map), ("meosdjango", md_map),
-                         ("olive", ol_map), ("sportident", si_map)):
+                         ("olive", ol_map), ("sportident", si_map), ("oresults", or_map)):
             for key, pid in mp.items():
                 if not con.execute("SELECT 1 FROM prov_docs WHERE race_key = ? AND url = ?", (key, PLATFORM_URL[kind].format(pid))).fetchone():
                     con.execute("UPDATE prov_races SET done = 0, next_check = ? WHERE key = ? AND (done = 1 OR next_check > ?)",
                                 (_now(), key, _now()))
         changed += start_lists(con, f, lr, today)
         changed += platform_start_lists(con, f, "meosdjango", md, today) + platform_start_lists(con, f, "heyries", hy, today)
+        changed += platform_start_lists(con, f, "oresults", orr, today)
         changed += site_start_lists(con, f, cs, today)
         try:
             changed += relays(con, ol, agenda, today)
@@ -1518,9 +1543,9 @@ def run(db: Path, out: Path, agenda: Path | None = None, days: int = KEEP_DAYS -
             try:
                 links = {"liveresultat": lr_map.get(race["key"]), "winsplits": ws_map.get(race["key"]), "heyries": hy_map.get(race["key"]),
                          "helga": hg_map.get(race["key"]), "meosdjango": md_map.get(race["key"]), "olive": ol_map.get(race["key"]),
-                         "sportident": si_map.get(race["key"]),
+                         "sportident": si_map.get(race["key"]), "oresults": or_map.get(race["key"]),
                          **json.loads(race["links"] or "{}")}
-                changed += look(con, race, f, lr, ws, hy, cs, links, reread, hg, md, ol, si)
+                changed += look(con, race, f, lr, ws, hy, cs, links, reread, hg, md, ol, si, orr)
             except Exception:                         # one race's odd page must not stop the others
                 log.exception("provisional: %s failed", race["key"])
                 failed += 1

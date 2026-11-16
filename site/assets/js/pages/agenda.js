@@ -513,7 +513,7 @@ export async function render(main, { query }) {
     const liveS = list.liveS || 1800;
     // the relay numbers a SPORTident Center event from 600 000 000, an O'Live race from 700 000 000 and a MeOSDjango site's
     // from 800 000 000 (the site's address last in the row)
-    const keyOfComp = (c) => (c[0] >= 6e8 && c[0] < 9e8 ? `${c[7]}/${c[0] % 1e6}` : c[0]);
+    const keyOfComp = (c) => (c[0] >= 5e8 && c[0] < 9e8 ? `${c[7]}/${c[0] % 1e6}` : c[0]);
     const comps = new Map((list.comps || []).map((c) => [keyOfComp(c), c]));
     for (const [ev, xs] of liveIds) for (const x of xs) {
       const c = comps.get(x);

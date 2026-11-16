@@ -19,7 +19,7 @@ import { bindRunnerPop } from "../runnerpop.js";
 import { raceTabs, raceHref, isScoreRace, isScoreClass, scoreRanking } from "../arenatabs.js";
 
 const SOURCE = { ffco: t("prov.official"), upload: t("src.upload"), liveresultat: "liveresultat", winsplits: "WinSplits", heyries: "Orientation Data", site: t("src.site"), livelox: "Livelox",
-  helga: "Helga", olive: "O'Live", meosdjango: "MeOSDjango", oreplay: "O-Replay", sportident: "SPORTident Center", direct: t("src.direct") };
+  helga: "Helga", olive: "O'Live", meosdjango: "MeOSDjango", oreplay: "O-Replay", sportident: "SPORTident Center", oresults: "OResults", direct: t("src.direct") };
 const KIND = Object.fromEntries(["empty", "refused", "platform", "unparsed", "startlist", "startfile", "registration", "announcement", "coursedata"]
   .map((k) => [k, t(`kind.${k}`)]));
 export const STATUS = { ok: "", mp: t("status.pm"), dnf: t("status.abandon"), dsq: t("status.disqualifie"), ot: t("status.hors_delai"), dns: t("status.dns"), nc: t("status.nc"), start: "" };

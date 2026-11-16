@@ -64,8 +64,7 @@ FILE_HOSTS = ("res.cloudinary.com", "dl.dropboxusercontent.com", "www.dropbox.co
 PLATFORMS = {"liveresultat.orientering.se": "liveresultat", "obasen.orientering.se": "winsplits", "livelox.com": "livelox",
              "helga-o.com": "helga", "helga-o.live": "helga", "co-live.fr": "olive", "routegadget": "routegadget", "heyries.alwaysdata.net": "heyries",
              "oreplay.es": "oreplay", "center.sportident.com": "sportident", "si.events": "sportident",
-             # OResults (2026-11-15, Balise 77's Larchant): an organiser's results there are not read yet (no reader);
-             # the link is noted on the race, so the page says where the results are
+             # OResults (2026-11-15, Balise 77's Larchant; read by sources.oresults since 2026-11-16)
              "oresults.eu": "oresults"}
 MEOSDJANGO_PATH = re.compile(r"^/competition/\d+(?:/|$)")
 

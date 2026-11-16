@@ -88,7 +88,7 @@ export function build(X) {
           <p>The results of the last 60 days appear as their organisers publish them, often the same evening, days before the federation. Ozimut looks for
             them itself several times a day, and every 20 minutes on Saturday and Sunday evenings:</p>
           ${list([
-            html`on results <b>platforms</b>: liveresultat, WinSplits, Helga, O'Live, SPORTident Center, MeOSDjango sites (Orientation Data among them);`,
+            html`on results <b>platforms</b>: liveresultat, WinSplits, Helga, O'Live, SPORTident Center, OResults, MeOSDjango sites (Orientation Data among them);`,
             html`on the organising <b>club's website</b>: its pages and files (OE or MeOS HTML, IOF XML, PDF);`,
             html`in the organisers' <b>uploads</b> and their <b>live broadcasts</b> (see ${M("orga", "Orga")}'s documentation).`,
           ])}
@@ -114,7 +114,7 @@ export function build(X) {
         </section>`}`,
       direct: () => html`
         ${slide("Arena", "Live", html`
-          <p>On race day, “Follow live” relays the results published during the race on liveresultat, O'Live, SPORTident Center, a MeOSDjango site, or sent
+          <p>On race day, “Follow live” relays the results published during the race on liveresultat, O'Live, SPORTident Center, OResults, a MeOSDjango site, or sent
             by the organiser from their timing software. A competition where a control or the finish recorded a punch in the last half hour is marked
             “live”.</p>
           ${list([
