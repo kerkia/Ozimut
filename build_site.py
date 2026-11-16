@@ -49,6 +49,7 @@ from lxml import html as lhtml
 
 from ffco_scraper.cn import TITLE_WEIGHTS, CnParams, Decimal_round, fade_factors, ffco_cn, is_junior, is_nc, top_n_weighted
 from ffco_scraper.cn_engine import build_methods, daily_knots, factor_on
+from ffco_scraper import ffco_scale
 import privacy
 import site_extras
 from site_io import COURSE_GROUP, WRITES, club_pack, course_file, dump, prune, runner_bucket
@@ -552,75 +553,43 @@ def main(argv: list[str] | None = None) -> None:
         return cns[hi - 1]
 
     # the official CN computed on any day from FFCO's race points, its 2026 rule (`ffco_cn`), so that a race leaving the
-    # window shows on its day as in the Ozimut index (owner, 2026-10-26) - in forest and sprint, while the window holds 2026
-    # races only: FFCO re-evaluated the 2025 races for its 2026 scale under new circuit ids, whose points only each runner's
-    # CN page on FFCO's site gives; else (and in VTT and ski, not measured) FFCO's published values above
-    pts26 = defaultdict(lambda: ([], []))          # (lic, For|Spr) -> dates, points of the 2026 races on
-    pts_all = defaultdict(list)                    # (lic, For|Spr) -> (date, points) of every race, the old ones on their old scale
-    after26 = {}                                   # (lic, For|Spr, date) -> the CN FFCO printed after that 2026 race
-    last_old = {}                                  # lic -> the last forest or sprint race before 2026
-    for (lic, cid), o in sorted(by_method["official"].items(), key=lambda kv: kv[1]["date_iso"]):
+    # window shows on its day as in the Ozimut index (owner, 2026-10-26) - in forest and sprint from 2026, across FFCO's
+    # yearly rescale (every 1 January since 2026: the previous season's points × one factor per speciality; in 2026 after
+    # a re-run of 2025 under the 2026 rules): ffco_scale.py; in VTT and ski (not measured) and before 2026, FFCO's
+    # published values above
+    races_off, printed_off = [], []
+    for (lic, cid), o in by_method["official"].items():
         t = TERRAINS.get(o["terrain"], "For")
         if t not in FOOT:
             continue
         d = date.fromisoformat(o["date_iso"])
-        if o["score"] is not None:
-            pts_all[(lic, t)].append((d, o["score"]))
-        if d.year < SPLIT_YEAR:
-            last_old[lic] = max(last_old.get(lic, d), d)
-        elif o["score"] is not None:
-            pts26[(lic, t)][0].append(d)
-            pts26[(lic, t)][1].append(o["score"])
-            raw = raw_res.get((lic, cid))
-            if raw and to_int(raw["nouveau_cn"]):
-                after26[(lic, t, d)] = to_int(raw["nouveau_cn"])
+        if d < date(ffco_scale.FIRST - 3, 1, 1):
+            continue
+        raw = raw_res.get((lic, cid))
+        place = str(raw["place"] or "").strip() if raw else ""
+        races_off.append(ffco_scale.Race(cid, lic, d, t, o["temps_s"], place.isdigit(), o["score"]))
+        if raw and d.year >= ffco_scale.FIRST:
+            for X, v, mr in ((d - timedelta(days=pf.lag_days), to_int(raw["cn_j15"]), 1), (d, to_int(raw["nouveau_cn"]), 2)):
+                if v:
+                    printed_off.append(ffco_scale.Printed(lic, t, X, d.year, mr, v))
+    oscale = ffco_scale.OfficialScale(races_off, printed_off, max(last_point.year, paris_today().year))
+    off_keys = {(r.lic, r.t) for r in races_off if r.day.year >= ffco_scale.FIRST - 1}
 
-    def counted(lic, t, d1: date, s1: int) -> bool:
-        """Did a race count in the CN FFCO computed after it (not among the best 10 % or the worst 40 % dropped)?"""
-        a = after26.get((lic, t, d1))
-        if a is None:                              # no CN printed after it: it was alone in its window then
-            return False
-        if a <= s1:                                # the CN after it is not above it: it was among the scores kept
-            return True
-        # else ranked against the window's other races then, the 2025 ones on their old scale (FFCO's re-evaluated points
-        # are not known: 96.5 % of FFCO's answers reproduced, see below)
-        w = [(d, s, i) for i, (d, s) in enumerate(pts_all[(lic, t)]) if d1 - timedelta(days=365) < d <= d1]
-        n = len(w)
-        order = sorted(w, key=lambda x: -x[1])
-        nb, nw = Decimal_round(0.10 * n), Decimal_round(0.40 * n)
-        kept = order[nb: n - nw] or [order[n // 2]]
-        return any(d == d1 and s == s1 for d, s, _ in kept)
-
-    def off_value(lic, t, X: date, min_races: int = 2):
-        """The official CN on day X (2 races for the CN FFCO publishes, 1 for the CN J-15 it values circuits with).
-        FFCO trims the window again every day; a window a race leaving it has brought down to one race keeps a CN - that
-        race's points - only if the race counted in the CN computed after it (owner's question, 2026-10-26: FFCO's CN page
-        read for all 1 037 runners whose window held one 2026 race at 30/09/2026: 994 of 1 030 reproduced, against 86 %
-        by « 2 races or none »; windows of 2 races or more that lost one: 134 of 139 by the daily trim)."""
-        if t in FOOT and X.year >= SPLIT_YEAR and (lic not in last_old or last_old[lic] <= X - timedelta(days=365)):
-            ds, ps = pts26.get((lic, t), ((), ()))
-            lo, hi = bisect_right(ds, X - timedelta(days=365)), bisect_right(ds, X)
-            if hi - lo == 1 and min_races >= 2:
-                return (ps[lo] or None) if counted(lic, t, ds[lo], ps[lo]) else None
-            return ffco_cn(ps[lo:hi], min_races)
+    def off_value(lic, t, X: date, min_races: int = 2, scale: int | None = None):
+        """The official CN on day X (2 races for the CN FFCO publishes, 1 for the CN J-15 it values circuits with), on
+        the scale of X's season (a race's CN J-15: the race's season)."""
+        S = scale or X.year
+        if t in FOOT and S >= ffco_scale.FIRST:
+            return oscale.cn(lic, t, X, min_races, S)
         h = hoff.get((lic, t))
         return off_at(*h, X) if h else None
 
-    # how close that is to what FFCO prints, run after run: its CN after each 2026 race and its CN J-15
-    chk = defaultdict(lambda: [0, 0])
-    for (lic, cid), raw in raw_res.items():
-        o = by_method["official"].get((lic, cid))
-        t = o and TERRAINS.get(o["terrain"], "For")
-        if not o or t not in FOOT or o["date_iso"] < f"{SPLIT_YEAR}-01-01":
-            continue
-        d = date.fromisoformat(o["date_iso"])
-        for kind, X, pub, mr in (("after", d, to_int(raw["nouveau_cn"]), 2), ("J-15", d - timedelta(days=pf.lag_days), to_int(raw["cn_j15"]), 1)):
-            if pub and X.year >= SPLIT_YEAR and (lic not in last_old or last_old[lic] <= X - timedelta(days=365)):
-                c = chk[(t, kind)]
-                c[0] += 1
-                c[1] += off_value(lic, t, X, mr) == pub
+    # how close that is to what FFCO prints, run after run: its CN after each race and its CN J-15 from 2026, each
+    # computed without itself (anchored on FFCO's value of before): windows of the season alone, and holding the
+    # previous season's rescaled races
     print("official CN computed against FFCO's: " + ", ".join(
-        f"{t} {k} {ok}/{n} ({100 * ok / n:.2f} %)" for (t, k), (n, ok) in sorted(chk.items()) if n), flush=True)
+        f"{t} {k} {ok}/{n} ({100 * ok / n:.2f} %, within 10: {100 * w / n:.1f} %)"
+        for (t, k), (n, ok, w) in sorted(oscale.check().items()) if n), flush=True)
 
     years = sorted({m.year for m in months if m.year >= min_season})
     snap_stats = {}
@@ -648,7 +617,7 @@ def main(argv: list[str] | None = None) -> None:
                             cn = agg_at(ds, ss, ws, js, m, ps[mth])
                             if cn:
                                 files[(mth, t)].setdefault(lic, [0] * 12)[idx[m]] = cn
-        for (lic, t) in set(hoff) | set(pts26):
+        for (lic, t) in set(hoff) | off_keys:
             if t != official_terrain(t if t != "Ped" else "For", Y):     # pooled before, split after
                 continue
             for m in ym:
@@ -689,13 +658,17 @@ def main(argv: list[str] | None = None) -> None:
     # snapshot can be weeks off it)
     j15_day = paris_today() - timedelta(days=pf.lag_days)
     j15_cn = defaultdict(dict)
-    for (lic, t) in set(hoff) | set(pts26):
-        if t == official_terrain(t if t != "Ped" else "For", j15_day.year):
-            cn = off_value(lic, t, j15_day, 1)
+    for (lic, t) in set(hoff) | off_keys:
+        if t == official_terrain(t if t != "Ped" else "For", paris_today().year):
+            cn = off_value(lic, t, j15_day, 1, paris_today().year)
             if cn:
                 j15_cn[t][lic] = cn
     dump(OUT / "snap" / "official_j15.json", {"date": j15_day.isoformat(), "cn": {t: dict(sorted(v.items())) for t, v in sorted(j15_cn.items())}})
     snap_keep.add("official_j15.json")
+    # the rescale's factors and circuit multipliers, for the provisional results' official scores (prov/compute.py)
+    if fr:
+        dump(OUT / "snap" / "official_scale.json", oscale.saved())
+        snap_keep.add("official_scale.json")
     prune(OUT / "snap", snap_keep)
     # a synced folder (OneDrive…) leaves conflict copies behind: never publish them
     for f in OUT.rglob("*Name clash*"):

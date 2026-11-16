@@ -1,8 +1,10 @@
 """Provisional race scores and CNs for an organiser's results, as each method would publish them.
 
 The same steps as the engine, with its own functions, on the runners matched to a licence:
- * official: the official CN 15 days before (cn_history), circuit value = mean of CN x time over the fastest
-   two thirds (FFCO's rule, cn.CnParams() defaults), score = value / time;
+ * official: the official CN 15 days before - in forest and sprint from 2026 as build_site computes it, across FFCO's
+   yearly rescale (ffco_scale.py, with the factors the site's build saved), else FFCO's last published one (cn_history) -,
+   circuit value = mean of CN x time over the fastest ⌈2N/3⌉ (FFCO's 2026 rule: 367 of 400 circuits of 2026 exact, 126
+   with the two thirds rounded down), score = value / time;
  * Fit and Top (linear and quadratic): the base method's internal CN 15 days before (the aggregate of its raw
    scores, as run_method values circuits), its circuit value, raw score = value / time, published score = raw x
    the recalage factor of the race's day; Fit and Top share these scores and differ in their CN.
@@ -14,22 +16,44 @@ who ran it, which a list by category does not give.
 
 from __future__ import annotations
 
+import json
 from datetime import date, timedelta
+from pathlib import Path
 
+from .. import ffco_scale
 from ..cn import CnParams, Decimal_round, aggregate, circuit_value, fade_factors, is_junior, title_weight
 from ..cn_engine import build_methods, daily_knots, factor_on
 
 COMPUTED = ("fair", "top6w")
 BASE = {"fair": "fair", "top6w": "fair"}
 FAIL = ("mp", "dnf", "dsq", "ot")
-OFFICIAL = CnParams()
+OFFICIAL = CnParams(sample_rounding="ceil")
+FOOT = {"Forêt": "For", "Sprint": "Spr"}
 
 
 class Scorer:
-    def __init__(self, con):
+    def __init__(self, con, scale_file: Path | None = None):
+        """`scale_file`: snap/official_scale.json of France's site data (the rescale's factors the build fitted)."""
         self.con = con
         self.specs = build_methods()
         self._knots: dict[tuple[str, str], list] = {}
+        self.scale_file = scale_file
+        self._scale = None
+
+    def scale(self):
+        """FFCO's official CN across its yearly rescale (built once, on the first forest or sprint race of 2026 on)."""
+        if self._scale is None:
+            cached = None
+            if self.scale_file and self.scale_file.exists():
+                try:
+                    cached = json.loads(self.scale_file.read_text(encoding="utf-8"))
+                except ValueError:
+                    cached = None
+            self._scale = ffco_scale.from_db(self.con, date.today().year, cached=cached)
+        return self._scale
+
+    def on_scale(self, terrain: str, d: date) -> bool:
+        return terrain in FOOT and d.year >= ffco_scale.FIRST
 
     def knots(self, method: str, terrain: str):
         if (method, terrain) not in self._knots:
@@ -42,7 +66,9 @@ class Scorer:
         return OFFICIAL if method == "official" else self.specs[method].params.for_terrain(terrain)
 
     # ---- what a runner brings to the circuit's value ------------------------------------------------------
-    def official_j15(self, lic: str, terrain: str, as_of: date) -> int | None:
+    def official_j15(self, lic: str, terrain: str, as_of: date, race_day: date | None = None) -> int | None:
+        if race_day and self.on_scale(terrain, race_day):
+            return self.scale().cn(lic, FOOT[terrain], as_of, 1, race_day.year)
         r = self.con.execute("""SELECT cn, date_iso FROM cn_history WHERE licence = ? AND method = 'official' AND terrain = ?
                                 AND date_iso <= ? AND cn IS NOT NULL ORDER BY date_iso DESC LIMIT 1""",
                              (lic, terrain, as_of.isoformat())).fetchone()
@@ -67,6 +93,9 @@ class Scorer:
     def cn_after(self, lic: str, method: str, terrain: str, d: date, score: int, weight: float, skip_course: int | None,
                  cat: str | None = None) -> int | None:
         """`cat`: the runner's category in this race (a junior's races fade, params.junior_fade)."""
+        if method == "official" and self.on_scale(terrain, d):
+            skip = {c for (c,) in self.con.execute("SELECT circuit_id FROM circuits WHERE course_id = ?", (skip_course,))} if skip_course else set()
+            return self.scale().cn_after(lic, FOOT[terrain], d, score, skip)
         p = self.params(method, terrain)
         rows = self.con.execute("""SELECT score, poids, date_iso, categorie FROM scores INDEXED BY idx_scores_runner WHERE licence = ?
                                    AND method = ? AND terrain = ? AND counts_for_cn = 1
@@ -90,7 +119,7 @@ class Scorer:
         rows = [r for r in klass["runners"] if r.get("lic") and r["status"] != "nc" and (r.get("category") or r.get("catCn") or "") not in ("H10", "D10")]
         # official
         as_of = d - timedelta(days=OFFICIAL.lag_days)
-        cn_in = {r["lic"]: self.official_j15(r["lic"], terrain, as_of) for r in rows}
+        cn_in = {r["lic"]: self.official_j15(r["lic"], terrain, as_of, d) for r in rows}
         ranked = [(cn_in[r["lic"]], r["time_s"]) for r in rows if r["status"] == "ok" and r["time_s"] and cn_in[r["lic"]]]
         if OFFICIAL.new_entrant_rescue and len(ranked) < OFFICIAL.min_ranked:
             ranked += [(OFFICIAL.new_entrant_value, r["time_s"]) for r in rows

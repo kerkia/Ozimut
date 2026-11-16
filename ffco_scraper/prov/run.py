@@ -1230,7 +1230,7 @@ def build(con, out: Path, today: date) -> int:
     pub.mkdir(parents=True, exist_ok=True)
     dump = lambda o: json.dumps(o, ensure_ascii=False, separators=(",", ":"))
     lo = (today - timedelta(days=SHOW_DAYS)).isoformat()
-    matcher, scorer = Matcher(con, today), Scorer(con)
+    matcher, scorer = Matcher(con, today), Scorer(con, out / "fr" / "snap" / "official_scale.json")
     anon = privacy.load()                # the anonymised runners: their rows by licence, the unmatched ones by name
     index, relay_index, written = [], [], 0      # (O'Live's relays apart: « Analyse de course » alone lists them)
     hi = (today + timedelta(days=START_DAYS)).isoformat()
