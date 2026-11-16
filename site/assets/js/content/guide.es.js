@@ -533,7 +533,7 @@ export function build(X) {
           </div>`)}`,
       analyses: () => html`
         ${slide("Orga", "Preparar el análisis", html`
-          <p>La pestaña «Análisis» abre el análisis de mapa del evento («Abrir el análisis de mapa») y después sirve para gestionarlo. Se prepara
+          <p>La pestaña «Análisis» abre por sí sola el análisis de mapa del evento y después sirve para gestionarlo. Se prepara
             recorrido por recorrido:</p>
           ${list([
             html`<b>El mapa</b>: una imagen, un PDF o un KMZ, guardado tal cual, sin pérdida de calidad.`,
@@ -543,7 +543,9 @@ export function build(X) {
               verán.`,
           ])}
           <p>La página del análisis sirve para gestionarlo, no para analizar: la lista de recorridos, el mapa del elegido con su trazado para
-            comprobarlo, la publicación (un análisis nuevo queda en borrador, que solo ven los organizadores, hasta «Publicar»), lo que pueden hacer
+            comprobarlo, la publicación (un análisis nuevo queda en borrador, que solo ven los organizadores; «Guardar sin publicar» lo deja así, «Guardar y
+            publicar» lo abre a los corredores, «Guardar y publicar más tarde» lo abre solo el día y a la hora elegidos; los recorridos de un
+            archivo OCAD depositado se añaden con esos mismos botones), lo que pueden hacer
             los corredores (añadir su track, «Análisis individual» sobre tu mapa, «Mis mapas», comentarios, variantes, vista 3D, vídeo, rutas
             calculadas) y el uso: las cuentas que lo han abierto, los tracks por recorrido, quienes lo han reproducido en solitario sin compartir
             track — solo números, nunca quién.</p>

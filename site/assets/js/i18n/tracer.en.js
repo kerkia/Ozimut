@@ -800,6 +800,7 @@ export default {
   "trc.page.kindRaceOpt": "A competition you manage",
   "trc.page.kindTrainingOpt": "A training session",
   "trc.page.racesHint": "The competitions organised by your club, coming up or in the last 60 days.",
+  "trc.page.forEvent": "Event: {name}, {date}.",
   "trc.page.noRaces": "No competition in your events (Orga).",
   "trc.page.titleLabel": "Title",
   "trc.page.titlePh": "Wednesday training",

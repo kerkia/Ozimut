@@ -542,7 +542,7 @@ export function build(X) {
           </div>`)}`,
       analyses: () => html`
         ${slide("Orga", "Die Analyse vorbereiten", html`
-          <p>Der Reiter „Analyse“ öffnet die Kartenanalyse der Veranstaltung („Kartenanalyse öffnen“) und dient danach dazu, sie zu verwalten. Sie
+          <p>Der Reiter „Analyse“ öffnet die Kartenanalyse der Veranstaltung von selbst und dient danach dazu, sie zu verwalten. Sie
             wird Bahn für Bahn vorbereitet:</p>
           ${list([
             html`<b>Die Karte</b>: ein Bild, ein PDF oder ein KMZ, unverändert gespeichert, ohne Qualitätsverlust.`,
@@ -552,7 +552,9 @@ export function build(X) {
               sehen werden.`,
           ])}
           <p>Die Seite der Analyse dient dazu, sie zu verwalten, nicht zu analysieren: die Liste der Bahnen, die Karte der gewählten Bahn mit ihrem
-            Verlauf zum Prüfen, die Veröffentlichung (eine neue Analyse bleibt ein Entwurf, den nur die Veranstalter sehen, bis „Veröffentlichen“),
+            Verlauf zum Prüfen, die Veröffentlichung (eine neue Analyse bleibt ein Entwurf, den nur die Veranstalter sehen; „Speichern, ohne zu veröffentlichen“ lässt
+            sie so, „Speichern und veröffentlichen“ öffnet sie für die Läufer, „Speichern und später veröffentlichen“ öffnet sie von selbst am
+            gewählten Tag zur gewählten Uhrzeit; die Bahnen einer abgelegten OCAD-Datei werden mit denselben Schaltflächen hinzugefügt),
             was die Läufer tun können (ihren Track hinzufügen, „Einzelanalyse“ auf deiner Karte, „Meine Karten“, Kommentare, Routenwahlen,
             3D-Ansicht, Video, berechnete Routen) und die Nutzung: die Konten, die sie geöffnet haben, die Tracks pro Bahn, wer sie allein
             abgespielt hat, ohne einen Track zu teilen — nur Zahlen, nie wer.</p>

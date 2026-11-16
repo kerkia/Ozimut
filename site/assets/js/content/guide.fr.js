@@ -536,7 +536,7 @@ export function build(X) {
           </div>`)}`,
       analyses: () => html`
         ${slide("Orga", "Préparer l'analyse", html`
-          <p>L'onglet « Analyse » ouvre l'analyse de carte de l'événement (« Ouvrir l'analyse de carte »), puis sert à la gérer. Elle se prépare circuit
+          <p>L'onglet « Analyse » ouvre de lui-même l'analyse de carte de l'événement, puis sert à la gérer. Elle se prépare circuit
             par circuit :</p>
           ${list([
             html`<b>La carte</b> : une image, un PDF ou un KMZ, gardée telle quelle, sans perte de qualité.`,
@@ -546,7 +546,9 @@ export function build(X) {
               verront.`,
           ])}
           <p>La page de l'analyse sert à la gérer, pas à analyser : la liste des circuits, la carte de celui qu'on choisit avec son parcours pour le
-            vérifier, la publication (une nouvelle analyse reste un brouillon que seuls les organisateurs voient, jusqu'à « Publier »), ce que les
+            vérifier, la publication (une nouvelle analyse reste un brouillon que seuls les organisateurs voient ; « Enregistrer sans publier » la garde ainsi,
+            « Enregistrer et publier » l'ouvre aux coureurs, « Enregistrer et publier plus tard » l'ouvre d'elle-même au jour et à l'heure choisis ;
+            les circuits d'un fichier OCAD déposé sont ajoutés par ces mêmes boutons), ce que les
             coureurs peuvent faire (ajouter leur trace, « Analyse solo » sur votre carte, « Mes cartes », commentaires, variantes, vue 3D,
             vidéo, itinéraires calculés), et la fréquentation : les comptes qui l'ont ouverte, les traces par circuit, ceux qui l'ont rejouée seuls
             sans partager de trace — des nombres seulement, jamais qui.</p>

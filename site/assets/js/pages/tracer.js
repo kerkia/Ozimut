@@ -259,6 +259,15 @@ async function clubRaces() {
 
 // ---- what the event is: a competition of one's club, or a training ------------------------------------------------------------
 function kindFields(races, title = forEvent?.name || "") {
+  // the event of « Orga › Gérer » the Tracer was opened for: said, not asked (owner, 2026-11-16)
+  if (forEvent && forEvent.linkState !== "pending") {
+    const race = forEvent.type !== "training" ? races.find((x) => x.key === forEvent.race) : null;
+    if (race) return `<input type="hidden" name="kind" value="race"><input type="hidden" name="race" value="${escA(race.key)}">
+      <p class="tr-hint">${escA(t("trc.page.forEvent", { name: race.name, date: fmtDate(race.date) }))}</p>`;
+    if (forEvent.type === "training" && (forEvent.name || "").trim().length >= 3) return `<input type="hidden" name="kind" value="training">
+      <input type="hidden" name="title" value="${escA(forEvent.name)}"><input type="hidden" name="date" value="${escA(forEvent.date || today())}">
+      <p class="tr-hint">${escA(t("trc.page.forEvent", { name: forEvent.name, date: fmtDate(forEvent.date || today()) }))}</p>`;
+  }
   return `<div class="tr-checks"><label class="tr-check"><input type="radio" name="kind" value="race" ${races.length ? "checked" : "disabled"}> ${escA(t("trc.page.kindRaceOpt"))}</label>
     <label class="tr-check"><input type="radio" name="kind" value="training" ${races.length ? "" : "checked"}> ${escA(t("trc.page.kindTrainingOpt"))}</label></div>
     <div data-k="race">${field(escA(t("trc.page.kindRace")), `<select name="race">${races.map((x) => `<option value="${x.key}">${escA(fmtDate(x.date, "short"))} — ${escA(x.name)}${x.place ? ` (${escA(x.place)})` : ""}</option>`).join("")}</select>`,
@@ -268,7 +277,9 @@ function kindFields(races, title = forEvent?.name || "") {
 function bindKind(f, races) {
   const sync = () => { const k = f.elements.kind.value; f.querySelectorAll("[data-k]").forEach((d) => { d.hidden = d.dataset.k !== k; }); };
   f.querySelectorAll("input[name=kind]").forEach((x) => x.addEventListener("change", sync)); sync();
-  f.elements.race?.addEventListener("change", () => { const r = races.find((x) => x.key === f.elements.race.value); if (r && /sprint/i.test(r.epr) && f.elements.std) { f.elements.std.value = "Spr2019"; f.elements.scale.value = "4000"; } });
+  const sprint = () => { const r = races.find((x) => x.key === f.elements.race?.value); if (r && /sprint/i.test(r.epr) && f.elements.std) { f.elements.std.value = "Spr2019"; f.elements.scale.value = "4000"; } };
+  f.elements.race?.addEventListener("change", sprint);
+  if (f.elements.race?.type === "hidden") sprint();
 }
 const kindProblem = (o) => (o.kind === "race" && !o.race ? t("trc.page.needRace") : o.kind === "training" && (o.title || "").trim().length < 3 ? t("trc.page.needTitle") : null);
 /** « Carte privée » (owner, 2026-11-06): the map left out of the administrators' collection; off by default. */

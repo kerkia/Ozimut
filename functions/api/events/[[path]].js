@@ -21,7 +21,7 @@
 //   DELETE /api/events/<id>/members/<uid>  members: a member removed, or oneself (never the last one: delete the event instead)
 
 import { allow, isAdmin, json, nowIso, parisToday, readBody, withUser } from "../../_lib/api.js";
-import { DECLARED, agendaRace, clubOf, findRace, orgCode, raceOf } from "../../_lib/club.js";
+import { DECLARED, agendaRace, clubLabel, clubOf, findRace, orgCode, raceOf } from "../../_lib/club.js";
 import { acceptedCountries, memberships, validCountry } from "../../_lib/countries.js";
 import { TYPES, eventOf, linked, mirror, newId, ready, shortName } from "../../_lib/events.js";
 import { flushPush, queuePush } from "../../_lib/push.js";
@@ -170,8 +170,14 @@ export const onRequest = withUser(async ({ request, env, params, waitUntil }, us
       Object.assign(b, { country: "FR", date: cal.race.date_iso, name: b.name || cal.race.name, place: b.place || cal.race.place || "",
         club: b.club || cal.race.org || "" });
     }
-    const f = fields(b, cal ? ["FR"] : acceptedCountries(await memberships(env, user.id)), admin);
+    const mships = cal ? null : await memberships(env, user.id);
+    const f = fields(b, cal ? ["FR"] : acceptedCountries(mships), admin);
     if (f.error) return json(f, 400);
+    // a training is its creator's club's (owner, 2026-11-16: the form no longer asks)
+    if (f.type === "training" && !f.club) {
+      f.club = (f.country === "FR" ? await clubLabel(env, request, user.licence) : null)
+        || clean((mships || []).find((m) => m.country === f.country && m.status === "ok")?.club, 80) || "";
+    }
     const id = newId();
     let race_key = f.type === "training" ? null : `d${id}`, link_key = null, link_state = "none";
     if (cal) {

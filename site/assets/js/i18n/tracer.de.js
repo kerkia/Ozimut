@@ -801,6 +801,7 @@ export default {
   "trc.page.kindRaceOpt": "Ein Wettkampf, den du verwaltest",
   "trc.page.kindTrainingOpt": "Ein Training",
   "trc.page.racesHint": "Die von deinem Verein veranstalteten Wettkämpfe, kommende und die der letzten 60 Tage.",
+  "trc.page.forEvent": "Veranstaltung: {name}, {date}.",
   "trc.page.noRaces": "Kein Wettkampf in deinen Veranstaltungen (Orga).",
   "trc.page.titleLabel": "Titel",
   "trc.page.titlePh": "Mittwochstraining",

@@ -514,7 +514,7 @@ export function build(X) {
           </div>`)}`,
       analyses: () => html`
         ${slide("Orga", "Preparing the analysis", html`
-          <p>The “Analysis” tab opens the event's map analysis (“Open the map analysis”), then is where you manage it. It is prepared course by
+          <p>The “Analysis” tab opens the event's map analysis by itself, then is where you manage it. It is prepared course by
             course:</p>
           ${list([
             html`<b>The map</b>: an image, a PDF or a KMZ, kept as it is, with no loss of quality.`,
@@ -523,7 +523,9 @@ export function build(X) {
             html`<b>Access</b>: every account, the club's members — and, if you wish, your invitees from other clubs or from none, with a code; the other accounts see the analysis in the list, with an invitation to ask you for that code —, or a password. “View as runners see it” shows the page as they will.`,
           ])}
           <p>The analysis's page is for managing it, not for analysing: the list of courses, the map of the one chosen with its course drawn to check
-            it, the publication (a new analysis stays a draft only the organisers see, until “Publish”), what the runners can do (add their track,
+            it, the publication (a new analysis stays a draft only the organisers see; “Save without publishing” keeps it so, “Save and publish” opens
+            it to the runners, “Save and publish later” opens it by itself on the day and at the time chosen; the courses of an OCAD file dropped
+            are added by the same buttons), what the runners can do (add their track,
             “Solo analysis” on your map, “My maps”, comments, route choices, 3D view, video, computed routes), and the attendance: the accounts that
             opened it, the tracks per course, those who replayed it alone without sharing a track — counts only, never who.</p>
           <p>Runners find it in Coach (“Analysis › Compare with the other runners”). Course setting can also publish its courses, map included, to an analysis (after the race for

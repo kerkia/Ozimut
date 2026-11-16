@@ -805,6 +805,14 @@ Run variants with `run_method` / `derive` on DB copies with `dataclasses.replace
   `watch()` (started by `app.start`) writes the day in the site's language under any date field as soon as it is typed in or
   picked (`.date-words`, « dimanche 11 octobre 2026 »); `dateWords(input)` shows it from the start (the map analysis's date and the
   new training's). The analysis's « Enregistrer » says « ✓ Enregistré » once the card is drawn again (`.sh-saved`).
+  **Since 2026-11-16 every date field is in the site's order** (owner: « for dates, when in French, use the French convention:
+  day/month/year — across Ozimut »): `datefield.js` (started by `datewords.watch`) turns every `input[type=date]` and
+  `[type=datetime-local]` put in the page into a text field written as the site's language writes a day (22/11/2026; 22.11.2026 in
+  German; « 22/11/2026 20:00 »), placeholder « jj/mm/aaaa », a calendar button opening the browser's own picker (a hidden native field,
+  `showPicker`; Alt+↓ or F4). The code is unchanged: the field's `value` reads and takes ISO ("" while what is typed is no whole valid
+  day: « 7/3/26 », « 07032026 », « 7.3.2026 » are read), its `type` still answers "date", FormData gets the ISO value (`formdata`
+  event). Write new date fields as `<input type="date">`; never style them by `[type="date"]` alone (the attribute becomes "text":
+  `input.date-field`).
 - Commit messages: a short title, a body explaining why, ending with the `Co-Authored-By` line the session
   provides. Commit and push only when the owner asks or has agreed to the change; usually: implement locally,
   test, then commit, push and confirm the CI run and the live site.
@@ -2540,7 +2548,14 @@ Every multiple-choice game was played through to its score page at phone size, w
   peuvent faire » (switches saved at once); « Fréquentation »; deletion. The circuit editor and the OCAD import take the page's width
   while open (`editing`). **Drafts**: every analysis created since then is `draft` until « Publier » (a circuit at least): its
   organisers alone list and open it (API 403 `draft`, out of the visitors' list); « Repasser en brouillon » hides it again, the traces
-  kept; analyses of before have no `draft` and stay published. **Switches** (`meta.opts`, `api/analyses` `OPTS`/`optsOf`, defaults):
+  kept; analyses of before have no `draft` and stay published. **Three ways to save a draft** (owner, 2026-11-16; « Publier » and
+  « Enregistrer » before): « Enregistrer sans publier » (stays a draft, an opening set dropped), « Enregistrer et publier », and
+  « Enregistrer et publier plus tard, le » with a date-and-time field: `openAt` (ISO, PUT `{ draft: true, openAt }`, a time to come
+  within 400 days) keeps it a draft until then, and it is published by itself at that time — every read decides with `draftNow` /
+  `isDraft` (the list's custom metadata carries `openAt`), nothing has to run; the head, the Gérer chip and the page say « Ouverture
+  le … ». A published one has « Enregistrer » and « Repasser en brouillon ». **The OCAD import has no « Ajouter » of its own**: the
+  courses read and ticked are sent by whichever of those buttons is clicked (`addImport` then the settings' PUT; the consent box
+  still needed), which are on as soon as courses wait. **Switches** (`meta.opts`, `api/analyses` `OPTS`/`optsOf`, defaults):
   `upload` (on; off: PUT trace refused, 403 `closed`, to all but the organisers; the traces shared stay and can be removed), `solo`
   (on; off: « Analyse solo » on the organiser's map refused, `an.orga.closed`, and the analysis left out of tile 2's picker — summary
   `solo` "0"), `mymaps` (on: « Enregistrer dans Mes cartes » in Solo's orga mode and, new, in the multi replay for one's own trace,
@@ -2699,6 +2714,16 @@ Every multiple-choice game was played through to its score page at phone size, w
   even, « 4 minutes between two runners of a club »): **Orga › Horaires › « Ouvrir la réservation »** (each row of Horaires' list has the button beside « Déposer les horaires », « Gérer la réservation » once opened — owner, 2026-11-05: it was found only inside a competition's page; `#/orga-horaires?course=<key>&resa=1`,
   `pages/bookingorg.js`, organisers as for the start lists: `_lib/club.js` `organises`; competitions `a<agenda id>` and `d<declared id>`)
   sets the circuits (first and last start, interval: `{ id, name, first, last, step }` in seconds), the gap between two runners of a
+  **Creating an event** (owner, 2026-11-16): a training asks for its name only — its club is its creator's (`clubsOf(cc).mine`, else
+  the server's `clubLabel` / the membership's club), no place, discipline, format or website (the fields `.mg-comp`, hidden, are not
+  read; the edit dialog alike) —; a competition's organising club defaults to the creator's and is a text field with the country's
+  clubs offered (`<datalist>`: France's FFCO directory « 0109 - O'BUGEY », else the country's ranking's names, plus its agenda's
+  organisers and the account's declared club). Then « 4. Et ensuite ? » — Tracé (default for a competition), Analyse (for a
+  training), Équipe — goes straight there: Tracé to `#/orga-tracer?nouveau=1&course=<key>` (a training `&titre=&date=`), which opens
+  the Tracer's « Nouvel événement » with the event already said (`kindFields`' preset: no start screen, no kind to choose, only the
+  map); Analyse to the event's tab, which **creates the analysis by itself** for a member (`openAnalysis`; the page with one button
+  stays only when that fails or the link waits for an administrator); a link waiting goes to Équipe. The list's « Analyse » chip says
+  « publiée », « brouillon » or its opening time (`states()` reads `/api/analyses`).
   club — **whatever their circuits** —, the closing time (Paris), runners per account (10), the card number asked or not (owner: the
   timing software finds it from the name; optional), a note; draft / open / closed. A sheet or file already filled in is imported
   (every tab: `sheettabs.js`; its circuits inferred over one window and interval, each on its own minute; its runners booked as the

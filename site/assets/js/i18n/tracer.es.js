@@ -801,6 +801,7 @@ export default {
   "trc.page.kindRaceOpt": "Una competición que gestionas",
   "trc.page.kindTrainingOpt": "Un entrenamiento",
   "trc.page.racesHint": "Las competiciones organizadas por tu club, próximas o de los últimos 60 días.",
+  "trc.page.forEvent": "Evento: {name}, {date}.",
   "trc.page.noRaces": "Ninguna competición en tus eventos (Orga).",
   "trc.page.titleLabel": "Título",
   "trc.page.titlePh": "Entrenamiento del miércoles",

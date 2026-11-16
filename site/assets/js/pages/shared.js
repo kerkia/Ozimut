@@ -132,6 +132,20 @@ async function api(path, { method = "GET", body, type, key } = {}) {
   if (!r.ok) { const e = new Error(data?.error || `http ${r.status}`); e.status = r.status; e.code = data?.error; e.data = data; throw e; }
   return data;
 }
+// an analysis's state (owner, 2026-11-16): published, a draft, or a draft whose opening is set (`openAt`, an ISO time)
+const later = (a) => !!a?.draft && !!a.openAt;
+/** A time in the reader's language: « dim. 22 nov. 2026, 20:00 ». */
+export const fmtWhen = (iso) => new Date(iso).toLocaleString(locale(), { weekday: "short", day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" });
+export const stateText = (a) => (later(a) ? t("sh.m.state.later", { when: fmtWhen(a.openAt) }) : t(a?.draft ? "sh.m.state.draft" : "sh.m.state.live"));
+export const stateClass = (a) => (later(a) ? "sh-m-later" : a?.draft ? "sh-m-draft" : "sh-m-live");
+/** The opening's field: the one set, else the analysis's day at 20:00 if still to come, else empty. */
+const atValue = (a) => {
+  const pad = (n) => String(n).padStart(2, "0");
+  const loc = (d) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+  if (a.openAt) return loc(new Date(a.openAt));
+  const d = new Date(`${a.date}T20:00`);
+  return d.getTime() > Date.now() ? loc(d) : "";
+};
 const errText = (e) => t(`sh.err.${e?.code}`) !== `sh.err.${e?.code}` ? t(`sh.err.${e.code}`) : `${t("sh.err.other")} (${e?.code || e?.message || ""})`;
 
 
@@ -307,11 +321,11 @@ async function orgListPage(main, query = {}) {
       { key: "type", label: t("sh.org.col.type"), val: (x) => t(`sh.org.type.${x.kind}`) },
       { key: "event", label: t("sh.org.col.event"), val: (x) => x.name },
       { key: "org", label: t("sh.org.col.org"), val: (x) => x.org || "" },
-      { key: "state", label: t("sh.org.col.state"), val: (x) => (x.a.draft ? 0 : 1000) + (Number(x.a.courses) || 0) },
+      { key: "state", label: t("sh.org.col.state"), val: (x) => (x.a.draft ? (x.a.openAt ? 500 : 0) : 1000) + (Number(x.a.courses) || 0) },
       { key: "by", label: t("sh.org.col.by"), tip: t("sh.org.col.by.tip"), val: (x) => `${x.a.ownerName || ""} ${x.a.created || ""}` }],
     rows: (x) => html`<td class="num">${x.date ? fmtDate(x.date, "short") : "—"}</td><td><span class="tag">${t(`sh.org.type.${x.kind}`)}</span></td>${raw(nameCell(x))}
       <td class="muted cut" title="${x.org || ""}">${x.org || "—"}</td>
-      <td class="cut"><span class="tag ${x.a.draft ? "sh-m-draft" : "sh-m-live"}">${t(x.a.draft ? "sh.m.state.draft" : "sh.m.state.live")}</span> <span class="muted">${tn("ma.courses", x.a.courses)}${x.kind === "club" ? ` · ${t(`sh.vis.${x.a.vis}`)}` : ""}</span></td>
+      <td class="cut"><span class="tag ${stateClass(x.a)}">${stateText(x.a)}</span> <span class="muted">${tn("ma.courses", x.a.courses)}${x.kind === "club" ? ` · ${t(`sh.vis.${x.a.vis}`)}` : ""}</span></td>
       <td class="cut" title="${byTitle(x.a)}">${raw(byLine(x.a))}</td>`,
     none: () => empty(t("sh.org.opened.none"), ["ouvrir", t("sh.org.tab.open")], ["entrainement", t("sh.org.tab.newTraining")]),
     act: (x) => { location.hash = `${ORG_ROUTE}?id=${x.id}`; } }).draw();
@@ -451,7 +465,7 @@ async function eventPage(main, kind, id, org = false, query = {}) {
     <div class="sh-top sh-top3"><span class="sh-top-l">
       <b class="sh-title">${A.title}</b><span class="muted">${fmtDate(A.date)} · ${t(A.via === "pixel" ? "sh.kind.pixel" : A.kind === "race" ? "ma.kind.race" : "sh.kind.club")}</span>
       </span><span class="sh-tabs" id="sh-tabs"></span><span class="sh-top-r">
-      ${organiser && A.draft ? html`<span class="tag sh-m-draft" title="${t("sh.m.draft.tip")}">${t("sh.m.state.draft")}</span>` : ""}
+      ${organiser && A.draft ? html`<span class="tag ${stateClass(A)}" title="${t("sh.m.draft.tip")}">${stateText(A)}</span>` : ""}
       <span class="sh-top-add" id="sh-top-add"></span>
       <span class="muted sh-access">${t(`sh.access.${A.vis === "public" && A.visitors ? "all" : A.vis === "club" && A.code ? "clubCode" : A.vis}`)}</span>
       <span class="fw-btns">${raw(mapOnlyButton())}${raw(fwButtons({ tab: false }))}</span></span></div>
@@ -879,19 +893,20 @@ async function managePage(main, id, data, race, embed = false) {
     by.textContent = t(A.created ? "sh.m.by" : "sh.m.by.noDate", { name: A.ownerName || t("sh.by.gone"), date: A.created ? fmtDate(A.created.slice(0, 10)) : "" })
       + (A.via ? ` (${t(`sh.via.${A.via}`)})` : "") + (data.ownerEmail ? ` · ${data.ownerEmail}` : "");
     const st = $("#sh-m-state");
-    st.textContent = t(A.draft ? "sh.m.state.draft" : "sh.m.state.live");
-    st.className = `tag ${A.draft ? "sh-m-draft" : "sh-m-live"}`;
+    st.textContent = stateText(A);
+    st.className = `tag ${stateClass(A)}`;
   }
 
   // ---- publication and access
   function pubCard() {
-    const box = $("#sh-m-pub"), ready = A.courses.length > 0;
+    const box = $("#sh-m-pub"), ready = A.courses.length > 0 || pendingCount() > 0;
+    const when = A.draft && A.openAt ? fmtWhen(A.openAt) : "";
     box.innerHTML = html`<div class="card-body">
       <h2 class="sh-m-h">${t("sh.m.pub")}</h2>
-      <div class="sh-m-status ${A.draft ? "draft" : "live"}">
-        <p>${t(A.draft ? (ready ? "sh.m.draft.ready" : "sh.m.draft.empty") : `sh.m.live.${A.vis === "club" && A.code ? "clubCode" : A.vis}`, { where: t("sh.m.where") })}</p>
-        ${A.draft ? html`<button type="button" class="btn btn-primary" id="sh-m-publish" ${raw(ready ? "" : "disabled")}>${t("sh.m.publish")}</button>`
-          : html`<button type="button" class="btn btn-sm" id="sh-m-unpublish">${t("sh.m.unpublish")}</button>`}</div>
+      <div class="sh-m-status ${A.draft ? (when ? "later" : "draft") : "live"}">
+        <p>${when ? t("sh.m.scheduled", { when, where: t("sh.m.where") })
+          : t(A.draft ? (ready ? "sh.m.draft.ready" : "sh.m.draft.empty") : `sh.m.live.${A.vis === "club" && A.code ? "clubCode" : A.vis}`, { where: t("sh.m.where") })}</p>
+        ${A.draft ? "" : html`<button type="button" class="btn btn-sm" id="sh-m-unpublish">${t("sh.m.unpublish")}</button>`}</div>
       <!-- three rows (owner, 2026-11-07): the title and the date, the club shown under them, the access and what it adds -->
       <div class="filters sh-m-fields">
         <div class="sh-s-row sh-s-titlerow"><label class="field sh-s-titlef"><span>${t("sh.col.title")}</span><input type="text" id="sh-s-title" value="${A.title}" maxlength="120"></label>
@@ -903,24 +918,40 @@ async function managePage(main, id, data, race, embed = false) {
             <input type="text" id="sh-s-codev" style="width:160px" autocomplete="off" aria-label="${t("ma.code")}" placeholder="${A.code ? t("sh.pw.keep") : t("sh.pw.ph")}"></div>
           <div class="sh-s-sub sh-s-visitors" ${raw(A.vis === "public" ? "" : "hidden")}><label class="an-opt" title="${t("sh.visitors.hint")}"><input type="checkbox" id="sh-s-visitors" ${raw(A.visitors && A.vis === "public" ? "checked" : "")}> ${t("sh.visitors")}</label></div></div>
         <label class="field" id="sh-s-pwf" ${raw(A.vis === "password" ? "" : "hidden")}><span>${t("sh.pw.new")}</span><input type="text" id="sh-s-pw" style="width:160px" autocomplete="off" placeholder="${A.vis === "password" ? t("sh.pw.keep") : ""}"></label></div></div>
-      <div class="row sh-s-saverow"><button type="button" class="btn btn-sm" id="sh-s-save">${t("sh.save")}</button><span class="muted" id="sh-s-note"></span></div></div>`;
+      ${A.draft ? html`<div class="sh-s-actions">
+          <button type="button" class="btn btn-primary" id="sh-s-pubnow" ${raw(ready ? "" : "disabled")}>${t("sh.m.saveNow")}</button>
+          <div class="sh-s-later"><button type="button" class="btn" id="sh-s-publater" ${raw(ready ? "" : "disabled")}>${t("sh.m.saveLater")}</button>
+            <input type="datetime-local" id="sh-s-at" value="${atValue(A)}" aria-label="${t("sh.m.at")}" title="${t("sh.m.at")}"></div>
+          <button type="button" class="btn btn-sm" id="sh-s-save">${t("sh.m.saveDraft")}</button>
+          <span class="muted" id="sh-s-note"></span></div>`
+        : html`<div class="row sh-s-saverow"><button type="button" class="btn btn-sm" id="sh-s-save">${t("sh.save")}</button><span class="muted" id="sh-s-note"></span></div>`}</div>`;
     // the card is drawn again with what the server kept, then « Enregistré » said in it (owner, 2026-11-11: it was written before
     // the card was drawn again, and so never seen)
+    const buttons = () => $$(".sh-s-actions button, .sh-s-saverow button", box);
     const put = async (body, note) => {
-      const btn = note ? $("#sh-s-save") : null;
-      if (btn) { btn.disabled = true; $(note).textContent = t("sh.saving"); $(note).classList.remove("sh-saved"); }
+      const btns = note ? buttons() : [];
+      btns.forEach((b) => { b.disabled = true; });
+      if (note) { $(note).textContent = t("sh.saving"); $(note).classList.remove("sh-saved"); }
       try {
+        // the circuits read from an OCAD project and ticked are added by the same click (owner, 2026-11-16: no « Ajouter » of its own)
+        if (note && pendingCount()) {
+          const ok = await addImport((s) => { $(note).textContent = s; });
+          if (!ok) throw Object.assign(new Error(imp.note), { shown: true });
+        }
+        if (note && body.draft === false && !A.courses.length) throw Object.assign(new Error(t("sh.m.draft.empty")), { shown: true });
         const r = await api(`/${id}`, { method: "PUT", body, key: keyOf(id) });
-        Object.assign(A, r.analysis); head(); pubCard(); optsCard(); statsCard();
+        Object.assign(A, r.analysis);
+        if (note && imported) { imported = false; await reload(); } else { head(); pubCard(); optsCard(); statsCard(); }
         if (note) { const el = $(note); el.textContent = `✓ ${t("sh.saved")}`; el.classList.add("sh-saved"); }
       } catch (e) {
-        if (btn) btn.disabled = false;
-        const el = note ? $(note) : null; if (el) el.textContent = errText(e); else alertBox(errText(e));
+        btns.forEach((b) => { b.disabled = false; });
+        const msg = e.shown ? e.message : errText(e);
+        const el = note ? $(note) : null; if (el) el.textContent = msg; else alertBox(msg);
       }
     };
-    $("#sh-m-publish")?.addEventListener("click", () => put({ draft: false }));
-    $("#sh-m-unpublish")?.addEventListener("click", async () => { if (await confirmBox(t("sh.m.unpublish.confirm"), { ok: t("sh.m.unpublish") })) put({ draft: true }); });
-    $("#sh-s-save").addEventListener("click", () => {
+    $("#sh-m-unpublish")?.addEventListener("click", async () => { if (await confirmBox(t("sh.m.unpublish.confirm"), { ok: t("sh.m.unpublish") })) put({ draft: true, openAt: null }); });
+    // the settings typed, as the server takes them; null when one is wrong (said in the note)
+    const settings = () => {
       const body = { title: $("#sh-s-title").value, date: $("#sh-s-date").value, vis: $("#sh-s-vis").value, visitors: $("#sh-s-vis").value === "public" && $("#sh-s-visitors").checked };
       const org = $("#sh-s-org").value.trim();
       if (org !== (A.orgName || "")) body.orgName = org;                                // the club shown, changed or cleared
@@ -929,9 +960,19 @@ async function managePage(main, id, data, race, embed = false) {
       if (body.vis === "club") {
         body.code = $("#sh-s-code").checked;
         if (body.code && $("#sh-s-codev").value) body.password = $("#sh-s-codev").value;
-        if (body.code && ((!A.code && !body.password) || (body.password && body.password.length < 2))) { $("#sh-s-note").textContent = t("ma.code.short"); return; }
+        if (body.code && ((!A.code && !body.password) || (body.password && body.password.length < 2))) { $("#sh-s-note").textContent = t("ma.code.short"); return null; }
       }
-      put(body, "#sh-s-note");
+      return body;
+    };
+    // a draft: kept a draft (its opening, if any, dropped), published now, or published at the time chosen; published: saved
+    $("#sh-s-save").addEventListener("click", () => { const b = settings(); if (b) put(A.draft ? { ...b, draft: true, openAt: null } : b, "#sh-s-note"); });
+    $("#sh-s-pubnow")?.addEventListener("click", () => { const b = settings(); if (b) put({ ...b, draft: false }, "#sh-s-note"); });
+    $("#sh-s-publater")?.addEventListener("click", () => {
+      const b = settings();
+      if (!b) return;
+      const v = $("#sh-s-at").value, at = v ? new Date(v) : null;
+      if (!at || !(at.getTime() > Date.now())) { $("#sh-s-note").textContent = t("sh.m.atFuture"); $("#sh-s-at").focus(); return; }
+      put({ ...b, draft: true, openAt: at.toISOString() }, "#sh-s-note");
     });
     dateWords($("#sh-s-date"));
     $("#sh-s-vis").addEventListener("change", (e) => {
@@ -960,6 +1001,11 @@ async function managePage(main, id, data, race, embed = false) {
   const imp = { got: [], read: null, err: "", busy: false, note: "", frac: null, on: new Map(), circ: new Map(), renders: new Map(), prev: null, consent: false, keep: true, token: null };
   const clearImp = () => { Object.assign(imp, { got: [], read: null, err: "", busy: false, note: "", frac: null, prev: null, token: null }); imp.on.clear(); imp.circ.clear(); imp.renders.clear(); };
   const picked = () => (imp.read ? imp.read.designs.map((d, i) => ({ d, i })).filter(({ i }) => imp.on.get(i)) : []);
+  // the circuits waiting to be added by the next save (none while the files are wrong)
+  const pendingCount = () => (imp.read && !imp.err ? picked().length : 0);
+  let imported = false;
+  /** The publication's buttons enabled once there is a circuit, kept or to be added (the card not drawn again: what is typed stays). */
+  const syncReady = () => { const ok = A.courses.length > 0 || pendingCount() > 0; for (const b of $$("#sh-s-pubnow, #sh-s-publater")) b.disabled = !ok; };
   async function take(list) {
     list = [...(list || [])].filter(isVec);
     if (!list.length || imp.busy) return;
@@ -987,7 +1033,7 @@ async function managePage(main, id, data, race, embed = false) {
       const code = e.code === "needMap" && !e.name ? "needMapAny" : e.code;
       imp.err = ["unreadable", "noCourses", "noGeo", "needMap", "needMapAny"].includes(code) ? t(`sh.ocad.err.${code}`, { f, map: e.name || "?" }) : `${f} — ${e.message || e}`;
     }
-    coursesCard();
+    coursesCard(); syncReady();
     if (imp.read?.designs.length) showPending(0);
   }
   /** A course of the project drawn on the map card as it will be published (rendered once, kept for « Ajouter »). */
@@ -1021,8 +1067,9 @@ async function managePage(main, id, data, race, embed = false) {
     // a white sheet with the overprint alone: said before anything is sent, and nothing can be added
     if (r.blank && !imp.err) { imp.err = t("sh.ocad.err.blank"); coursesCard(); }
   }
-  async function addImport() {
-    const note = (s, frac = null) => { imp.note = s; imp.frac = frac; const el = $("#sh-imp-note"); if (el) el.textContent = s; const b = $("#sh-imp-bar"); if (b) { b.hidden = frac == null; setBar(b.querySelector("progress"), frac); } };
+  /** The circuits ticked, sent and added to the analysis (the publication card's buttons). -> true once done. */
+  async function addImport(say = null) {
+    const note = (s, frac = null) => { imp.note = s; imp.frac = frac; say?.(s); const el = $("#sh-imp-note"); if (el) el.textContent = s; const b = $("#sh-imp-bar"); if (b) { b.hidden = frac == null; setBar(b.querySelector("progress"), frac); } return false; };
     const pick = picked();
     if (!pick.length) return note(t("sh.ocad.none"));
     if (!imp.consent) return note(t("sh.e.consentNeeded"));
@@ -1055,7 +1102,8 @@ async function managePage(main, id, data, race, embed = false) {
           ...(read.E.ev.courses[d.id]?.kind === "score" ? { score: true } : {}) });
       }
       const courses = [...A.courses.filter((c) => !out.some((o) => o.n === c.n)), ...out].sort((a, b) => a.n - b.n);
-      await api(`/${id}`, { method: "PUT", body: { courses }, key: keyOf(id) });
+      const r = await api(`/${id}`, { method: "PUT", body: { courses }, key: keyOf(id) });
+      if (r?.analysis) Object.assign(A, r.analysis); else A.courses = courses;
       // the files themselves, for the event's course setting (owner, 2026-11-12: no second upload); the organisers' alone.
       // The circuits are in: a failure here is said, not undone
       if (imp.keep) {
@@ -1068,10 +1116,12 @@ async function managePage(main, id, data, race, embed = false) {
       }
       clearImp();
       sel = out[0]?.n ?? sel;
-      reload();
+      imported = true;
+      return true;
     } catch (e) {
       imp.busy = false; imp.note = e.shown ? e.message : errText(e); imp.frac = null;
       coursesCard();
+      return false;
     }
   }
   function impHtml() {
@@ -1092,22 +1142,21 @@ async function managePage(main, id, data, race, embed = false) {
           <td><b>${d.name}</b>${taken.has(nm(d.name)) ? html` <span class="tag" title="${t("sh.ocad.replaces")}">${t("sh.imp.replaces")}</span>` : ""}</td>
           <td class="r num">${d.nCtrl}</td>
           ${raceCircuits.length ? html`<td><select data-k="${i}" ${raw(dis)}><option value="">—</option>${raceCircuits.map((c) => html`<option ${raw(imp.circ.get(i) === c ? "selected" : "")}>${c}</option>`)}</select></td>` : ""}</tr>`)}</tbody></table></div>
-      ${imp.err ? html`<p class="sh-imp-err">${imp.err}</p>` : html`<p class="hint">${t("sh.imp.hint")}</p>`}
+      ${imp.err ? html`<p class="sh-imp-err">${imp.err}</p>` : html`<p class="hint">${n ? tn("sh.imp.onSave", n) : t("sh.ocad.none")} ${t("sh.imp.click")}</p>`}
       <label class="an-opt"><input type="checkbox" id="sh-imp-ok" ${raw(imp.consent ? "checked" : "")} ${raw(dis)}> ${t("sh.e.consent")}</label>
       <label class="an-opt" title="${t("sh.imp.keep.tip")}"><input type="checkbox" id="sh-imp-keep" ${raw(imp.keep ? "checked" : "")} ${raw(dis)}> ${t("sh.imp.keep")}</label>
-      <div class="row sh-imp-go"><button type="button" class="btn btn-primary" id="sh-imp-add" ${raw(imp.busy || imp.err || !n ? "disabled" : "")}>${n ? tn("sh.imp.add", n) : t("sh.ocad.none")}</button>
-        <button type="button" class="btn btn-sm" id="sh-imp-cancel" ${raw(dis)}>${t("sh.cancel")}</button><span class="muted" id="sh-imp-note">${imp.note}</span></div>
+      <div class="row sh-imp-go"><button type="button" class="btn btn-sm" id="sh-imp-cancel" ${raw(dis)}>${t("sh.imp.drop")}</button><span class="muted" id="sh-imp-note">${imp.note}</span></div>
       <div id="sh-imp-bar" ${raw(imp.frac == null ? "hidden" : "")}>${raw(bar(imp.frac))}</div></div>`;
   }
   function bindImp(box) {
-    $("#sh-imp-cancel", box)?.addEventListener("click", () => { clearImp(); coursesCard(); showMap(); });
-    $("#sh-imp-add", box)?.addEventListener("click", addImport);
+    $("#sh-imp-cancel", box)?.addEventListener("click", () => { clearImp(); coursesCard(); syncReady(); showMap(); });
     $("#sh-imp-keep", box)?.addEventListener("change", (e) => { imp.keep = e.target.checked; });
     $("#sh-imp-ok", box)?.addEventListener("change", (e) => { imp.consent = e.target.checked; if (imp.consent && imp.note === t("sh.e.consentNeeded")) { imp.note = ""; $("#sh-imp-note").textContent = ""; } });
     $$("[data-o]", box).forEach((cb) => cb.addEventListener("change", () => {
       imp.on.set(Number(cb.dataset.o), cb.checked);
-      const n = picked().length, b = $("#sh-imp-add");
-      if (b) { b.textContent = n ? tn("sh.imp.add", n) : t("sh.ocad.none"); b.disabled = imp.busy || !!imp.err || !n; }
+      const n = picked().length, h = $(".sh-imp > .hint", box);
+      if (h) h.textContent = `${n ? tn("sh.imp.onSave", n) : t("sh.ocad.none")} ${t("sh.imp.click")}`;
+      syncReady();                                                          // the publication's buttons follow what will be added
     }));
     $$("[data-k]", box).forEach((s) => s.addEventListener("change", () => imp.circ.set(Number(s.dataset.k), s.value)));
     $$("tr[data-i]", box).forEach((row) => {

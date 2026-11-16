@@ -34,7 +34,7 @@
 //                                                      (`via`: where it was opened — "list" Orga's list, "form" a new training,
 //                                                      "tracer" the Tracer's publication; kept since 2026-11-04 with `created`)
 //   GET    /api/analyses/<id>                          the analysis and its traces' list
-//   PUT    /api/analyses/<id>                          the organiser: { title?, vis?, password?, code?, courses?, draft?, opts? }
+//   PUT    /api/analyses/<id>                          the organiser: { title?, vis?, password?, code?, courses?, draft?, openAt?, opts? }
 //   GET    /api/analyses/<id>/stats                    the organiser: views, traces, solo replays, per circuit
 //   POST   /api/analyses/<id>/solo/<n>                 an account replays circuit n in « Analyse solo » (counted)
 //   DELETE /api/analyses/<id>                          the organiser: the analysis, its maps and traces
@@ -105,10 +105,14 @@ const named = new Set(), BARE = /^\d{4}[A-Z]{0,2}$/;
 // `cc` the event's country (a competition's, else its creator's site country), `orgName` its organising club as written
 // (« 0109 - O'BUGEY »), `up` whether the runners may add their trace: « Analyse de carte »'s filters and actions (2026-11-04)
 const hasCode = (m) => m.vis === "club" && !!m.code && !!m.pw;
+// a draft may be given its opening (owner, 2026-11-16: « Enregistrer et publier plus tard »): `openAt`, an ISO time; it stays a
+// draft until then and is published by itself at that time, whatever reads it (the analysis, or its summary in a list)
+const draftNow = (draft, openAt) => !!draft && draft !== "0" && !(openAt && Date.now() >= Date.parse(openAt));
+const isDraft = (m) => draftNow(m.draft, m.openAt);
 const summary = (m) => ({ id: m.id, kind: m.kind, title: m.title, date: m.date, race: m.race || "", club: m.club || "", orgClub: m.orgClub || "", vis: m.vis,
   code: hasCode(m) ? "1" : "",
   created: m.created || "", via: m.via || "", cc: m.cc || "", orgName: m.orgName || "", orgSet: m.orgSet ? "1" : "", up: optsOf(m).upload ? "1" : "0",
-  visitors: m.visitors && m.vis === "public" && !m.draft ? "1" : "", draft: m.draft ? "1" : "", solo: optsOf(m).solo ? "1" : "0",
+  visitors: m.visitors && m.vis === "public" ? "1" : "", draft: m.draft ? "1" : "", openAt: m.draft && m.openAt ? m.openAt : "", solo: optsOf(m).solo ? "1" : "0",
   owner: m.owner, ownerName: m.ownerName || "", courses: (m.courses || []).length, updated: m.updated, pos: centreOf(m) });
 /** The middle of the first circuit's map, "lat,lon" (« Analyse de carte » places the event on its map), or "". */
 function centreOf(m) {
@@ -121,7 +125,7 @@ function centreOf(m) {
   return Math.abs(lat) <= 90 && Math.abs(lon) <= 180 ? `${lat.toFixed(5)},${lon.toFixed(5)}` : "";
 }
 const custom = (m) => Object.fromEntries(Object.entries(summary(m)).map(([k, v]) => [k, String(v ?? "")]));
-const publicMeta = (m) => { const { pw, ...rest } = m; return { ...rest, code: hasCode(m), draft: !!m.draft, opts: optsOf(m) }; };
+const publicMeta = (m) => { const { pw, ...rest } = m; return { ...rest, code: hasCode(m), draft: isDraft(m), openAt: isDraft(m) ? m.openAt || null : null, opts: optsOf(m) }; };
 
 async function loadMeta(env, id) {
   const o = await env.BUCKET.get(`${META}${id}.json`);
@@ -279,9 +283,9 @@ const cleanNote = (s) => String(s ?? "").replace(/\r/g, "").replace(/[\u0000-\u0
 async function visitors(ctx, parts) {
   const { request, env } = ctx;
   if (request.method !== "GET") return json({ error: "method" }, 405);
-  const open = (m) => !!m && m.vis === "public" && !!m.visitors && !m.draft;
+  const open = (m) => !!m && m.vis === "public" && !!m.visitors && !isDraft(m);
   if (!parts.length) {
-    const metas = (await listAll(env, META)).map((o) => o.customMetadata || {}).filter((m) => m.vis === "public" && m.visitors === "1" && m.draft !== "1");
+    const metas = (await listAll(env, META)).map((o) => o.customMetadata || {}).filter((m) => m.vis === "public" && m.visitors === "1" && !draftNow(m.draft === "1", m.openAt));
     const counts = await dataCounts(env);
     return json({ analyses: metas.map((m) => ({ id: m.id, kind: m.kind, title: m.title, date: m.date, race: m.race, vis: m.vis, courses: Number(m.courses) || 0,
       pos: m.pos ? m.pos.split(",").map(Number) : null, access: "open", organiser: false, visitors: true, cc: m.cc || "", orgName: m.orgName || "", orgSet: m.orgSet === "1",
@@ -394,7 +398,8 @@ const forUsers = withUser(async (ctx, user) => {
         }
         const meta = { ...m, owner: Number(m.owner), courses: [] };
         const org = await isOrganiser(env, user, meta, lazyClub);
-        if (m.draft === "1" && !org) continue;                              // a draft: its organisers' alone
+        const draft = draftNow(m.draft === "1", m.openAt);
+        if (draft && !org) continue;                                         // a draft: its organisers' alone
         // a club's analysis is listed to everyone (owner, 2026-11-07): a non-member is told it is the club's, and may have its code
         let acc;
         if (org || m.vis === "public") acc = "open";
@@ -403,7 +408,7 @@ const forUsers = withUser(async (ctx, user) => {
         if (!acc) continue;
         out.push({ id: m.id, kind: m.kind, title: m.title, date: m.date, race: m.race, vis: m.vis, code: m.code === "1", ownerName: m.ownerName,
           courses: Number(m.courses) || 0, updated: m.updated, mine: meta.owner === user.id, organiser: org, access: acc,
-          draft: m.draft === "1", solo: m.solo !== "0", upload: m.up !== "0", pos: m.pos ? m.pos.split(",").map(Number) : null,
+          draft, openAt: draft && m.openAt ? m.openAt : null, solo: m.solo !== "0", upload: m.up !== "0", pos: m.pos ? m.pos.split(",").map(Number) : null,
           cc: m.cc || "", orgName: m.orgName || "", orgSet: m.orgSet === "1", runners: counts(m.id).runners.size, thumb: firstThumb(counts(m.id)),
           // who opened it (owner, 2026-11-04: « I need a way for an admin to see which organisers own and opened which map
           // analyses »): shown to its organisers; the account's e-mail to the administrators only (below)
@@ -478,7 +483,7 @@ const forUsers = withUser(async (ctx, user) => {
     return json({ key: await unlockKey(env, meta, user.id) });
   }
 
-  if (meta.draft && !organiser) return json({ error: "draft" }, 403);
+  if (isDraft(meta) && !organiser) return json({ error: "draft" }, 403);
   const acc = await access(ctx, user, meta, lazyClub);
   // a club's analysis to a non-member: whose it is and whom to ask, and whether a code opens it
   if (acc === "club") return json({ error: "club", code: hasCode(meta), org: meta.orgName || "", owner: meta.ownerName || "" }, 403);
@@ -514,7 +519,17 @@ const forUsers = withUser(async (ctx, user) => {
         meta.vis = b.vis;
       }
       if (b.visitors != null) meta.visitors = !!b.visitors;
-      if (b.draft != null) { if (b.draft) meta.draft = true; else delete meta.draft; }
+      // published now, kept a draft, or a draft until its opening (a time to come)
+      if (b.draft != null) { if (b.draft) meta.draft = true; else { delete meta.draft; delete meta.openAt; } }
+      if (b.openAt !== undefined) {
+        if (!b.openAt) delete meta.openAt;
+        else {
+          const at = Date.parse(String(b.openAt));
+          if (!Number.isFinite(at) || at <= Date.now() || at > Date.now() + 400 * 86400e3) return json({ error: "openAt" }, 400);
+          meta.draft = true; meta.openAt = new Date(at).toISOString();
+        }
+      }
+      if (meta.openAt && !isDraft(meta)) { delete meta.draft; delete meta.openAt; }   // its time came: published
       if (b.opts != null) {
         if (typeof b.opts !== "object" || Array.isArray(b.opts)) return json({ error: "fields" }, 400);
         const o = { ...optsOf(meta), rv: 1 };

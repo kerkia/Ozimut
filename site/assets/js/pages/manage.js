@@ -23,9 +23,12 @@ const TYPES = ["individual", "score", "relay", "training"];
 const ALL_TABS = ["trace", "departs", "direct", "resultats", "analyse", "equipe"];
 // the tabs of each type (a relay's results and start list wait for « Résultats » to take relays; a training has no race page)
 const TABS = { individual: ALL_TABS, score: ALL_TABS, relay: ["trace", "direct", "analyse", "equipe"], training: ["trace", "analyse", "equipe"] };
+const NEXT = ["trace", "analyse", "equipe"];                            // the steps offered once an event is created
 const TERRAINS = ["Forêt", "Sprint", "VTT", "Ski"];                    // the data's values (i18n-ignore)
 const FORMATS = ["MD", "LD", "Sprint", "Nuit", "Autre"];                // (i18n-ignore)
 const today = () => new Date().toLocaleDateString("sv-SE");
+/** A time in the reader's language, short: « 22 nov., 20:00 ». */
+const fmtWhen = (iso) => new Date(iso).toLocaleString(locale(), { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" });
 const href = (q) => `${BASE}?${new URLSearchParams(q)}`;
 
 async function api(path = "", { method = "GET", body } = {}) {
@@ -73,13 +76,14 @@ export async function render(main, r) {
 
 // ---- the states shown on the chips: Résultats' index, the bookings, the live broadcasts ---------------------------------
 async function states() {
-  const [idx, bk, bc, tr] = await Promise.all([
+  const [idx, bk, bc, tr, an] = await Promise.all([
     getProv("index.json").catch(() => null),
     fetch("api/booking", { credentials: "same-origin", cache: "no-store" }).then((r) => (r.ok ? r.json() : null)).catch(() => null),
     fetch("api/live/broadcasts", { credentials: "same-origin", cache: "no-store" }).then((r) => (r.ok ? r.json() : null)).catch(() => null),
-    fetch("api/tracer", { credentials: "same-origin", cache: "no-store" }).then((r) => (r.ok ? r.json() : null)).catch(() => null)]);
+    fetch("api/tracer", { credentials: "same-origin", cache: "no-store" }).then((r) => (r.ok ? r.json() : null)).catch(() => null),
+    fetch("api/analyses", { credentials: "same-origin", cache: "no-store" }).then((r) => (r.ok ? r.json() : null)).catch(() => null)]);
   return { prov: new Map((idx?.races || []).map((x) => [x.key, x])), booking: new Map((bk?.events || []).map((x) => [x.key, x])),
-    live: (bc?.broadcasts || []).filter((b) => b.race), tracer: tr?.events || [] };
+    live: (bc?.broadcasts || []).filter((b) => b.race), tracer: tr?.events || [], analyses: new Map((an?.analyses || []).map((a) => [a.id, a])) };
 }
 /** What a tab of an event holds, for its chip: { note, cls } (cls empty: nothing yet). */
 function stateOf(ev, k, S) {
@@ -97,7 +101,12 @@ function stateOf(ev, k, S) {
   } else if (k === "resultats") {
     if (p?.docs && !p.soon) { note = tn("mg.chip.runners", p.runners || 0, { n: p.runners || 0 }); cls = "ok"; }
   } else if (k === "analyse") {
-    if (ev.analysis) { note = "✓"; cls = "ok"; }
+    // published, a draft, or a draft opening by itself at a time set (owner, 2026-11-16)
+    const a = ev.analysis ? S.analyses.get(ev.analysis) : null;
+    if (a?.draft && a.openAt) { note = t("mg.chip.anLater", { when: fmtWhen(a.openAt) }); cls = "later"; }
+    else if (a?.draft) { note = t("mg.chip.anDraft"); cls = "draft"; }
+    else if (a) { note = t("mg.chip.anLive"); cls = "ok"; }
+    else if (ev.analysis) { note = "✓"; cls = "ok"; }
   } else if (k === "equipe") {
     note = String(ev.members || 1);
     if (ev.asks) { note += ` · ${tn("mg.chip.asks", ev.asks, { n: ev.asks })}`; cls = "ask"; }
@@ -214,6 +223,42 @@ async function candidates(day) {
   for (const x of list) x.holder = H[x.key] || null;
   return list;
 }
+/**
+ * A country's known clubs as an event names its organiser (owner, 2026-11-16): France's from FFCO's directory (« 0109 -
+ * O'BUGEY », as the agenda writes them), else the country's ranking's names, plus its agenda's organisers and the club the
+ * account declared for it. -> { list, mine } (mine: the account's own club there, or "").
+ */
+const clubMemo = new Map();
+function clubsOf(cc) {
+  if (!cc) return Promise.resolve({ list: [], mine: "" });
+  if (clubMemo.has(cc)) return clubMemo.get(cc);
+  const p = (async () => {
+    const get = (path) => data.countryJson(cc, path).catch(() => null);
+    const [dir, meta, ag] = await Promise.all([cc === "FR" ? get("clubdir.json") : null, get("meta.json"), get("agenda.json")]);
+    const names = new Set();
+    for (const l of dir?.ligues || []) for (const d of l.depts || []) for (const c of d.clubs || []) names.add(`${c.code} - ${c.name}`);
+    if (cc === "FR") { if (!names.size) for (const [k, v] of Object.entries(meta?.names?.clubs || {})) names.add(`${k} - ${v}`); }
+    else for (const v of Object.values(meta?.names?.clubs || {})) names.add(String(v));
+    for (const e of ag?.events || []) if (e.org && (cc !== "FR" || /^\d{4} - /.test(e.org))) names.add(String(e.org).trim());
+    let mine = (auth.session()?.countries || []).find((c) => c.cc === cc && c.status === "ok")?.club?.trim() || "";
+    if (cc === "FR") {
+      const code = auth.myClub();
+      if (code) mine = [...names].find((n) => n.startsWith(`${code} - `)) || (data.clubName(code) !== code ? `${code} - ${data.clubName(code)}` : code);
+    }
+    if (mine) names.add(mine);
+    return { list: [...names].filter(Boolean).sort((a, b) => a.localeCompare(b, locale())), mine };
+  })();
+  clubMemo.set(cc, p);
+  return p;
+}
+/** Fills a form's club list (and its field when empty, or still the default of before) with a country's clubs. */
+async function fillClubs(root, cc, { setDefault = true } = {}) {
+  const { list, mine } = await clubsOf(cc);
+  const dl = $("datalist[data-clubs]", root), input = $("[data-f=club]", root);
+  if (dl) dl.innerHTML = html`${list.map((n) => html`<option value="${n}"></option>`)}`;
+  if (input && setDefault && (!input.value || input.value === input.dataset.auto)) { input.value = mine; input.dataset.auto = mine; }
+  return mine;
+}
 const myCountries = () => {
   const s = auth.session();
   const own = (s?.countries || []).filter((c) => c.status === "ok").map((c) => c.cc);
@@ -229,7 +274,7 @@ async function createPage(main, q) {
     const p = pre ? null : (await getProv("index.json").catch(() => null))?.races?.find((r) => r.key === q.course);
     if (p) pre = { id: null, key: p.key, name: p.name, date: p.date_iso, epr: p.epreuve };
   }
-  const st = { type: pre ? asType(pre) : "individual", cc: pre ? "FR" : cs.includes("FR") ? "FR" : cs[0] || "", day: pre?.date || "", pick: pre ? pre.key || `a${pre.id}` : "", list: [] };
+  const st = { next: "", type: pre ? asType(pre) : "individual", cc: pre ? "FR" : cs.includes("FR") ? "FR" : cs[0] || "", day: pre?.date || "", pick: pre ? pre.key || `a${pre.id}` : "", list: [] };
   main.innerHTML = html`
     <a class="back-link" href="${BASE}">‹ ${t("mg.back")}</a>
     <div class="page-head"><div><h1>${t("mg.new.title")}</h1><p class="lede">${t("mg.new.lede")}</p></div></div>
@@ -245,6 +290,9 @@ async function createPage(main, q) {
       <div class="card-body" id="mg-cands"></div></section>
     <section class="card" id="mg-desc" hidden><div class="card-head"><h2>${t("mg.new.s3")}</h2></div><div class="card-body">
       <div class="mg-form">${formFields({})}</div>
+      <div class="mg-next" id="mg-next"><h3>${t("mg.next.title")}</h3>
+        <div class="mg-types">${NEXT.map((x) => html`<label class="mg-type"><input type="radio" name="mg-next" value="${x}">
+          <b>${t(`mg.next.${x}`)}</b><span class="muted">${t(`mg.next.${x}.hint`)}</span></label>`)}</div></div>
       <div class="row" style="gap:10px;margin-top:12px;align-items:center"><button type="button" class="btn btn-primary" id="mg-create">${t("mg.new.create")}</button>
         <span class="muted" id="mg-create-msg"></span></div></div></section>`;
   dateWords($("#mg-day"));
@@ -277,14 +325,25 @@ async function createPage(main, q) {
     const x = st.list.find((y) => y.key === st.pick);
     $("#mg-desc").hidden = !st.day || (linkable() && !st.pick);
     $$(".mg-form [data-f]").forEach((el) => { el.disabled = !!x; });
+    const training = st.type === "training", line = $(".mg-train-club");
+    // the next step: the course setting for a competition, the map analysis for a training, until one is chosen
+    $("#mg-next").hidden = !!x?.holder;
+    const next = st.next || (training ? "analyse" : "trace");
+    $$("input[name=mg-next]").forEach((r) => { r.checked = r.value === next; });
+    showFields($("#mg-desc"), training);
+    line.hidden = !(training && st.myClub);
+    line.textContent = st.myClub ? t("mg.new.trainingClub", { club: st.myClub }) : "";
     if (x) {
       setForm({ name: x.e.name, place: x.e.place, club: x.e.org, terrain: terrainOf(x.e), epreuve: FORMATS.includes(x.e.epr) ? x.e.epr : "", site: x.e.site });
       const h = x.holder;
       $("#mg-create").textContent = h && !h.mine ? t("mg.cand.ask") : h?.mine ? t("mg.cand.open") : t("mg.new.createLink");
     } else $("#mg-create").textContent = t("mg.new.create");
   }
+  // the organising club: the account's own in the chosen country by default, the country's clubs offered
+  const clubs = async () => { st.myClub = await fillClubs($("#mg-desc"), st.cc, { setDefault: !st.list.some((y) => y.key === st.pick) }); drawDesc(); };
   $$("input[name=mg-type]").forEach((r) => r.addEventListener("change", () => { st.type = r.value; refresh(); }));
-  $("#mg-cc").addEventListener("change", (e) => { st.cc = e.target.value; refresh(); });
+  $$("input[name=mg-next]").forEach((r) => r.addEventListener("change", () => { st.next = r.value; }));
+  $("#mg-cc").addEventListener("change", (e) => { st.cc = e.target.value; refresh().then(clubs); });
   $("#mg-day").addEventListener("change", (e) => { st.day = e.target.value; refresh(); });
   $("#mg-create").addEventListener("click", async () => {
     const x = st.list.find((y) => y.key === st.pick), msg = $("#mg-create-msg");
@@ -294,27 +353,46 @@ async function createPage(main, q) {
       catch (e) { msg.textContent = errText(e); }
       return;
     }
-    const body = { type: st.type, country: st.cc, date: st.day, ...readForm(), ...(x ? { link: x.key } : {}) };
+    const body = { type: st.type, country: st.cc, date: st.day, ...readForm(), ...(x ? { link: x.key } : {}),
+      ...(st.type === "training" ? { club: st.myClub || "" } : {}) };
     try {
-      const r = await api("", { method: "POST", body });
-      location.hash = href({ ev: r.event.id, ...(r.event.linkState === "pending" ? { onglet: "equipe" } : {}) });
+      const r = await api("", { method: "POST", body }), e = r.event;
+      const next = $("input[name=mg-next]:checked")?.value || "equipe";
+      // straight to the next step chosen (owner, 2026-11-16); a link waiting for an administrator: the team, where it says so
+      if (e.linkState === "pending") location.hash = href({ ev: e.id, onglet: "equipe" });
+      else if (next === "trace") location.hash = `#/orga-tracer?${new URLSearchParams({ ev: e.id, nouveau: "1" })}`;
+      else location.hash = href({ ev: e.id, onglet: next === "analyse" ? "analyse" : "equipe" });
     } catch (e) { msg.textContent = e.code === "held" ? t("mg.err.held", { by: e.data?.holder?.by || "" }) : errText(e); }
   });
   await refresh();
+  await clubs();
 }
+/**
+ * An event's description. A competition's: name, place, organising club (a list of the country's clubs, still free to type),
+ * discipline, format, website; a training's: its name alone (owner, 2026-11-16: its club is its creator's). The competition's
+ * fields carry `mg-comp`, hidden for a training: hidden fields are not read (readForm).
+ */
+let formSeq = 0;
 function formFields(v) {
+  const dl = `mg-clubs-${++formSeq}`;
   return html`<div class="filters" style="margin:0">
     <label class="field" style="flex:2;min-width:240px"><span>${t("mg.f.name")}</span><input data-f="name" value="${v.name || ""}" maxlength="120"></label>
-    <label class="field"><span>${t("mg.f.place")}</span><input data-f="place" value="${v.place || ""}" maxlength="80"></label>
-    <label class="field"><span>${t("mg.f.club")}</span><input data-f="club" value="${v.club || ""}" maxlength="80"></label>
-    <label class="field"><span>${t("mg.f.terrain")}</span><select data-f="terrain"><option value=""></option>
+    <label class="field mg-comp"><span>${t("mg.f.place")}</span><input data-f="place" value="${v.place || ""}" maxlength="80"></label>
+    <label class="field mg-comp" style="flex:2;min-width:260px"><span>${t("mg.f.club")}</span><input data-f="club" value="${v.club || ""}" maxlength="80"
+      list="${dl}" autocomplete="off" placeholder="${t("mg.f.club.ph")}"><datalist id="${dl}" data-clubs></datalist></label>
+    <label class="field mg-comp"><span>${t("mg.f.terrain")}</span><select data-f="terrain"><option value=""></option>
       ${TERRAINS.map((x) => html`<option value="${x}" ${raw(v.terrain === x ? "selected" : "")}>${t(`mg.terrain.${x === "Forêt" ? "For" : x}`)}</option>`)}</select></label>
-    <label class="field"><span>${t("mg.f.format")}</span><select data-f="epreuve"><option value=""></option>
+    <label class="field mg-comp"><span>${t("mg.f.format")}</span><select data-f="epreuve"><option value=""></option>
       ${FORMATS.map((x) => html`<option value="${x}" ${raw(v.epreuve === x ? "selected" : "")}>${t(`mg.format.${x}`)}</option>`)}</select></label>
-    <label class="field" style="flex:2;min-width:240px"><span>${t("mg.f.site")}</span><input data-f="site" type="url" value="${v.site || ""}" placeholder="https://"></label>
-  </div>`;
+    <label class="field mg-comp" style="flex:2;min-width:240px"><span>${t("mg.f.site")}</span><input data-f="site" type="url" value="${v.site || ""}" placeholder="https://"></label>
+  </div>
+  <p class="muted mg-train-club" hidden></p>`;
 }
-const readForm = (root = document) => Object.fromEntries($$("[data-f]", root).map((el) => [el.dataset.f, el.value.trim()]));
+/** Shows a training's fields or a competition's. */
+function showFields(root, training) {
+  $$(".mg-comp", root).forEach((el) => { el.hidden = training; });
+}
+const readForm = (root = document) => Object.fromEntries($$("[data-f]", root).filter((el) => !el.closest("[hidden]")).map((el) => [el.dataset.f, el.value.trim()]));
 const setForm = (v, root = document) => $$("[data-f]", root).forEach((el) => { if (v[el.dataset.f] !== undefined) el.value = v[el.dataset.f] || ""; });
 
 // ---- asking to join a team ---------------------------------------------------------------------------------------------
@@ -429,22 +507,31 @@ async function analysisTab(panel, D, q) {
     catch (e) { /* drawn below */ }
   }
   const pending = ev.linkState === "pending";
+  // none yet: opened at once for a member (owner, 2026-11-16: a page with one button to click was no use; it stays a draft,
+  // seen by the team alone, until published), the button below only when that fails
+  if (!pending && D.member) {
+    panel.innerHTML = html`<div class="boot"><div class="spinner"></div></div>`;
+    let err = null;
+    try { await openAnalysis(ev); location.reload(); return; } catch (e) { err = e; }
+    q = { ...q, err };
+  }
   panel.innerHTML = html`<section class="card"><div class="card-body">
     <p>${t(ev.type === "training" ? "mg.an.training" : "mg.an.race")}</p>
     <div class="row" style="gap:10px;align-items:center"><button type="button" class="btn btn-primary" id="mg-an-open" ${raw(pending ? "disabled" : "")}>${t("mg.an.open")}</button>
-      <span class="muted" id="mg-an-msg">${pending ? t("mg.link.waitTools") : ""}</span></div></div></section>`;
+      <span class="muted" id="mg-an-msg">${pending ? t("mg.link.waitTools") : q.err ? errText(q.err) : ""}</span></div></div></section>`;
   $("#mg-an-open").addEventListener("click", async () => {
-    const body = ev.type === "training"
-      ? { kind: "club", title: ev.name, date: ev.date, vis: "public", country: ev.country, via: "gerer" }
-      : { kind: "race", race: ev.race, title: ev.name, date: ev.date, vis: "public", via: "gerer" };
-    try {
-      const r = await fetch("api/analyses", { method: "POST", credentials: "same-origin", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
-      const j = await r.json().catch(() => ({}));
-      if (!r.ok || !j.id) throw Object.assign(new Error(j.error || r.status), { code: j.error || "other" });
-      await api(`/${ev.id}`, { method: "PUT", body: { analysis: j.id } });
-      location.reload();
-    } catch (e) { $("#mg-an-msg").textContent = errText(e); }
+    try { await openAnalysis(ev); location.reload(); } catch (e) { $("#mg-an-msg").textContent = errText(e); }
   });
+}
+/** The event's map analysis created (a competition's own, or a training's) and kept with the event. */
+async function openAnalysis(ev) {
+  const body = ev.type === "training"
+    ? { kind: "club", title: ev.name, date: ev.date, vis: "public", country: ev.country, via: "gerer" }
+    : { kind: "race", race: ev.race, title: ev.name, date: ev.date, vis: "public", via: "gerer" };
+  const r = await fetch("api/analyses", { method: "POST", credentials: "same-origin", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+  const j = await r.json().catch(() => ({}));
+  if (!r.ok || !j.id) throw Object.assign(new Error(j.error || r.status), { code: j.error || "other" });
+  await api(`/${ev.id}`, { method: "PUT", body: { analysis: j.id } });
 }
 
 // ---- Tracé: the event's course setting, in the Tracer (its own team: the courses are theirs until the race) ----------------
@@ -529,6 +616,8 @@ async function editDialog(D) {
   document.body.append(dlg);
   dlg.showModal();
   dateWords($("[data-f=date]", dlg));
+  showFields(dlg, ev.type === "training");
+  if (ev.type !== "training") fillClubs(dlg, ev.country, { setDefault: false });
   dlg.addEventListener("close", () => dlg.remove());
   $("#mg-dl-cancel", dlg).addEventListener("click", () => dlg.close());
   const say = (s) => { $("#mg-dl-msg", dlg).textContent = s; };
