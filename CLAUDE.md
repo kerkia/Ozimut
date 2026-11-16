@@ -2681,7 +2681,7 @@ Every multiple-choice game was played through to its score page at phone size, w
   their state, a chip opening that tab, the row the tab fitting its day), « ✎ Modifier » the description, the calendar link and
   deletion. **The team** (owner): every member has the same rights (everything, the team and deletion included); nobody is added —
   people ask (« Rejoindre une équipe », `GET /api/events/find`, or the event's own address), any member accepts (a push to the
-  members, one to the asker: `templates.eventPush`); one leaves, the last member deletes instead. **Linking to the calendar** (France):
+  members, one to the asker: `templates.eventPush`); one leaves, the last member deletes instead. The Équipe tab gives the event's address in a field with « Copier l'adresse de l'événement » (the clipboard, else the older copy, else the field selected for Ctrl+C) and names the way in, Orga › Mes événements › « Rejoindre une équipe » (owner, 2026-11-16: the button was found by nobody; Orga is not offered to new teammates for it — it would clutter every account's). **Linking to the calendar** (France):
   a competition of the agenda (`a<id>`) or of « Résultats » (its key: an organiser may come after the race, the agenda having dropped
   it; `CAL`), at most one event each (unique `race_key`); a member of the organising club (`clubOf`) is linked at once (« verified »),
   anyone else waits for an administrator (« pending »: `race_key` NULL, the tools closed; admin page tab « Événements »: confirm or

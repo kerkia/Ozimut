@@ -569,7 +569,7 @@ async function traceTab(panel, D) {
 
 // ---- Équipe ------------------------------------------------------------------------------------------------------------------
 function teamTab(panel, D) {
-  const ev = D.event;
+  const ev = D.event, addr = `${location.origin}${location.pathname}${href({ ev: ev.id })}`;
   panel.innerHTML = html`
     ${D.requests.length ? html`<section class="card" style="margin-bottom:16px"><div class="card-head"><h2>${t("mg.team.requests")}</h2></div><div class="card-body">
       ${D.requests.map((r) => html`<div class="mg-req" data-req="${r.id}"><div><b>${r.name}</b>${r.club ? html` <span class="muted">· ${r.club}</span>` : ""}
@@ -582,7 +582,21 @@ function teamTab(panel, D) {
         <td class="muted">${m.club || "—"}</td><td class="num">${fmtDate(m.joined.slice(0, 10), "short")}</td>
         <td class="r">${D.team.length > 1 ? html`<button type="button" class="btn btn-sm" data-remove="${m.uid}" data-you="${m.you ? 1 : 0}">${t(m.you ? "mg.team.leave" : "mg.team.remove")}</button>` : ""}</td></tr>`)}
       </tbody></table></div>
-      <div class="card-body"><p class="muted" style="margin:0">${t("mg.team.how", { addr: `${location.origin}${location.pathname}${href({ ev: ev.id })}` })}</p></div></section>`;
+      <div class="card-body">
+        <!-- the event's address to send to whoever should join (owner, 2026-11-16: the way in was a sentence to select) -->
+        <div class="row mg-share"><input type="text" id="mg-addr" readonly value="${addr}" aria-label="${t("mg.team.addr")}">
+          <button type="button" class="btn btn-sm btn-primary" id="mg-copy">${t("mg.team.copy")}</button><span class="muted" id="mg-copied" aria-live="polite"></span></div>
+        <p class="muted" style="margin:8px 0 0">${t("mg.team.how")}</p></div></section>`;
+  $("#mg-addr").addEventListener("focus", (e) => e.target.select());
+  $("#mg-copy").addEventListener("click", async () => {
+    const say = $("#mg-copied");
+    const field = $("#mg-addr");
+    try { await navigator.clipboard.writeText(addr); say.textContent = `✓ ${t("mg.team.copied")}`; return; } catch (e) { /* refused: the older way */ }
+    field.focus(); field.select();
+    let ok = false;
+    try { ok = document.execCommand("copy"); } catch (e) { /* none */ }
+    say.textContent = ok ? `✓ ${t("mg.team.copied")}` : t("mg.team.copyHand");          // else selected: Ctrl+C
+  });
   $$("[data-req] [data-accept]").forEach((b) => b.addEventListener("click", async () => {
     try { await api(`/${ev.id}/requests/${b.closest("[data-req]").dataset.req}`, { method: "POST", body: { accept: b.dataset.accept === "1" } }); location.reload(); }
     catch (e) { alertBox(errText(e)); }

@@ -4604,6 +4604,8 @@ html.vt-fs-on, html.vt-fs-on body { overflow: hidden; }
 .mg-opt.on { border-color: var(--flag); background: var(--flag-wash); }
 .mg-req { display: flex; justify-content: space-between; gap: 12px; align-items: center; padding: 8px 0; border-bottom: 1px solid var(--border); flex-wrap: wrap; }
 .mg-req:last-child { border-bottom: 0; }
+.mg-share { gap: 8px; align-items: center; flex-wrap: wrap; }
+.mg-share input { flex: 1 1 320px; max-width: 560px; font-family: ui-monospace, Consolas, monospace; font-size: 13px; }
 .mg-msg { font-style: italic; color: var(--ink-2); margin-top: 2px; }
 .mg-dialog { border: 1px solid var(--border); border-radius: 12px; padding: 0; max-width: min(760px, calc(100vw - 24px)); background: var(--surface); color: var(--ink); }
 .mg-dialog::backdrop { background: rgba(0, 0, 0, .35); }
