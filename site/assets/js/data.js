@@ -124,10 +124,10 @@ export async function bootPrivate({ open = true } = {}) {
   const [runners, comps] = await Promise.all([
     open && ranks ? getJson("runners.json").catch((e) => (/HTTP 403/.test(e.message) ? none : Promise.reject(e))) : none,
     ranks ? getJson("competitions.json").then((c) => c || { rows: {} }) : { rows: {} }]);
-  const cols = runners.cols;
+  const cols = (runners || none).cols;                  // a file missing (a public copy not built yet) reads as the empty list
   const ix = Object.fromEntries(cols.map((c, i) => [c, i]));
   const byLic = new Map();
-  const list = runners.rows.map((r) => {
+  const list = (runners || none).rows.map((r) => {
     const o = {
       lic: String(r[ix.licence]), nom: r[ix.nom], sexe: r[ix.sexe], first: r[ix.first],
       last: r[ix.last], n: r[ix.n], nBy: Object.fromEntries(TERRAINS.map((x) => [x, r[ix[`n${x}`]] || 0])),
