@@ -4,6 +4,7 @@
 
 import * as M from "./model.js";
 import { CONTEXT, isPro } from "./ribbon-data.js";
+import { hasGeo } from "./geo.js";
 import { t } from "./lang.js";
 
 /** The kind of the selection's tab: "drawing" (a line, an area or a route under way), "control", "leg", "special", or null. */
@@ -18,7 +19,7 @@ export function ctxKind(E) {
   return null;
 }
 
-const FRAMES = ["text", "image", "rectangle", "ellipse", "descriptions"];
+const FRAMES = ["text", "image", "rectangle", "ellipse", "descriptions", "qr"];
 /** Whether a contextual command applies to the selection. at.menu: for the right-click menu, at.handle the handle under the mouse. */
 export function applies(E, act, kind, at = {}) {
   const s = E.sel, ev = E.ev;
@@ -30,6 +31,7 @@ export function applies(E, act, kind, at = {}) {
   switch (act) {
     case "control-props": return !!c && (c.kind === "normal" || c.kind === "start");
     case "toggle-exchange": return inCourse && c?.kind === "normal";
+    case "toggle-flip": return inCourse && c?.kind === "normal" && ev.descStandard !== "2004";
     case "var-fork": case "var-loop": case "var-phi": return kind !== "control" || inCourse;
     case "random-section": return inCourse && c?.kind === "normal" && !M.isScore(ev, E.cd.course);
     case "control-lock": return !!c;
@@ -40,14 +42,14 @@ export function applies(E, act, kind, at = {}) {
     case "number-auto": return s?.kind === "number" || !!cc?.number;
     case "rotate": return kind === "control" ? c?.kind === "crossing" : M.ORIENTED_SPECIALS.includes(sp?.kind);
     case "stretch": return kind === "control" ? c?.kind === "crossing" : sp?.kind === "optional-crossing-point";
-    case "special-props": return !!sp && ["text", "line", "rectangle", "ellipse", "descriptions", "inset"].includes(sp.kind);
+    case "special-props": return !!sp && ["text", "line", "rectangle", "ellipse", "descriptions", "inset", "qr"].includes(sp.kind);
     case "mask-hole": return sp?.kind === "mask";
     case "mask-holes-clear": return sp?.kind === "mask" && !!sp.holes?.length;
     case "corner-add": return !!corners;
     case "corner-remove": return !!corners && (!at.menu || at.handle?.type === "corner");
     case "bend-remove": return !!leg?.bends?.length && (!at.menu || at.handle?.type === "bend");
     case "gap-remove-leg": return !!leg?.gaps?.length;
-    case "route-clear": return !!leg?.route?.length;
+    case "route-clear": return !!(leg?.route?.length || leg?.alts?.length);
     case "routes-alt-clear": return !!leg?.alts?.length;
     default: return true;
   }
@@ -60,6 +62,7 @@ function menuLabel(E, act, kind, label) {
   switch (act) {
     case "control-props": return t("trc.ctx.controlProps");
     case "toggle-exchange": return cc?.exchange ? t("trc.ctx.exchangeRemove") : t("trc.ctx.exchangeAdd");
+    case "toggle-flip": return cc?.flip ? t("trc.ctx.flipRemove") : t("trc.ctx.flipAdd");
     case "var-fork": return t("trc.ctx.fork");
     case "var-loop": return t("trc.ctx.loop");
     case "var-phi": return t("trc.ctx.phi");
@@ -85,7 +88,9 @@ function menuLabel(E, act, kind, label) {
 /** The right-click menu for the selection: its tab's commands, group by group, then « Tout le circuit » when nothing is chosen. */
 export function menuItems(E, at = {}) {
   const kind = ctxKind(E);
-  if (!kind) return [["view-course", t("trc.ctx.wholeCourse")], ["view-map", t("trc.ctx.wholeMap")]];
+  // « Voir ici sur… » (backdrop.js): the spot clicked in other map services, when the map is georeferenced
+  const look = hasGeo(E.ev) && at.p ? ["-", ["look-here", t("trc.ctx.lookHere")]] : [];
+  if (!kind) return [["view-course", t("trc.ctx.wholeCourse")], ["view-map", t("trc.ctx.wholeMap")], ...look];
   const out = [];
   for (const g of CONTEXT[kind].groups) {
     if (isPro(g) && !E.pro) continue;
@@ -99,5 +104,6 @@ export function menuItems(E, at = {}) {
     walk(g.items);
     if (here.length) { if (out.length && here[0] !== "-") out.push("-"); out.push(...here); }
   }
+  if (kind !== "drawing") out.push(...look);
   return out;
 }

@@ -222,8 +222,13 @@ export async function courseImage(E, cd, dpi, { withMap = true, clip = null } = 
   const g = c.getContext("2d");
   g.fillStyle = "#fff"; g.fillRect(0, 0, W, H);
   const T = (xx, yy) => [(xx - box[0]) * pxPerMm, (box[3] - yy) * pxPerMm];
+  // the online layer printed under the map, or in its place for an event set on OpenStreetMap (backdrop.js), with its credit
+  const bgId = withMap && !E.map ? M.printBgOf(ev, cd.course || 0) : "";
+  let credit = "";
+  if (bgId) { try { const B = await import("./backdrop.js"), cv = await B.backdropCanvas(E, bgId, box, pxPerMm); if (cv) { g.drawImage(cv, 0, 0, W, H); credit = B.creditOf(bgId); } } catch (err) { console.error(err); } }
   const pc = purpleOverride(ev, E.map), purple = pc ? cmykToRgb(pc) : SCREEN.upper;
   await paintCourse(g, ev, E.map, box, pxPerMm, W, H, items, (list, blend) => drawItems(g, list, T, pxPerMm, { blend, purple }), { withMap: withMap && !!E.map, course: cd.course || 0 });
+  if (credit) { const fs = Math.max(9, Math.round(pxPerMm * 1.6)); g.font = `${fs}px sans-serif`; g.textBaseline = "bottom"; const tw = g.measureText(credit).width; g.fillStyle = "rgba(255,255,255,0.8)"; g.fillRect(4, H - fs - 8, tw + 8, fs + 6); g.fillStyle = "#222"; g.fillText(credit, 8, H - 4); }
   return { canvas: c, box, pxPerMm };
 }
 /** A world file for an image of box at pxPerMm: when georeferenced, in degrees (EPSG:4326, approximated by an affine). */

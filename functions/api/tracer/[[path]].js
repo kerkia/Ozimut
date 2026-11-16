@@ -4,6 +4,7 @@
 //   tracer/<id>/event            the event itself (JSON, or ciphertext when the team encrypts it in the browser)
 //   tracer/<id>/map              the map file as it came (PDF or image), never re-encoded
 //   tracer/<id>/maps/<n>         the event's other maps (the advanced level: a course part on each), as they came
+//   tracer/<id>/dem              the event's elevation model (tracer/relief.js; GET the team, PUT and DELETE those who edit)
 //   tracer/<id>/v/<n>            saved versions (each with its author, time and note in the object's metadata)
 //   tracer/<id>/comments         the team's comments (JSON or ciphertext)
 //   tracer/<id>/field            the field statuses of the controls (set, checked, collected)
@@ -34,7 +35,8 @@
 //   GET|PUT|DELETE /api/tracer/<id>/photo/<pid>   a control's photo (field mode; editors put and delete)
 //   POST|DELETE /api/tracer/<id>/lock        take (or refresh) / release the editing lock
 //   GET    /api/tracer/<id>/invites          owners and setters: the links still valid (no token: only its hash is kept)
-//   POST   /api/tracer/<id>/invites          { role, days? } -> { token, n, expires }: a new link (7 days by default, 30 at most)
+//   POST   /api/tracer/<id>/invites          { role, days?, lent? } -> { token, n, expires }: a new link (7 days by default, 30 at
+//                                            most); lent: the map lent to whoever joins by it (no print or export of the map)
 //   DELETE /api/tracer/<id>/invites?n=…      revoke one
 //   POST   /api/tracer/<id>/join             { token } -> { role, joined }: any signed-in account (but a demo one) joins the team
 
@@ -46,6 +48,7 @@ import { isMember, ready as eventsReady, shortName } from "../../_lib/events.js"
 
 const META = "tracer-meta/", DATA = "tracer/";
 const MAX_MAP = 80 * 1024 * 1024, MAX_EVENT = 12 * 1024 * 1024, MAX_SMALL = 4 * 1024 * 1024, MAX_PHOTO = 4 * 1024 * 1024, MAX_VERSIONS = 120;
+const MAX_DEM = 6 * 1024 * 1024;
 const ROLES = ["setter", "controller", "viewer"];
 const DAY = /^\d{4}-\d{2}-\d{2}$/;
 const clean = (s, max) => String(s ?? "").replace(/[\u0000-\u001f<>]/g, " ").replace(/\s+/g, " ").trim().slice(0, max);
@@ -198,7 +201,7 @@ export const onRequest = withUser(async (ctx, user) => {
     if (!inv) return json({ error: "invite" }, 410);
     if (role) return json({ ok: true, role, joined: false });
     meta.team.push({ uid: user.id, ...(user.licence ? { lic: String(user.licence) } : {}), name: user.display_name || "", role: inv.role,
-      joined: nowIso() });
+      ...(inv.lent ? { lent: true } : {}), joined: nowIso() });
     meta.updated = nowIso();
     await saveMeta(env, meta);
     await showModule(env, user.id, "orga");          // invited to set courses: Orga shows (_lib/modules.js)
@@ -210,7 +213,9 @@ export const onRequest = withUser(async (ctx, user) => {
     if (method === "GET") {
       const lock = await env.BUCKET.get(`${base}lock`).then((o) => (o ? o.json() : null)).catch(() => null);
       const held = lock && lock.until > Date.now() && lock.uid !== user.id ? lock : null;
-      return json({ event: meta, role, you: { uid: user.id, lic: String(user.licence || ""), name: user.display_name || "" }, lock: held });
+      // lent: the map lent to this member (the team's choice: set courses on it, neither print nor export it — the editor refuses)
+      const me = meta.team.find((x) => (x.uid && Number(x.uid) === user.id) || (x.lic && user.licence && String(x.lic) === String(user.licence)));
+      return json({ event: meta, role, lent: role !== "owner" && !!me?.lent, you: { uid: user.id, lic: String(user.licence || ""), name: user.display_name || "" }, lock: held });
     }
     if (method === "PUT") {
       if (role !== "owner" && role !== "setter") return json({ error: "forbidden" }, 403);
@@ -224,7 +229,10 @@ export const onRequest = withUser(async (ctx, user) => {
         const same = (x, y) => (x.uid != null && y.uid != null ? Number(x.uid) === Number(y.uid) : !!x.lic && String(x.lic) === String(y.lic || ""));
         meta.team = meta.team.flatMap((m) => {
           const x = b.team.find((y) => y && same(m, y));
-          return x ? [{ ...m, role: ROLES.includes(x.role) ? x.role : m.role }] : [];
+          if (!x) return [];
+          const out = { ...m, role: ROLES.includes(x.role) ? x.role : m.role };
+          if (x.lent !== undefined) { if (x.lent) out.lent = true; else delete out.lent; }
+          return [out];
         });
       }
       if (b.encrypted !== undefined) {
@@ -260,7 +268,7 @@ export const onRequest = withUser(async (ctx, user) => {
   if (sub === "invites") {
     if (role !== "owner" && role !== "setter") return json({ error: "forbidden" }, 403);
     const list = await loadInvites(env, base);
-    const shown = (x) => ({ n: x.n, role: x.role, by: x.byName || "", created: x.created, expires: x.expires });
+    const shown = (x) => ({ n: x.n, role: x.role, lent: !!x.lent, by: x.byName || "", created: x.created, expires: x.expires });
     if (method === "GET") return json({ invites: list.map(shown) });
     if (method === "POST") {
       const b = await readBody(request);
@@ -268,7 +276,7 @@ export const onRequest = withUser(async (ctx, user) => {
       if (!(await allow(env, `trinvite:${user.id}`, 40, 86400))) return json({ error: "too many" }, 429);
       if (list.length >= MAX_INVITES) return json({ error: "too many invites" }, 409);
       const token = newToken(), days = Math.min(30, Math.max(1, Number(b.days) || INVITE_DAYS));
-      const x = { n: Math.max(0, ...list.map((y) => y.n)) + 1, h: await sha256hex(token), role: b.role, by: user.id,
+      const x = { n: Math.max(0, ...list.map((y) => y.n)) + 1, h: await sha256hex(token), role: b.role, ...(b.lent ? { lent: true } : {}), by: user.id,
         byName: user.display_name || "", created: Date.now(), expires: Date.now() + days * 864e5 };
       await saveInvites(env, base, [...list, x]);
       return json({ token, ...shown(x) });
@@ -337,6 +345,24 @@ export const onRequest = withUser(async (ctx, user) => {
       await env.BUCKET.delete(key);
       return json({ ok: true });
     }
+    return json({ error: "method" }, 405);
+  }
+
+  // the event's elevation model (tracer/relief.js: the heights over the map, kept so that the whole team has the same figures)
+  if (sub === "dem") {
+    const key = `${base}dem`;
+    if (method === "GET") {
+      const o = await env.BUCKET.get(key);
+      if (!o) return json({ error: "not found" }, 404);
+      return new Response(o.body, { headers: { "Content-Type": "application/octet-stream", "Cache-Control": "private, no-store" } });
+    }
+    if (!canEdit(role)) return json({ error: "forbidden" }, 403);
+    if (method === "PUT") {
+      if (!(await allow(env, `trdem:${user.id}`, 60, 86400))) return json({ error: "too many" }, 429);
+      const err = await putRaw(env, request, key, MAX_DEM, { updated: nowIso() });
+      return err || json({ ok: true });
+    }
+    if (method === "DELETE") { await env.BUCKET.delete(key); return json({ ok: true }); }
     return json({ error: "method" }, 405);
   }
 

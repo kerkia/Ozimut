@@ -791,8 +791,8 @@ export function build(X) {
   //    descriptions, specials, printing, checks, teamwork, after the race, every menu entry — and its calculations, in plain words
   // ======================================================================================================
   function tracerDoc() {
-    const CHAPTERS = [["principe", "Erste Schritte"], ["carte", "Die Karte"], ["ecran", "Der Bildschirm"], ["postes", "Die Posten"], ["circuits", "Die Bahnen"],
-      ["definitions", "Die Postenbeschreibungen"], ["speciaux", "Sonderobjekte"], ["sorties", "Drucken und exportieren"], ["verifier", "Prüfen"],
+    const CHAPTERS = [["principe", "Erste Schritte"], ["carte", "Die Karte"], ["fonds", "Hintergründe und Relief"], ["ecran", "Der Bildschirm"], ["postes", "Die Posten"], ["circuits", "Die Bahnen"],
+      ["definitions", "Die Postenbeschreibungen"], ["speciaux", "Sonderobjekte"], ["sorties", "Drucken und exportieren"], ["verifier", "Prüfen"], ["itineraires", "Die Routen"],
       ["outils", "Im Team und im Gelände"], ["apres", "Nach dem Lauf"], ["ruban", "Das Menüband"], ["avance", "Die erweiterte Stufe"], ["calculs", "Die Berechnungen"]];
     const ic = (k, s = 18) => raw(TR.svg(k, s));
     const K = "Bahnlegung";
@@ -809,7 +809,7 @@ export function build(X) {
       ["exchange", "Kartenwechsel", "", "Einen Posten der Bahn anklicken: Der Läufer wechselt dort die Karte, und die Bahn wird in Teile geteilt."],
       ["bend", "Knick", "C", "Eine Teilstrecke anklicken, um sie zu knicken (um ein Sperrgebiet zu umgehen); ein Knick lässt sich ziehen; einen Knick anklicken, um ihn zu entfernen."],
       ["gap", "Lücke", "X", "Entlang einer Teilstrecke oder eines Kreises ziehen, um sie zu unterbrechen und ein Kartendetail lesbar zu lassen; eine Lücke anklicken, um sie zu schließen."],
-      ["route", "Route", "", "Der für die Läufer vorgesehene Weg, der für die Steigung dient: die Teilstrecke anklicken, dann die Punkte des Weges; Doppelklick zum Beenden. Er wird nicht gedruckt."],
+      ["route", "Route", "", "Eine Route von Hand zeichnen: die Teilstrecke anklicken, dann die Punkte des Wegs; Doppelklick zum Beenden. Sie kommt zu den Routen der Teilstrecke (Kapitel „Die Routen“) und wird nicht gedruckt."],
       ["descr", "Beschreibungen auf der Karte", "", "Einen Rahmen auf die Karte ziehen: Die Postenbeschreibungen der Bahn kommen dorthin, und ihre Breite bestimmt ihre Größe."],
       ["special", "Sonderobjekte", "", "Öffnet die Liste der Objekte: Wasserstelle, Sanitätsposten, Sperrgebiet, Text, Bild … (Kapitel „Sonderobjekte“)."],
     ];
@@ -1050,6 +1050,46 @@ export function build(X) {
             Karte (eine Wegkreuzung, eine Gebäudeecke), angeklickt mit ihrer Breite und Länge – ein Rechtsklick auf Géoportail oder einer Online-Karte liefert
             sie –, oder drei und mehr für ein verzerrtes Foto; oder ein World-File (.jgw, .pgw… mit seiner .prj); oder ein KMZ desselben Bildes. Das Fenster
             prüft den erhaltenen Maßstab gegen den der Karte.</p>
+          <p><b>Übungen</b>: ${W("exercise")} bietet für die aktuelle Bahn sechs Trainingskarten an — den Korridor, die Fenster, verdeckte Posten (ein weißer
+            Fleck um jeden Posten), verdeckte Teilstrecken (ein weißer Streifen über der Mitte jeder Teilstrecke), eine Karte je Teilstrecke (ein Kartenwechsel
+            an jedem Posten) und das Puzzle (das Bild der Bahn in gemischten Teilen, zum Drucken). Hintergründe, Relief und Höhenmodell: Kapitel „Hintergründe und Relief“.</p>
+        </section>`,
+      fonds: () => html`
+        <section class="mx-slide" id="tr-fonds">
+          <p class="mx-kicker">${K}</p>
+          <h2>Hintergründe und Relief</h2>
+          <p>${W("backdrop")} öffnet ein Panel über der Karte, das unter der Bahn zeigt, was die Karte nicht sagt. Es braucht eine georeferenzierte Karte (eine
+            OCAD- oder Mapper-Datei ist es meist; sonst ${W("georef")}).</p>
+          <ul class="mx-list">
+            <li><b>OpenStreetMap</b>, überall auf der Welt: Straßen, Wege, neue Gebäude — um zu prüfen, ob ein Weg noch existiert, oder einen Parkplatz zu finden.</li>
+            <li><b>Die nationalen Karten und Luftbilder</b>, wo Ozimut sie kennt: Frankreich, Schweiz, USA, Neuseeland.</li>
+            <li>In Frankreich <b>das LiDAR HD des IGN</b>: der nackte Boden schattiert (Böschungen, Gräben, alte Wege, Plattformen), die Vegetationshöhe
+              (Schläge, Jungwuchs, Lichtungen) und die Punkte nach Art (Boden, Vegetation, Gebäude).</li>
+            <li><b>Schummerung und Hangneigung</b> des Höhenmodells der Veranstaltung, überall.</li>
+          </ul>
+          <p>Jeder Hintergrund hat sein Kästchen und seine Deckkraft; die letzte Zeile regelt die Intensität der Karte selbst, um hindurchzusehen. Die Wahl wird
+            für die Veranstaltung auf diesem Gerät gespeichert. Hintergründe werden nicht gedruckt — außer dem, der im Druckbereich als „gedruckter Hintergrund“ gewählt ist.</p>
+          <h3>Das Höhenmodell</h3>
+          <p>Steigung, Profil, Routen, Schummerung und 3D-Ansicht lesen dieselben Höhen: das Höhenmodell der Veranstaltung (${W("dem")}). Ozimut lädt es beim
+            ersten Bedarf von selbst — das RGE ALTI des IGN in Frankreich, die nationalen Modelle in der Schweiz, den USA, Kanada und Neuseeland, das weltweite
+            Relief anderswo — und speichert es dann mit der Veranstaltung: Das ganze Team liest dieselben Höhen, auch offline, und die Ozimut-Datei (.ozmt)
+            nimmt sie mit. Hast du Besseres? „Meine Datei verwenden“ nimmt ein GeoTIFF oder ein ASCII-Raster: zum Beispiel ein 1-m-Geländemodell aus LiDAR.</p>
+          <p>${W("rep-climb")} gibt die Steigung jeder Bahn auf drei Arten an: <b>zwischen den Posten</b> (die Summe der Nettoaufstiege von Posten zu Posten),
+            <b>entlang der Teilstrecken</b> (alle Anstiege der Luftlinie) und <b>entlang der Routen</b> (die Regel der IOF: der Aufstieg der schnellsten Route).
+            Klicke die Überschrift der gewünschten Spalte an und hake die Bahnen an; der Wert wird auf 5 m gerundet. Wo das Modell falsch liegt — ein Posten
+            unter einer Brücke, am Fuß einer Felswand —, gib die Höhe des Postens ein: Sie zählt dann überall. ${W("profile")} zeichnet das Profil der Bahn
+            oder das der gewählten Teilstrecke mit jeder ihrer Routen.</p>
+          <h3>Ein GPS-Track auf der Karte</h3>
+          <p>${W("import-track")} legt deine Geländebegehung auf die Karte — eine GPX-, TCX-, FIT-, NMEA- oder FRWD-Datei — als Linienobjekt, das du wie jedes
+            andere verschiebst, umfärbst oder löschst. Er erscheint nur auf „Alle Posten“, außer du hakst alle Bahnen an.</p>
+          <h3>Hier ansehen</h3>
+          <p>Ein Rechtsklick auf die Karte, dann „Hier ansehen auf…“, öffnet die angeklickte Stelle in OpenStreetMap, Google Maps und Street View, im
+            Géoportail und in „Remonter le temps“ des IGN in Frankreich, in der Landeskarte der Schweiz, in Mapy.cz oder Mapillary, oder kopiert ihre Koordinaten.</p>
+          <h3>Ohne Karte: auf OpenStreetMap Bahnen legen</h3>
+          <p>Für einen Park, ein Viertel oder einen Schulhof ohne OL-Karte bietet „Neue Veranstaltung“ „Keine Karte? Auf OpenStreetMap Bahnen legen“ an: Gib das
+            Zentrum (seine Koordinaten oder „Mein Standort“), das Blatt und den Maßstab an. Die Veranstaltung öffnet sich auf OpenStreetMap, georeferenziert;
+            der Hintergrund wird unter den Bahnen gedruckt, mit Quellenangabe. Die Routenberechnung, die eine OL-Karte liest, steht dort nicht zur Verfügung:
+            Zeichne die Routen von Hand.</p>
         </section>`,
       ecran: () => html`
         <section class="mx-slide" id="tr-ecran">
@@ -1190,6 +1230,8 @@ export function build(X) {
             mit einem Klick unter Bahnen › Druck › Papier ändern („je nach Bahn“ dreht das Blatt in die Richtung der Bahn). Der Bereich platziert sich von selbst, zentriert auf der
             Bahn, oder folgt einem auf der Karte aufgezogenen Rahmen. Ein Bereich, der größer ist als das Blatt, wird auf mehrere sich leicht überlappende Seiten aufgeteilt oder auf seine
             Mitte reduziert. ${W("view-printarea")} zeigt ihn gepunktet an.</p>
+          <p><b>Kategorien</b>: ${W("classes")} verbindet jede Kategorie mit ihrer Bahn, mit ihren erwarteten Läufern und, bei einer Staffel, ihrer ersten
+            Startnummer; ein CSV „Bahn;Kategorie;Läufer“ wird auf einmal importiert. Die Teams einer Staffel werden dann Kategorie für Kategorie nummeriert.</p>
         </section>`,
       definitions: () => html`
         <section class="mx-slide" id="tr-definitions">
@@ -1211,6 +1253,14 @@ export function build(X) {
             Postenbeschreibung › Sprache), unter 23 Sprachen; ${W("custom-text")} ändert den Text eines Symbols. Um sie auf die Karte zu setzen, dient das Werkzeug Postenbeschreibung auf der
             Karte: Zieh einen Rahmen auf, seine Breite legt die Größe fest; die Ecke unten rechts ändert die Größe, ein Rechtsklick verteilt sie auf mehrere Spalten.
             ${W("pdf-descriptions")} druckt sie allein, mehrere pro Seite, zum Ausschneiden für die Beschreibungshalter.</p>
+          <h3>Die Postenbeschreibung aus der Karte lesen</h3>
+          <p>Auf einer OCAD- oder Mapper-Karte füllt ${W("auto-desc")} die Postenbeschreibung eines neuen Postens aus dem Kartenobjekt darunter aus: ein Stein,
+            eine Senke, ein Gebäude, eine Wegverzweigung. Setze den Posten mit <b>Ziehen</b>: Die Ziehrichtung sagt, auf welcher Seite des Objekts die Flagge
+            steht (Spalte G). ${W("desc-table")} zeigt die Zuordnung zwischen den Kartensymbolen und den Beschreibungsobjekten, für deine Karte anzupassen, und
+            füllt die Posten aus, die noch keine Postenbeschreibung haben. Höhenlinien haben keine Zuordnung: Rinne oder Nase, die Linie ist dieselbe.</p>
+          <p><b>ISCD 2024</b> ist die Norm neuer Veranstaltungen: Sie bringt die Eisenbahn oder Straßenbahn und das Wenden der Karte (Rechtsklick auf einen
+            Posten der Bahn: Die doppelseitige Karte wird dort gewendet), erlaubt einen Startcode in Spalte B („S1“, „S2“) und verlangt Felder von 5 bis 7 mm,
+            was die Veranstaltungsprüfung kontrolliert. Auf der Kartenseite regeln die Normen für Ski (ISSkiOM 2019) und MTB (ISMTBOM 2022) die Größe von Kreisen, Start, Ziel und Linien.</p>
         </section>`,
       speciaux: () => html`
         <section class="mx-slide" id="tr-speciaux">
@@ -1265,6 +1315,16 @@ export function build(X) {
           <p>Karte › Symbole regelt die Größe der Kreise, die Stärke der Linien und die Höhe der Nummern (im Verhältnis zur Norm); Karte › Violett › Darstellung die Schrift und den Fettdruck der
             Nummern, ihre weiße Kontur, die automatische Unterbrechung sich kreuzender Linien, die Größe je nach Druckmaßstab und das Violett. Auf der Karte platzierte Texte
             werden in der Schrift gedruckt, die sie nennen, mit Fett- und Kursivschrift, und in allen Sprachen.</p>
+          <h3>Vorlagen, Papiere, doppelseitig</h3>
+          <p>${W("canvases")} speichert die Druckeinstellungen einer Bahn unter einem Namen — Papier und Ausrichtung, Ränder, Bereich, Maßstab, gefilterte
+            Karte, gedruckter Hintergrund — und überträgt sie mit einem Klick auf eine oder alle Bahnen. Der Druckbereich kennt die Papiere von A2 bis A6, B4,
+            B5, SRA3, Tabloid und ein freies Format. Das PDF der Bahnen kann jede Bahn auf einer Vorderseite beginnen lassen: Wo nötig wird eine leere Seite
+            eingefügt, und die zwei Seiten einer Wendekarte kommen Rücken an Rücken.</p>
+          <p><b>Bereits gedruckte Karten überdrucken</b>: der Druckerversatz, ein feiner Maßstab (99 bis 101 % gleichen den Papierverzug aus) und der
+            Spiegeldruck, im PDF der Bahnen.</p>
+          <p><b>QR-Code</b>: Unter den Sonderobjekten führt ein QR-Code auf der Karte den Läufer zu den Ergebnissen, den Startzeiten oder den Analysen der
+            Veranstaltung auf Ozimut oder zu einer Adresse deiner Wahl. <b>Garmin-Karte</b>: ${W("export-garmin")} zerlegt die Karte, allein oder mit einer Bahn,
+            in Kacheln von höchstens 1024 × 1024 Pixeln, für Garmin-Uhren und -GPS-Geräte.</p>
         </section>`,
       verifier: () => html`
         <section class="mx-slide" id="tr-verifier">
@@ -1284,11 +1344,42 @@ export function build(X) {
             nur noch Erinnerungen bleiben, etwa eine noch nicht eingetragene Steigung –, und die ersten in der Registerkarte selbst; ein Klick öffnet die vollständige Prüfung. Die
             Gruppe „Aktuelle Bahn“ gibt ihre Länge, ihre Steigung, ihre Postenzahl, ihren Maßstab und ihre erwarteten Teilnehmer an.</p>
           <h3>Steigung und Siegerzeit</h3>
-          <p>${W("rep-climb")} berechnet die Steigung jeder Bahn aus dem Geländemodell des IGN (georeferenzierte Karte, in Frankreich); hake die Bahnen an, um den Wert
-            in ihre Eigenschaften zu übernehmen. Zeichne mit dem Werkzeug Route den vorgesehenen Weg dort, wo die Luftlinie über einen Hügel führt, den die Läufer
-            umlaufen werden. ${W("rep-times")} gibt für jede Bahn die erwartete Siegerzeit an, nach den Ergebnissen der letzten beiden
+          <p>${W("rep-climb")} gibt die Steigung jeder Bahn aus dem Höhenmodell an — zwischen den Posten, entlang der Teilstrecken oder entlang der Routen (Kapitel „Hintergründe und Relief“); hake die Bahnen an, um sie in ihre Eigenschaften zu übernehmen. ${W("rep-times")} gibt für jede Bahn die erwartete Siegerzeit an, nach den Ergebnissen der letzten beiden
             Saisons, und die Länge, die eine angestrebte Zeit ergibt (Kapitel „Die Berechnungen“).</p>
           <p>Die Belastung ergibt sich aus der Teilnehmerzahl jeder Bahn: ${W("load")} übernimmt sie aus den offiziellen Anmeldungen, wenn der Lauf dort aufgeführt ist.</p>
+          <p>Die Veranstaltungsprüfung meldet außerdem: eine Bahn ohne Start, ohne Ziel oder ohne Steigung; zwei identische Bahnen; im Sprint Posten mit weniger als 25 m
+            Luftlinie, auf der Laufroute zu prüfen; in beiden Richtungen gelaufene Teilstrecken; eine Postenbeschreibung ohne Spalte D oder zwei Objekte (D und
+            E) ohne Kreuzung oder Verzweigung, die sagt, wie sie sich treffen; eine zweimal eingetragene Nummer einer Stempeleinheit oder eine, die dem Code
+            eines anderen Postens gleicht; Felder der Postenbeschreibung außerhalb der 5 bis 7 mm der Norm. Die Routen, ihr Bericht und das Profil: Kapitel „Die Routen“.</p>
+        </section>`,
+      itineraires: () => html`
+        <section class="mx-slide" id="tr-itineraires">
+          <p class="mx-kicker">${K}</p>
+          <h2>Die Routen</h2>
+          <p>${W("routes")} öffnet die Routenanalyse: für jede Teilstrecke der Bahn die schnellste Route und ihre Varianten, auf der Karte berechnet, und die,
+            die du zeichnest. Es ist die Berechnung der Läuferanalysen: Die Karte wird Symbol für Symbol gelesen (eine OCAD- oder Mapper-Datei) oder nach ihren
+            Farben (ein Bild, ein PDF), das Relief kommt aus dem Höhenmodell, und die Sperrgebiete und Grenzen, die du auf die Bahn gelegt hast, sind geschlossen.</p>
+          <ul class="mx-list">
+            <li><b>Berechnen</b> bearbeitet die aktuelle Bahn; das kleine ▾ berechnet die gewählte Teilstrecke oder alle Bahnen.</li>
+            <li><b>Zeichnen</b> fügt auf der gewählten Teilstrecke eine Route von Hand hinzu: eine Option, die die Berechnung nicht anbietet, ein
+              Pflichtdurchgang. Sie wird an die Wege angelegt und im selben Modell gemessen (Länge, Steigung, Zeit) und bleibt deine, wenn du neu berechnest.</li>
+            <li>Jede Route hat ihren Buchstaben und ihre Farbe, ihre <b>Länge</b>, ihre <b>Steigung</b> und ihre <b>Zeit</b> im Tempo der Bahn. Der Stern ★
+              bezeichnet die Hauptroute, die für die Bahn zählt; ☆ wählt eine andere. Das Auge blendet sie aus, der Stift benennt sie, der Papierkorb löscht sie.</li>
+            <li>Auf der Karte geben die Beschriftungen „Länge | Steigung | Zeit“ an: für die Hauptroute, für alle oder keine.</li>
+            <li><b>Das Tempo</b> ist das des erwarteten Läufers, in gut belaufbarem Wald in der Ebene: Es ergibt die Zeiten, ohne die Wahl der Routen zu ändern.</li>
+          </ul>
+          <h3>Länge, Steigung, Zuschlag im Sprint</h3>
+          <p>Dafür sind die Routen zuerst da. Das Panel fasst die Bahn zusammen: ihre Länge auf den Hauptrouten, was das zur Luftlinie hinzufügt, ihre Steigung,
+            ihre Zeit. „Auf die Bahn übertragen…“ schreibt die Steigung in die Eigenschaften der Bahn und lässt, wenn du es anhakst, ihre Länge den Routen
+            folgen: die Sprintregel, nach der die Länge der Idealroute angegeben wird. Sie hält sich danach selbst aktuell. ${W("rep-routes")} gibt alles als
+            Text aus — jede Teilstrecke mit ihren Routen, jede Bahn mit ihrem Zuschlag —, zum Drucken oder als CSV, und überträgt alle Bahnen auf einmal.</p>
+          <h3>Einstellungen</h3>
+          <p>Die Einstellungen (der Regler-Knopf des Panels) gelten für die Veranstaltung und werden vom Team geteilt: das Standardtempo, die Zahl der
+            Varianten, was ein Meter Steigung wert ist, die Vorsicht abseits von Leitlinien, die Zeit für das Überqueren einer Böschung oder eines Zauns und
+            das Tempo jedes Geländes in % des gut belaufbaren Walds. Auf einer OCAD- oder Mapper-Karte geht ${W("route-table")} weiter: Symbol für Symbol, was
+            es für die Berechnung bedeutet — seine Art (Weg, Grün, unpassierbar, ignoriert…) und sein Tempo —, mit Zurücksetzen auf die Werte von Ozimut. Eine
+            Karte, deren Hellgrün sich schlecht läuft, ein eigenes Symbol: Hier ist der Ort dafür.</p>
+          <p>Routen werden nicht gedruckt. Das ▾ von „Berechnen“ speichert ein Bild der Karte mit ihnen, für eine Bahnlegersitzung oder einen Bericht.</p>
         </section>`,
       outils: () => html`
         <section class="mx-slide" id="tr-outils">
@@ -1317,6 +1408,11 @@ export function build(X) {
             Berichten): Das Feld druckt dann ihre Karte, ihre Postenbeschreibung und ihre Kontrollkarte.</p>
           <p>Außerdem: ${W("import-course")} übernimmt die Posten einer gedruckten Bahn (ein PDF oder ein Foto eines vergangenen Laufs), danach zu prüfen;
             ${W("view-others")} zeigt andere Bahnen blass an, um Kreuzungen und zu nahe Posten zu vermeiden.</p>
+          <h3>Die Karte verleihen</h3>
+          <p>Wem eine Karte gehört, der will sie nicht immer hergeben. In ${W("team")} lässt „Karte geliehen“ — bei einem Mitglied oder bei einem
+            Einladungslink — auf der Karte Bahnen legen, ohne sie drucken oder exportieren zu können: Die PDFs enthalten nur die Bahn. Ein Browser kann das
+            Kopieren nur erschweren (die Karte ist am Bildschirm), nicht verhindern. Die Analysen haben dieselbe Einstellung: „Ein Bild der Karte
+            exportieren“, die die Organisatoren abwählen.</p>
         </section>`,
       apres: () => html`
         <section class="mx-slide" id="tr-apres">
@@ -1438,11 +1534,6 @@ export function build(X) {
         <section class="mx-slide" id="tr-calculs">
           <p class="mx-kicker">Bahnlegung</p>
           <h2>Ihre Berechnungen, erklärt</h2>
-          <h3>Die Steigung</h3>
-          <p>Die Höhe wird alle 10 m entlang jeder Teilstrecke aus dem Geländemodell des IGN gelesen (RGE ALTI, in Frankreich auf den Meter genau), dann
-            über drei Punkte geglättet: Das Modell hat kleine Unregelmäßigkeiten, die sich, aufaddiert, zu einem überhöhten Anstieg summieren würden. Die Steigung ist die Summe der Anstiege,
-            auf 5 m gerundet. In gerader Linie zählt eine Teilstrecke, die einen Hügel umgeht, den Hügel mit: Deshalb kann man mit dem Werkzeug Route den
-            vorgesehenen Weg zeichnen, der dann für die Berechnung dient.</p>
           <h3>Die Siegerzeit</h3>
           <p>Aus den offiziellen Ergebnissen der letzten beiden Saisons (etwa hundert Läufe desselben Formats) wird für jede Bahn das Tempo des
             Siegers in Minuten pro Kilometer erfasst, und sein offizieller CN 15 Tage vorher. Je höher der CN, desto schneller das Tempo: Der Zusammenhang wird ein
@@ -1463,6 +1554,15 @@ export function build(X) {
           <p>Ein Posten kann eingesammelt werden, wenn der letzte Läufer jeder Bahn, die ihn anläuft, ihn passiert hat: seine Startzeit, plus die Strecke bis zum Posten
             im Tempo eines langsamen Läufers (15 min/km im Wald, 9 im Sprint, in Luftlinie), plus ein Puffer. Die Posten werden nach Sektoren auf die Einsammler
             verteilt, und jeder nimmt sie in der Reihenfolge, in der er sie erreichen kann.</p>
+          <h3>Routen und Steigung</h3>
+          <p>Die Routenberechnung legt ein Raster von etwa 1,5 m über die Karte (1 m im Sprint). Jede Zelle hat ein Tempo — das ihres Geländes, in % des gut
+            belaufbaren Walds — und eine Höhe. Von einer Zelle zur nächsten zu laufen kostet die Distanz geteilt durch das Tempo, plus die Steigung: Ein Meter
+            Steigung entspricht 8 m in der Ebene. Abseits von Wegen, Bächen und klaren Grenzen kommt bis zu 20 % Vorsicht hinzu: Dort läuft man langsamer,
+            weil man lesen muss. Eine Böschung oder einen Zaun zu überqueren kostet 10 Sekunden. Die schnellste Route ist der Weg der geringsten Kosten; die
+            Varianten sind die anderen wirklich verschiedenen Wege, solange sie nicht 25 % langsamer sind. Die angezeigte Zeit sind diese Kosten, ohne die
+            Vorsicht, im angegebenen Tempo.</p>
+          <p>Die Steigung einer Route wird im Höhenmodell gelesen, ein Punkt alle paar Meter, über drei Punkte geglättet, damit sich die kleinen Buckel des
+            Modells nicht aufsummieren: Es ist dieselbe Zahl im Panel, im Bericht, im Profil und in „Steigung“.</p>
         </section>`,
     };
     return buildChapters(CHAPTERS, CH, "principe");

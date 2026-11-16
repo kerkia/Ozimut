@@ -17,7 +17,7 @@ import * as A from "./actions.js";
 import { svg, ACT_ICON } from "./icons.js";
 import { TABS, CONTEXT, BACKSTAGE, GALLERY, INFO, QAT_DEFAULT, QAT_CHOICES, commands, isPro } from "./ribbon-data.js";
 import { ctxKind, applies as appliesTo } from "./context.js";
-import { PAGES, pageOf } from "./pdf.js";
+import { PAGES, MAIN_PAGES, pageOf } from "./pdf.js";
 import * as FW from "../fullwin.js";
 import { hasGeo } from "./geo.js";
 import { mapColors, defaultLayer } from "./appear.js";
@@ -91,10 +91,14 @@ export function mountRibbon(E) {
       case "allControls": return !!E.opts.allControls;
       case "overprint": return !!E.ev.appearance?.ocadOverprint;
       case "exchange": return !!cc()?.exchange;
+      case "flip": return !!cc()?.flip;
       case "rnd": return !!cc()?.rnd;
       case "lock": return !!ctl()?.locked;
       case "angles": return E.overlays.some((f) => f.key === "angles");
       case "nearest": return E.overlays.some((f) => f.key === "nearest");
+      case "routes": return !!E.ra?.panel;
+      case "backdrop": return !!E.backdrop?.panel;
+      case "autoDesc": return !!E.opts.autoDesc;
       default: return null;
     }
   }
@@ -153,19 +157,22 @@ export function mountRibbon(E) {
   }
   // ---- settings in the ribbon (their names and tooltips: ribbon-data.js INFO.field) ---------------------------------------------
   const FIELDS = {
-    descStandard: { opts: () => [["2018", "IOF 2018"], ["2004", "IOF 2004"]], get: () => E.ev.descStandard,
+    descStandard: { opts: () => D.DESC_STANDARDS.map(([k, l]) => [k, l.replace(/ \(.*/, "")]), get: () => E.ev.descStandard,
       set: (v) => D.applyStandards(E, v, E.ev.appearance.mapStandard) },
     lang: { opts: () => D.langChoices(E.ev.lang), get: () => E.ev.lang,
       set: async (v) => { if (!["fr", "en"].includes(v)) await (await import("./symbols.js")).loadAllTexts(); E.change((x) => { x.lang = v; }, t("trc.rib.undoLang")); } },
     mapStandard: {
-      opts: () => [["2017", "ISOM 2017"], ["Spr2019", "ISSprOM 2019"], ["2000", "ISOM 2000"]], get: () => E.ev.appearance.mapStandard, set: (v) => D.applyStandards(E, E.ev.descStandard, v) },
+      opts: () => [["2017", "ISOM 2017"], ["Spr2019", "ISSprOM 2019"], ["Ski2019", "ISSkiOM 2019"], ["Mtbo2022", "ISMTBOM 2022"], ["2000", "ISOM 2000"]], get: () => E.ev.appearance.mapStandard, set: (v) => D.applyStandards(E, E.ev.descStandard, v) },
     printScale: {
       opts: () => { const cur = course() ? course().printScale : E.ev.allControls.printScale; return [...new Set([...SCALES, E.ev.map.scale, cur])].filter((x) => x > 0).sort((a, b) => a - b).map((x) => [String(x), `1:${nf(x)}`]); },
       get: () => String(course() ? course().printScale : E.ev.allControls.printScale),
       set: (v) => { const id = E.cd.course, k = Number(v); E.change((x) => { if (id) x.courses[id].printScale = k; else x.allControls.printScale = k; }, t("trc.rib.undoPrintScale")); } },
     paper: { opts: () => {
         const out = [];
-        for (const p of Object.keys(PAGES)) out.push([`${p}:portrait`, t("trc.rib.paperPortrait", { p })], [`${p}:landscape`, t("trc.rib.paperLandscape", { p })], [`${p}:auto`, t("trc.rib.paperAuto", { p })]);
+        // the usual papers, and the course's own when it is another (set in « Zone d'impression »)
+        const pg0 = pageOf(M.printAreaOf(E.ev, E.cdDraw || E.cd) || M.DEFAULT_PRINT_AREA());
+        const own = Object.entries(PAGES).find(([, [w, h]]) => Math.abs(w - Math.min(pg0.w, pg0.h)) < 1 && Math.abs(h - Math.max(pg0.w, pg0.h)) < 1)?.[0];
+        for (const p of [...MAIN_PAGES, ...(own && !MAIN_PAGES.includes(own) ? [own] : [])]) out.push([`${p}:portrait`, t("trc.rib.paperPortrait", { p })], [`${p}:landscape`, t("trc.rib.paperLandscape", { p })], [`${p}:auto`, t("trc.rib.paperAuto", { p })]);
         return out;
       },
       get: () => {
@@ -881,7 +888,8 @@ function issueRows(rep) {
     else if (id === "missing") { for (const r of s.rows) out.push({ text: t("trc.rib.issColon", { a: r[0], b: r[2].replace(/\s*\(.*\)/, "") }), warn: r.tag === "climb" || r.tag === "load" }); }
     else if (id === "repeated") { for (const r of s.rows) out.push({ text: t("trc.rib.issRepeated", { course: r[0], control: r[1], text: r[2] }) }); }
     else if (id === "descr") { for (const r of s.rows) out.push({ text: t("trc.rib.issDescr", { control: r[0], text: r[2] }), warn: true }); }
-    else if (id === "more") { for (const r of s.rows) out.push({ text: r[0] ? t("trc.rib.issMore", { course: r[0], obj: r[1], text: r[2] }) : t("trc.rib.issColon", { a: r[1], b: r[2] }), warn: r.tag === "short" || r.tag === "dog-leg" || r.tag === "first-dir" }); }
+    else if (id === "more") { for (const r of s.rows) out.push({ text: r[0] ? t("trc.rib.issMore", { course: r[0], obj: r[1], text: r[2] }) : t("trc.rib.issColon", { a: r[1], b: r[2] }), warn: r.tag === "short" || r.tag === "dog-leg" || r.tag === "first-dir" || r.tag === "desc-box" }); }
+    else if (id === "units") { for (const r of s.rows) out.push({ text: r.filter(Boolean).join(" · ") }); }
     else for (const r of s.rows) out.push({ text: r.filter(Boolean).join(" · "), warn: true });
   }
   // « Circuit A : la dénivelée… »: the audit's sentences go on after a colon (« : » in French, ":" in English)

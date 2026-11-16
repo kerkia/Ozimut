@@ -471,6 +471,7 @@ function exportGpx(E) {
   download(`${slug(E)}.gpx`, gpx, "application/gpx+xml");
 }
 async function exportPng(E) {
+  if ((await import("./dialogs.js")).lentStop(E)) return;
   const ev = E.ev, R = E.tour.result, F = rows(E);
   E.status(t("trc.tour.imgBusy"), "busy");
   try {

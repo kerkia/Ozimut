@@ -680,9 +680,12 @@ export function cells(px, w, h, cs) {
   // a vector map's own layers (trace/vectorroutes.js): lines that block, handrails, passable lines slow to cross, slowing ground
   const vector = !!px.block, block = vector ? new Uint8Array(M) : null, hand = vector ? new Uint8Array(M) : null;
   const cross = px.cross ? new Uint8Array(M) : null, slow = px.slow ? new Uint8Array(M) : null, sl = [0, 0, 0, 0];
+  // a table per symbol's speeds (the Tracer): an area's where it covers half the cell (impassable when most of that half is),
+  // a line's the fastest in the cell
+  const speed = px.speed ? new Uint8Array(M) : null, pspeed = px.pspeed ? new Uint8Array(M) : null;
   for (let j = 0; j < ny; j++) for (let i = 0; i < nx; i++) {
     count.fill(0);
-    let p = 0, r = 0, b = 0, n = 0, bl = 0, ha = 0, no = 0, oa = 0, ob = 0, cr = 0;
+    let p = 0, r = 0, b = 0, n = 0, bl = 0, ha = 0, no = 0, oa = 0, ob = 0, cr = 0, sn = 0, ss = 0, sb = 0, ps = 0;
     if (slow) sl.fill(0);
     for (let y = j * cs; y < Math.min(h, (j + 1) * cs); y++) for (let x = i * cs; x < Math.min(w, (i + 1) * cs); x++) {
       const k = y * w + x, v = px.path[k];
@@ -693,6 +696,8 @@ export function cells(px, w, h, cs) {
       if (vector) { bl |= px.block[k]; ha |= px.hand[k]; }
       if (cross) cr |= px.cross[k];
       if (slow && px.slow[k]) sl[px.slow[k]]++;
+      if (speed && px.speed[k]) { sn++; if (px.speed[k] === 255) sb++; else ss += px.speed[k]; }
+      if (pspeed && px.pspeed[k] > ps) ps = px.pspeed[k];
     }
     let best = 0;
     for (let c = 1; c < N_CLASSES; c++) if (count[c] > count[best]) best = c;
@@ -703,6 +708,8 @@ export function cells(px, w, h, cs) {
     if (cross) cross[k] = cr;
     // the slowing ground where it covers half the cell: the strongest level reached by that half
     if (slow) { let c = 0; for (let lv = 3; lv >= 1; lv--) { c += sl[lv]; if (2 * c >= n) { slow[k] = lv; break; } } }
+    if (speed && 2 * sn >= n) speed[k] = 2 * sb >= sn ? 255 : Math.max(1, Math.round(ss / Math.max(1, sn - sb)));
+    if (pspeed) pspeed[k] = ps;
   }
   // a dashed path's last gaps: a cell between two path cells is one (the slower of the two)
   const fill = [];
@@ -721,7 +728,7 @@ export function cells(px, w, h, cs) {
     if (s / n > 0.2 * 255 && blue[k] && cls[k] <= A.G3) marsh.push(k);
   }
   for (const k of marsh) cls[k] = A.MARSH;
-  return { cs, nx, ny, cls, path, raw, blue, north, over, vector, block, hand, cross, slow };
+  return { cs, nx, ny, cls, path, raw, blue, north, over, vector, block, hand, cross, slow, speed, pspeed };
 }
 
 // ---- 3. costs -------------------------------------------------------------------------------------------------------------
@@ -751,11 +758,14 @@ export function costs(G, s, mpc) {
     // the overprint near a control is the course's own circle or number: the ground under it is taken as runnable forest
     const freed = ov?.[k] === 1 && rel?.[k];
     let v = G.block?.[k] ? Infinity : freed ? 1 : F[cls[k]];
+    // a table per symbol's own speed for the area (the Tracer): in the class's place
+    const ts = G.speed?.[k];
+    if (ts && !freed && !G.block?.[k]) v = ts === 255 ? Infinity : 100 / ts;
     if (G.slow?.[k] && !freed) v *= FS[G.slow[k]];                     // stony or sandy ground, over what grows there
     // a vector map's path crosses water or a building (a bridge, a passage), never an area out of bounds nor an impassable wall or
     // fence (its crossing points are holes in it: trace/vectorroutes.js); on an image a line read as a path opens nothing impassable
     // (the black edge of a building, of an area out of bounds), nor does a gap bridged
-    if (bm === "paths" && path[k] && cls[k] !== A.OOB && !G.block?.[k] && (G.vector ? raw[k] || v < Infinity : v < Infinity)) { v = Math.min(v, FP[path[k]]); isPath[k] = 1; }
+    if (bm === "paths" && path[k] && cls[k] !== A.OOB && !G.block?.[k] && (G.vector ? raw[k] || v < Infinity : v < Infinity)) { v = Math.min(v, G.pspeed?.[k] ? 100 / G.pspeed[k] : FP[path[k]]); isPath[k] = 1; }
     else if (bm === "obstacles" && raw[k]) v = Infinity;
     // a forbidden route is crossed, not followed: slow along it, its path no handrail
     if (ov?.[k] === 2 && !rel?.[k]) { v = Math.max(v, FORBIDDEN_ROUTE); isPath[k] = 0; }
@@ -796,7 +806,10 @@ export function costs(G, s, mpc) {
     cross = new Uint8Array(M);
     for (let k = 0; k < M; k++) if (G.cross[k] && !isPath[k] && f[k] < Infinity) cross[k] = 1;
   }
-  return { f, r, isPath, cross, xp, fMin: Math.min(...FP.slice(1), ...[...F].filter((v) => v > 0)) };
+  // the fastest ground of all (the searches' lower bound): a table per symbol may hold a faster one
+  let fMin = Math.min(...FP.slice(1), ...[...F].filter((v) => v > 0));
+  if (G.speed || G.pspeed) for (let k = 0; k < M; k++) if (f[k] < fMin) fMin = f[k];
+  return { f, r, isPath, cross, xp, fMin };
 }
 /** Whether the step n from cell k to cell q gets over a passable line: it enters one of its cells, or passes between two of them
  *  (a diagonal) or over one (a knight's move); never from a cell of the line (a crossing counts once, on the way in). */

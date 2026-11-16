@@ -390,7 +390,8 @@ export function writePpen(ev, { mapPath = "" } = {}) {
       w.el("map", { kind, scale: num(ev.map.scale), dpi: kind === "bitmap" ? num(ev.map.dpi) : null,
         "ignore-missing-fonts": kind === "OCAD" ? bool(ev.map.ignoreMissingFonts) : null,
         "absolute-path": kind !== "none" ? (mapPath || ev.map.absolute || ev.map.file) : null }, kind !== "none" ? ev.map.file || "" : null);
-      w.el("standards", { map: ap.mapStandard, description: ev.descStandard });
+      // Purple Pen knows the 2004 and 2018 descriptions (its 2018 holds ISCD 2024's symbols) and three map standards
+      w.el("standards", { map: ["2000", "2017", "Spr2019"].includes(ap.mapStandard) ? ap.mapStandard : "2017", description: M.descBase(ev.descStandard) });
       w.el("all-controls", { "print-scale": num(ev.allControls.printScale), "description-kind": ev.allControls.descKind });
       writePrintArea(w, ev.printArea);
       w.el("numbering", { start: String(ev.numbering.start), "disallow-invertible": bool(ev.numbering.noInvertible) });

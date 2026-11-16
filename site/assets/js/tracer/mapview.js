@@ -131,30 +131,92 @@ export async function colorsDialog(E) {
 }
 
 /**
- * « Couloir et fenêtres » (the advanced level; owner, 2026-11-05): the course in hand's map hidden but along its legs (a corridor of
- * a width) and round its controls (windows of a radius), as a mask that follows the course (exercise.js).
+ * « Exercices » (owner, 2026-11-05: corridor and windows; 2026-11-16: the other generators, after OCAD's training recipes — one
+ * command per exercise, from the course in hand). The map of the course:
+ * - corridor: hidden but along its legs (a width), with windows round its controls if wished;
+ * - windows: hidden but round its controls (a radius);
+ * - controls hidden: a white patch round each control (the last metres without the map);
+ * - legs hidden: a white band over the middle of each leg (a share of its length);
+ * each a mask that follows the course (exercise.js) and shows on that course only; and
+ * - a map per leg: a map exchange at every control, so that each leg prints on a page of its own (and none again to undo it);
+ * - puzzle: the course's image cut into squares, shuffled (and turned if wished), to print — an image, not a change of the course.
+ * Contours only, no paths, no vegetation: « Filtrer la carte ».
  */
 export async function exerciseDialog(E) {
   const course = E.cd.course;
   if (!course) { E.toast(t("trc.rib.whyCourse")); return; }
   const X = await import("./exercise.js");
   const { modal, field, num } = await import("./dialogs.js");
-  const cur = X.exerciseOf(E.ev, course)?.gen;
-  const sprint = (E.ev.map.scale || 10000) <= 5000, score = M.isScore(E.ev, course);
-  const width = cur ? cur.width : sprint ? 30 : 80, win = cur ? cur.window : score ? 40 : 0;
-  const v = await modal(E, { title: t("trc.mv.exTitle"), ok: t("trc.mv.apply"),
-    extra: cur ? `<button type="submit" class="btn" data-v="remove">${esc(t("trc.mv.exRemove"))}</button>` : "",
-    body: `<p>${esc(t(score ? "trc.mv.exIntroScore" : "trc.mv.exIntro", { course: E.ev.courses[course].name || "" }))}</p>
-      <div class="tr-grid2">${score ? "" : field(t("trc.mv.exWidth"), `<input name="w" value="${width}" inputmode="decimal">`, t("trc.mv.exWidthHint"))}
-      ${field(t("trc.mv.exWindow"), `<input name="r" value="${win}" inputmode="decimal">`, t("trc.mv.exWindowHint"))}</div>
-      <p class="tr-hint">${esc(t("trc.mv.exFollow"))}</p>`,
-    validate: (x) => (x._submit === "remove" || num(x.w) > 0 || num(x.r) > 0 ? null : t("trc.mv.exNone")) });
+  const { where } = await import("./ribbon-data.js");
+  const ev = E.ev, cur = X.exerciseOf(ev, course)?.gen;
+  const sprint = (ev.map.scale || 10000) <= 5000, score = M.isScore(ev, course);
+  const ccs = M.ccIds(ev, M.cdCourse(course)).filter((id) => ev.controls[ev.courseControls[id].control]?.kind === "normal");
+  const perLeg = ccs.length > 1 && ccs.every((id) => ev.courseControls[id].exchange);
+  const now = perLeg ? "perleg" : !cur ? (score ? "windows" : "corridor") : cur.mode === "hide" ? (cur.width > 0 ? "hidelegs" : "hidectl") : cur.width > 0 ? "corridor" : "windows";
+  const W = cur?.width > 0 ? cur.width : sprint ? 30 : 80, R = cur?.window > 0 ? cur.window : sprint ? 25 : 60, share = Math.round(100 * (cur?.share || 0.5));
+  const opt = (k, extra = "") => `<label class="tr-ex-opt"><input type="radio" name="k" value="${k}" ${now === k ? "checked" : ""} ${score && ["corridor", "hidelegs", "perleg"].includes(k) ? "disabled" : ""}>
+    <span><b>${esc(t(`trc.mv.ex.${k}`))}</b><small>${esc(t(`trc.mv.ex.${k}Tip`))}</small>${extra}</span></label>`;
+  const num1 = (name, val, unit, label) => `<span class="tr-ex-num"><label>${esc(label)} <input name="${name}" value="${val}" size="4" inputmode="decimal" data-fresh> ${unit}</label></span>`;
+  const v = await modal(E, { title: t("trc.mv.exTitle2", { course: ev.courses[course].name || "" }), wide: true, ok: t("trc.mv.apply"),
+    extra: cur || perLeg ? `<button type="submit" class="btn" data-v="remove">${esc(t("trc.mv.exRemove2"))}</button>` : "",
+    body: `<div class="tr-ex-list">
+      ${opt("corridor", `${num1("w1", W, "m", t("trc.mv.exWidthShort"))}${num1("r1", cur && now === "corridor" ? cur.window : 0, "m", t("trc.mv.exWindowShort"))}`)}
+      ${opt("windows", num1("r2", R, "m", t("trc.mv.exWindowShort")))}
+      ${opt("hidectl", num1("r3", R, "m", t("trc.mv.exPatch")))}
+      ${opt("hidelegs", `${num1("w4", W, "m", t("trc.mv.exWidthShort"))}${num1("s4", share, "%", t("trc.mv.exShare"))}`)}
+      ${opt("perleg")}
+      ${opt("puzzle", `${num1("pc", 4, "×", t("trc.mv.exCols"))}${num1("pr", 3, "", t("trc.mv.exRows"))}<label class="tr-check"><input type="checkbox" name="pt" data-fresh> ${esc(t("trc.mv.exTurn"))}</label>`)}
+    </div>
+    <p class="tr-hint">${esc(t("trc.mv.exFollow2", { where: where("map-colors") }))}</p>`,
+    validate: (x) => {
+      if (x._submit === "remove") return null;
+      const bad = (n) => !(num(n) > 0);
+      if (x.k === "corridor" && bad(x.w1)) return t("trc.mv.exNeed");
+      if (x.k === "windows" && bad(x.r2)) return t("trc.mv.exNeed");
+      if (x.k === "hidectl" && bad(x.r3)) return t("trc.mv.exNeed");
+      if (x.k === "hidelegs" && (bad(x.w4) || !(num(x.s4) >= 10 && num(x.s4) <= 90))) return t("trc.mv.exNeedShare");
+      if (x.k === "puzzle" && !(num(x.pc) >= 2 && num(x.pc) <= 12 && num(x.pr) >= 2 && num(x.pr) <= 12)) return t("trc.mv.exNeedGrid");
+      return null;
+    } });
   if (!v) return;
-  if (v._submit === "remove") { E.change((x) => { X.clearExercise(x, course); }, t("trc.mv.exRemoved")); return; }
-  const gen = { course, width: Math.max(0, Math.min(2000, num(v.w) || 0)), window: Math.max(0, Math.min(2000, num(v.r) || 0)), keep: X.logosOf(E.map) };
+  const setAll = (x, on) => { for (const id of ccs) { const cc = x.courseControls[id]; if (on) cc.exchange = true; else { delete cc.exchange; delete cc.flip; } } };
+  if (v._submit === "remove") { E.change((x) => { X.clearExercise(x, course); if (perLeg) setAll(x, false); }, t("trc.mv.exRemoved2")); return; }
+  const cap = (n) => Math.max(0, Math.min(2000, num(n) || 0));
+  if (v.k === "puzzle") return puzzle(E, Math.round(num(v.pc)), Math.round(num(v.pr)), !!v.pt);
+  if (v.k === "perleg") { E.change((x) => { X.clearExercise(x, course); setAll(x, true); }, t("trc.mv.ex.perleg")); E.toast(t("trc.mv.exPerLegDone", { n: ccs.length + 1 }), 7000); return; }
+  const gen = v.k === "corridor" ? { course, width: cap(v.w1), window: cap(v.r1), keep: X.logosOf(E.map) }
+    : v.k === "windows" ? { course, width: 0, window: cap(v.r2), keep: X.logosOf(E.map) }
+      : v.k === "hidectl" ? { course, mode: "hide", width: 0, window: cap(v.r3), keep: [] }
+        : { course, mode: "hide", width: cap(v.w4), window: 0, share: Math.max(0.1, Math.min(0.9, num(v.s4) / 100)), keep: [] };
   E.status(t("trc.mv.exBusy"), "busy");
-  E.change((x) => { X.setExercise(x, gen); }, t("trc.mv.exUndo"));
+  E.change((x) => { X.clearExercise(x, course); if (perLeg) setAll(x, false); X.setExercise(x, gen); }, t(`trc.mv.ex.${v.k}`));
   E.status(t("trc.mv.done"), "ok");
+}
+/** The puzzle: the course's image (its print area, 200 dpi) cut into cols × rows squares, shuffled — each turned by a quarter
+ *  turn or more when asked, where the squares allow it —, saved as a PNG to print at the course's scale. */
+async function puzzle(E, cols, rows, turn) {
+  const { courseImage } = await import("./exports.js"), { download, fileName, lentStop } = await import("./dialogs.js");
+  if (lentStop(E)) return;
+  E.status(t("trc.mv.exBusy"), "busy");
+  try {
+    const { canvas } = await courseImage(E, E.cdDraw || E.cd, 200, { withMap: true });
+    const tw = Math.floor(canvas.width / cols), th = Math.floor(canvas.height / rows), square = Math.abs(tw - th) < 2, gap = Math.max(2, Math.round(tw / 60));
+    const out = document.createElement("canvas"); out.width = cols * tw + (cols + 1) * gap; out.height = rows * th + (rows + 1) * gap;
+    const g = out.getContext("2d");
+    g.fillStyle = "#fff"; g.fillRect(0, 0, out.width, out.height);
+    const order = Array.from({ length: cols * rows }, (_, i) => i);
+    for (let i = order.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [order[i], order[j]] = [order[j], order[i]]; }
+    order.forEach((src, dst) => {
+      const sx = (src % cols) * tw, sy = Math.floor(src / cols) * th, dx = gap + (dst % cols) * (tw + gap), dy = gap + Math.floor(dst / cols) * (th + gap);
+      const q = turn ? (square ? Math.floor(Math.random() * 4) : 2 * Math.floor(Math.random() * 2)) : 0;
+      g.save(); g.translate(dx + tw / 2, dy + th / 2); g.rotate((q * Math.PI) / 2);
+      g.drawImage(canvas, sx, sy, tw, th, -tw / 2, -th / 2, tw, th);
+      g.restore();
+    });
+    const blob = await new Promise((ok) => out.toBlob(ok, "image/png"));
+    download(`${fileName(E.ev.title)} - ${fileName(E.ev.courses[E.cd.course]?.name || "")} - ${t("trc.mv.ex.puzzle")}.png`, blob, "image/png");
+    E.status(t("trc.mv.done"), "ok");
+  } catch (err) { console.error(err); E.status(t("trc.mv.exFailed"), "bad"); E.toast(err.message || String(err)); }
 }
 
 /** The affine from the event's mm to a template image's sheet mm (its pixels at u × v mm, OCAD's placing: its centre at (x, y) of

@@ -18,7 +18,10 @@ const FLAG = (id) => `ocn.tr.offline.${id}`;
 export const isKept = (id) => { try { return localStorage.getItem(FLAG(id)) === "1"; } catch (e) { return false; } };
 const TRACER = ["actions", "appear", "calage", "descr", "dialogs", "draw", "editor", "exports", "extras", "fonts", "geo", "gif", "icons", "idb", "layout", "mapsrc", "model", "offline", "ribbon", "ribbon-data",
   "panes", "pdf", "ppen", "race", "relay", "reports", "store", "symbols", "team", "textify", "tiff",
-  "vmap/geom", "vmap/georef", "vmap/map", "vmap/ocad", "vmap/ocadwrite", "vmap/oom", "vmap/oomwrite", "vmap/symdefs", "vmap/sympath", "vmap/target", "coursefiles", "ocnfile", "context", "lang"].map((m) => `/assets/js/tracer/${m}.js`);
+  "vmap/geom", "vmap/georef", "vmap/map", "vmap/ocad", "vmap/ocadwrite", "vmap/oom", "vmap/oomwrite", "vmap/symdefs", "vmap/sympath", "vmap/target", "coursefiles", "ocnfile", "context", "lang",
+  // the routes, the elevation model, the backgrounds' panel, the descriptions read from the map, the presets, the QR codes (2026-11-16)
+  "analyzer", "routedraw", "relief", "backdrop", "autodesc", "canvases", "qr"].map((m) => `/assets/js/tracer/${m}.js`)
+  .concat(["onlinemaps", "waitbar", "trace/routeplan", "trace/routechoice", "trace/routeworker", "trace/vectorroutes", "trace/terrain", "trace/contours"].map((m) => `/assets/js/${m}.js`));
 const LIBS = [PDFLIB, FFLATE, FONTKIT, PDFJS, PDFJS_WORKER, PROJ4,
   `${FONT_PKG.Roboto}/files/roboto-latin-400-normal.woff`, `${FONT_PKG.Roboto}/files/roboto-latin-700-normal.woff`,
   `${FONT_PKG["Roboto Condensed"]}/files/roboto-condensed-latin-400-normal.woff`, `${FONT_PKG["Roboto Condensed"]}/files/roboto-condensed-latin-700-normal.woff`,
@@ -50,7 +53,10 @@ async function prepareSite() {
 export async function keepEvent(E) {
   const seal = async (bytes) => (E.key ? S.encryptBytes(E.key, bytes) : bytes);
   const evBytes = await seal(enc.encode(JSON.stringify(E.ev)));
-  await IDB.put("events", E.meta.id, { meta: E.meta, role: E.role, you: E.you, version: E.version, ev: evBytes, at: Date.now() });
+  // the elevation model too (relief.js): the one in memory, else the one this copy already holds
+  const prev = await IDB.get("events", E.meta.id).catch(() => null);
+  const dem = E.relief ? await seal(await (await import("./relief.js")).pack(E.relief)) : prev?.dem || null;
+  await IDB.put("events", E.meta.id, { meta: E.meta, role: E.role, you: E.you, version: E.version, ev: evBytes, dem, at: Date.now() });
   if (!(await IDB.get("maps", E.meta.id))) {
     const m = await S.loadMap(E.meta.id, E.key);
     if (m) await IDB.put("maps", E.meta.id, { bytes: await seal(m.bytes), type: m.type });
@@ -67,7 +73,7 @@ export async function localEvent(id, key) {
   const map = await IDB.get("maps", id);
   const pendBytes = pend ? await open(pend.ev) : null;
   const ev = JSON.parse(dec.decode(pendBytes || evBytes));
-  return { ...rec, ev, map: map ? { bytes: await open(map.bytes), type: map.type } : null, pending: !!pend, baseVersion: pend?.baseVersion ?? rec.version };
+  return { ...rec, ev, map: map ? { bytes: await open(map.bytes), type: map.type } : null, dem: rec.dem ? await open(rec.dem) : null, pending: !!pend, baseVersion: pend?.baseVersion ?? rec.version };
 }
 /** Events kept on this device (cards only). */
 export async function keptEvents() {

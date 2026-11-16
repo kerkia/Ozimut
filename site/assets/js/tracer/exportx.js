@@ -6,12 +6,12 @@
 
 import * as M from "./model.js";
 import { layoutCourse } from "./layout.js";
-import { itemsFor, cmykToRgb, SCREEN } from "./draw.js";
+import { itemsFor, drawItems, cmykToRgb, SCREEN } from "./draw.js";
 import { modal, download, fileName, field, sel, num, saveFiles } from "./dialogs.js";
 import { hasGeo, toLatLon } from "./geo.js";
 import { courseImage, iofXmlText } from "./exports.js";
 import { printBox } from "./pdf.js";
-import { paintMap, purpleOverride, syncMap } from "./appear.js";
+import { paintMap, paintCourse, purpleOverride, syncMap } from "./appear.js";
 import { where } from "./ribbon-data.js";
 import { FFLATE } from "../vendor.js";
 import { t } from "./lang.js";
@@ -259,4 +259,71 @@ async function save(E, files, label) {
   if (n === 1) { const [name, bytes] = Object.entries(files)[0]; download(name, new Blob([bytes])); }
   else await saveFiles(E, files, `${fileName(E.ev.title)} - ${label}.zip`);
   E.status(t("trc.exp.done"), "ok");
+}
+
+// ---- Garmin custom maps -------------------------------------------------------------------------------------------------------------
+const GARMIN_TILE = 1024, GARMIN_MAX = 100;
+/**
+ * A KMZ a Garmin device shows as a custom map (owner, 2026-11-16, after OCAD's export): the map — alone, or with a course drawn
+ * on it — cut into JPEG tiles of 1024 × 1024 pixels at most, each a ground overlay placed by its box and the map's rotation
+ * (Garmin reads boxes, not quadrilaterals), 100 tiles at most (what the older devices take: the resolution is lowered to keep
+ * within it). The map alone covers the whole sheet; with a course, its print area.
+ */
+export async function garminDialog(E) {
+  if (!needGeo(E)) return;
+  const ev = E.ev, ids = M.courseIds(ev), sprint = ev.appearance?.mapStandard === "Spr2019" || (ev.map.scale || 10000) <= 5000;
+  if (!E.map && !M.printBgOf(ev, 0)) { E.toast(t("trc.ex.garminNoMap")); return; }
+  const v = await modal(E, { title: t("trc.ex.garminTitle"), ok: t("trc.exp.create"), remember: "garmin", body: `
+    <p>${x(t("trc.ex.garminIntro"))}</p>
+    <div class="tr-grid2">${field(t("trc.ex.garminWhat"), sel("what", [["map", t("trc.ex.garminMap")], ...ids.map((id) => [String(id), t("trc.ex.garminCourse", { name: ev.courses[id].name })])], "map"))}
+    ${field(t("trc.ex.garminRes"), `<input name="res" value="${sprint ? "0.75" : "1.5"}" inputmode="decimal" data-fresh>`, t("trc.ex.garminResHint"))}</div>
+    <p class="tr-hint">${x(t("trc.ex.garminHint"))}</p>`,
+  validate: (o) => (!(num(o.res) >= 0.1 && num(o.res) <= 20) ? t("trc.ex.garminResErr") : null) });
+  if (!v) return;
+  E.status(t("trc.exp.busy"), "busy");
+  try {
+    const course = v.what === "map" ? 0 : Number(v.what), cd = course ? M.cdCourse(course) : M.cdAll();
+    const mw = ev.map.w || 210, mh = ev.map.h || 297, layout = layoutCourse(ev, cd), items = course ? itemsFor(ev, layout) : [];
+    let box = [0, 0, mw, mh];
+    if (course) { const b = printBox(E, cd, layout).box; box = [Math.max(0, b[0]), Math.max(0, b[1]), Math.min(mw, b[2]), Math.min(mh, b[3])]; if (!(box[2] > box[0] && box[3] > box[1])) box = [0, 0, mw, mh]; }
+    // the ground's metres per map mm along x and y, and the map's turn (its x axis against the east), at the box's middle
+    const cx = (box[0] + box[2]) / 2, cy = (box[1] + box[3]) / 2, [la0, lo0] = toLatLon(ev, cx, cy), kx = 111320 * Math.cos((la0 * Math.PI) / 180), ky = 110540;
+    const vec = (dx, dy) => { const [la, lo] = toLatLon(ev, cx + dx, cy + dy); return [(lo - lo0) * kx, (la - la0) * ky]; };
+    const ex = vec(10, 0), ey = vec(0, 10), mx = Math.hypot(...ex) / 10, my = Math.hypot(...ey) / 10, rot = (Math.atan2(ex[1], ex[0]) * 180) / Math.PI;
+    let res = num(v.res), W, H, nx, ny;
+    for (;;) {
+      W = Math.max(1, Math.round(((box[2] - box[0]) * mx) / res)); H = Math.max(1, Math.round(((box[3] - box[1]) * my) / res));
+      nx = Math.ceil(W / GARMIN_TILE); ny = Math.ceil(H / GARMIN_TILE);
+      if (nx * ny <= GARMIN_MAX) break;
+      res *= 1.12;
+    }
+    const pxPerMm = W / (box[2] - box[0]);
+    const c = document.createElement("canvas"); c.width = W; c.height = H;
+    const g = c.getContext("2d");
+    g.fillStyle = "#fff"; g.fillRect(0, 0, W, H);
+    const T = (xx, yy) => [(xx - box[0]) * pxPerMm, (box[3] - yy) * (H / (box[3] - box[1]))];
+    const bgId = !E.map ? M.printBgOf(ev, course) : "";
+    if (bgId) { const B = await import("./backdrop.js"), cv = await B.backdropCanvas(E, bgId, box, pxPerMm); if (cv) g.drawImage(cv, 0, 0, W, H); }
+    const pc = purpleOverride(ev, E.map), purple = pc ? cmykToRgb(pc) : SCREEN.upper;
+    await paintCourse(g, ev, E.map, box, pxPerMm, W, H, items, (list, blend) => drawItems(g, list, T, pxPerMm, { blend, purple }), { withMap: !!E.map, course });
+    const files = {}, overlays = [], tw = Math.ceil(W / nx), th = Math.ceil(H / ny);
+    for (let j = 0; j < ny; j++) for (let i = 0; i < nx; i++) {
+      const x0 = i * tw, y0 = j * th, w = Math.min(tw, W - x0), h = Math.min(th, H - y0);
+      if (w <= 0 || h <= 0) continue;
+      const tc = document.createElement("canvas"); tc.width = w; tc.height = h;
+      tc.getContext("2d").drawImage(c, x0, y0, w, h, 0, 0, w, h);
+      const name = `files/tile_${String(j + 1).padStart(2, "0")}_${String(i + 1).padStart(2, "0")}.jpg`;
+      files[name] = new Uint8Array(await (await new Promise((r) => tc.toBlob(r, "image/jpeg", 0.85))).arrayBuffer());
+      // the tile's middle on the ground, its width and height there, the map's turn
+      const mxm = box[0] + (x0 + w / 2) / pxPerMm, mym = box[3] - (y0 + h / 2) / (H / (box[3] - box[1])), [lat, lon] = toLatLon(ev, mxm, mym);
+      const hw = ((w / pxPerMm) * mx) / 2, hh = ((h / (H / (box[3] - box[1]))) * my) / 2, kxl = 111320 * Math.cos((lat * Math.PI) / 180);
+      overlays.push(`<GroundOverlay><name>${x(`${j + 1}-${i + 1}`)}</name><drawOrder>50</drawOrder><Icon><href>${name}</href></Icon><LatLonBox><north>${(lat + hh / ky).toFixed(7)}</north><south>${(lat - hh / ky).toFixed(7)}</south><east>${(lon + hw / kxl).toFixed(7)}</east><west>${(lon - hw / kxl).toFixed(7)}</west><rotation>${rot.toFixed(4)}</rotation></LatLonBox></GroundOverlay>`);
+    }
+    const title = `${ev.title || "Ozimut"}${course ? ` — ${ev.courses[course].name}` : ""}`;
+    files["doc.kml"] = enc(`<?xml version="1.0" encoding="UTF-8"?>\n<kml xmlns="http://www.opengis.net/kml/2.2"><Document><name>${x(title)}</name>\n${overlays.join("\n")}\n</Document></kml>\n`);
+    const ff = await fflate();
+    download(`${fileName(title)} - Garmin.kmz`, ff.zipSync(files, { level: 0 }), "application/vnd.google-earth.kmz");
+    E.status(t("trc.exp.done"), "ok");
+    E.toast(t("trc.ex.garminDone", { n: overlays.length, res: new Intl.NumberFormat(undefined, { maximumFractionDigits: 2 }).format(res) }), 7000);
+  } catch (err) { console.error(err); E.status(t("trc.exp.failed"), "bad"); E.toast(err.message || String(err)); }
 }

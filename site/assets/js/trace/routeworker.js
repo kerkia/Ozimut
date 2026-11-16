@@ -53,11 +53,12 @@ const ops = {
     return read(id);
   },
   /** A vector map's layers, drawn on the page (trace/vectorroutes.js): no colours to read. */
-  layers({ area, path, blue, block, hand, cross, slow, w, h: hh, J }) {
+  layers({ area, path, blue, block, hand, cross, slow, speed, pspeed, w, h: hh, J }) {
     start(w, hh, J);
     image = null;
     const t0 = Date.now();
-    return { ...finish({ area: new Uint8Array(area), path: new Uint8Array(path), blue: new Uint8Array(blue), block: new Uint8Array(block), hand: new Uint8Array(hand), cross: new Uint8Array(cross), slow: new Uint8Array(slow), lw: 0, ms: 0 }), ms: Date.now() - t0, vector: true };
+    return { ...finish({ area: new Uint8Array(area), path: new Uint8Array(path), blue: new Uint8Array(blue), block: new Uint8Array(block), hand: new Uint8Array(hand), cross: new Uint8Array(cross), slow: new Uint8Array(slow),
+      ...(speed ? { speed: new Uint8Array(speed) } : {}), ...(pspeed ? { pspeed: new Uint8Array(pspeed) } : {}), lw: 0, ms: 0 }), ms: Date.now() - t0, vector: true };
   },
   dem({ grid }) {
     if (!G) return {};

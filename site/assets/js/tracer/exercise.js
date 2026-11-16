@@ -5,6 +5,10 @@
 //   radius), and of the map's logos (never hidden: owner, 2026-11-04), traced on a grid by marching squares and simplified; the
 //   rings are filled even-odd with the mask's frame (draw.js), so an island the course loops round stays white. The mask follows
 //   the course: model.syncDerived calls syncExercises after every change, which traces it again when the legs have moved.
+// The other way round (owner, 2026-11-16: training map generators, after OCAD's recipes) — gen.mode "hide": the map stays, and
+// white patches cover the surroundings of the controls (a disc of the window's radius: the last metres run without the map)
+// and/or the middle of each leg (a band of the corridor's width over a share of its length: the direction kept by the compass);
+// the same union of discs and capsules, filled instead of left open.
 
 import * as M from "./model.js";
 
@@ -15,7 +19,7 @@ const FAR = 1e9;
 const mmOf = (ev, m) => (m * 1000) / (ev.map.scale || 10000);
 
 /** What a generated mask is drawn from: legs [[a, b]] (with their bends), controls [[x, y]], in map mm. */
-function shapesOf(ev, courseId) {
+function shapesOf(ev, courseId, share = 0) {
   const cd = M.cdCourse(courseId), legs = [], pts = [];
   for (const id of M.ccIds(ev, cd)) {
     const c = ev.controls[ev.courseControls[id]?.control];
@@ -24,7 +28,15 @@ function shapesOf(ev, courseId) {
   for (const { cc1, cc2 } of M.enumLegs(ev, cd)) {
     const c1 = ev.courseControls[cc1]?.control, c2 = ev.courseControls[cc2]?.control;
     if (!ev.controls[c1] || !ev.controls[c2]) continue;
-    const p = M.legPoints(ev, c1, c2);
+    let p = M.legPoints(ev, c1, c2);
+    // « hide »: the middle of the leg only, a share of its length
+    if (share > 0 && share < 1) {
+      const L = M.pathLength(p), a = (L * (1 - share)) / 2, b = (L * (1 + share)) / 2, mid = [M.pointAt(p, a)];
+      let acc = 0;
+      for (let i = 1; i < p.length; i++) { acc += M.dist(p[i - 1], p[i]); if (acc > a && acc < b) mid.push(p[i]); }
+      mid.push(M.pointAt(p, b));
+      p = mid;
+    }
     for (let i = 1; i < p.length; i++) legs.push([p[i - 1], p[i]]);
   }
   return { legs, pts };
@@ -32,8 +44,8 @@ function shapesOf(ev, courseId) {
 
 /** A signature of what the mask depends on: it is traced again only when it changes. */
 export function exerciseSig(ev, gen) {
-  const { legs, pts } = shapesOf(ev, gen.course), r = (v) => Math.round(v * 100);
-  return [gen.width, gen.window, ev.map.scale, legs.map(([a, b]) => [r(a[0]), r(a[1]), r(b[0]), r(b[1])].join(",")).join(";"),
+  const { legs, pts } = shapesOf(ev, gen.course, gen.mode === "hide" ? gen.share || 0.5 : 0), r = (v) => Math.round(v * 100);
+  return [gen.mode || "", gen.share || "", gen.width, gen.window, ev.map.scale, legs.map(([a, b]) => [r(a[0]), r(a[1]), r(b[0]), r(b[1])].join(",")).join(";"),
     pts.map((p) => `${r(p[0])},${r(p[1])}`).join(";"), (gen.keep || []).map((b) => b.map(r).join(",")).join(";")].join("|");
 }
 
@@ -43,12 +55,15 @@ export function exerciseSig(ev, gen) {
  * areas always shown, the map's logos) }.
  */
 export function exerciseRings(ev, gen) {
-  const { legs, pts } = shapesOf(ev, gen.course);
+  const hide = gen.mode === "hide";
+  const { legs, pts: all } = shapesOf(ev, gen.course, hide ? gen.share || 0.5 : 0);
+  // « hide » leaves the start and the finish in sight: the patches are for the controls
+  const pts = hide ? M.ccIds(ev, M.cdCourse(gen.course)).map((id) => ev.controls[ev.courseControls[id]?.control]).filter((c) => c?.kind === "normal").map((c) => [c.x, c.y]) : all;
   const score = M.isScore?.(ev, gen.course);
   const hw = !score && gen.width > 0 ? mmOf(ev, gen.width) / 2 : 0;
   // a score course has no legs: its windows, of the corridor's half width when no radius is given
   const rad = gen.window > 0 ? mmOf(ev, gen.window) : score && gen.width > 0 ? mmOf(ev, gen.width) / 2 : 0;
-  const caps = hw > 0 ? legs : [], discs = rad > 0 ? pts : [], keep = gen.keep || [];
+  const caps = hw > 0 ? legs : [], discs = rad > 0 ? pts : [], keep = hide ? [] : gen.keep || [];
   if (!caps.length && !discs.length) return { rings: [] };
   // the grid: the shapes' extent with a margin, its step so that it stays under MAX_CELLS
   let l = Infinity, b = Infinity, r = -Infinity, t = -Infinity;
@@ -168,8 +183,12 @@ const frameOf = (ev) => { const w = ev.map.w || 210, h = ev.map.h || 297; return
 
 /** Trace a generated mask again (its holes, its signature). */
 function retrace(ev, sp) {
-  sp.holes = exerciseRings(ev, sp.gen).rings;
-  sp.pts = frameOf(ev);
+  const rings = exerciseRings(ev, sp.gen).rings;
+  if (sp.gen.mode === "hide") {
+    // the patches themselves are white: the first ring is the area, the others join it (even-odd: disjoint rings all fill)
+    sp.pts = rings[0] || [[-9, -9], [-8, -9], [-8, -8]];
+    sp.holes = rings.slice(1);
+  } else { sp.holes = rings; sp.pts = frameOf(ev); }
   sp.gen.sig = exerciseSig(ev, sp.gen);
 }
 

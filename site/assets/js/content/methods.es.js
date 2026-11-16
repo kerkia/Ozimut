@@ -791,8 +791,8 @@ export function build(X) {
   //    descriptions, specials, printing, checks, teamwork, after the race, every menu entry — and its calculations, in plain words
   // ======================================================================================================
   function tracerDoc() {
-    const CHAPTERS = [["principe", "Para empezar"], ["carte", "El mapa"], ["ecran", "La pantalla"], ["postes", "Los controles"], ["circuits", "Los recorridos"],
-      ["definitions", "Las descripciones"], ["speciaux", "Objetos especiales"], ["sorties", "Imprimir y exportar"], ["verifier", "Revisar"],
+    const CHAPTERS = [["principe", "Para empezar"], ["carte", "El mapa"], ["fonds", "Fondos y relieve"], ["ecran", "La pantalla"], ["postes", "Los controles"], ["circuits", "Los recorridos"],
+      ["definitions", "Las descripciones"], ["speciaux", "Objetos especiales"], ["sorties", "Imprimir y exportar"], ["verifier", "Revisar"], ["itineraires", "Las rutas"],
       ["outils", "En equipo y en el terreno"], ["apres", "Después de la carrera"], ["ruban", "La cinta de opciones"], ["avance", "El nivel avanzado"], ["calculs", "Sus cálculos"]];
     const ic = (k, s = 18) => raw(TR.svg(k, s));
     const K = "Trazado";
@@ -809,7 +809,7 @@ export function build(X) {
       ["exchange", "Cambio de mapa", "", "Hacer clic en un control del recorrido: el corredor cambia allí de mapa, y el recorrido se divide en partes."],
       ["bend", "Codo", "C", "Hacer clic en un tramo para doblarlo (para rodear una zona prohibida); un codo se puede arrastrar; hacer clic en un codo para quitarlo."],
       ["gap", "Corte", "X", "Arrastrar a lo largo de un tramo o de un círculo para cortarlo y dejar legible un detalle del mapa; hacer clic en un corte para cerrarlo."],
-      ["route", "Itinerario", "", "El camino previsto para los corredores, que sirve para el desnivel: hacer clic en el tramo y luego en los puntos del camino; doble clic para terminar. No se imprime."],
+      ["route", "Ruta", "", "Dibujar una ruta a mano: haz clic en el tramo y luego en los puntos del camino; doble clic para terminar. Se añade a las rutas del tramo (capítulo «Las rutas») y no se imprime."],
       ["descr", "Descripciones en el mapa", "", "Arrastrar un marco sobre el mapa: las descripciones del recorrido se colocan en él, y su anchura fija su tamaño."],
       ["special", "Objetos especiales", "", "Abre la lista de objetos: punto de agua, puesto de socorro, zona prohibida, texto, imagen… (capítulo «Objetos especiales»)."],
     ];
@@ -1050,6 +1050,45 @@ export function build(X) {
             mapa (un cruce, una esquina de edificio) marcados con su latitud y su longitud —un clic derecho en Géoportail o en un mapa en línea las
             da—, o tres o más para una foto deformada; o un archivo de georreferencia (.jgw, .pgw… con su .prj); o un KMZ de la misma imagen. La ventana
             comprueba la escala obtenida contra la del mapa.</p>
+          <p><b>Ejercicios</b>: ${W("exercise")} ofrece, para el recorrido actual, seis mapas de entrenamiento — el pasillo, las ventanas, los controles
+            ocultos (un blanco alrededor de cada control), los tramos ocultos (un blanco sobre la mitad de cada tramo), un mapa por tramo (un cambio de mapa
+            en cada control) y el puzle (la imagen del recorrido en piezas mezcladas, para imprimir). Fondos, relieve y modelo de elevación: capítulo «Fondos y relieve».</p>
+        </section>`,
+      fonds: () => html`
+        <section class="mx-slide" id="tr-fonds">
+          <p class="mx-kicker">${K}</p>
+          <h2>Fondos y relieve</h2>
+          <p>${W("backdrop")} abre un panel, colocado sobre el mapa, que muestra bajo el recorrido lo que el mapa no dice. Requiere un mapa georreferenciado
+            (un archivo OCAD o Mapper suele estarlo; si no, ${W("georef")}).</p>
+          <ul class="mx-list">
+            <li><b>OpenStreetMap</b>, en todo el mundo: calles, caminos, edificios recientes — para comprobar que un camino sigue existiendo, localizar un aparcamiento.</li>
+            <li><b>Los mapas y fotos aéreas nacionales</b> donde Ozimut los conoce: Francia, Suiza, Estados Unidos, Nueva Zelanda.</li>
+            <li>En Francia, <b>el LiDAR HD del IGN</b>: el suelo desnudo sombreado (taludes, zanjas, caminos antiguos, plataformas), la altura de la vegetación
+              (talas, plantaciones jóvenes, claros) y los puntos por tipo (suelo, vegetación, edificios).</li>
+            <li><b>El sombreado y las pendientes</b> del modelo de elevación del evento, en todas partes.</li>
+          </ul>
+          <p>Cada fondo tiene su casilla y su opacidad; la última línea ajusta la intensidad del propio mapa, para ver a través de él. La elección se guarda
+            para el evento, en este dispositivo. Los fondos no se imprimen — salvo el elegido como «fondo impreso» en el área de impresión.</p>
+          <h3>El modelo de elevación</h3>
+          <p>El desnivel, el perfil, las rutas, el sombreado y la vista 3D leen las mismas altitudes: el modelo de elevación del evento (${W("dem")}). Ozimut lo
+            carga por sí solo la primera vez que hace falta — el RGE ALTI del IGN en Francia, los modelos nacionales en Suiza, Estados Unidos, Canadá y Nueva
+            Zelanda, el relieve mundial en otros lugares — y luego lo guarda con el evento: todo el equipo lee las mismas altitudes, incluso sin conexión, y
+            el archivo Ozimut (.ozmt) las lleva consigo. ¿Tienes algo mejor? «Usar mi archivo» acepta un GeoTIFF o una malla ASCII: un MDT LiDAR de 1 m, por ejemplo.</p>
+          <p>${W("rep-climb")} da el desnivel de cada recorrido de tres maneras: <b>entre los controles</b> (la suma de las subidas netas de un control al
+            siguiente), <b>a lo largo de los tramos</b> (todas las subidas de la línea recta) y <b>a lo largo de las rutas</b> (la regla de la IOF: la subida
+            de la ruta más rápida). Haz clic en el encabezado de la columna que quieras aplicar y marca los recorridos; el valor se redondea a 5 m. Donde el
+            modelo se equivoca — un control bajo un puente, al pie de un cortado —, escribe la altitud del control: entonces cuenta en todas partes.
+            ${W("profile")} dibuja el perfil del recorrido, o el del tramo elegido con cada una de sus rutas.</p>
+          <h3>Una traza GPS sobre el mapa</h3>
+          <p>${W("import-track")} coloca sobre el mapa tu reconocimiento del terreno — un archivo GPX, TCX, FIT, NMEA o FRWD — como un objeto de línea, que
+            mueves, recoloreas o eliminas como cualquier otro. Se muestra solo en «Todos los controles», a menos que marques todos los recorridos.</p>
+          <h3>Ver aquí</h3>
+          <p>Un clic derecho en el mapa y luego «Ver aquí en…» abre el lugar en OpenStreetMap, Google Maps y Street View, el Géoportail y «Remonter le temps»
+            del IGN en Francia, el mapa nacional en Suiza, Mapy.cz o Mapillary, o copia sus coordenadas.</p>
+          <h3>Sin mapa: trazar sobre OpenStreetMap</h3>
+          <p>Para un parque, un barrio o un patio de colegio sin mapa de orientación, «Nuevo evento» ofrece «¿Sin mapa? Trazar sobre OpenStreetMap»: indica el
+            centro (sus coordenadas, o «Mi posición»), la hoja y la escala. El evento se abre sobre OpenStreetMap, georreferenciado; el fondo se imprime bajo
+            los recorridos, con su crédito. El cálculo de rutas, que lee un mapa de orientación, no está disponible ahí: dibújalas a mano.</p>
         </section>`,
       ecran: () => html`
         <section class="mx-slide" id="tr-ecran">
@@ -1190,6 +1229,8 @@ export function build(X) {
             con un clic en Recorridos › Impresión › Papel («según el recorrido» gira la hoja en el sentido del recorrido). El área se coloca sola, centrada en el
             recorrido, o sigue un marco trazado en el mapa. Un área más grande que la hoja se divide en varias páginas que se solapan un poco, o se reduce a su
             centro. ${W("view-printarea")} la muestra con línea de puntos.</p>
+          <p><b>Categorías</b>: ${W("classes")} une cada categoría a su recorrido, con sus corredores esperados y, en un relevo, su primer dorsal; un CSV
+            «recorrido;categoría;corredores» se importa de una vez. Los equipos de un relevo se numeran entonces categoría por categoría.</p>
         </section>`,
       definitions: () => html`
         <section class="mx-slide" id="tr-definitions">
@@ -1211,6 +1252,15 @@ export function build(X) {
             Descripciones › Idioma), entre 23 idiomas; ${W("custom-text")} cambia el texto de un símbolo. Para ponerlas en el mapa, la herramienta Descripciones en el
             mapa: arrastra un marco, su anchura fija el tamaño; la esquina inferior derecha cambia el tamaño, un clic derecho las reparte en varias columnas.
             ${W("pdf-descriptions")} las imprime solas, varias por página, para recortar para los portadescripciones.</p>
+          <h3>Leer la descripción en el mapa</h3>
+          <p>En un mapa OCAD o Mapper, ${W("auto-desc")} rellena la descripción de un control nuevo según el objeto del mapa que hay debajo: una roca, una
+            depresión, un edificio, una unión de caminos. Coloca el control <b>arrastrando</b>: la dirección del arrastre dice de qué lado del elemento está la
+            baliza (columna G). ${W("desc-table")} muestra la correspondencia entre los símbolos del mapa y los elementos de descripción, para ajustarla a tu
+            mapa, y rellena los controles aún sin descripción. Las curvas de nivel no tienen correspondencia: vaguada o espolón, la línea es la misma.</p>
+          <p><b>ISCD 2024</b> es la norma de los eventos nuevos: añade la vía férrea o el tranvía y el volteo del mapa (clic derecho en un control del
+            recorrido: el mapa a doble cara se da la vuelta ahí), acepta un código de salida en la columna B («S1», «S2») y pide casillas de 5 a 7 mm, que la
+            revisión comprueba. Del lado del mapa, las normas de esquí (ISSkiOM 2019) y de BTT (ISMTBOM 2022) fijan el tamaño de los círculos, la salida, la
+            meta y las líneas.</p>
         </section>`,
       speciaux: () => html`
         <section class="mx-slide" id="tr-speciaux">
@@ -1265,6 +1315,16 @@ export function build(X) {
           <p>Mapa › Símbolos ajusta el tamaño de los círculos, el grosor de las líneas y la altura de los números (en proporción a la norma); Mapa › Violeta › Apariencia, la fuente y la negrita de los
             números, su contorno blanco, el corte automático de las líneas que se cruzan, el tamaño según la escala de impresión, y el violeta. Los textos colocados en
             el mapa se imprimen en la fuente que indican, con negrita y cursiva, y en todos los idiomas.</p>
+          <h3>Plantillas, papeles, doble cara</h3>
+          <p>${W("canvases")} guarda con un nombre los ajustes de impresión de un recorrido — papel y orientación, márgenes, área, escala, mapa filtrado,
+            fondo impreso — y los aplica a un recorrido o a todos con un clic. El área de impresión conoce los papeles de A2 a A6, B4, B5, SRA3, Tabloid y un
+            formato libre. El PDF de los recorridos puede hacer que cada recorrido empiece en un anverso: se intercala una página en blanco donde hace falta,
+            y las dos caras de un mapa a voltear quedan espalda con espalda.</p>
+          <p><b>Sobreimprimir mapas ya impresos</b>: el desplazamiento de la impresora, una escala fina (del 99 al 101 % compensan la contracción del papel)
+            y la impresión en espejo, en el PDF de los recorridos.</p>
+          <p><b>Código QR</b>: entre los objetos especiales, un código QR colocado en el mapa lleva al corredor a los resultados, las horas de salida o los
+            análisis del evento en Ozimut, o a la dirección que elijas. <b>Mapa Garmin</b>: ${W("export-garmin")} corta el mapa, solo o con un recorrido, en
+            teselas de 1024 × 1024 píxeles como máximo, para relojes y GPS Garmin.</p>
         </section>`,
       verifier: () => html`
         <section class="mx-slide" id="tr-verifier">
@@ -1284,11 +1344,42 @@ export function build(X) {
             solo quedan recordatorios, por ejemplo un desnivel aún sin indicar—, y los primeros en la propia pestaña; un clic abre la revisión completa. El
             grupo «Recorrido actual» da su longitud, su desnivel, su número de controles, su escala y sus participantes esperados.</p>
           <h3>Desnivel y tiempo del ganador</h3>
-          <p>${W("rep-climb")} calcula la subida de cada recorrido sobre el modelo de terreno del IGN (mapa georreferenciado, en Francia); marca los recorridos para llevar
-            el valor a sus propiedades. Dibuja con la herramienta Itinerario el camino previsto allí donde la línea recta pasa por una colina que los corredores
-            rodearán. ${W("rep-times")} da, para cada recorrido, el tiempo esperado del ganador, según los resultados de las dos últimas
+          <p>${W("rep-climb")} da el desnivel de cada recorrido según el modelo de elevación — entre los controles, a lo largo de los tramos o de las rutas (capítulo «Fondos y relieve»); marca los recorridos para aplicarlo a sus propiedades. ${W("rep-times")} da, para cada recorrido, el tiempo esperado del ganador, según los resultados de las dos últimas
             temporadas, y la longitud que da un tiempo objetivo (capítulo «Sus cálculos»).</p>
           <p>La carga viene del número de participantes de cada recorrido: ${W("load")} la toma de las inscripciones oficiales cuando la carrera figura en ellas.</p>
+          <p>La revisión señala también: un recorrido sin salida, sin meta o sin desnivel; dos recorridos idénticos; en sprint, controles a menos de 25 m en
+            línea recta, que hay que comprobar por la ruta de carrera; los tramos corridos en ambos sentidos; una descripción sin columna D, o dos elementos
+            (D y E) sin cruce ni unión que diga cómo se encuentran; un número de estación escrito dos veces o igual al código de otro control; casillas de
+            descripción fuera de los 5 a 7 mm de la norma. Las rutas, su informe y el perfil: capítulo «Las rutas».</p>
+        </section>`,
+      itineraires: () => html`
+        <section class="mx-slide" id="tr-itineraires">
+          <p class="mx-kicker">${K}</p>
+          <h2>Las rutas</h2>
+          <p>${W("routes")} abre el análisis de rutas: para cada tramo del recorrido, la ruta más rápida y sus alternativas, calculadas sobre el mapa, y las
+            que dibujes. Es el cálculo de los análisis de los corredores: el mapa se lee símbolo por símbolo (un archivo OCAD o Mapper) o por sus colores (una
+            imagen, un PDF), el relieve viene del modelo de elevación, y las zonas prohibidas y los límites que has puesto en el recorrido quedan cerrados.</p>
+          <ul class="mx-list">
+            <li><b>Calcular</b> trata el recorrido actual; el pequeño ▾ calcula el tramo elegido, o todos los recorridos.</li>
+            <li><b>Dibujar</b> añade una ruta a mano en el tramo elegido: una opción que el cálculo no propone, un paso obligado. Se ajusta a los caminos y se
+              mide en el mismo modelo (longitud, subida, tiempo), y sigue siendo tuya cuando vuelves a calcular.</li>
+            <li>Cada ruta tiene su letra y su color, su <b>longitud</b>, su <b>subida</b> y su <b>tiempo</b> al ritmo del recorrido. La estrella ★ marca la
+              ruta principal, la que cuenta para el recorrido; ☆ elige otra. El ojo la oculta, el lápiz la nombra, la papelera la elimina.</li>
+            <li>En el mapa, las etiquetas dan «longitud | subida | tiempo»: para la ruta principal, para todas, o ninguna.</li>
+            <li><b>El ritmo</b> es el del corredor esperado, en bosque corrible y en llano: da los tiempos, sin cambiar la elección de rutas.</li>
+          </ul>
+          <h3>Longitud, desnivel, suplemento del sprint</h3>
+          <p>Para eso sirven ante todo las rutas. El panel resume el recorrido: su longitud por las rutas principales, lo que añade a la línea recta, su
+            subida, su tiempo. «Aplicar al recorrido…» escribe el desnivel en las propiedades del recorrido y, si lo marcas, hace que su longitud siga las
+            rutas: es la regla del sprint, donde la longitud anunciada es la de la ruta ideal. Después se actualiza sola. ${W("rep-routes")} lo da todo en un
+            texto — cada tramo con sus rutas, cada recorrido con su suplemento —, para imprimir o en CSV, y aplica todos los recorridos de una vez.</p>
+          <h3>Ajustes</h3>
+          <p>Los ajustes (el botón de reguladores del panel) valen para el evento y los comparte el equipo: el ritmo por defecto, el número de alternativas,
+            lo que vale un metro de subida, la prudencia lejos de las líneas, el tiempo para cruzar un talud o una valla, y la velocidad de cada terreno en %
+            del bosque corrible. En un mapa OCAD o Mapper, ${W("route-table")} va más lejos: símbolo por símbolo, lo que vale para el cálculo — su tipo
+            (camino, verde, infranqueable, ignorado…) y su velocidad —, con vuelta a los valores de Ozimut. Un mapa cuyo verde claro se corre mal, un símbolo
+            propio: ese es el lugar.</p>
+          <p>Las rutas no se imprimen. El ▾ de «Calcular» guarda una imagen del mapa con ellas, para una reunión de trazadores o un informe.</p>
         </section>`,
       outils: () => html`
         <section class="mx-slide" id="tr-outils">
@@ -1317,6 +1408,10 @@ export function build(X) {
             fuera de los informes): el panel imprime entonces su mapa, su descripción de controles y su tarjeta de control.</p>
           <p>Además: ${W("import-course")} toma los controles de un recorrido impreso (un PDF o una foto de una carrera pasada), para revisarlos después;
             ${W("view-others")} muestra otros recorridos en tono pálido, para evitar cruces y controles demasiado cercanos.</p>
+          <h3>Prestar el mapa</h3>
+          <p>El dueño de un mapa no siempre quiere regalarlo. En ${W("team")}, «Mapa prestado» — en un miembro, o en un enlace de invitación — deja trazar
+            sobre el mapa sin poder imprimirlo ni exportarlo: los PDF salen solo con el recorrido. Un navegador solo puede disuadir de copiar (el mapa está en
+            pantalla), no impedirlo. Los análisis tienen el mismo ajuste: «Exportar una imagen del mapa», que los organizadores desmarcan.</p>
         </section>`,
       apres: () => html`
         <section class="mx-slide" id="tr-apres">
@@ -1436,11 +1531,6 @@ export function build(X) {
         <section class="mx-slide" id="tr-calculs">
           <p class="mx-kicker">El trazado</p>
           <h2>Sus cálculos, explicados</h2>
-          <h3>El desnivel</h3>
-          <p>La altitud se lee cada 10 m a lo largo de cada tramo en el modelo de terreno del IGN (RGE ALTI, preciso al metro en Francia), y luego
-            se suaviza sobre tres puntos: el modelo tiene pequeñas irregularidades que, sumadas, inflarían la subida. El desnivel es la suma de las subidas,
-            redondeada a 5 m. En línea recta, un tramo que rodea una colina cuenta la colina: por eso la herramienta Ruta permite dibujar el
-            camino previsto, que entonces sirve para el cálculo.</p>
           <h3>El tiempo del ganador</h3>
           <p>En los resultados oficiales de las dos últimas temporadas (más o menos un centenar de carreras del mismo formato), se anota para cada recorrido el ritmo del
             ganador, en minutos por kilómetro, y su CN oficial 15 días antes. Cuanto más alto es el CN, más rápido es el ritmo: la relación se ajusta de una
@@ -1461,6 +1551,14 @@ export function build(X) {
           <p>Un control puede recogerse cuando el último corredor de cada recorrido que pasa por él ya ha pasado: su hora de salida, más la distancia hasta el control
             al ritmo de un corredor lento (15 min/km en bosque, 9 en sprint, en línea recta), más un margen. Los controles se reparten entre los recogedores por
             sector, y cada uno los recoge en el orden en que puede alcanzarlos.</p>
+          <h3>Las rutas y el desnivel</h3>
+          <p>El cálculo de rutas coloca sobre el mapa una malla de unos 1,5 m (1 m en sprint). Cada celda tiene una velocidad — la de su terreno, en % del
+            bosque corrible — y una altitud. Correr de una celda a la vecina cuesta la distancia dividida por la velocidad, más la pendiente: un metro de
+            subida equivale a 8 m en llano. Lejos de caminos, arroyos y límites claros, la prudencia añade hasta un 20 %: ahí se corre más despacio porque hay
+            que leer. Cruzar un talud o una valla cuesta 10 segundos. La ruta más rápida es el camino de menor coste; las alternativas son los otros caminos
+            realmente distintos, mientras no sean un 25 % más lentos. El tiempo mostrado es ese coste, sin la prudencia, al ritmo indicado.</p>
+          <p>La subida de una ruta se lee en el modelo de elevación, un punto cada pocos metros, suavizada sobre tres puntos para que los pequeños bultos del
+            modelo no se sumen: es la misma cifra en el panel, el informe, el perfil y «Desnivel».</p>
         </section>`,
     };
     return buildChapters(CHAPTERS, CH, "principe");

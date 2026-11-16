@@ -84,7 +84,7 @@ const testOwner = (uid) => (uid > TEST_BASE ? Math.floor((uid - TEST_BASE) / 100
 // computed routes (every account's and on by default since the same evening, owner: « enable computed routes for all, on by default »;
 // the administrators always see them). `rv` marks a record whose `routes` was set after that: before it every switch saved wrote
 // the old default (off), which is not the organiser's choice
-const OPTS = { solo: true, upload: true, mymaps: true, notes: true, variants: true, view3d: true, video: true, routes: true };
+const OPTS = { solo: true, upload: true, mymaps: true, export: true, notes: true, variants: true, view3d: true, video: true, routes: true };
 const optsOf = (m) => Object.fromEntries(Object.entries(OPTS).map(([k, d]) => [k,
   typeof m?.opts?.[k] === "boolean" && (k !== "routes" || m.opts.rv) ? m.opts[k] : d]));
 const parisDay = () => new Date().toLocaleDateString("en-CA", { timeZone: "Europe/Paris" });

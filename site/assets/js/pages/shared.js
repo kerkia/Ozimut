@@ -796,7 +796,7 @@ function unlockPage(main, kind, id, club = null) {
 // them, to check what the runners will get; its publication and access; the runners' features switched on or off; what the
 // runners did with it (counts only, never who). The replay is the runners' page (« Voir comme les coureurs »), where the
 // organisers also draw the exercises and share the route choices.
-const OPT_KEYS = ["upload", "solo", "mymaps", "notes", "variants", "view3d", "video", "routes"];
+const OPT_KEYS = ["upload", "solo", "mymaps", "export", "notes", "variants", "view3d", "video", "routes"];
 /** A circuit's length as the crow flies from control to control, in metres, from its georeference (null when unknown). */
 function courseLength(c) {
   const g = c.geo, P = c.controls || [];
@@ -1646,7 +1646,8 @@ async function replay(box, { A, id, course, race, init = {}, traces, allTraces =
   // evening, on by default; the administrators always),
   // adding a trace (the organisers always), comments, route choices, the 3D view, a headcam video, saving one's run in « Mes cartes »
   const O = A.opts || {}, routesOn = admin || O.routes !== false, canAdd = !!you.organiser || O.upload !== false, notesOn = O.notes !== false,
-    variantsOn = O.variants !== false, view3dOn = O.view3d !== false, videoOn = O.video !== false, mymapsOn = O.mymaps !== false;
+    variantsOn = O.variants !== false, view3dOn = O.view3d !== false, videoOn = O.video !== false, mymapsOn = O.mymaps !== false,
+    exportOn = !!you.organiser || O.export !== false;       // the map saved as an image (owner, 2026-11-16: a map lent, not given)
   if (!variantsOn && colourBy === "variant") colourBy = "runner";
   box.innerHTML = html`
     <div class="sh-layout" id="sh-layout">
@@ -2413,6 +2414,7 @@ async function replay(box, { A, id, course, race, init = {}, traces, allTraces =
     const set = () => { shot.zone = $("#sh-shot-zone").value; shot.type = $("#sh-shot-type").value; shot.legend = $("#sh-shot-legend").checked; savePrefs(); };
     ["#sh-shot-zone", "#sh-shot-type", "#sh-shot-legend"].forEach((s) => $(s).addEventListener("change", set));
     $("#sh-shot").addEventListener("click", exportImage);
+    if (!exportOn) pane.querySelector(".an-shot").innerHTML = html`<b>${t("an.shot.title")}</b><p class="hint" style="margin:0">${t("sh.export.closed")}</p>`;
     // « Enregistrer dans Mes cartes » (owner, 2026-11-04: an organiser's switch): one's run on the organiser's map, as « Analyse
     // solo » saves it (trace/mymapsave.js) — the map as stored, one's route in its pixels with its times
     if ($("#sh-mymaps")) import("../trace/mymapsave.js").then((M) => M.mount($("#sh-mymaps"), () => {

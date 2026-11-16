@@ -32,11 +32,17 @@ class DotNetRandom {
 const fact = (n) => (n <= 1 ? 1 : n * fact(n - 1));
 const eqArr = (a, b) => a.length === b.length && a.every((v, i) => v === b[i]);
 
+/** A relay course's classes that carry a first start number and a number of teams: [{ name, first, est }], by first number. */
+export const classRanges = (ev, courseId) => M.classesOf(ev, courseId).filter((k) => k.first > 0 && k.est > 0).sort((a, b) => a.first - b.first);
 /** The relay assignment of a course: { teams: [{ team, legs: [variation codes] }], warnings, paths, error }. */
 export function relayPlan(ev, courseId, settings = null) {
   const course = ev.courses[courseId];
   const st = settings || course.relay || { first: 1, teams: 0, legs: 1, branches: {} };
-  const numberLegs = Math.max(1, st.legs | 0), numberTeams = Math.max(0, st.teams | 0), first = st.first || 1;
+  // the course's classes with a first start number and their teams (classes.js): the teams numbered class after class, each from
+  // its own number; else the course's own first number and team count
+  const ranges = settings?.noClasses ? [] : classRanges(ev, courseId);
+  const numberLegs = Math.max(1, st.legs | 0), numberTeams = ranges.length ? ranges.reduce((n, k) => n + k.est, 0) : Math.max(0, st.teams | 0), first = st.first || 1;
+  const teamNo = (i) => { let n = i; for (const k of ranges) { if (n < k.est) return k.first + n; n -= k.est; } return first + i; };
   const letters = M.variantLetters(ev, courseId);
   const allForks = [];
   // ---- the forks (FindForksToJoin)
@@ -220,7 +226,7 @@ export function relayPlan(ev, courseId, settings = null) {
     return s;
   };
   const vars = new Map(M.allVariations(ev, courseId).map((v) => [v.code, v.path]));
-  let teams = results.map((t, i) => ({ team: first + i, legs: Array.from({ length: numberLegs }, (_, l) => codeFor(t, l)) }));
+  let teams = results.map((t, i) => ({ team: teamNo(i), legs: Array.from({ length: numberLegs }, (_, l) => codeFor(t, l)) }));
   // the advanced level: « reuse » gives every team the first team's variations in another order (Condes's other way to fill the
   // teams); a table edited by hand (st.table) is the course's teams as they are
   if (st.strategy === "reuse" && teams.length) teams = teams.map((tm, i) => ({ team: tm.team, legs: teams[0].legs.map((_, l) => teams[0].legs[(l + i) % numberLegs]) }));
@@ -304,7 +310,9 @@ export async function relayDialog(E) {
       ${letters.map((b) => `<tr><th>${esc(b)}</th>${Array.from({ length: s.legs }, (_, i) => `<td><input type="checkbox" data-gb="${esc(b)}" data-gl="${i}" ${(s.branches[b] || []).includes(i) ? "checked" : ""}></td>`).join("")}</tr>`).join("")}</tbody></table>`;
   };
   let plan;
+  const byClass = classRanges(ev, id);
   const v = await modal(E, { title: t("trc.rel.title", { name: c.name }), wide: true, ok: E.readOnly ? null : t("trc.rel.save"), cancel: t("trc.rel.close"), body: `
+    ${byClass.length ? `<p class="tr-hint">${esc(t("trc.rel.byClass", { list: byClass.map((k) => `${k.name} ${k.first}–${k.first + k.est - 1}`).join(", ") }))}</p>` : ""}
     <div class="tr-grid2">${field(t("trc.rel.teams"), `<input name="teams" value="${st.teams}" inputmode="numeric">`)}${field(t("trc.rel.legs"), `<input name="legs" value="${st.legs}" inputmode="numeric">`)}
     ${field(t("trc.rel.first"), `<input name="first" value="${st.first}" inputmode="numeric">`)}
     ${field(t("trc.rel.fixed"), `<input name="fixed" value="${esc(Object.entries(st.branches).flatMap(([b, legs]) => legs.map((l) => `${b}:${l + 1}`)).join(" "))}">`, t("trc.rel.fixedHint"))}</div>

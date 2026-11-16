@@ -518,7 +518,7 @@ export async function sendCourses(E) {
  *  every setting of the analysis (owner, 2026-11-05: the setter had to go to Orga to finish it): its title and date, who opens it,
  *  what the runners may do; « Publier » or « Enregistrer en brouillon »; a window follows at once with the work's progress, then the
  *  analysis opens from it. Publishing again updates the event's analysis (its circuits and settings), never a second one. */
-const OPT_KEYS = ["upload", "solo", "mymaps", "notes", "variants", "view3d", "video", "routes"];
+const OPT_KEYS = ["upload", "solo", "mymaps", "export", "notes", "variants", "view3d", "video", "routes"];
 export async function publish(E) {
   const ev = E.ev;
   if (!G.hasGeo(ev)) { E.toast(t("trc.race.pubNeedsGeo", { where: where("georef") })); return; }

@@ -22,7 +22,7 @@ export function layoutCourse(ev, cd, opts = {}) {
   const ap = ev.appearance, std = ap.mapStandard;
   const ratio = M.objRatio(ev, v.printScale);
   const gapScale = M.gapScale(ev, v.printScale);
-  const lw = M.LINE * ap.lineWidth * ratio;
+  const lw = M.lineBase(ev) * ap.lineWidth * ratio;
   const Z = M.sizes(ev);
   const objs = [];
   const add = (o) => { objs.push(o); return o; };
@@ -115,12 +115,12 @@ function pointObj(ev, v, cv, i, ratio, gapScale, lw, Z, std) {
         radius: (std === "2017" ? Z.start : M.SIZES["2000"].start) * ratio * cs, apparent: (std === "2017" ? Z.start : M.SIZES["2000"].start) * ratio * cs - lw / 2, R };
     }
     case "finish": {
-      const out = Z.finishOut * cs * ratio, inn = ((Z.finishIn + M.LINE) * cs - ap.lineWidth * M.LINE) * ratio;
+      const out = Z.finishOut * cs * ratio, inn = ((Z.finishIn + M.lineBase(ev)) * cs - ap.lineWidth * M.lineBase(ev)) * ratio;
       return { t: "finish", ...base, rOut: (out - lw) / 2, rIn: (inn - lw) / 2, lw, gaps, radius: out / 2, apparent: out / 2 - lw / 2 };
     }
     case "normal": {
       const d = Z.control * cs * ratio;
-      const o = { t: "control", ...base, r: (d - lw) / 2, lw, gaps, dot: ap.centerDot > 0 ? ap.centerDot * ratio : 0, radius: d / 2, apparent: d / 2 - lw / 2 };
+      const o = { t: "control", ...base, r: (d - lw) / 2, lw, gaps, dot: M.centerDotOf(ev) > 0 ? M.centerDotOf(ev) * ratio : 0, radius: d / 2, apparent: d / 2 - lw / 2 };
       if (cv.exchangeStart && std !== "2000") o.exchangeTriangle = Number.isNaN(ao) ? 0 : orient(ao);
       return o;
     }
@@ -137,8 +137,8 @@ function legRadius(ev, kind, ratio) {
   const ap = ev.appearance, Z = M.sizes(ev);
   switch (kind) {
     case "crossing": return ratio * M.CROSSING_RADIUS * ap.controlCircleSize;
-    case "normal": return ratio * ((Z.control * ap.controlCircleSize) / 2 - (M.LINE * ap.lineWidth) / 2);
-    case "finish": return ratio * ((Z.finishOut * ap.controlCircleSize) / 2 - (M.LINE * ap.lineWidth) / 2);
+    case "normal": return ratio * ((Z.control * ap.controlCircleSize) / 2 - (M.lineBase(ev) * ap.lineWidth) / 2);
+    case "finish": return ratio * ((Z.finishOut * ap.controlCircleSize) / 2 - (M.lineBase(ev) * ap.lineWidth) / 2);
     case "start": case "map-exchange": return ratio * (ap.mapStandard === "2017" ? Z.start : M.SIZES["2000"].start) * ap.controlCircleSize;
     default: return 0;
   }
@@ -286,7 +286,7 @@ export function distFrom(o, p) {
       return Math.max(0, M.dist(p, o.ctr) - (o.radius || 0));
     case "leg": case "line": return Math.max(0, M.nearest(o.pts, p).d - (o.lw || 0) / 2);
     case "area": return inPoly(o.pts, p) ? 0 : M.nearest([...o.pts, o.pts[0]], p).d;
-    case "number": case "code": case "text": case "rect": case "descriptions": case "image": {
+    case "number": case "code": case "text": case "rect": case "descriptions": case "image": case "qr": {
       if (!o.box) return Infinity;                             // a description block is measured when drawn (draw.js)
       const [l, b, r, t] = o.box;
       if (p[0] >= l && p[0] <= r && p[1] >= b && p[1] <= t) return 0;
@@ -334,7 +334,7 @@ function autoCutLegs(ev, cd, objs, ap) {
     }
     for (const o of objs) {
       if (!["control", "finish", "start", "crossing", "point"].includes(o.t) || !o.apparent) continue;
-      const ro = o.apparent + ap.lineWidth * M.LINE * 2;
+      const ro = o.apparent + ap.lineWidth * M.lineBase(ev) * 2;
       const n = M.nearest(leg.pts, o.ctr);
       if (n.d < ro && M.dist(n.at, leg.pts[0]) > 0.5 && M.dist(n.at, leg.pts[leg.pts.length - 1]) > 0.5)
         cutAt(leg, n.at, Math.sqrt(ro * ro - n.d * n.d) + ap.autoLegGap / 2);
@@ -369,12 +369,12 @@ function specialObj(ev, sid, ratio, std, cd, opts) {
   const cs = ev.appearance.controlCircleSize;
   switch (sp.kind) {
     case "first-aid": return { t: "point", kind: sp.kind, ...base, ctr: sp.pts[0], ratio: ratio * cs, std, radius: (std === "2000" ? 1.5 : 2.0) * ratio * cs, apparent: (std === "2000" ? 1.5 : 2.0) * ratio * cs };
-    case "water": return { t: "point", kind: sp.kind, ...base, ctr: sp.pts[0], ratio: ratio * cs, std, radius: (std === "2000" ? 2.0 : 1.5) * ratio * cs, apparent: (std === "2000" ? 2.0 : 1.5) * ratio * cs, lwBase: M.LINE * ev.appearance.lineWidth };
+    case "water": return { t: "point", kind: sp.kind, ...base, ctr: sp.pts[0], ratio: ratio * cs, std, radius: (std === "2000" ? 2.0 : 1.5) * ratio * cs, apparent: (std === "2000" ? 2.0 : 1.5) * ratio * cs, lwBase: M.lineBase(ev) * ev.appearance.lineWidth };
     case "forbidden-route": return { t: "point", kind: sp.kind, ...base, ctr: sp.pts[0], ratio: ratio * cs, radius: 1.5 * ratio * cs, apparent: 1.5 * ratio * cs };
     case "registration-mark": return { t: "point", kind: sp.kind, ...base, ctr: sp.pts[0], ratio: ratio * cs, radius: 2 * ratio * cs, apparent: 2 * ratio * cs, lw: 0.1 * ratio * ev.appearance.lineWidth };
     case "optional-crossing-point": {
       const r = (std === "Spr2019" ? 1.82 : 1.72) + (sp.stretch || 0) / 2;
-      return { t: "crossing", ...base, ctr: sp.pts[0], orientation: sp.orientation || 0, stretch: sp.stretch || 0, ratio: ratio * cs, lw: M.LINE * ev.appearance.lineWidth * ratio,
+      return { t: "crossing", ...base, ctr: sp.pts[0], orientation: sp.orientation || 0, stretch: sp.stretch || 0, ratio: ratio * cs, lw: M.lineBase(ev) * ev.appearance.lineWidth * ratio,
         wide: std === "Spr2019", radius: r * ratio * cs, apparent: r * ratio * cs, control: 0, cc: 0 };
     }
     case "boundary": return { t: "line", kind: sp.kind, ...base, pts: sp.pts, lw: (std === "Spr2019" ? 1.0 : 0.7) * ev.appearance.lineWidth * ratio };
@@ -386,6 +386,7 @@ function specialObj(ev, sid, ratio, std, cd, opts) {
     case "text": return { t: "text", ...base, box: rectOf(sp.pts), text: M.expandText(ev, cd, sp.text || "", { variation: opts.variationName || "", team: opts.team, leg: opts.leg }),
       font: sp.font || { name: "Arial", bold: false, italic: false, height: -1 }, color: sp.color };
     case "image": return { t: "image", ...base, box: rectOf(sp.pts), image: sp.image, name: sp.text || "" };
+    case "qr": return { t: "qr", ...base, box: rectOf(sp.pts), text: sp.text || "" };
     // MTB-O's course symbols (the advanced level): drawn after ISMTBOM 2022's descriptions, upper purple
     case "mtbo-obstacle": case "mtbo-forbidden-pass":
       return { t: "point", kind: sp.kind, ...base, ctr: sp.pts[0], orientation: sp.orientation || 0, ratio: ratio * cs, radius: 1.5 * ratio * cs, apparent: 1.5 * ratio * cs };

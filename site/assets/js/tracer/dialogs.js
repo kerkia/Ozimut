@@ -76,7 +76,8 @@ export function modal(E, { title, body, ok = "OK", cancel = t("trc.dlg.cancel"),
       setTimeout(() => { if (!m.isConnected) keepChoices(remember, o); }, 0);       // kept once the dialog is accepted
     });
     onOpen?.(form, done);
-    (form.querySelector("input:not([type=hidden]), select, textarea") || form.querySelector("button[type=submit]"))?.focus();
+    // a dialog with nothing to fill in and only « Fermer » still takes the keyboard (Échap must close it)
+    (form.querySelector("input:not([type=hidden]), select, textarea") || form.querySelector("button[type=submit]") || m.querySelector('[data-x="cancel"]'))?.focus();
   });
 }
 /** A drop zone: files dropped on it, anywhere on its dialog, or picked by a click on it go to onFiles (a list of File). */
@@ -106,9 +107,11 @@ export function popupMenu(E, cx, cy, items, onPick) {
   E.root.appendChild(pop);
   const W = window.innerWidth, H = window.innerHeight;
   pop.style.left = `${Math.min(cx, W - pop.offsetWidth - 8)}px`; pop.style.top = `${Math.min(cy, H - pop.offsetHeight - 8)}px`;
-  const close = () => { pop.remove(); document.removeEventListener("pointerdown", off, true); };
+  const close = () => { pop.remove(); document.removeEventListener("pointerdown", off, true); document.removeEventListener("keydown", key, true); };
   const off = (e) => { if (!pop.contains(e.target)) close(); };
+  const key = (e) => { if (e.key === "Escape") { e.stopPropagation(); close(); } };
   setTimeout(() => document.addEventListener("pointerdown", off, true), 0);
+  document.addEventListener("keydown", key, true);
   pop.querySelectorAll("[data-a]").forEach((b) => b.addEventListener("click", () => { close(); onPick(b.dataset.a); }));
 }
 // ---- « Fichier »'s dialogs (owner, 2026-11-07: the Tracer's « Fichier » page became a menu, as Cartographier's) --------------------
@@ -172,7 +175,7 @@ export function chooser(E, { title, sub = "", groups, last = null, search = fals
 export function specialMenu(E, btn) {
   const r = btn.getBoundingClientRect();
   const groups = [[t("trc.dlg.grpPoints"), ["water", "first-aid", "optional-crossing-point", "forbidden-route", "registration-mark"]],
-    [t("trc.dlg.grpLines"), ["boundary", "out-of-bounds", "dangerous-area", "temporary-construction", "white-out", "line"]], [t("trc.dlg.grpFrames"), ["text", "image", "rectangle", "ellipse"]],
+    [t("trc.dlg.grpLines"), ["boundary", "out-of-bounds", "dangerous-area", "temporary-construction", "white-out", "line"]], [t("trc.dlg.grpFrames"), ["text", "image", "rectangle", "ellipse", "qr"]],
     // the advanced level: MTB-O's symbols, enlarged map sections and masks
     ...(E.pro ? [[t("trc.dlg.grpMtbo"), ["mtbo-oneway", "mtbo-forbidden-route", "mtbo-danger", "mtbo-obstacle", "mtbo-forbidden-pass"]], [t("trc.dlg.grpLayout"), ["inset", "mask"]]] : [])];
   const items = [];
@@ -185,7 +188,14 @@ const lazy = { pdf: () => import("./pdf.js"), out: () => import("./exports.js"),
 const needCourse = (E) => { if (!E.cd.course) { E.toast(t("trc.dlg.needCourse")); return false; } return true; };
 const needSel = (E, kind) => { if (E.sel?.kind !== kind && !(kind === "control" && E.sel?.kind === "number")) { E.toast(kind === "control" ? t("trc.dlg.needControl") : t("trc.dlg.needLeg")); return false; } return true; };
 
+// A map lent (owner, 2026-11-16, after OCAD's encrypted maps): a member the team marked so sets courses on the map but neither
+// prints nor exports it — the commands below are refused, the courses' PDF comes without the map. A browser can only
+// discourage copying, never prevent it: the map is on the screen. The team's dialog says so.
+/** A map lent to this member: said, and true — the caller makes no file of the map. */
+export const lentStop = (E) => { if (!E.lent) return false; E.toast(t("trc.dlg.lentRefused"), 6000); return true; };
+const LENT_BLOCK = new Set(["export-images", "export-ocad", "export-ocn", "export-geotiff", "export-svg", "export-kmz", "export-garmin", "export-livelox", "export-routegadget", "publish", "map-templates", "offline"]);
 export async function action(E, act, btn, at = {}) {
+  if (E.lent && LENT_BLOCK.has(act)) { E.toast(t("trc.dlg.lentRefused"), 6000); return; }
   const ev = E.ev, s = E.sel;
   const ro = () => { if (E.readOnly) { E.toast(t("trc.dlg.readOnly")); return true; } return false; };
   // the start screen's three choices (pages/tracer.js), from the Fichier menu too
@@ -217,6 +227,7 @@ export async function action(E, act, btn, at = {}) {
     case "export-geotiff": (await import("./exportx.js")).geotiffDialog(E); break;
     case "export-svg": (await import("./exportx.js")).svgDialog(E); break;
     case "export-kmz": (await import("./exportx.js")).kmzDialog(E); break;
+    case "export-garmin": (await import("./exportx.js")).garminDialog(E); break;
     case "export-maprun": (await import("./exportx.js")).maprunDialog(E); break;
     case "export-ocadcsv": (await import("./exportx.js")).ocadTextFile(E); break;
     case "export-iof2-sep": (await import("./exportx.js")).iof2Separate(E); break;
@@ -240,6 +251,10 @@ export async function action(E, act, btn, at = {}) {
     case "move-all": if (!ro()) moveAll(E); break;
     case "calage": if (!ro()) (await import("./calage.js")).calage(E, { fromPpen: false }); break;
     case "custom-text": if (!ro()) customText(E); break;
+    // descriptions read from the map (autodesc.js): on or off for new controls (kept on this device), the table of map symbols
+    case "auto-desc": { E.opts.autoDesc = !E.opts.autoDesc; try { const o = JSON.parse(localStorage.getItem(PREFS) || "{}"); o.autoDesc = E.opts.autoDesc; localStorage.setItem(PREFS, JSON.stringify(o)); } catch (e) { /* this visit */ }
+      E.toast(t(E.opts.autoDesc ? "trc.ad.on" : "trc.ad.off"), 5000); E.ribbon?.update(); break; }
+    case "desc-table": if (!ro()) (await import("./autodesc.js")).tableDialog(E); break;
     case "punch": if (!ro()) (await lazy.more()).punchPatterns(E); break;
     case "georef": (await lazy.more()).georef(E); break;
     case "load": if (!ro()) loads(E); break;
@@ -268,13 +283,23 @@ export async function action(E, act, btn, at = {}) {
     case "my-symbols": if (!ro()) (await import("./mysymbols.js")).mySymbolsDialog(E); break;
     case "relay": if (needCourse(E)) (await lazy.relay()).relayDialog(E); break;
     case "print-area": (await lazy.pdf()).printAreaDialog(E); break;
+    case "canvases": (await import("./canvases.js")).canvasesDialog(E); break;
     case "part-options": if (!ro() && needCourse(E)) partOptions(E); break;
     case "rep-summary": (await lazy.rep()).summary(E); break;
     case "rep-legs": (await lazy.rep()).legLengthsReport(E); break;
     case "rep-cross": (await lazy.rep()).crossRefReport(E); break;
     case "rep-load": (await lazy.rep()).loadReportDialog(E); break;
     case "rep-audit": (await lazy.rep()).auditReport(E); break;
-    case "rep-climb": (await lazy.more()).climb(E); break;
+    case "rep-climb": (await import("./relief.js")).climbDialog(E); break;
+    case "dem": (await import("./relief.js")).demDialog(E); break;
+    case "backdrop": (await import("./backdrop.js")).toggle(E); break;
+    case "import-track": if (!ro()) (await import("./backdrop.js")).importTrack(E); break;
+    case "look-here": if (at.p) { const r = E.canvas.getBoundingClientRect(); (await import("./backdrop.js")).lookHere(E, at.p, r.left + (at.sx || 0), r.top + (at.sy || 0)); } break;
+    case "profile": (await import("./relief.js")).profileDialog(E); break;
+    case "routes": (await import("./analyzer.js")).toggle(E); break;
+    case "route-calc": if (!ro()) (await import("./analyzer.js")).compute(E, s?.kind === "leg" ? "leg" : "course"); break;
+    case "route-table": if (!ro()) (await import("./analyzer.js")).tableDialog(E); break;
+    case "rep-routes": (await import("./analyzer.js")).reportDialog(E); break;
     case "rep-times": (await lazy.more()).winningTimes(E); break;
     case "rep-pickup": (await lazy.more()).pickup(E); break;
     case "tour": (await import("./tour.js")).tourDialog(E); break;
@@ -304,6 +329,8 @@ export async function action(E, act, btn, at = {}) {
     case "rotate": rotateStretch(E, "rotate"); break;
     case "stretch": rotateStretch(E, "stretch"); break;
     case "toggle-exchange": if (!ro() && s?.cc) E.change((x) => { const cc = x.courseControls[s.cc]; cc.exchange = !cc.exchange; if (!cc.exchange) delete cc.flip; }, t("trc.dlg.mapExchange")); break;
+    // ISCD 2024's map flip: the map exchange at this control is the same sheet turned over (its description line says so)
+    case "toggle-flip": if (!ro() && s?.cc) E.change((x) => { const cc = x.courseControls[s.cc]; if (cc.flip) delete cc.flip; else { cc.exchange = true; cc.flip = true; } }, t("trc.dlg.mapFlip")); break;
     case "points": if (!ro() && s?.cc) { const v = await modal(E, { title: t("trc.dlg.pointsTitle"), body: field(t("trc.dlg.points"), `<input name="p" type="number" min="0" value="${ev.courseControls[s.cc].points || 0}">`) }); if (v) E.change((x) => { x.courseControls[s.cc].points = Math.max(0, Math.round(num(v.p)) || 0); }, t("trc.dlg.points")); } break;
     case "text-before": case "text-after": if (!ro() && s?.control) textLine(E, { control: s.control, cc: s.cc, textKind: act === "text-before" ? "beforeCourseControl" : "afterCourseControl" }); break;
     case "gap-add-circle": if (!ro() && s?.control && at.p) { const c = ev.controls[s.control], a = M.angleDeg([c.x, c.y], at.p), r = 10; E.change((x) => M.addCircleGap(x, s.control, M.gapScale(x, E.course()?.printScale || x.allControls.printScale), [c.x + Math.cos((a - r) * Math.PI / 180), c.y + Math.sin((a - r) * Math.PI / 180)], [c.x + Math.cos((a + r) * Math.PI / 180), c.y + Math.sin((a + r) * Math.PI / 180)]), t("trc.dlg.circleGap")); } break;
@@ -312,7 +339,7 @@ export async function action(E, act, btn, at = {}) {
     case "bend-remove": { const h = A.handleAt(E, at.sx, at.sy); if (!ro() && h?.type === "bend") E.change((x) => M.removeBend(x, h.c1, h.c2, h.pt), t("trc.dlg.bendRemoved")); break; }
     case "gap-add-leg": if (!ro() && s?.kind === "leg" && at.p) { const pts = M.legPoints(ev, s.c1, s.c2), n = M.nearest(pts, at.p), w = 1.2 * (E.layout?.ratio || 1); E.change((x) => M.addLegGap(x, s.c1, s.c2, M.pointAt(pts, n.len - w), M.pointAt(pts, n.len + w)), t("trc.dlg.gap")); } break;
     case "gap-remove-leg": if (!ro() && s?.kind === "leg" && at.p) E.change((x) => M.removeLegGap(x, s.c1, s.c2, at.p), t("trc.dlg.gapClosed")); break;
-    case "route-clear": if (!ro() && s?.kind === "leg") E.change((x) => M.setLegRoute(x, s.c1, s.c2, null), t("trc.dlg.routeCleared")); break;
+    case "route-clear": if (!ro() && s?.kind === "leg") E.change((x) => M.clearLegRoutes(x, s.c1, s.c2, true), t("trc.dlg.routeCleared")); break;
     case "routes-alt": if (!ro() && s?.kind === "leg") { E.setTool("route"); const a = ev.controls[s.c1]; E.pending = { kind: "route", alt: true, c1: s.c1, c2: s.c2, pts: [[a.x, a.y]] };
       E.ghost = { pts: E.pending.pts.slice() }; E.help(t("trc.dlg.altHelp")); E.redraw(); } break;
     case "routes-alt-clear": if (!ro() && s?.kind === "leg") E.change((x) => M.setLegAlts(x, s.c1, s.c2, null), t("trc.dlg.altsCleared")); break;
@@ -427,10 +454,13 @@ async function appearance(E) {
 }
 async function standards(E) {
   const v = await modal(E, { title: t("trc.dlg.standards"), body: `
-    ${field(t("trc.dlg.descStandard"), sel("desc", [["2018", "IOF 2018/2024"], ["2004", "IOF 2004"]], E.ev.descStandard))}
-    ${field(t("trc.dlg.mapStandard"), sel("map", [["2017", t("trc.dlg.isom2017")], ["Spr2019", "ISSprOM 2019 (sprint)"], ["2000", "ISOM 2000"]], E.ev.appearance.mapStandard))}` });
+    ${field(t("trc.dlg.descStandard"), sel("desc", DESC_STANDARDS, E.ev.descStandard), t("trc.dlg.descStandardHint"))}
+    ${field(t("trc.dlg.mapStandard"), sel("map", MAP_STANDARDS(), E.ev.appearance.mapStandard), t("trc.dlg.mapStandardHint"))}` });
   if (v) applyStandards(E, v.desc, v.map);
 }
+/** The standards offered (the dialog, the ribbon's fields): the descriptions' — ISCD 2024, the rule since 2024 —, the map's. */
+export const DESC_STANDARDS = [["2024", "IOF 2024 (ISCD 2024)"], ["2018", "IOF 2018"], ["2004", "IOF 2004"]];
+export const MAP_STANDARDS = () => [["2017", t("trc.dlg.isom2017")], ["Spr2019", "ISSprOM 2019 (sprint)"], ["Ski2019", t("trc.dlg.isskiom")], ["Mtbo2022", t("trc.dlg.ismtbom")], ["2000", "ISOM 2000"]];
 /** The description and map standards (the dialog, the ribbon's fields). */
 export function applyStandards(E, desc, map) {
   if (desc === E.ev.descStandard && map === E.ev.appearance.mapStandard) return;
@@ -439,7 +469,7 @@ export function applyStandards(E, desc, map) {
     // symbols that do not exist in the new standard take their replacement (ChangeEvent.UpdateDescriptionToMatchStandard)
     for (const c of Object.values(x.controls)) c.symbols = c.symbols.map((id) => {
       if (!id || symbol(id, desc)) return id;
-      const old = symbol(id, desc === "2018" ? "2004" : "2018");
+      const old = symbol(id, M.descBase(desc) === "2018" ? "2004" : "2018");
       return old?.repl && symbol(old.repl, desc) ? old.repl : id;
     });
   }, t("trc.dlg.standards"));
@@ -617,7 +647,8 @@ export async function codeEdit(E, controlId) {
 export async function controlProps(E, controlId) {
   const c = E.ev.controls[controlId];
   const v = await modal(E, { title: c.kind === "normal" ? t("trc.dlg.controlTitle", { code: c.code }) : t("trc.dlg.start"), body: `
-    ${c.kind === "normal" ? field(t("trc.dlg.code"), `<input name="code" value="${esc(c.code)}" maxlength="3">`) : ""}
+    ${c.kind === "normal" ? field(t("trc.dlg.code"), `<input name="code" value="${esc(c.code)}" maxlength="3">`)
+      : E.ev.descStandard === "2024" ? field(t("trc.dlg.startCode"), `<input name="scode" value="${esc(c.code || "")}" maxlength="3" placeholder="S1">`, t("trc.dlg.startCodeHint")) : ""}
     ${field(t("trc.dlg.colF"), `<input name="f" value="${esc(c.colF || "")}" placeholder="2.5, 3x4, 2/1">`)}
     ${field(t("trc.dlg.descTextShort"), `<textarea name="t" rows="2">${esc(c.descText || "")}</textarea>`)}
     ${field(t("trc.dlg.teamNotes"), `<textarea name="notes" rows="2">${esc(c.notes || "")}</textarea>`)}
@@ -632,6 +663,7 @@ export async function controlProps(E, controlId) {
   E.change((x) => {
     const k = x.controls[controlId];
     if (k.kind === "normal") k.code = v.code.trim();
+    else if (v.scode != null) { if (v.scode.trim()) k.code = v.scode.trim(); else delete k.code; }
     k.colF = v.f.trim() || null; if (k.colF) k.symbols[3] = null;
     if (v.t.trim()) k.descText = v.t.trim(); else delete k.descText;
     if (v.notes.trim()) k.notes = v.notes.trim(); else delete k.notes;
@@ -656,6 +688,7 @@ async function rotateStretch(E, what) {
 export async function specialProps(E, id) {
   const sp = E.ev.specials[id];
   if (sp.kind === "inset") return (await import("./layoutx.js")).insetProps(E, id);
+  if (sp.kind === "qr") return (await import("./qr.js")).qrProps(E, id, (look) => E.change((x) => Object.assign(x.specials[id], look), t("trc.dlg.qrChanged")));
   if (sp.kind === "text") return textProps(E, id, (look) => E.change((x) => Object.assign(x.specials[id], look), t("trc.dlg.textChanged")));
   if (["line", "rectangle", "ellipse"].includes(sp.kind)) return lineAppearance(E, id, (look) => E.change((x) => Object.assign(x.specials[id], look), t("trc.dlg.appearance")));
   if (sp.kind === "descriptions") {
@@ -825,7 +858,10 @@ async function exportOcn(E) {
     const r = await S.loadExtraMap(E.meta.id, id, E.key).catch(() => null);
     if (r?.bytes) extra.push({ id: Number(id), name: m.map.file || `map-${id}`, type: r.type || "", bytes: r.bytes });
   }
-  download(`${fileName(E.ev.title)}${OCN_EXT}`, await writeOcn(M.clone(E.ev), { map, extra }), "application/zip");
+  // the event's elevation model goes with it (relief.js): the one kept with the event, else the one in hand
+  let dem = await S.loadDem(E.meta.id, E.key).catch(() => null);
+  if (!dem && E.relief) dem = await (await import("./relief.js")).pack(E.relief).catch(() => null);
+  download(`${fileName(E.ev.title)}${OCN_EXT}`, await writeOcn(M.clone(E.ev), { map, extra, dem }), "application/zip");
   E.toast(map ? t("trc.dlg.ocnExportedMap") : t("trc.dlg.ocnExported"));
 }
 async function exportPpen(E) {
@@ -880,16 +916,20 @@ async function team(E) {
   const render = (box) => {
     box.innerHTML = `<table class="tr-table"><thead><tr><th>${esc(t("trc.dlg.member"))}</th><th>${esc(t("trc.dlg.role"))}</th><th></th></tr></thead><tbody>
       <tr><td>${esc(meta.ownerName)}${meta.ownerLic ? ` <small>(${esc(meta.ownerLic)})</small>` : ""}</td><td>${esc(t("trc.dlg.creator"))}</td><td></td></tr>
-      ${rows.map((m, i) => `<tr><td>${esc(m.name || "?")}${m.lic ? ` <small>(${esc(m.lic)})</small>` : ""}</td><td>${owner ? sel(`r${i}`, roles, m.role) : esc(roleName(m.role))}</td>
+      ${rows.map((m, i) => `<tr><td>${esc(m.name || "?")}${m.lic ? ` <small>(${esc(m.lic)})</small>` : ""}</td><td>${owner ? sel(`r${i}`, roles, m.role) : esc(roleName(m.role))}
+        ${owner ? `<label class="tr-check tr-lent" title="${esc(t("trc.dlg.lentTip"))}"><input type="checkbox" data-lent="${i}" ${m.lent ? "checked" : ""}> ${esc(t("trc.dlg.lent"))}</label>` : m.lent ? ` <small>${esc(t("trc.dlg.lent"))}</small>` : ""}</td>
       <td>${owner ? `<button type="button" class="btn btn-sm" data-rm="${i}">${esc(t("trc.dlg.remove"))}</button>` : ""}</td></tr>`).join("")}</tbody></table>`;
     box.querySelectorAll("[data-rm]").forEach((b) => b.addEventListener("click", () => { rows.splice(Number(b.dataset.rm), 1); render(box); }));
     box.querySelectorAll("select").forEach((s2) => s2.addEventListener("change", () => { rows[Number(s2.name.slice(1))].role = s2.value; }));
+    box.querySelectorAll("[data-lent]").forEach((c) => c.addEventListener("change", () => { rows[Number(c.dataset.lent)].lent = c.checked; }));
   };
   const v = await modal(E, { title: t("trc.dlg.team"), wide: true, ok: owner ? t("trc.dlg.save") : t("trc.dlg.close"), cancel: owner ? t("trc.dlg.cancel") : null, body: `
     <p>${esc(t("trc.dlg.teamIntro"))}</p>
     <div id="tr-team"></div>
     ${owner ? `<h3>${esc(t("trc.dlg.invite"))}</h3><p><small>${esc(t("trc.dlg.inviteHint"))}</small></p>
-      <div class="tr-row">${field(t("trc.dlg.role"), sel("inv-role", roles, "controller"))}<button type="button" class="btn btn-sm" id="tr-invite">${esc(t("trc.dlg.inviteMake"))}</button></div>
+      <div class="tr-row">${field(t("trc.dlg.role"), sel("inv-role", roles, "controller"))}<label class="tr-check" title="${esc(t("trc.dlg.lentTip"))}"><input type="checkbox" name="inv-lent"> ${esc(t("trc.dlg.lent"))}</label>
+        <button type="button" class="btn btn-sm" id="tr-invite">${esc(t("trc.dlg.inviteMake"))}</button></div>
+      <p><small>${esc(t("trc.dlg.lentNote"))}</small></p>
       <div id="tr-new-link"></div><div id="tr-links"></div>` : ""}`,
   onOpen: (f) => {
     const box = f.querySelector("#tr-team");
@@ -914,7 +954,7 @@ async function team(E) {
     drawLinks();
     f.querySelector("#tr-invite")?.addEventListener("click", async (e) => {
       e.target.disabled = true;
-      const r = await S.api(`/${meta.id}/invites`, { method: "POST", body: { role: f.querySelector('[name="inv-role"]').value } }).catch((err) => ({ error: err.code || "x" }));
+      const r = await S.api(`/${meta.id}/invites`, { method: "POST", body: { role: f.querySelector('[name="inv-role"]').value, lent: !!f.querySelector('[name="inv-lent"]')?.checked } }).catch((err) => ({ error: err.code || "x" }));
       e.target.disabled = false;
       const box = f.querySelector("#tr-new-link");
       if (!r?.token) { E.toast(t(r?.error === "too many invites" ? "trc.dlg.inviteTooMany" : "trc.dlg.inviteFailed")); return; }
@@ -928,7 +968,7 @@ async function team(E) {
     });
   } });
   if (!v || !owner) return;
-  const r = await S.api(`/${meta.id}`, { method: "PUT", body: { team: rows.map((m) => (m.uid ? { uid: m.uid, role: m.role } : { lic: m.lic, role: m.role })) } });
+  const r = await S.api(`/${meta.id}`, { method: "PUT", body: { team: rows.map((m) => (m.uid ? { uid: m.uid, role: m.role, lent: !!m.lent } : { lic: m.lic, role: m.role, lent: !!m.lent })) } });
   E.meta = r.event;
   E.toast(t("trc.dlg.teamSaved"));
 }

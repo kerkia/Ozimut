@@ -27,6 +27,7 @@ import { svg } from "./icons.js";
 import { insetSrc } from "./layoutx.js";
 import { mapOf, drawExtra, loadExtraMaps, templatesOf } from "./maps.js";
 import { mountRibbon } from "./ribbon.js";
+import { paintRoutes, paceOf } from "./routedraw.js";
 import * as auth from "../auth.js";
 import { t, tn, locale } from "./lang.js";
 
@@ -51,9 +52,11 @@ export async function openEditor(ctx) {
   const fontsIn = await Promise.all([loadSymbols(), loadFonts(5000)]).then(([, ok]) => ok);
   const E = {
     meta: ctx.meta, role: ctx.role, you: ctx.you, ev: ctx.ev, version: ctx.version || 0, key: ctx.key || null, map: ctx.mapSrc,
+    lent: !!ctx.lent,                                     // the map lent to this member: no print or export of it (dialogs.js LENT_BLOCK)
+    localDem: ctx.dem || null,                            // the elevation model of the copy kept on this device (offline.js), for relief.js
     readOnly: !!ctx.readOnly || !!ctx.blank, lockHolder: ctx.lockHolder || null, offline: !!ctx.offline, blank: !!ctx.blank, onStart: ctx.onStart || null,
     cd: M.cdAll(), variation: null, sel: null, tool: "select", undo: [], redo: [], dirty: false, saving: false, lastSaved: null,
-    opts: { intensity: loadPref("intensity", 1), allControls: loadPref("allControls", false), others: [], printArea: false },
+    opts: { intensity: loadPref("intensity", 1), allControls: loadPref("allControls", false), others: [], printArea: false, autoDesc: loadPref("autoDesc", true) !== false },
     layout: null, items: [], view: { k: 1, ox: 0, oy: 0 }, pending: null,
     overlays: [], closeHooks: [], pickOnce: null, rev: 0,
     pro: true,                                            // the advanced level: every account's since 2026-11-08 (owner)
@@ -198,6 +201,7 @@ export async function openEditor(ctx) {
     $("#tr-redo").disabled = !E.redo.length || E.readOnly;
     draw();
     E.ribbon?.update();
+    E.ra?.onRefresh?.();                                   // the route analyzer's panel follows the course and its routes
   }
   const selKey = (s) => !s ? null : s.kind === "leg" ? { leg: [s.c1, s.c2] } : s.kind === "special" ? { special: s.id } : s.kind === "control" ? { control: s.control } : null;
   /** The other controls (light purple) while adding, or when « tous les postes » is on; other courses' outlines. */
@@ -251,6 +255,8 @@ export async function openEditor(ctx) {
     // an OCAD map's templates given to the event (mapview.js), half transparent over the map
     if (!other && E.ev.maps) for (const tp of templatesOf(E)) drawExtra(g, T, v.k, tp, 0.5);
     else { g.strokeStyle = "#c9c6bb"; g.strokeRect(v.ox, v.oy - (E.ev.map.h || 297) * v.k, (E.ev.map.w || 210) * v.k, (E.ev.map.h || 297) * v.k); }
+    // « Fonds et relief » (backdrop.js): online layers and the relief over the map, under the course
+    E.backdrop?.paint(g, T, W, H);
     let items = E.items;
     if (layered) {
       const [lower, rest] = splitItems(items);
@@ -304,20 +310,12 @@ export async function openEditor(ctx) {
     drawItems(g, E.items.filter((x) => !x.desc && x.t !== "inset" && !x.insetFrame), T2, k * f, opts);
     g.restore();
   }
-  /** The routes drawn for the climb (Itinéraire), on the screen only: dashed, in the map's brown; the other routes of a leg (the
-   *  advanced level) dotted in teal. */
+  /** The legs' routes (routedraw.js: computed by the route analyzer or drawn by hand), with their labels, on the screen only. */
   function drawRoutes(T) {
-    const legs = (E.layout?.objs || []).filter((o) => o.t === "leg");
-    g.save(); g.lineWidth = 1.6;
-    for (const o of legs) {
-      for (const r of M.legRoutes(E.ev, o.control, o.control2)) {
-        g.strokeStyle = r.main ? "#8b5a2b" : "#0d9488"; g.setLineDash(r.main ? [6, 4] : [2, 3]);
-        g.beginPath();
-        r.pts.forEach((p, i) => { const [x, y] = T(...p); i ? g.lineTo(x, y) : g.moveTo(x, y); });
-        g.stroke();
-      }
-    }
-    g.restore();
+    const legs = (E.layout?.objs || []).filter((o) => o.t === "leg").map((o) => [o.control, o.control2]);
+    if (!legs.length) return;
+    paintRoutes(g, T, E.ev, legs, { labels: loadPref("raLabels", "main"), pace: paceOf(E.ev, E.cd.course), lit: E.ra?.lit || null,
+      sel: E.sel?.kind === "leg" ? [E.sel.c1, E.sel.c2] : null, nf: (v) => new Intl.NumberFormat(locale()).format(v) });
   }
   function drawPrintArea(T) {
     const pa = M.printAreaOf(E.ev, E.cdDraw || E.cd);
@@ -346,6 +344,19 @@ export async function openEditor(ctx) {
       if (gh.cursor) g.lineTo(...T(...gh.cursor));
       if (gh.closed) g.closePath();
       g.stroke();
+      // a control being placed by a drag: its circle, and an arrow to the side where the flag stands, named
+      if (gh.ring) {
+        const [x0, y0] = T(...gh.pts[0]), [x1, y1] = T(...gh.pts[gh.pts.length - 1]), a = Math.atan2(y1 - y0, x1 - x0);
+        g.setLineDash([]); g.globalAlpha = 0.9;
+        g.beginPath(); g.arc(x0, y0, gh.ring * E.view.k, 0, 2 * Math.PI); g.stroke();
+        if (Math.hypot(x1 - x0, y1 - y0) > 8) {
+          g.fillStyle = "#0a84ff"; g.beginPath(); g.moveTo(x1, y1); g.lineTo(x1 - 11 * Math.cos(a - 0.4), y1 - 11 * Math.sin(a - 0.4)); g.lineTo(x1 - 11 * Math.cos(a + 0.4), y1 - 11 * Math.sin(a + 0.4)); g.closePath(); g.fill();
+          if (gh.label) {
+            g.font = "600 12px system-ui, sans-serif"; const w = g.measureText(gh.label).width + 10, lx = x1 + 14 * Math.cos(a) - w / 2, ly = y1 + 14 * Math.sin(a) - 9;
+            g.fillStyle = "rgba(255, 255, 255, 0.92)"; g.fillRect(lx, ly, w, 18); g.fillStyle = "#0a4fa0"; g.textBaseline = "middle"; g.fillText(gh.label, lx + 5, ly + 9.5);
+          }
+        }
+      }
     }
     g.restore();
   }
@@ -694,6 +705,10 @@ export async function openEditor(ctx) {
   fontCheck();
   syncVector();
   if (E.ev.maps && !E.blank) loadExtraMaps(E);
+  // the QR codes on the maps need their library before they are drawn (qr.js)
+  if (Object.values(E.ev.specials || {}).some((sp) => sp.kind === "qr")) import("./qr.js").then((Q) => Q.loadQr()).catch(() => {});
+  // this device's backgrounds for the event (an event set on OpenStreetMap shows it at once)
+  try { if (!E.blank && (localStorage.getItem(`ocn.tr.bg.${E.meta?.id || "x"}`) || E.ev.map.kind === "none")) import("./backdrop.js").then((B) => { B.attach(E); draw(); }); } catch (err) { /* no storage */ }
   // files dropped on the editor: a .ppen is imported, a map replaces the event's
   root.addEventListener("dragover", (e) => { if ([...(e.dataTransfer?.types || [])].includes("Files") && !root.querySelector(".tr-modal")) e.preventDefault(); });
   root.addEventListener("drop", async (e) => {

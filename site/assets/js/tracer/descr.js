@@ -120,6 +120,8 @@ function regularLine(ev, tx, S, kind, scoreColumn, cv, key, lang, form = "") {
   if (c.kind === "start" || c.kind === "map-exchange") boxes[0] = S("start");
   else if (kind !== "all" && cv.ordinal > 0) boxes[0] = String(cv.ordinal);
   if (c.kind === "normal") boxes[1] = String(c.code ?? "");
+  // ISCD 2024: « codes for the start, e.g. S1, S2, can be used in column B when appropriate »
+  else if (c.kind === "start" && c.code && ev.descStandard === "2024") boxes[1] = String(c.code);
   // trail-O: column B gives the flags (« A–E ») rather than the code
   if (form === "trail" && c.trail?.flags) boxes[1] = c.trail.flags.replace("-", "–");
   for (let i = 2; i < 8; i++) {

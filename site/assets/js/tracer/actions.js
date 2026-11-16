@@ -8,6 +8,7 @@ import { itemsFor } from "./draw.js";
 import { widthInCells } from "./descr.js";
 import * as D from "./dialogs.js";
 import { menuItems } from "./context.js";
+import { autoFill, dragDir, dirWord } from "./autodesc.js";
 import { t, tn, locale } from "./lang.js";
 
 const esc = (s) => String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]);
@@ -19,7 +20,7 @@ const KIND_NAME = { normal: t("trc.act.kindNormal"), start: t("trc.act.kindStart
 export const SPECIAL_NAME = { "first-aid": t("trc.act.spFirstAid"), water: t("trc.act.spWater"), "optional-crossing-point": t("trc.act.spOptional"), "forbidden-route": t("trc.act.spForbidden"),
   "registration-mark": t("trc.act.spRegMark"), boundary: t("trc.act.spBoundary"), line: t("trc.act.spLine"), "out-of-bounds": t("trc.act.spOob"), "dangerous-area": t("trc.act.spDanger"),
   "temporary-construction": t("trc.act.spConstruction"), "white-out": t("trc.act.spWhiteOut"), text: t("trc.act.spText"), image: t("trc.act.spImage"), rectangle: t("trc.act.spRect"),
-  ellipse: t("trc.act.spEllipse"), descriptions: t("trc.act.spDescr"),
+  ellipse: t("trc.act.spEllipse"), descriptions: t("trc.act.spDescr"), qr: t("trc.act.spQr"),
   // the advanced level
   "mtbo-oneway": t("trc.act.spMtboOneway"), "mtbo-forbidden-route": t("trc.act.spMtboForbiddenRoute"), "mtbo-danger": t("trc.act.spMtboDanger"),
   "mtbo-obstacle": t("trc.act.spMtboObstacle"), "mtbo-forbidden-pass": t("trc.act.spMtboForbiddenPass"), inset: t("trc.act.spInset"), mask: t("trc.act.spMask") };
@@ -41,7 +42,7 @@ function insertionFor(E, p) {
   return M.insertionPoint(ev, cd, best?.cc1 || 0, best?.cc2 || 0);
 }
 const KIND_OF_TOOL = { control: "normal", start: "start", finish: "finish", crossing: "crossing", issue: "map-issue", exchange: "map-exchange" };
-function placeControl(E, tool, p, sx, sy) {
+function placeControl(E, tool, p, sx, sy, extra = {}) {
   const kind = KIND_OF_TOOL[tool];
   const courseId = E.cd.course;
   const hit = E.hitAt(sx, sy, { includeOthers: true });
@@ -57,7 +58,7 @@ function placeControl(E, tool, p, sx, sy) {
     // « Tous les postes »: a new control in the collection only
     if (existing) { E.select({ kind: "control", control: existing, cc: 0 }); return true; }
     let id;
-    E.change((ev) => { id = M.addControl(ev, kind, p); }, t("trc.act.newKind", { kind: KIND_NAME[kind].toLowerCase() }));
+    E.change((ev) => { id = M.addControl(ev, kind, p); autoFill(E, ev, id, extra.dir ?? null); }, t("trc.act.newKind", { kind: KIND_NAME[kind].toLowerCase() }));
     E.select({ kind: "control", control: id, cc: 0 });
     return true;
   }
@@ -86,7 +87,8 @@ function placeControl(E, tool, p, sx, sy) {
     let id = existing;
     // clicking a neighbour of the insertion point makes a new control there (Purple Pen)
     if (id && [ins.cc1, ins.cc2].some((c) => c && ev.courseControls[c]?.control === id)) id = 0;
-    if (!id) id = M.addControl(ev, kind, p);
+    // a new control's description read from the map under it (autodesc.js), the drag's direction its column G
+    if (!id) { id = M.addControl(ev, kind, p); autoFill(E, ev, id, extra.dir ?? null); }
     ccNew = M.addCourseControl(ev, id, courseId, ins.cc1, ins.cc2, ins.loc);
     if (kind === "map-exchange") { ev.courseControls[ccNew].exchange = true; }
     return true;
@@ -167,13 +169,12 @@ export function finishPending(E) {
   if (pend.kind === "route") {
     E.pending = null; E.ghost = null;
     const inner = pts.slice(1);
-    // another route on the leg (the advanced level: leg.alts), beside the one expected
-    if (pend.alt) {
-      if (inner.length) E.change((ev) => { const leg = ev.legs[M.findLeg(ev, pend.c1, pend.c2)]; M.setLegAlts(ev, pend.c1, pend.c2, [...(leg?.alts || []), { pts: inner, name: "" }]); }, t("trc.act.altDrawn"));
-      E.setTool("select");
-      return;
+    // a route drawn by hand: the leg's main route when it has none yet, else another route beside it (the route analyzer's
+    // list: analyzer.js); with the analyzer's panel open it is measured on the model, and laid on the map's paths if wished
+    if (inner.length) {
+      E.change((ev) => M.addLegRoute(ev, pend.c1, pend.c2, { pts: inner }), t("trc.act.routeDrawn"));
+      if (E.ra?.planner) import("./analyzer.js").then((R) => R.afterDraw(E, pend.c1, pend.c2));
     }
-    E.change((ev) => M.setLegRoute(ev, pend.c1, pend.c2, inner), inner.length ? t("trc.act.routeDrawn") : t("trc.act.routeCleared"));
     E.setTool("select");
     return;
   }
@@ -199,12 +200,19 @@ export function toolDown(E, p, sx, sy) {
     if (hit?.kind === "leg" || hit?.kind === "control") return { kind: "gap", hit, start: p };
     return null;
   }
-  if (t === "descr" || ["special:text", "special:image", "special:rectangle", "special:ellipse", "special:inset"].includes(t)) return { kind: "rect", tool: t, start: p };
+  // a control placed by a drag (descriptions read from the map on): the drag says on which side of the feature the flag is
+  if (t === "control" && E.opts.autoDesc && E.map?.kind === "vector" && !E.hitAt(sx, sy, { includeOthers: true })) return { kind: "newctl", start: p };
+  if (t === "descr" || ["special:text", "special:image", "special:rectangle", "special:ellipse", "special:inset", "special:qr"].includes(t)) return { kind: "rect", tool: t, start: p };
   return null;
 }
 export function dragMove(E, d, p, sx, sy, e) {
   if (d.kind === "rect") { E.dragRect = [d.start, p]; E.redraw(); return; }
   if (d.kind === "gap") { E.ghost = { pts: [d.start, p] }; E.redraw(); return; }
+  if (d.kind === "newctl") {
+    const dir = dragDir(d.start, p);
+    E.ghost = { pts: [d.start, p], ring: 3 * (E.layout?.ratio || 1), label: dir == null ? "" : dirWord(dir) };
+    E.help(dir == null ? t("trc.ad.dragHelp") : t("trc.ad.dragDir", { dir: dirWord(dir) })); E.redraw(); return;
+  }
   if (d.kind === "move" || d.kind === "handle") {
     d.last = p;
     E.ghost = moveGhost(E, d, p, e);
@@ -221,6 +229,8 @@ export function dragEnd(E, d, p, sx, sy, e) {
     const kind = d.tool.slice(8);
     if (kind === "text") D.textProps(E, null, (look) => { let id; E.change((ev) => { id = M.addSpecial(ev, "text", [[l, t], [r, b]], look); }, SPECIAL_NAME.text); E.select({ kind: "special", id }); E.setTool("select"); });
     else if (kind === "inset") import("./layoutx.js").then((X) => X.newInset(E, [l, b, r, t]));
+    // a QR code: a square in the frame drawn, leading to the address chosen (qr.js)
+    else if (kind === "qr") import("./qr.js").then((Q) => Q.qrProps(E, null, (look) => { const side = Math.min(r - l, t - b); let id; E.change((ev) => { id = M.addSpecial(ev, "qr", [[l, t], [l + side, t - side]], look); }, SPECIAL_NAME.qr); E.select({ kind: "special", id }); E.setTool("select"); }));
     else if (kind === "image") D.imageFile(E, (image) => { let id; E.change((ev) => { id = M.addSpecial(ev, "image", [[l, t], [r, b]], image); }, SPECIAL_NAME.image); E.select({ kind: "special", id }); E.setTool("select"); });
     else D.lineAppearance(E, kind, (look) => { let id; E.change((ev) => { id = M.addSpecial(ev, kind, [[l, t], [r, b]], look); }, SPECIAL_NAME[kind]); E.select({ kind: "special", id }); E.setTool("select"); });
     return;
@@ -232,6 +242,7 @@ export function dragEnd(E, d, p, sx, sy, e) {
     else E.change((ev) => M.addCircleGap(ev, h.control, gapScale(E), d.start, p), t("trc.act.circleGap"));
     return;
   }
+  if (d.kind === "newctl") { E.help(); placeControl(E, "control", d.start, d.sx, d.sy, { dir: d.moved ? dragDir(d.start, p) : null }); return; }
   if (d.kind === "move") { if (d.moved) applyMove(E, d.hit, d.start, p, e); else E.redraw(); return; }
   if (d.kind === "handle") { if (d.moved) applyHandle(E, d.handle, p); else if (E.tool === "bend" || e.altKey) click(E, p, sx, sy, e); else E.redraw(); }
 }
@@ -277,7 +288,7 @@ function moveGhost(E, d, p, e) {
       const o = E.layout.objs.find((x) => x.special === hit.id);
       if (o?.size) { const [x0, y0] = pts[0]; return { pts: [[x0, y0], [x0 + o.size[0], y0], [x0 + o.size[0], y0 - o.size[1]], [x0, y0 - o.size[1]]], closed: true }; }
     }
-    if (["text", "image", "rectangle", "ellipse"].includes(sp.kind)) {
+    if (["text", "image", "rectangle", "ellipse", "qr"].includes(sp.kind)) {
       const [a, b] = pts; return { pts: [[a[0], a[1]], [b[0], a[1]], [b[0], b[1]], [a[0], b[1]]], closed: true };
     }
     return { pts, closed: M.AREA_SPECIALS.includes(sp.kind) };
@@ -342,7 +353,7 @@ export function handles(E) {
     if (sp.kind === "descriptions") {
       const o = E.layout?.objs.find((x) => x.special === s.id);
       if (o?.size) out.push({ type: "descr", pt: [sp.pts[0][0] + o.size[0], sp.pts[0][1] - o.size[1]], id: s.id, topLeft: sp.pts[0], cells: o.widthCells });
-    } else if (["text", "image", "rectangle", "ellipse"].includes(sp.kind)) {
+    } else if (["text", "image", "rectangle", "ellipse", "qr"].includes(sp.kind)) {
       sp.pts.forEach((pt, i) => out.push({ type: "corner", pt, id: s.id, i }));
     } else if (!M.POINT_SPECIALS.includes(sp.kind)) sp.pts.forEach((pt, i) => out.push({ type: "corner", pt, id: s.id, i }));
   }
@@ -475,7 +486,7 @@ export function describeSelection(E) {
     const len = M.LINE_SPECIALS.includes(sp.kind) ? `<dt>${esc(t("trc.act.length"))}</dt><dd>${m0(M.mmToM(ev, M.pathLength(sp.pts)))}</dd>` : "";
     return `<h3>${esc(SPECIAL_NAME[sp.kind] || sp.kind)}</h3><dl class="tr-dl"><dt>${esc(t("trc.act.shownOn"))}</dt><dd>${esc(shown || t("trc.act.noCourse"))}</dd>${len}</dl>
       <div class="tr-btns"><button type="button" class="btn btn-sm" data-act="displayed-courses">${esc(t("trc.act.coursesBtn"))}</button>
-      ${["text", "line", "rectangle", "ellipse", "descriptions"].includes(sp.kind) ? `<button type="button" class="btn btn-sm" data-act="special-props">${esc(t("trc.act.edit"))}</button>` : ""}
+      ${["text", "line", "rectangle", "ellipse", "descriptions", "qr"].includes(sp.kind) ? `<button type="button" class="btn btn-sm" data-act="special-props">${esc(t("trc.act.edit"))}</button>` : ""}
       <button type="button" class="btn btn-sm" data-act="delete">${esc(t("trc.act.delete"))}</button></div>`;
   }
   return "";

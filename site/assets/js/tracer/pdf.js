@@ -31,7 +31,11 @@ export async function pdfLib() { await script(PDFLIB); return window.PDFLib; }
 export async function zip(files) { await script(FFLATE); return window.fflate.zipSync(files, { level: 0 }); }
 
 const PT = 72 / 25.4;                                         // points per mm
-export const PAGES = { A4: [210, 297], A3: [297, 420], A5: [148, 210], Letter: [215.9, 279.4], Legal: [215.9, 355.6] };
+export const PAGES = { A4: [210, 297], A3: [297, 420], A5: [148, 210], Letter: [215.9, 279.4], Legal: [215.9, 355.6],
+  // more papers (owner, 2026-11-16, after OCAD's paper sizes): the print shops' and the copiers'
+  A2: [420, 594], A6: [105, 148], B4: [250, 353], B5: [176, 250], SRA3: [320, 450], Tabloid: [279.4, 431.8] };
+/** The papers the ribbon's field offers (the dialog offers them all, and any size typed). */
+export const MAIN_PAGES = ["A4", "A3", "A5", "Letter", "Legal"];
 const esc = (s) => String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]);
 
 /** The page (mm) of a print area: Purple Pen keeps it in 1/100 inch. */
@@ -335,6 +339,13 @@ async function onePage(E, doc, L, ev, items, { box, page: pg, k, tile }, { withM
   const s = k * PT;                                          // points per map mm
   const m = pg.margin * PT;
   const T = (x, y) => [m + (x - box[0]) * s, m + (y - box[1]) * s];
+  // fine tuning to print over maps printed beforehand (owner, 2026-11-16, after OCAD): the whole page shifted (mm), scaled about
+  // its middle (99 to 101 %: the paper's stretch on the first pass) or mirrored (a transfer film)
+  const tune = adv && (adv.dx || adv.dy || (adv.scalePct && Math.abs(adv.scalePct - 100) > 1e-6) || adv.mirror) ? adv : null;
+  if (tune) {
+    const ks = (tune.scalePct || 100) / 100, sx = tune.mirror ? -ks : ks, cx = (pg.w * PT) / 2, cy = (pg.h * PT) / 2;
+    page.pushOperators(L.pushGraphicsState(), L.concatTransformationMatrix(sx, 0, 0, ks, cx - sx * cx + (tune.dx || 0) * PT, cy - ks * cy + (tune.dy || 0) * PT));
+  }
   const clip = [L.pushGraphicsState(), L.moveTo(m, m), L.lineTo(pg.w * PT - m, m), L.lineTo(pg.w * PT - m, pg.h * PT - m), L.lineTo(m, pg.h * PT - m), L.closePath(), L.clip(), L.endPath()];
   page.pushOperators(...clip);
   // another map of the event for this course part (the advanced level: maps.js)
@@ -347,6 +358,20 @@ async function onePage(E, doc, L, ev, items, { box, page: pg, k, tile }, { withM
   // the course's colours as inks (spot inks or plates): the purple overprints unless « layer » mode draws it opaque
   const paints = painter ? coursePaints(pr.setup, purple, ev.appearance.blend !== "none" && layer == null) : null;
   const plate = painter?.kind === "plate";
+  // the online layer printed under the map — or in its place, for an event set on OpenStreetMap (backdrop.js): an image of the
+  // page's box at 200 dpi, its credit at the page's foot
+  let credit = "";
+  const bgId = withMap && !plate && (!E.map || vector) ? M.printBgOf(ev, cd?.course || 0) : "";
+  if (bgId) {
+    try {
+      const B = await import("./backdrop.js"), cv = await B.backdropCanvas(E, bgId, box, (200 / 25.4) * k);
+      if (cv) {
+        const jpg = await doc.embedJpg(new Uint8Array(await (await new Promise((r) => cv.toBlob(r, "image/jpeg", 0.9))).arrayBuffer())), [bx, by] = T(box[0], box[1]);
+        page.drawImage(jpg, { x: bx, y: by, width: (box[2] - box[0]) * s, height: (box[3] - box[1]) * s });
+        credit = B.creditOf(bgId);
+      }
+    } catch (err) { console.error(err); }
+  }
   if (other) await extraMapPdf(E, doc, L, page, other, T, s, { fonts, rgb, painter });
   else if (vector) await vectorMap(E, doc, L, page, box, T, s, { fonts, rgb, painter }, layer == null ? "all" : "below", hide);
   else if (withMap && plate) E._plateSkipped = true;                // an image or PDF map cannot be separated
@@ -387,11 +412,19 @@ async function onePage(E, doc, L, ev, items, { box, page: pg, k, tile }, { withM
     await drawItemsPdf(L, doc, page, ev, rest, T, s, { fonts, rgb, images, purple, onInset, ...ink });
   } else await drawItemsPdf(L, doc, page, ev, items, T, s, { multiply, fonts, rgb, images, purple, onInset, ...ink });
   page.pushOperators(L.popGraphicsState());
+  // the background's credit, small, at the foot of the printed area (the layer's licence asks for it)
+  if (credit && fonts?.reg) {
+    const size = 5.5, w = fonts.reg.widthOfTextAtSize(credit, size);
+    page.drawRectangle({ x: m + 2, y: m + 2, width: w + 4, height: size + 3, color: L.rgb(1, 1, 1), opacity: 0.8 });
+    page.drawText(credit, { x: m + 4, y: m + 4, size, font: fonts.reg, color: L.rgb(0.15, 0.15, 0.15) });
+  }
   if (adv || plate) {
     const X = await import("./printx.js");
-    if (adv?.regmarks || plate) X.registrationMarks(L, page, { margin: pg.margin, dx: adv?.dx || 0, dy: adv?.dy || 0, painter });
-    if (adv?.geo) X.georeferencePage(L, doc, page, ev, { box, k, margin: pg.margin });
+    // the registration marks move with the page (the fine tuning above), as what they are aligned on
+    if (adv?.regmarks || plate) X.registrationMarks(L, page, { margin: pg.margin, painter });
+    if (adv?.geo && !tune) X.georeferencePage(L, doc, page, ev, { box, k, margin: pg.margin });
   }
+  if (tune) page.pushOperators(L.popGraphicsState());
   // a plate says which, in its top margin (in every plate's colour)
   if (plate) plateLabel(L, page, painter, `${ev.title || ""} — ${t("trc.pdf.plate", { name: painter.plate.name })}${painter.plate.angle != null ? ` · ${painter.plate.angle}°` : ""}`,
     fonts.reg, { x: Math.max(6, m), y: pg.h * PT - Math.max(9, m / 2 + 3) });
@@ -442,18 +475,21 @@ export async function coursesDialog(E, { only = null } = {}) {
   const anyParts = ids.some((id) => M.countParts(ev, M.cdCourse(id)) > 1), anyVars = ids.some((id) => M.hasVariations(ev, id));
   const v = await modal(E, { title: only ? t("trc.pdf.courseTitle", { name: esc(ev.courses[only]?.name || "") }) : t("trc.pdf.coursesTitle"), wide: true, ok: t("trc.pdf.create"), remember: "pdfCourses", body: `
     <div class="tr-checks">${[0, ...ids].map((id) => `<label class="tr-check"><input type="checkbox" name="c${id}" ${only ? (id === only ? "checked" : "") : id ? "checked" : ""}> ${id ? esc(ev.courses[id].name) : esc(t("trc.pdf.allControls"))}</label>`).join("")}</div>
-    <div class="tr-grid2">${field(t("trc.pdf.files"), sel("files", [["one", t("trc.pdf.filesOne")], ["course", t("trc.pdf.filesCourse")], ...(anyParts ? [["part", t("trc.pdf.filesPart")]] : [])], "one"))}
+    <div class="tr-grid2 top">${field(t("trc.pdf.files"), sel("files", [["one", t("trc.pdf.filesOne")], ["course", t("trc.pdf.filesCourse")], ...(anyParts ? [["part", t("trc.pdf.filesPart")]] : [])], "one"))}
     ${anyVars ? field(t("trc.pdf.variations"), sel("vars", [["all", t("trc.pdf.varsAll")], ["combined", t("trc.pdf.varsCombined")], ["teams", t("trc.pdf.varsTeams")]], "all")) : ""}
-    ${field(t("trc.pdf.content"), sel("content", [["map", t("trc.pdf.contentMap")], ["course", t("trc.pdf.contentCourse")]], "map"))}
+    ${field(t("trc.pdf.content"), sel("content", E.lent ? [["course", t("trc.pdf.contentCourse")]] : [["map", t("trc.pdf.contentMap")], ["course", t("trc.pdf.contentCourse")]], E.lent ? "course" : "map"), E.lent ? t("trc.dlg.lentPdf") : "")}
     ${field(t("trc.pdf.colours"), sel("color", [["cmyk", t("trc.pdf.cmyk")], ["rgb", t("trc.pdf.rgb")], ["spot", t("trc.pdf.spot")]], "cmyk"))}
+    ${field(t("trc.pdf.duplex"), sel("duplex", [["", t("trc.pdf.duplexNo")], ["course", t("trc.pdf.duplexCourse")]], ""), t("trc.pdf.duplexHint"))}
     <div class="tr-field-wrap" data-ink>${field(t("trc.pdf.ink"), `<input name="ink" value="${esc(defaultInk(E))}" maxlength="60" data-fresh>`, inkHint(E))}</div></div>
-    ${E.pro ? `<h4 class="tr-pro-h">${esc(t("trc.dlg.advanced"))}</h4><div class="tr-grid2">
+    ${E.pro ? `<h4 class="tr-pro-h">${esc(t("trc.dlg.advanced"))}</h4><div class="tr-grid2 top">
       ${field(t("trc.pdf.layout"), sel("layout", [["page", t("trc.pdf.layoutPage")], ["each", t("trc.pdf.layoutEach")], ["fill", t("trc.pdf.layoutFill")], ["combined", t("trc.pdf.layoutCombined")]], "page"))}
       ${field(t("trc.pdf.sheet"), sel("sheet", Object.keys(PAGES).map((p) => [p, p]), "A3"), t("trc.pdf.sheetHint"))}
       ${field(t("trc.pdf.back"), sel("back", [["", t("trc.pdf.backNone")], ["name", t("trc.pdf.backName")], ["classes", t("trc.pdf.backClasses")], ["team", t("trc.pdf.backTeam")]], ""), t("trc.pdf.backHint"))}
-      <label class="tr-check"><input type="checkbox" name="regmarks"> ${esc(t("trc.pdf.regmarks"))}</label>
-      ${field(t("trc.pdf.offset"), '<input name="dx" value="0" size="4" inputmode="decimal"> × <input name="dy" value="0" size="4" inputmode="decimal">', t("trc.pdf.offsetHint"))}
       ${field(t("trc.pdf.sep"), sel("sep", [["", t("trc.pdf.sepNone")], ["spot", t("trc.pdf.sepSpot")], ["process", t("trc.pdf.sepProcess")]], ""), t("trc.pdf.sepHint"))}
+      ${field(t("trc.pdf.offset"), '<span class="tr-inline"><input name="dx" value="0" size="4" inputmode="decimal"> × <input name="dy" value="0" size="4" inputmode="decimal"> mm</span>', t("trc.pdf.offsetHint"))}
+      ${field(t("trc.pdf.tuneScale"), '<span class="tr-inline"><input name="tscale" value="100" size="6" inputmode="decimal"> %</span>', t("trc.pdf.tuneScaleHint"))}</div>
+      <div class="tr-checkrow"><label class="tr-check"><input type="checkbox" name="regmarks"> ${esc(t("trc.pdf.regmarks"))}</label>
+      <label class="tr-check" title="${esc(t("trc.pdf.mirrorHint"))}"><input type="checkbox" name="mirror"> ${esc(t("trc.pdf.mirror"))}</label>
       <label class="tr-check"><input type="checkbox" name="geo" ${hasGeoEv(ev) ? "" : "disabled"}> ${esc(t("trc.pdf.geo"))}</label></div>` : ""}
     <p class="tr-hint">${t("trc.pdf.coursesHint", { where: where("print-area") })}</p>`,
     onOpen: (form) => {
@@ -462,6 +498,7 @@ export async function coursesDialog(E, { only = null } = {}) {
       form.addEventListener("change", sync); sync();
     },
     validate: (o) => {
+      if (E.pro && o.tscale && !(num(o.tscale) >= 90 && num(o.tscale) <= 110)) return t("trc.pdf.tuneScaleErr");
       if (!o.sep) return null;
       if (o.layout === "each" || o.layout === "fill") return t("trc.pdf.sepLayout");
       if (o.content === "map" && E.map?.kind !== "vector") return t("trc.pdf.sepVector");
@@ -491,11 +528,11 @@ export async function coursesDialog(E, { only = null } = {}) {
     }
     if (!designators.length) { E.toast(t("trc.pdf.noCourse")); return; }
     // the advanced level's options (printx.js)
-    const adv = E.pro ? { regmarks: !!v.regmarks, dx: num(v.dx) || 0, dy: num(v.dy) || 0, geo: !!v.geo } : null;
+    const adv = E.pro ? { regmarks: !!v.regmarks, dx: num(v.dx) || 0, dy: num(v.dy) || 0, geo: !!v.geo, scalePct: num(v.tscale) || 100, mirror: !!v.mirror } : null;
     const layoutMode = E.pro ? v.layout || "page" : "page";
     // for a print shop: spot inks, or one page per plate (vmap/inks.js)
     const sep = E.pro ? v.sep || "" : "", inks = sep || v.color === "spot";
-    const withMap = v.content === "map";
+    const withMap = v.content === "map" && !E.lent;
     const setup = inks ? inkSetup(E, { ink: v.ink, withMap }) : null;
     let plateList = null, lost = [];
     if (setup) {
@@ -513,9 +550,18 @@ export async function coursesDialog(E, { only = null } = {}) {
       const pr = !setup ? null : plateList ? { setup, spots: setup.spots, plates: plateList } : { setup, painter: spotPainter(L, doc, setup.spots) };
       if (layoutMode === "combined") {
         await coursePage(E, doc, L, list[0].cd, { withMap, rgb: v.color === "rgb", fonts, images, variationName: list[0].variation || "", adv, combined: list.slice(1), pr });
-      } else for (const d of list) {
-        const page = await coursePage(E, doc, L, d.cd, { withMap, rgb: v.color === "rgb", fonts, images, variationName: d.variation || "", team: d.team, leg: d.leg, adv, pr });
-        if (E.pro && v.back && page && layoutMode === "page" && !plateList) { const X = await import("./printx.js"); await X.backPage(L, doc, [page.getWidth(), page.getHeight()], X.backText(ev, d, v.back), fonts.bold); }
+      } else {
+        // both sides (owner, 2026-11-16, after OCAD's double-sided PDFs): a course's pages follow one another — its parts between
+        // map exchanges or map flips, front then back — and each course starts on a front: a blank back after an odd number of pages
+        let run = null, startAt = 0;
+        const close = () => { if (v.duplex && run != null && (doc.getPageCount() - startAt) % 2 && !plateList) { const lp = doc.getPage(doc.getPageCount() - 1); doc.addPage([lp.getWidth(), lp.getHeight()]); } };
+        for (const d of list) {
+          const key = `${d.cd.course}|${d.variation || ""}|${d.team ?? ""}|${d.leg ?? ""}`;
+          if (key !== run) { close(); run = key; startAt = doc.getPageCount(); }
+          const page = await coursePage(E, doc, L, d.cd, { withMap, rgb: v.color === "rgb", fonts, images, variationName: d.variation || "", team: d.team, leg: d.leg, adv, pr });
+          if (E.pro && v.back && page && layoutMode === "page" && !plateList) { const X = await import("./printx.js"); await X.backPage(L, doc, [page.getWidth(), page.getHeight()], X.backText(ev, d, v.back), fonts.bold); }
+        }
+        close();
       }
       E._mapEmbed = null;
       const bytes = await doc.save();
@@ -641,16 +687,22 @@ export async function printAreaDialog(E) {
   const pa = M.printAreaOf(ev, cd) || M.DEFAULT_PRINT_AREA();
   const page = pageOf(pa);
   const paperName = Object.entries(PAGES).find(([, [w, h]]) => (Math.abs(w - Math.min(page.w, page.h)) < 1 && Math.abs(h - Math.max(page.w, page.h)) < 1))?.[0] || "A4";
+  const known = Object.entries(PAGES).some(([, [w, h]]) => Math.abs(w - Math.min(page.w, page.h)) < 1 && Math.abs(h - Math.max(page.w, page.h)) < 1);
+  const bgs = await (await import("./backdrop.js")).printable(E).catch(() => []);
   const v = await modal(E, { title: t("trc.pdf.areaTitle", { name: cd.course ? ev.courses[cd.course].name : t("trc.pdf.allControls") }), wide: true, body: `
-    <div class="tr-grid2">${field(t("trc.pdf.paper"), sel("paper", Object.keys(PAGES).map((k) => [k, k]), paperName))}
+    <div class="tr-grid2 top">${field(t("trc.pdf.paper"), sel("paper", [...Object.keys(PAGES).map((k) => [k, `${k} (${Math.round(PAGES[k][0])} × ${Math.round(PAGES[k][1])} mm)`]), ["custom", t("trc.pdf.paperCustom")]], known ? paperName : "custom"))}
+    <div data-custom ${known ? "hidden" : ""}>${field(t("trc.pdf.paperSize"), `<span class="tr-inline"><input name="pw" value="${Math.round(Math.min(page.w, page.h))}" size="5" inputmode="decimal"> × <input name="ph" value="${Math.round(Math.max(page.w, page.h))}" size="5" inputmode="decimal"> mm</span>`)}</div>
     ${field(t("trc.pdf.orientation"), sel("orient", [["auto", t("trc.pdf.orientAuto")], ["portrait", t("trc.pdf.portrait")], ["landscape", t("trc.pdf.landscape")]], pa.auto && !pa.restrictOrientation ? "auto" : pa.landscape ? "landscape" : "portrait"))}
     ${field(t("trc.pdf.margins"), `<input name="margin" value="${Math.round(page.margin)}" inputmode="numeric">`)}
     ${field(t("trc.pdf.area"), sel("where", [["auto", t("trc.pdf.whereAuto")], ["draw", t("trc.pdf.whereDraw")], ["view", t("trc.pdf.whereView")], ["keep", t("trc.pdf.whereKeep")]], pa.auto ? "auto" : "keep"))}
-    ${field(t("trc.pdf.over"), sel("over", [["tile", t("trc.pdf.overTile")], ["crop", t("trc.pdf.overCrop")]], pa.restrict ? "crop" : "tile"))}</div>
+    ${field(t("trc.pdf.over"), sel("over", [["tile", t("trc.pdf.overTile")], ["crop", t("trc.pdf.overCrop")]], pa.restrict ? "crop" : "tile"))}
+    ${bgs.length ? field(t("trc.pdf.printBg"), sel("bg", [["", t("trc.pdf.printBgNone")], ...bgs], M.printBgOf(ev, cd.course || 0)), t("trc.pdf.printBgHint")) : ""}</div>
     <label class="tr-check"><input type="checkbox" name="all"> ${esc(t("trc.pdf.allCourses"))}</label>
-    <p class="tr-hint">${t("trc.pdf.areaShow", { where: where("view-printarea") })}</p>` });
+    <p class="tr-hint">${t("trc.pdf.areaShow", { where: where("view-printarea") })} ${t("trc.pdf.areaPresets", { where: where("canvases") })}</p>`,
+    onOpen: (f) => f.elements.paper.addEventListener("change", () => { f.querySelector("[data-custom]").hidden = f.elements.paper.value !== "custom"; }),
+    validate: (o) => (o.paper === "custom" && !(num(o.pw) >= 50 && num(o.ph) >= 50 && num(o.pw) <= 1500 && num(o.ph) <= 1500) ? t("trc.pdf.paperErr") : null) });
   if (!v) return;
-  const [w, h] = PAGES[v.paper];
+  const [w, h] = v.paper === "custom" ? [Math.min(num(v.pw), num(v.ph)), Math.max(num(v.pw), num(v.ph))] : PAGES[v.paper];
   const land = v.orient === "landscape";
   const make = (old) => {
     const out = { ...M.DEFAULT_PRINT_AREA(), ...old, pageW: Math.round(w / 0.254), pageH: Math.round(h / 0.254), landscape: land, margins: Math.round((num(v.margin) || 0) / 0.254),
@@ -674,6 +726,8 @@ export async function printAreaDialog(E) {
     drawn = [Math.min(a[0], b2[0]), Math.min(a[1], b2[1]), Math.max(a[0], b2[0]), Math.max(a[1], b2[1])];
   }
   E.change((x) => {
+    // the background printed under the map: the course's, or every course's
+    if (v.bg != null) { if (v.all) { x.printBg = v.bg; for (const c of Object.values(x.courses)) delete c.printBg; } else if (cd.course) x.courses[cd.course].printBg = v.bg; else x.printBg = v.bg; }
     if (v.all) { x.printArea = make(x.printArea); for (const c of Object.values(x.courses)) c.printArea = make(c.printArea); }
     else if (cd.course) { const c = x.courses[cd.course]; if (cd.part >= 0) c.partAreas = { ...(c.partAreas || {}), [cd.part]: make(c.partAreas?.[cd.part] || c.printArea) }; else c.printArea = make(c.printArea); }
     else x.printArea = make(x.printArea);

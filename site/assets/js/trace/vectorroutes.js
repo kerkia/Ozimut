@@ -25,6 +25,11 @@
 //   too, which ISOM says does not slow); by number also: 409 walk with good visibility (its stripes read as slow running), the
 //   uncrossable marsh (307; ISOM 2000's 309) and the impassable vegetation (ISSprOM's 411); 529, a prominent impassable line.
 // Contours, points, text and the course are not drawn. A map that is not the one shown is placed through both georeferences.
+// A table per symbol (the Tracer's « Vitesses par symbole », owner 2026-11-16, after OCAD's Route Analyzer): `table` { symbol id:
+// { role, speed } } overrides what a symbol is (`AREA_ROLES`, `LINE_ROLES`; "none": ignored) and, with `speed` (% of white forest's
+// speed; 0: impassable), how fast it is crossed or followed — two more planes, `speed` (areas) and `pspeed` (lines), which the
+// cells take over the class's own speed (trace/routechoice.js cells, costs). `symbolRoles` lists a map's symbols with what
+// they are read as without a table.
 
 import { A, INK, kindOf } from "./routechoice.js";
 
@@ -209,6 +214,53 @@ const crossLine = (def, std) => std.cross.has(num(def));
 const slowOf = (def, std) => std.slow.get(num(def));
 const classByNumber = (def, std) => std.area.get(num(def));
 
+// ---- the table per symbol (the Tracer) ----------------------------------------------------------------------------------------
+/** What an area symbol may be, by name: the engine's classes, the slowing ground's three levels, "none" (ignored). */
+export const AREA_ROLES = { white: A.WHITE, open: A.OPEN, rough: A.ROUGH, g1: A.G1, g2: A.G2, g3: A.G3, marsh: A.MARSH, paved: A.PAVED, grey: A.GREY,
+  shallow: A.SHALLOW, water: A.WATER, building: A.BUILDING, oob: A.OOB };
+const SLOW_ROLES = { slow1: 1, slow2: 2, slow3: 3 };
+/** What a line symbol may be: a path of three kinds, impassable, a handrail, passable but slow to cross, a stream, or ignored. */
+export const LINE_ROLES = ["track", "path", "small", "block", "cross", "hand", "stream", "none"];
+const LINE_OF = { track: "path3", path: "path2", small: "path1", block: "block", hand: "hand", stream: "blue", cross: "hand" };
+const NAME_OF_CLASS = Object.fromEntries(Object.entries(AREA_ROLES).map(([k, v]) => [v, k]));
+/** The speed (% of white forest) a role has in the settings' speeds, or null (impassable, or no speed of its own). */
+export function roleSpeed(role, speeds) {
+  const sp = speeds || {};
+  switch (role) {
+    case "white": return 100;
+    case "open": case "rough": case "g1": case "g2": case "g3": case "marsh": case "paved": case "grey": case "shallow": case "track": case "path": case "small":
+    case "slow1": case "slow2": case "slow3": return sp[role] ?? null;
+    default: return null;
+  }
+}
+/**
+ * A map's area and line symbols as the routes read them without a table: [{ id, name, kind ("area" | "line"), n (objects),
+ * role (see AREA_ROLES, "slow1"…"slow3", LINE_ROLES; "none": not read), rgb (the symbol's main colour, for a swatch) }], in the
+ * order of their numbers; the symbols with no object are left out.
+ */
+export function symbolRoles(map) {
+  const std = STANDARDS[standardOf(map)], out = [];
+  for (const d of map.symdefs) {
+    if (!d.visible || (d.kind !== "area" && d.kind !== "line")) continue;
+    const n = d.symbols.filter((s) => s.visible !== false && (d.kind === "area" ? s.area : s.path)).length;
+    if (!n || num(d) >= 600 || !(num(d) > 0)) continue;
+    let role = "none", col = null;
+    if (d.kind === "area") {
+      const sl = slowOf(d, std), cls = classByNumber(d, std) ?? areaClass(d, map);
+      col = areaColour(d, map);
+      if (sl) role = `slow${sl}`;
+      else if (sl === 0 && !d.fill) role = "none";
+      else if (cls != null && col) role = NAME_OF_CLASS[cls] || "none";
+    } else {
+      const r = lineRole(d, std);
+      col = lineColours(d)[0] || null;
+      role = r === "path3" ? "track" : r === "path2" ? "path" : r === "path1" ? "small" : r === "block" ? "block" : r === "blue" ? "stream" : crossLine(d, std) ? "cross" : r === "hand" ? "hand" : "none";
+    }
+    out.push({ id: String(d.id), name: d.name || "", kind: d.kind, n, role, rgb: col?.cmyk ? rgbOf(col).map((v) => Math.round(v)) : null });
+  }
+  return out.sort((a, b) => parseFloat(a.id) - parseFloat(b.id) || a.id.localeCompare(b.id));
+}
+
 // ---- drawing the layers ------------------------------------------------------------------------------------------------------
 function path2d(cmds) {
   const p = new Path2D();
@@ -224,10 +276,11 @@ function path2d(cmds) {
 /**
  * The layers of trace/routechoice.js on a W × H grid: T the affine from the file's mm to the grid's pixels; extra: the course
  * setter's own objects, in the file's mm — { areas: [[x, y]…] out of bounds (ISCD 709, dangerous areas), lines: [[x, y]…]
- * not to be crossed (708) }, which the Tracer keeps apart from the map. Returns { area, path, blue, block, hand } (Uint8Array,
- * one per pixel), and counts of what was drawn.
+ * not to be crossed (708) }, which the Tracer keeps apart from the map; table: the Tracer's table per symbol (see above), or
+ * null. Returns { area, path, blue, block, hand, cross, slow } (Uint8Array, one per pixel) — with a table that sets speeds also
+ * speed and pspeed (1-250: % of white forest's speed; 255: impassable) — and counts of what was drawn.
  */
-export function layers(v, T, W, H, extra = null) {
+export function layers(v, T, W, H, extra = null, table = null) {
   const t0 = Date.now(), N = W * H, map = v.map;
   const cv = typeof OffscreenCanvas !== "undefined" ? new OffscreenCanvas(W, H) : Object.assign(document.createElement("canvas"), { width: W, height: H });
   const g = cv.getContext("2d", { willReadFrequently: true });
@@ -236,6 +289,8 @@ export function layers(v, T, W, H, extra = null) {
   const read = (into, value) => { const d = g.getImageData(0, 0, W, H).data; let n = 0; for (let i = 0; i < N; i++) if (d[4 * i + 3] > 110) { into[i] = value; n++; } return n; };
   const area = new Uint8Array(N), path = new Uint8Array(N), blue = new Uint8Array(N), block = new Uint8Array(N), hand = new Uint8Array(N);
   const cross = new Uint8Array(N), slow = new Uint8Array(N), slowAreas = [null, [], [], []];
+  // the table's speeds: areas (in the colour table's order) and lines, each with its value (1-250 %, 255 impassable)
+  const speedAreas = [], speedLines = [], spv = (x) => (x <= 0 ? 255 : Math.max(1, Math.min(250, Math.round(x))));
   // the areas, colour by colour from the bottom of the colour table
   const z = new Map(map.colors.map((c, i) => [c, i]));
   const groups = new Map();
@@ -253,26 +308,38 @@ export function layers(v, T, W, H, extra = null) {
       continue;
     }
     if (!isArea && !isLine) continue;
+    // the table's word on this symbol: another role, a speed of its own
+    const ov = table?.[String(d.id)] || null, orole = ov?.role || "", ospeed = Number.isFinite(ov?.speed) ? ov.speed : null;
+    if (orole === "none") continue;
     for (const s of d.symbols) {
       if (s.visible === false) continue;
       if (isArea && s.area) {
+        const col = areaColour(d, map), zc = col ? z.get(col) ?? -1 : 1e6;
+        if (ospeed != null) speedAreas.push({ area: s.area, z: zc, v: spv(ospeed) });
+        if (SLOW_ROLES[orole]) { slowAreas[SLOW_ROLES[orole]].push(s.area); counts.slows++; continue; }
         // stony or sandy ground, a boulder field: over the vegetation, not in its place (a fill of its own still counts)
-        const sl = slowOf(d, std);
+        const sl = orole ? undefined : slowOf(d, std);
         if (sl !== undefined) { if (sl) { slowAreas[sl].push(s.area); counts.slows++; } if (!d.fill) continue; }
-        const cls = classByNumber(d, std) ?? areaClass(d, map), col = areaColour(d, map);
-        if (cls == null || !col) continue;
-        const key = `${z.get(col) ?? -1}|${cls}`;
-        if (!groups.has(key)) groups.set(key, { z: z.get(col) ?? -1, cls, list: [] });
+        const cls = orole in AREA_ROLES ? AREA_ROLES[orole] : classByNumber(d, std) ?? areaClass(d, map);
+        if (cls == null || (!col && !(orole in AREA_ROLES))) continue;
+        const key = `${zc}|${cls}`;
+        if (!groups.has(key)) groups.set(key, { z: zc, cls, list: [] });
         groups.get(key).list.push(s.area);
         counts.areas++;
       } else if (isLine && s.path) {
+        const own = Math.max(d.color && d.width > 0 ? d.width : d.maxThick || d.width || 0.25, 0.1);
         // passable but slow to get over: at the line's own width (an earth bank's tags, a fence's ticks are not the line)
-        if (crossLine(d, std)) {
+        if (orole ? orole === "cross" : crossLine(d, std)) {
           if (!groups.has("line|cross")) groups.set("line|cross", { role: "cross", list: [] });
-          groups.get("line|cross").list.push({ path: s.path, width: Math.max(d.color && d.width > 0 ? d.width : d.maxThick || d.width || 0.25, 0.1) });
+          groups.get("line|cross").list.push({ path: s.path, width: own });
           counts.crosses++;
         }
-        const role = lineRole(d, std);
+        let role = orole ? LINE_OF[orole] || null : lineRole(d, std);
+        // a speed of its own makes a line a way to follow (a small path when the table names no kind); 0: it blocks
+        if (ospeed != null) {
+          if (ospeed <= 0) role = "block";
+          else { if (!/^path/.test(role || "")) role = "path1"; speedLines.push({ path: s.path, width: Math.max(d.maxThick || d.width || 0.25, 0.1), v: spv(ospeed) }); }
+        }
         if (!role) continue;
         const key = `line|${role}`;
         if (!groups.has(key)) groups.set(key, { role, list: [] });
@@ -331,7 +398,28 @@ export function layers(v, T, W, H, extra = null) {
     counts.bounds = read(mark, 1);
     for (let i = 0; i < N; i++) if (mark[i]) { block[i] = 1; path[i] = 0; }
   }
-  return { area, path, blue, block, hand, cross, slow, counts, ms: Date.now() - t0 };
+  // the table's speeds: the areas in the colour table's order (the upper one wins), the lines over them
+  let speed = null, pspeed = null;
+  if (speedAreas.length) {
+    speed = new Uint8Array(N);
+    const byZ = new Map();
+    for (const a of speedAreas) { const k = `${a.z}|${a.v}`; if (!byZ.has(k)) byZ.set(k, { z: a.z, v: a.v, list: [] }); byZ.get(k).list.push(a.area); }
+    for (const grp of [...byZ.values()].sort((a, b) => a.z - b.z)) { begin(); for (const ar of grp.list) g.fill(path2d(ar.commands()), "evenodd"); read(speed, grp.v); }
+  }
+  if (speedLines.length) {
+    pspeed = new Uint8Array(N);
+    const byV = new Map();
+    for (const l of speedLines) { if (!byV.has(l.v)) byV.set(l.v, []); byV.get(l.v).push(l); }
+    // the slower first: where two meet, the faster is kept
+    for (const [val, list] of [...byV.entries()].sort((a, b) => a[0] - b[0])) {
+      begin(); g.lineCap = "round"; g.lineJoin = "round";
+      for (const l of list) { g.lineWidth = Math.max(l.width, minMm); g.stroke(path2d(l.path.commands())); }
+      read(pspeed, val);
+    }
+    for (let i = 0; i < N; i++) if (block[i]) pspeed[i] = 0;
+  }
+  counts.table = table ? Object.keys(table).length : 0;
+  return { area, path, blue, block, hand, cross, slow, ...(speed ? { speed } : {}), ...(pspeed ? { pspeed } : {}), counts, ms: Date.now() - t0 };
 }
 
 // ---- the layers kept with a map analysis's circuit (owner, 2026-11-05) ---------------------------------------------------------
@@ -373,14 +461,15 @@ export async function unpackLayers(buf) {
   }
   return { w, h, area, path, blue, block, hand, cross, slow };
 }
-/** The planes a vector map's layers carry. */
+/** The planes a vector map's layers carry; OPTIONAL_KEYS: those only a table per symbol makes (the Tracer). */
 export const LAYER_KEYS = ["area", "path", "blue", "block", "hand", "cross", "slow"];
+export const OPTIONAL_KEYS = ["speed", "pspeed"];
 /** Layers of W0 × H0 taken to W × H, nearest pixel (a map too large for the routes' grid is read smaller). */
 export function resampleLayers(L, W, H) {
   if (L.w === W && L.h === H) return L;
   const out = { w: W, h: H };
   const xs = Int32Array.from({ length: W }, (_, x) => Math.min(L.w - 1, Math.floor(((x + 0.5) * L.w) / W)));
-  for (const k of LAYER_KEYS) {
+  for (const k of [...LAYER_KEYS, ...OPTIONAL_KEYS.filter((x) => L[x])]) {
     const src = L[k] || new Uint8Array(L.w * L.h), dst = new Uint8Array(W * H);
     for (let y = 0; y < H; y++) { const r = Math.min(L.h - 1, Math.floor(((y + 0.5) * L.h) / H)) * L.w, o = y * W; for (let x = 0; x < W; x++) dst[o + x] = src[r + xs[x]]; }
     out[k] = dst;

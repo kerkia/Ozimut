@@ -126,6 +126,17 @@ export const ICON = {
   colors: '<circle cx="8" cy="9" r="4.5"/><circle cx="16" cy="9" r="4.5"/><circle cx="12" cy="15.5" r="4.5"/>',
   link: '<path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1"/><path d="M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1"/>',
   symbol: '<rect x="4" y="4" width="16" height="16" rx="1.5"/><path d="M8 16l4-8 4 8M9.5 13h5"/>',
+  // the route analyzer, the relief, the backgrounds, the presets (2026-11-16)
+  eyeoff: '<path d="M3 3l18 18"/><path d="M10.6 5.7A10 10 0 0 1 12 5.5c6.4 0 10 6.5 10 6.5a17 17 0 0 1-3.1 3.9M6.3 7.3A17 17 0 0 0 2 12s3.6 6.5 10 6.5a10 10 0 0 0 4-.8"/><path d="M9.9 9.9a2.8 2.8 0 0 0 4 4"/>',
+  profile: '<path d="M3 20h18"/><path d="M3 17l4-6 3 3 4-8 3 5 4-3" /><path d="M7 11v9M14 6v14" stroke-dasharray="2 2.5"/>',
+  dem: '<path d="M3 19l5.5-9 3.5 5 2.5-3.5L21 19z"/><path d="M4 8h3M4 5h5M4 11h2" />',
+  backdrop: '<path d="M3 6l6-2 6 2 6-2v14l-6 2-6-2-6 2z"/><path d="M9 4v14M15 6v14"/>',
+  track: '<path d="M5 19c2-6 5 1 7-5s4 0 7-9"/><circle cx="5" cy="19" r="1.6"/><circle cx="19" cy="5" r="1.6"/>',
+  qr: '<rect x="4" y="4" width="6" height="6"/><rect x="14" y="4" width="6" height="6"/><rect x="4" y="14" width="6" height="6"/><path d="M14 14h2v2h-2zM18 14h2M14 18h2M18 18h2v2"/>',
+  preset: '<rect x="4" y="3" width="13" height="17" rx="1.5"/><path d="M8 3v5h5V3"/><path d="M20 7v13a1 1 0 0 1-1 1H8"/>',
+  wand: '<path d="M5 19L16 8"/><path d="M15 5l.8 1.7L17.5 7.5l-1.7.8L15 10l-.8-1.7L12.5 7.5l1.7-.8zM19 12l.5 1 1 .5-1 .5-.5 1-.5-1-1-.5 1-.5zM8 4l.5 1 1 .5-1 .5L8 7l-.5-1-1-.5 1-.5z"/>',
+  speed: '<path d="M4 18a8.5 8.5 0 1 1 16 0"/><path d="M12 14l4-5"/><circle cx="12" cy="14" r="1.3"/>',
+  lookhere: '<circle cx="11" cy="11" r="6"/><path d="M15.5 15.5L21 21"/><path d="M11 8v6M8 11h6"/>',
   tour: '<circle cx="5" cy="6" r="2"/><circle cx="18" cy="5" r="2"/><circle cx="19" cy="18" r="2"/><circle cx="6" cy="18" r="2"/><path d="M7 6.3l9-1M18.2 7l.6 9M17 18.2l-9-.2M5.8 16l-.6-8" stroke-dasharray="2.5 2"/>',
 };
 export const svg = (k, s = 18) => `<svg width="${s}" height="${s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${ICON[k] || ""}</svg>`;
@@ -155,7 +166,7 @@ export const ACT_ICON = {
   // the special objects (Objets spéciaux)
   water: "water", "first-aid": "firstaid", "optional-crossing-point": "crossing", "forbidden-route": "forbidden", "registration-mark": "regmark",
   boundary: "boundary", "out-of-bounds": "oob", "dangerous-area": "danger", "temporary-construction": "construction", "white-out": "whiteout",
-  line: "line", text: "text", image: "image", rectangle: "rect", ellipse: "ellipse", descriptions: "descr",
+  line: "line", text: "text", image: "image", rectangle: "rect", ellipse: "ellipse", descriptions: "descr", qr: "qr",
   // the advanced level
   "import-courses": "import", classes: "list", "var-phi": "phi", "random-section": "shuffle", "course-form": "string", "finish-at-start": "finish",
   "relay-teams": "team", "rep-controls": "units", "routes-alt-clear": "trash", "control-lock": "lock", "trail-answer": "trailo", "dual-symbol": "symbol", "my-symbols": "symbol",
@@ -164,6 +175,10 @@ export const ACT_ICON = {
   "maps": "multimap", "map-colors": "colors", "exercise": "mask", "map-templates": "layers", "field-states": "flag", "pdf-cards": "punch", "pdf-overprint": "regmark",
   "mtbo-oneway": "route", "mtbo-forbidden-route": "forbidden", "mtbo-obstacle": "stretch", "mtbo-forbidden-pass": "close", "mtbo-danger": "danger",
   inset: "inset", mask: "mask", "event-discipline": "bike", "mask-hole": "mask", "mask-holes-clear": "trash",
+  // the route analyzer, the relief, the backgrounds, the presets, the descriptions read from the map (2026-11-16)
+  routes: "routes", "route-calc": "routes", "route-table": "speed", "rep-routes": "list", profile: "profile", dem: "dem", backdrop: "backdrop",
+  "import-track": "track", "look-here": "lookhere", canvases: "preset", "auto-desc": "wand", "desc-table": "table", "export-garmin": "globe", "qr-code": "qr",
+  "classes-csv": "table", "tune-print": "regmark",
 };
 /** A menu entry's icon (an empty slot of the same width when it has none, so the labels line up). */
 export const actIcon = (act, s = 16) => (ACT_ICON[act] ? svg(ACT_ICON[act], s) : `<span class="tr-mi-none" style="width:${s}px"></span>`);

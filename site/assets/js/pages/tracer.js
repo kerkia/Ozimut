@@ -316,6 +316,13 @@ async function ocadCourses(file) {
   return { ev, self, forked: got.forked, logos };
 }
 const fmtN = (v) => new Intl.NumberFormat(locale(), { maximumFractionDigits: 0 }).format(v);
+/** « 48.3912, -1.1734 » (or with decimal commas and « ; ») → [lat, lon], or null. */
+function osmPlace(text) {
+  const m = String(text || "").trim().match(/^(-?\d{1,2}(?:[.,]\d+)?)\s*[;,\s]\s*(-?\d{1,3}(?:[.,]\d+)?)$/);
+  if (!m) return null;
+  const lat = Number(m[1].replace(",", ".")), lon = Number(m[2].replace(",", "."));
+  return Math.abs(lat) <= 85 && Math.abs(lon) <= 180 ? [lat, lon] : null;
+}
 /** A file's size in megabytes, one decimal, in the interface's language. */
 const fmtMb = (bytes) => t("trc.page.mb", { n: new Intl.NumberFormat(locale(), { minimumFractionDigits: 1, maximumFractionDigits: 1 }).format(bytes / 1e6) });
 /** An OCAD or Mapper map opened as soon as it is chosen: its scale, size and georeference shown before the event is made. */
@@ -343,7 +350,13 @@ async function newEvent(main, files = null) {
     <p class="tr-hint">${t("trc.gen.toMapper")}</p>
     <div class="tr-grid2">${field(escA(t("trc.page.scaleLabel")), '<input name="scale" value="10000" inputmode="numeric">')}
     ${field(escA(t("trc.page.dpiLabel")), `<input name="dpi" inputmode="numeric" placeholder="${escA(t("trc.page.dpiPh"))}">`, escA(t("trc.page.dpiHint")))}
-    ${field(escA(t("trc.page.stdLabel")), `<select name="std"><option value="2017">${escA(t("trc.page.stdForest"))}</option><option value="Spr2019">${escA(t("trc.page.stdSprint"))}</option></select>`)}</div>`,
+    ${field(escA(t("trc.page.stdLabel")), `<select name="std"><option value="2017">${escA(t("trc.page.stdForest"))}</option><option value="Spr2019">${escA(t("trc.page.stdSprint"))}</option></select>`)}</div>
+    <details class="tr-details" id="tr-new-osm"><summary>${escA(t("trc.osm.summary"))}</summary>
+      <p class="tr-hint">${escA(t("trc.osm.intro"))}</p>
+      <div class="tr-grid2">${field(escA(t("trc.osm.where")), '<input name="osmll" placeholder="48.3912, -1.1734" inputmode="decimal">', escA(t("trc.osm.whereHint")))}
+      ${field(escA(t("trc.osm.sheet")), `<select name="osmsheet"><option value="210x297">A4 ${escA(t("trc.osm.portrait"))}</option><option value="297x210">A4 ${escA(t("trc.osm.landscape"))}</option><option value="297x420">A3 ${escA(t("trc.osm.portrait"))}</option><option value="420x297">A3 ${escA(t("trc.osm.landscape"))}</option></select>`)}</div>
+      <p><button type="button" class="btn btn-sm" id="tr-osm-here">${escA(t("trc.osm.here"))}</button> <span class="tr-hint" id="tr-osm-msg"></span></p>
+    </details>`,
   onOpen: (f, done) => {
     bindKind(f, races);
     const show = (html, bad = false) => { const p = f.querySelector("#tr-new-map"); p.innerHTML = html; p.classList.toggle("tr-bad", bad); };
@@ -369,10 +382,34 @@ async function newEvent(main, files = null) {
     };
     dropZone(f.querySelector("#tr-new-drop"), take);
     if (files?.length) take(files);
+    // no map: the event set on OpenStreetMap, at a place typed or the device's
+    f.querySelector("#tr-osm-here").addEventListener("click", () => {
+      const msg = f.querySelector("#tr-osm-msg");
+      if (!navigator.geolocation) { msg.textContent = t("trc.osm.noGps"); return; }
+      msg.textContent = t("trc.osm.locating");
+      navigator.geolocation.getCurrentPosition((p) => { f.elements.osmll.value = `${p.coords.latitude.toFixed(5)}, ${p.coords.longitude.toFixed(5)}`; msg.textContent = ""; }, () => { msg.textContent = t("trc.osm.noGps"); }, { enableHighAccuracy: false, timeout: 15000 });
+    });
   },
-  validate: (o) => kindProblem(o) || (!mapFile ? t("trc.page.needMap") : isVectorMap(mapFile.name) && !vec ? t("trc.page.mapReading") : !(Number(o.scale) > 100) ? t("trc.page.badScale")
+  validate: (o) => kindProblem(o) || (!mapFile && osmPlace(o.osmll) ? (!(Number(o.scale) > 100) ? t("trc.page.badScale") : null) : !mapFile && String(o.osmll || "").trim() ? t("trc.osm.badPlace") : !mapFile ? t("trc.page.needMap") : isVectorMap(mapFile.name) && !vec ? t("trc.page.mapReading") : !(Number(o.scale) > 100) ? t("trc.page.badScale")
     : !isPdf(mapFile.name, mapFile.type) && !vec && o.dpi && !(Number(o.dpi) > 10) ? t("trc.page.badDpi") : null) });
   if (!v) return handed ? "import" : null;               // a .ppen, .ozmt or .ocnt dropped here went on to the import
+  // no map file: an event set on OpenStreetMap (owner, 2026-11-16) — a blank sheet at the scale chosen, georeferenced round the
+  // place given, north up; OpenStreetMap shows under the courses and prints in the map's place (tracer/backdrop.js)
+  if (!mapFile) {
+    const [lat, lon] = osmPlace(v.osmll), [w, h] = String(v.osmsheet || "210x297").split("x").map(Number), scale = Number(v.scale), mPerMm = scale / 1000;
+    const created0 = await createEvent(v, races);
+    if (!created0) return null;
+    const ev0 = M.newEvent({ title: created0.title, lang: lang(), standard: v.std, map: { kind: "none", scale, w, h } });
+    if (v.std === "Spr2019") ev0.appearance.itemScaling = "RelativeTo15000";
+    const p = (lat * Math.PI) / 180, mLat = 111132.92 - 559.82 * Math.cos(2 * p) + 1.175 * Math.cos(4 * p), mLon = 111412.84 * Math.cos(p) - 93.5 * Math.cos(3 * p);
+    const kx = mLon / mPerMm, ky = mLat / mPerMm;         // map mm per degree east and north
+    ev0.geo = { a: kx, b: 0, c: w / 2 - kx * lon, d: 0, e: ky, f: h / 2 - ky * lat };
+    ev0.printBg = "osm";
+    await S.saveEvent(created0.id, ev0, null, 0);
+    history.replaceState(null, "", `#/orga-tracer?id=${created0.id}${inOwnTab() ? "&fen=1" : ""}`);
+    openEvent(created0.id);
+    return created0.id;
+  }
   const bytes = vec?.bytes || new Uint8Array(await mapFile.arrayBuffer()), type = mimeOf(mapFile.name, mapFile.type);
   let err = null;
   const src = vec || await openMap(bytes, type, mapFile.name, Number(v.dpi) || 0).catch((e) => { err = e; return null; });
@@ -441,7 +478,7 @@ async function importEvent(main, files = []) {
             const r = await readOcn(await file.arrayBuffer());
             st.ev = r.ev; st.ocn = file; st.ppen = null; st.ocad = null;
             if (r.map) { st.map = new File([r.map.bytes], r.map.name, { type: r.map.type || mimeOf(r.map.name, "") }); st.mapFromOcn = true; }
-            st.extra = r.extra || [];
+            st.extra = r.extra || []; st.dem = r.dem || null;
             if (f.elements.title && !f.elements.title.value) f.elements.title.value = st.ev.title || "";
           } catch (e) { st.notes.push(t("trc.page.fileErr", { name: escA(file.name), err: escA(e.message) })); }
         } else if (isPpenFile(file)) {
@@ -493,6 +530,7 @@ async function importEvent(main, files = []) {
     if (!ev.title) ev.title = created.title;
     await S.saveMap(created.id, bytes, type, null);
     for (const m of st.extra || []) await S.saveExtraMap(created.id, m.id, m.bytes, m.type || mimeOf(m.name, ""), null).catch(() => null);
+    if (st.dem) await S.saveDem(created.id, st.dem, null).catch(() => null);          // the file's elevation model (relief.js)
     await S.api(`/${created.id}`, { method: "PUT", body: { map: { name: file.name, type, size: bytes.length } } });
     await S.saveEvent(created.id, ev, null, 0);
     history.replaceState(null, "", `#/orga-tracer?id=${created.id}${inOwnTab() ? "&fen=1" : ""}`);
@@ -550,7 +588,7 @@ async function openLocal(id, onClose) {
   if (leaving) return true;
   await closeEditor();
   pageMain.innerHTML = "";
-  await openEditor({ container: pageMain, meta: rec.meta, role: rec.role, you: rec.you, ev: rec.ev, version: rec.baseVersion, mapSrc, key, readOnly: rec.role === "viewer", offline: true, onClose, onStart });
+  await openEditor({ container: pageMain, meta: rec.meta, role: rec.role, you: rec.you, ev: rec.ev, version: rec.baseVersion, mapSrc, key, readOnly: rec.role === "viewer", offline: true, dem: rec.dem || null, onClose, onStart });
   return true;
 }
 function alertBox(text) { return modal({ title: t("trc.page.title"), body: `<p>${escA(text)}</p>`, cancel: null }); }
@@ -621,7 +659,7 @@ async function openEvent(id, { align = false } = {}) {
     await closeEditor();
     if (leaving) return;
     pageMain.innerHTML = "";
-    await openEditor({ container: pageMain, meta: info.event, role: info.role, you: info.you, ev, version: evR?.version || 0, mapSrc, key, readOnly: info.role === "viewer", align, dirty,
+    await openEditor({ container: pageMain, meta: info.event, role: info.role, you: info.you, ev, version: evR?.version || 0, mapSrc, key, readOnly: info.role === "viewer", lent: !!info.lent, align, dirty,
       lockHolder: info.lock, onClose, onStart });
   } catch (e) {
     loading.remove();

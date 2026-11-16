@@ -30,7 +30,7 @@ function script(src) {
 }
 
 /** The .ozmt's bytes: the event, and the map when given ({ name, type, bytes }); extra: the other maps ([{ id, name, type, bytes }]). */
-export async function writeOcn(ev, { map = null, extra = [] } = {}) {
+export async function writeOcn(ev, { map = null, extra = [], dem = null } = {}) {
   await script(FFLATE);
   const enc = new TextEncoder();
   const name = map ? String(map.name || t("trc.ocn.mapName")).split(/[\\/]/).pop() : null;
@@ -40,7 +40,10 @@ export async function writeOcn(ev, { map = null, extra = [] } = {}) {
   };
   const base = (n) => String(n || t("trc.ocn.mapName")).split(/[\\/]/).pop();
   if (extra.length) head.maps = extra.map((m) => ({ id: m.id, file: base(m.name), type: m.type || "", size: m.bytes.length }));
+  // the event's elevation model (relief.js: « dem.ozd », already deflated), so that the climbs and routes read the same heights
+  if (dem?.length) head.dem = { file: "dem.ozd", size: dem.length };
   const files = { "event.json": [enc.encode(JSON.stringify(head)), { level: 6 }] };
+  if (dem?.length) files["dem.ozd"] = [dem, { level: 0 }];
   for (const m of extra) files[`maps/${m.id}/${base(m.name)}`] = [m.bytes, { level: /\.(png|jpe?g|gif|webp|pdf)$/i.test(m.name) ? 0 : 6 }];
   if (map) files[`map/${name}`] = [map.bytes, { level: /\.(png|jpe?g|gif|webp|pdf)$/i.test(name) ? 0 : 6 }];   // compressed images gain nothing
   return window.fflate.zipSync(files);
@@ -62,5 +65,6 @@ export async function readOcn(buf) {
   const me = head.map && entries.find((x) => x.name === `map/${head.map.file}`);
   const map = me ? { name: head.map.file, type: head.map.type || "", bytes: me.data } : null;
   const extra = (head.maps || []).map((m) => { const e = entries.find((x) => x.name === `maps/${m.id}/${m.file}`); return e ? { id: m.id, name: m.file, type: m.type || "", bytes: e.data } : null; }).filter(Boolean);
-  return { ev, map, extra, saved: head.saved || null };
+  const dem = head.dem ? entries.find((x) => x.name === "dem.ozd")?.data || null : null;
+  return { ev, map, extra, dem, saved: head.saved || null };
 }

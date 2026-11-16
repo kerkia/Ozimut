@@ -3276,6 +3276,82 @@ Every multiple-choice game was played through to its score page at phone size, w
   punch card (`punchDialog({ only })`, new option: a hidden course included); a course undone or deleted brings « Créer le circuit » back.
   Its legs are drawn straight like any course's (the tour's routes stay the overlay's). Guide: « Le tracé › En équipe et sur le terrain »'s
   box and paragraph. Not done: several collectors sharing the controls, the tour in the field mode, the tour saved with the event.
+- **The Tracer after the OCAD study** (owner, 2026-11-16: « fill those gaps », the ideas of the study included; every account). **One
+  elevation model per event** (`tracer/relief.js`): `E.relief` { z, nx, ny, step, source, by "auto" | "file", stored } — loaded at the first
+  need from the place's source (`trace/terrain.js loadGrid`, 120 000 nodes at most, 3 m at the finest), or the setter's own GeoTIFF / ESRI
+  ASCII grid (`terrain.fileHeights`, the file's CRS or an EPSG code typed), kept with the event (R2 `tracer/<id>/dem`, « OZD1 »: a header
+  and deflated Int16 row deltas, `GET|PUT|DELETE /api/tracer/<id>/dem`; in the .ozmt as `dem.ozd`); the climb, the profile, the routes,
+  the shading and the 3D view read it. « Dénivelée » (`rep-climb`, `climbDialog`): each course by three methods — between the controls
+  (net ascents; a control's height typed by hand, `control.z`, wins), along the legs, along the main routes (the IOF's rule) —, the column
+  chosen by its heading, rounded to 5 m; « Profil » (`profileDialog`: the course with its controls marked, or the leg chosen with each of
+  its routes). `profileOf` (a point every few metres, median then mean of three) is **the one measure of climb**: the analyzer stores a
+  route's `up`/`down` from it (`analyzer.onRelief`), not from the engine's count cell by cell (56 m against 52 on the test course), so
+  the panel, the report, the profile and « Dénivelée » agree. **Route analyzer** (`tracer/analyzer.js`, `routedraw.js`; ribbon Vérifier ›
+  Itinéraires, act `routes`; the leg's contextual tab « Calculer les itinéraires », « Dessiner un itinéraire », « Profil »): the analyses'
+  engine (`routeplan.planner`, as the tour) on a frame round the course (a cell ~1.5 m, ~1 m in sprint; 5 Mpx), an OCAD/Mapper map by its
+  symbols, any other by its colours, the heights from the event's model, the setter's out-of-bounds areas and boundaries shown on the
+  course closed (`pl.forbid`); a leg flagged all the way is its own route. A leg's routes: `leg.route` (the main one, `leg.rinfo` its
+  facts) and `leg.alts[i]` { pts, name, calc, hidden, m { len, up, down, t } } — `model.legRouteList`, `addLegRoute`, `setMainRoute`,
+  `setRouteInfo`, `removeLegRoute`, `clearLegRoutes` (computed ones only, or all); model time `t` = seconds at 1 s a metre of white forest,
+  shown × the course's pace (`ev.routing.paces[id]`, else `ev.routing.pace`, else 6 forest / 4 sprint; `routedraw.paceOf`). The panel
+  (docked over the map, `.tr-ra`): Calculer (▾: the leg, every course, the image, clearing), Dessiner (a hand-drawn route — the
+  route tool with the leg picked —, snapped to the paths by `pl.match` within 30 m forest / 15 m sprint and measured on the same model,
+  `afterDraw`; kept over a recomputation, measured again), Rapport, settings; the course's sum (length along the main routes, the extra
+  over the straight line, climb, time); each leg's routes lettered and coloured, ★ the main one, ☆ makes another main, eye / pencil /
+  bin; labels on the map « A · 412 m | +15 m | 2:31 » for the main route, all or none (`paintRoutes`, hand-drawn dashed). **« Reporter
+  sur le circuit »** (`applyDialog`, the main need): the climb into `course.climb`, and — ticked by default in sprint — `course.lengthBy =
+  "main"` (`model.legLengthFor`: the length follows the main routes: a sprint's ideal-route length, kept up to date). `routesReport`
+  (`rep-routes`): every leg with its routes (length, extra %, climb, time, behind) and every course's summary, printed or CSV, « Reporter
+  sur les circuits… » for all. Settings in the event (`ev.routing` { pace, paces, variants, climb, extra, risk, cross, speeds, table }: the
+  team's, not the device's); **the table per symbol** (`route-table`, `tableDialog`; Tracer only): `ev.routing.table[symId] = { role,
+  speed }` over `vectorroutes.symbolRoles(map)` — `layers(v, T, W, H, extra, table)` gives optional planes `speed` / `pspeed` (1-250 %,
+  255 impassable) that `routechoice.cells` / `costs` use in the place of the class's speed —, a reset per row and for all. Measured on
+  « ent opa 8 nov26 deski P »: 22 legs with their alternatives in ~15 s, 6.50 km straight, 6.85 km along, +53 m. An event without a map
+  (OpenStreetMap) has no computation: routes are drawn by hand. **Backgrounds** (`tracer/backdrop.js`, `onlinemaps.js` — the online layers
+  shared with Cartographier's `mapper/backgrounds.js` —; ribbon Carte › Fonds et relief, act `backdrop`; a georeferenced map): OpenStreetMap
+  everywhere, the national maps and photos by country, in France IGN's LiDAR HD WMTS layers (`IGNF_LIDAR-HD_MNT_ELEVATION…SHADOW`,
+  `…MNH…SHADOW` vegetation height, `IGNF_LIDAR-HD_CLASS`; `PM_0_18`, CORS open, checked 2026-11-16), and the event's model as shading
+  (multiply) and slopes; each with its opacity, the map's own intensity, credits on the map (`.tr-credit`); the choice in `localStorage
+  ocn.tr.bg.<id>`; never printed, except the one named « fond imprimé » in the print area (`course.printBg` / `ev.printBg`,
+  `model.printBgOf`; 200 dpi JPEG under a vector map, with its credit). **An event without a map** (« Nouvel événement › Pas de carte ?
+  Tracer sur OpenStreetMap »: centre typed or the device's position, sheet, scale): `ev.map.kind "none"`, `ev.geo` north up round the
+  place, `ev.printBg = "osm"`, OpenStreetMap shown at opening and printed in the map's place (PDF, images). « Trace GPS… »
+  (`importTrack`: GPX track or route, TCX/FIT through `trace/track.js`, NMEA GGA/RMC, rows of latitude/longitude for FRWD and other
+  loggers — **no real FRWD file tried**) as line specials (`track: true`, on « Tous les postes » unless ticked for all; a jump splits a
+  piece only beyond 150 m and 8 × the file's median step). « Voir ici sur… » (right click; `lookHere`: OpenStreetMap, Google Maps, Street
+  View, Géoportail, Remonter le temps, map.geo.admin.ch, Mapy.cz, Mapillary, copy the coordinates). **Standards**: ISCD 2024 is a new
+  event's (`descStandard "2024"`, Purple Pen's symbol file under its « 2018 », `model.descBase`; 5.26 « Railway, tramway » and 15.6 « Map
+  flip » its only new symbols, the box 5-7 mm unchanged; a start's code in column B, `control.scode`; .ppen writes 2018); the map flip is
+  `courseControl.flip` on an exchange (`toggle-flip`, the control's right click); `appearance.mapStandard` « Ski2019 » (ISSkiOM 2019:
+  the control's centre dot 0.65, lines 0.5) and « Mtbo2022 » (ISMTBOM 2022: lines 0.6, its 716-719 and 841 at the specification's
+  sizes), both 150 % at 1:10 000 and larger — **sizes from the specifications, not yet seen on paper**. **Descriptions read from the map**
+  (`tracer/autodesc.js`, a vector map only; Tracer › Définitions › « Lire sur la carte », `E.opts.autoDesc`): a new control takes column
+  D (and E, F for two lines meeting: junction 10.2, crossing 10.1) from the map object under it by a table symbol number → ISCD
+  (`T2017` / `T2000`, `ev.descTable` the event's changes, `tableDialog` which also fills the controls still empty); placed by a **drag**,
+  the drag's direction gives column G (a point's or building's side 11.1, an area's edge 11.2 or part 11.3, a line's end 11.8; the ghost
+  shows the circle, an arrow and the compass word). On the test map 27 of 32 controls get a feature, 19 the setter's own; contours have
+  none. **Classes**: a CSV « circuit;catégorie;coureurs[;premier dossard] » (`classes.parseClassCsv`), a relay class's first bib, the
+  teams numbered class by class (`relay.classRanges`). **Audit** (`reports.audit`): identical courses, sprint controls under 25 m in a
+  straight line (to check along the running route), legs run both ways, two features without crossing or junction, punching units
+  written twice or equal to another control's code, description boxes outside 5-7 mm when printed. **Print presets** (`tracer/canvases.js`,
+  Circuits › Impression › Gabarits; `ev.canvases` [{ id, name, area, printScale, mapHide, bg }]: a course's print settings saved under a
+  name, put back on one course or on all). Papers A2-A6, B4, B5, SRA3, Tabloid and a custom size; the courses' PDF: « Recto verso » (each
+  course starts on a front side, a blank page slipped in), fine tuning to overprint printed maps (offset, scale 90-110 %, mirror; the
+  registration marks inside the transform). **QR code** (a rect special `qr`, `tracer/qr.js`, qrcode-generator vendored: one path of
+  modules on a white square; the race's results, start times, the event's analyses, or any https address). **Garmin** (`exportx.garminDialog`:
+  a KMZ of JPEG tiles ≤ 1024 × 1024, 100 at most, LatLonBox + rotation; the test map 4 tiles of 663 × 610). **Exercises**
+  (`mapview.exerciseDialog`, `exercise.js` `gen.mode "hide"`, `gen.share`): corridor, windows, controls hidden (white patches), legs
+  hidden (a white band over the middle share of each leg), a map per leg (an exchange at every control), a puzzle (the course's image
+  cut into shuffled pieces, a PNG). **A map lent** (owner: « presumably useful for analyses too »): a team member's or an invitation
+  link's `lent` flag (the API's team PUT, invites, join; `E.lent`) — courses set on the map, no print or export of it
+  (`dialogs.LENT_BLOCK`, `lentStop`; the PDFs with the course alone); the editor can only discourage copying, the map being on the
+  screen. In the map analyses the organisers' switch `export` (« Exporter une image de la carte », on by default; `api/analyses` `OPTS`,
+  `shared.js` `exportOn`, Solo's `orgaOpt("export")`) takes the image export away. Two existing things fixed on the way: a dialog with only
+  « Fermer » took no focus, so Échap did not close it (`dialogs.modal`); a popup menu did not close on Échap. Checked 2026-11-16 in
+  headless Edge on the local test event (scripts kept with the session's scratch: `shot.mjs`, `check.mjs`). Guide: « Le tracé » chapters
+  « Fonds et relief » and « Les itinéraires », and additions to six others. The offline copy (`offline.js`) keeps the new modules and the elevation model
+  (the events record's `dem`, `E.localDem`). Not done: FRWD's own binary format, the routes' engine on an OpenStreetMap-only event,
+  vegetation height or the LiDAR layers as inputs of the route computation (never for runners — see « Generated maps »).
 - **Printing for a print shop: one engine for both tools** (owner, 2026-11-12: « Cartographier has separations, yet maps are printed
   with their courses from the Tracer »): `tracer/vmap/inks.js` — OCAD's spot inks read (`readInks`, `attachInks`: `map.spots` and each
   colour's `spot` on every OCAD 9+ map the Tracer opens; Cartographier's `spotsFromParams` calls it; Mapper files' spot colours are read

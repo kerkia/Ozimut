@@ -69,7 +69,21 @@ export const SIZES = {
   "2000": { control: 6.0, finishOut: 7.0, finishIn: 5.0, start: 4.04 },
   "2017": { control: 5.35, finishOut: 6.35, finishIn: 4.35, start: 3.46 },
   "Spr2019": { control: 6.35, finishOut: 7.35, finishIn: 5.35, start: 4.04 },
+  // ISSkiOM 2019 (revision 3) and ISMTBOM 2022 (revision 2), read in the specifications on 2026-11-16: the control circle 5.5 to
+  // 6.0 mm (ski) and 6.0 mm (MTB-O) between line centres, the finish 5.0 and 7.0 mm, the start a triangle of 7.0 mm, drawn with
+  // lines of 0.5 mm (ski) and 0.6 mm (MTB-O) — outer sizes here, as the others'
+  "Ski2019": { control: 6.25, finishOut: 7.5, finishIn: 5.5, start: 4.04 },
+  "Mtbo2022": { control: 6.6, finishOut: 7.6, finishIn: 5.6, start: 4.04 },
 };
+const STD_LINE = { Ski2019: 0.5, Mtbo2022: 0.6 };
+/** The course's line width in a map standard, mm at 1:15 000: 0.35 (ISOM, ISSprOM), 0.5 (ISSkiOM), 0.6 (ISMTBOM). */
+export const lineBase = (ev) => STD_LINE[ev?.appearance?.mapStandard] || LINE;
+/** Ski and MTB-O maps: their course symbols are enlarged to 150 % at 1:10 000 and larger, no more (ISSkiOM 3.2, ISMTBOM 3.3). */
+export const isWheelsOrSkis = (ev) => ev?.appearance?.mapStandard === "Ski2019" || ev?.appearance?.mapStandard === "Mtbo2022";
+/** The control's centre (focus) dot, mm: the event's choice; ISSkiOM requires one of 0.65 mm. */
+export const centerDotOf = (ev) => ev.appearance.centerDot || (ev.appearance.mapStandard === "Ski2019" ? 0.65 : 0);
+/** The description standard whose symbols a standard uses: ISCD 2024 is ISCD 2018 with the railway and the map flip. */
+export const descBase = (std) => (std === "2024" ? "2018" : std || "2018");
 export const CROSSING_RADIUS = 2.5, ISSUE_LENGTH = 2.5, ISSUE_WIDTH = 0.6;
 export const NUMBER_HEIGHT = 4.0, NUMBER_DISTANCE = 1.825, CODE_DISTANCE = 0.325, CODE_HEIGHT = 3.0;
 export const PURPLE = [0.35, 0.85, 0, 0];                  // CMYK, ISOM 2017 appendix
@@ -79,7 +93,7 @@ export const sizes = (ev) => SIZES[ev.appearance.mapStandard] || SIZES["2017"];
 export function objRatio(ev, printScale) {
   const a = ev.appearance, ms = ev.map.scale || 10000;
   if (a.itemScaling === "RelativeToMap") return 1;
-  if (a.itemScaling === "RelativeTo15000") return 15000 / ms;
+  if (a.itemScaling === "RelativeTo15000") return isWheelsOrSkis(ev) ? Math.min(1.5, 15000 / ms) : 15000 / ms;
   const r = (printScale || ms) / ms;
   return r > 0.99999 && r < 1.00001 ? 1 : r;
 }
@@ -103,7 +117,7 @@ export const DEFAULT_APPEARANCE = {
 export const DEFAULT_PRINT_AREA = () => ({ auto: true, restrict: true, rect: null, pageW: 827, pageH: 1169, margins: 0, landscape: false });
 
 /** A new event. map: { kind: "bitmap"|"pdf"|"ocad"|"none", file, scale, dpi (bitmap), w, h (mm of the sheet), ox, oy (ocad) }. */
-export function newEvent({ title = "", map = { kind: "none", scale: 10000 }, standard = "2017", descStandard = "2018", lang = "fr", firstCode = 31 } = {}) {
+export function newEvent({ title = "", map = { kind: "none", scale: 10000 }, standard = "2017", descStandard = "2024", lang = "fr", firstCode = 31 } = {}) {
   return {
     v: VERSION, title, notes: "",
     map: { kind: map.kind || "none", file: map.file || "", scale: map.scale || 10000, dpi: map.dpi || 0, w: map.w || 0, h: map.h || 0,
@@ -369,6 +383,8 @@ export function legRoutes(ev, c1, c2) {
  *  default for MTB-O, where riders follow the tracks), else as Purple Pen measures it (straight, through its bends). */
 export function legLengthFor(ev, courseId, c1, c2) {
   const course = courseId ? ev.courses[courseId] : null;
+  // along the leg's main route (lengthBy "main": a sprint's « ideal route », the route analyzer's fastest route kept on each leg)
+  if (course?.lengthBy === "main") { const leg = ev.legs[findLeg(ev, c1, c2)]; if (leg?.route?.length) return pathLength(legRoutePoints(ev, c1, c2)) * ev.map.scale / 1000; return legLengthM(ev, c1, c2); }
   const byRoute = course && (course.lengthBy === "route" || (!course.lengthBy && disciplineOf(ev, courseId) === "mtbo"));
   if (byRoute) { const rs = legRoutes(ev, c1, c2); if (rs.length) return Math.min(...rs.map((r) => pathLength(r.pts))) * ev.map.scale / 1000; }
   return legLengthM(ev, c1, c2);
@@ -766,7 +782,79 @@ function putLeg(ev, id, leg) {
 /** The route the setter expects on a leg (Ozimut's, not in .ppen): the points between the two controls, or null. */
 export function setLegRoute(ev, c1, c2, pts) {
   const [id, leg] = legFor(ev, c1, c2);
-  if (pts?.length) leg.route = pts.map((p) => p.slice()); else delete leg.route;
+  if (pts?.length) leg.route = pts.map((p) => p.slice()); else { delete leg.route; delete leg.rinfo; }
+  if (pts?.length) delete leg.rinfo;                   // another route: the facts of the one before no longer hold
+  putLeg(ev, id, leg);
+}
+// ---- a leg's routes, as the route analyzer keeps them (owner, 2026-11-16, after OCAD's Route Analyzer) -------------------------
+// The main route is leg.route (what the lengths, the climb and the prints use), its facts in leg.rinfo; the others are leg.alts,
+// each with its own facts. Facts: { name, calc (computed by the engine, not drawn by hand), hidden, m: { len (m), up, down (m),
+// t (the model's time: seconds at 1 s per metre of white forest on the flat; × the pace), cross } }.
+/** A leg's routes: [{ i (-1: the main one, else its place in leg.alts), main, name, pts (from c1 to c2), calc, hidden, m }]. */
+export function legRouteList(ev, c1, c2) {
+  const leg = ev.legs[findLeg(ev, c1, c2)], a = ev.controls[c1], b = ev.controls[c2], out = [];
+  if (!leg || !a || !b) return out;
+  const full = (pts) => [[a.x, a.y], ...pts, [b.x, b.y]];
+  if (leg.route?.length) out.push({ i: -1, main: true, name: leg.rinfo?.name || "", pts: full(leg.route), calc: !!leg.rinfo?.calc, hidden: !!leg.rinfo?.hidden, m: leg.rinfo?.m || null });
+  (leg.alts || []).forEach((r, i) => { if (r.pts?.length) out.push({ i, main: false, name: r.name || "", pts: full(r.pts), calc: !!r.calc, hidden: !!r.hidden, m: r.m || null }); });
+  return out;
+}
+const cleanInfo = (o) => { const x = {}; if (o.name) x.name = String(o.name).slice(0, 60); if (o.calc) x.calc = 1; if (o.hidden) x.hidden = 1; if (o.m) x.m = o.m; return x; };
+/** Add a route to a leg: pts between the two controls; main: it becomes the main route (the one before joins the others). */
+export function addLegRoute(ev, c1, c2, { pts, name = "", calc = false, m = null, main = false, hidden = false }) {
+  const [id, leg] = legFor(ev, c1, c2);
+  const inner = pts.map((p) => p.slice());
+  if (main || !leg.route?.length) {
+    if (leg.route?.length) leg.alts = [...(leg.alts || []), { pts: leg.route, ...cleanInfo(leg.rinfo || {}) }];
+    leg.route = inner;
+    const info = cleanInfo({ name, calc, m, hidden });
+    if (Object.keys(info).length) leg.rinfo = info; else delete leg.rinfo;
+  } else leg.alts = [...(leg.alts || []), { pts: inner, ...cleanInfo({ name, calc, m, hidden }) }];
+  putLeg(ev, id, leg);
+}
+/** Change a route's facts (name, hidden, m): i as legRouteList gives it. */
+export function setRouteInfo(ev, c1, c2, i, patch) {
+  const id = findLeg(ev, c1, c2), leg = ev.legs[id];
+  if (!leg) return;
+  if (i < 0) { if (!leg.route?.length) return; const info = cleanInfo({ ...(leg.rinfo || {}), ...patch }); if (Object.keys(info).length) leg.rinfo = info; else delete leg.rinfo; }
+  else if (leg.alts?.[i]) leg.alts[i] = { pts: leg.alts[i].pts, ...cleanInfo({ ...leg.alts[i], ...patch }) };
+}
+/** Remove a route; the main one gone, the fastest of the others (the first when none has a time) takes its place. */
+export function removeLegRoute(ev, c1, c2, i) {
+  const id = findLeg(ev, c1, c2), leg = ev.legs[id];
+  if (!leg) return;
+  if (i >= 0) { leg.alts = (leg.alts || []).filter((_, k) => k !== i); if (!leg.alts.length) delete leg.alts; }
+  else {
+    delete leg.route; delete leg.rinfo;
+    if (leg.alts?.length) {
+      let best = 0;
+      leg.alts.forEach((r, k) => { if (r.m?.t > 0 && !(leg.alts[best].m?.t > 0 && leg.alts[best].m.t <= r.m.t)) best = k; });
+      const r = leg.alts[best];
+      leg.route = r.pts; const info = cleanInfo(r); if (Object.keys(info).length) leg.rinfo = info;
+      leg.alts = leg.alts.filter((_, k) => k !== best); if (!leg.alts.length) delete leg.alts;
+    }
+  }
+  putLeg(ev, id, leg);
+}
+/** Make another route the leg's main one (the main one before joins the others, in its place). */
+export function setMainRoute(ev, c1, c2, i) {
+  const leg = ev.legs[findLeg(ev, c1, c2)];
+  if (!leg?.alts?.[i]) return;
+  const r = leg.alts[i], old = leg.route?.length ? { pts: leg.route, ...cleanInfo(leg.rinfo || {}) } : null;
+  leg.route = r.pts; const info = cleanInfo(r); if (Object.keys(info).length) leg.rinfo = info; else delete leg.rinfo;
+  if (old) leg.alts[i] = old; else { leg.alts = leg.alts.filter((_, k) => k !== i); if (!leg.alts.length) delete leg.alts; }
+}
+/** Remove the computed routes of a leg (those drawn by hand stay); all: every route. */
+export function clearLegRoutes(ev, c1, c2, all = false) {
+  const id = findLeg(ev, c1, c2), leg = ev.legs[id];
+  if (!leg) return;
+  const keep = legRouteList(ev, c1, c2).filter((r) => !all && !r.calc);
+  delete leg.route; delete leg.rinfo; delete leg.alts;
+  const inner = (r) => r.pts.slice(1, -1);
+  keep.forEach((r, k) => {
+    if (!k) { leg.route = inner(r); const info = cleanInfo(r); if (Object.keys(info).length) leg.rinfo = info; }
+    else leg.alts = [...(leg.alts || []), { pts: inner(r), ...cleanInfo(r) }];
+  });
   putLeg(ev, id, leg);
 }
 /** The leg as run: the drawn route when there is one, else the leg itself (with its bends). */
@@ -1106,7 +1194,7 @@ export const MTBO_LINES = ["mtbo-oneway", "mtbo-forbidden-route", "mtbo-danger"]
 export const POINT_SPECIALS = ["first-aid", "water", "optional-crossing-point", "forbidden-route", "registration-mark", ...MTBO_POINTS];
 export const LINE_SPECIALS = ["boundary", "line", ...MTBO_LINES];
 export const AREA_SPECIALS = ["out-of-bounds", "dangerous-area", "temporary-construction", "white-out", "mask"];
-export const RECT_SPECIALS = ["text", "descriptions", "image", "rectangle", "ellipse", "inset"];
+export const RECT_SPECIALS = ["text", "descriptions", "image", "rectangle", "ellipse", "inset", "qr"];
 /** Point specials turned by an orientation (rotate). */
 export const ORIENTED_SPECIALS = ["optional-crossing-point", ...MTBO_POINTS];
 export function addSpecial(ev, kind, pts, extra = {}) {
@@ -1161,6 +1249,9 @@ export function expandText(ev, cd, text, { fileName = "", variation = "", team =
 }
 
 // ---- print areas ---------------------------------------------------------------------------------------------------------
+/** The online layer printed under a course's map (or in its place when the event has none): the course's own choice (printBg,
+ *  "" for none), else the event's (ev.printBg: « osm » for an event set on OpenStreetMap). tracer/backdrop.js draws it. */
+export const printBgOf = (ev, courseId) => { const c = courseId ? ev.courses[courseId] : null; return (c && c.printBg != null ? c.printBg : ev.printBg) || ""; };
 export function printAreaOf(ev, cd) {
   if (!cd.course) return ev.printArea;
   const c = ev.courses[cd.course];

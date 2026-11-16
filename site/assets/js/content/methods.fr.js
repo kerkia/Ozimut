@@ -791,8 +791,8 @@ export function build(X) {
   //    descriptions, specials, printing, checks, teamwork, after the race, every menu entry — and its calculations, in plain words
   // ======================================================================================================
   function tracerDoc() {
-    const CHAPTERS = [["principe", "Pour commencer"], ["carte", "La carte"], ["ecran", "L'écran"], ["postes", "Les postes"], ["circuits", "Les circuits"],
-      ["definitions", "Les définitions"], ["speciaux", "Objets spéciaux"], ["sorties", "Imprimer et exporter"], ["verifier", "Vérifier"],
+    const CHAPTERS = [["principe", "Pour commencer"], ["carte", "La carte"], ["fonds", "Fonds et relief"], ["ecran", "L'écran"], ["postes", "Les postes"], ["circuits", "Les circuits"],
+      ["definitions", "Les définitions"], ["speciaux", "Objets spéciaux"], ["sorties", "Imprimer et exporter"], ["verifier", "Vérifier"], ["itineraires", "Les itinéraires"],
       ["outils", "En équipe et sur le terrain"], ["apres", "Après la course"], ["ruban", "Le ruban"], ["avance", "Le niveau avancé"], ["calculs", "Ses calculs"]];
     const ic = (k, s = 18) => raw(TR.svg(k, s));
     const K = "Le tracé";
@@ -809,7 +809,7 @@ export function build(X) {
       ["exchange", "Échange de carte", "", "Cliquer un poste du circuit : le coureur y change de carte, et le circuit se partage en parties."],
       ["bend", "Coude", "C", "Cliquer un interposte pour le plier (pour contourner une zone interdite) ; un coude se glisse ; cliquer un coude pour le retirer."],
       ["gap", "Coupure", "X", "Glisser le long d'un interposte ou d'un cercle pour le couper, et laisser lisible un détail de la carte ; cliquer une coupure pour la refermer."],
-      ["route", "Itinéraire", "", "Le chemin prévu pour les coureurs, qui sert à la dénivelée : cliquer l'interposte, puis les points du chemin ; double-cliquer pour finir. Il ne s'imprime pas."],
+      ["route", "Itinéraire", "", "Dessiner un itinéraire à la main : cliquer l'interposte, puis les points du chemin ; double-cliquer pour finir. Il s'ajoute aux itinéraires de l'interposte (chapitre « Les itinéraires ») et ne s'imprime pas."],
       ["descr", "Définitions sur la carte", "", "Glisser un cadre sur la carte : les définitions du circuit s'y placent, et leur largeur fixe leur taille."],
       ["special", "Objets spéciaux", "", "Ouvre la liste des objets : point d'eau, poste de secours, zone interdite, texte, image… (chapitre « Objets spéciaux »)."],
     ];
@@ -1050,6 +1050,45 @@ export function build(X) {
             carte (un carrefour, un angle de bâtiment) cliqués avec leur latitude et leur longitude — un clic droit sur Géoportail ou une carte en ligne les
             donne —, ou trois et plus pour une photo déformée ; ou un fichier de calage (.jgw, .pgw… avec son .prj) ; ou un KMZ de la même image. La fenêtre
             vérifie l'échelle obtenue contre celle de la carte.</p>
+          <p><b>Exercices</b> : ${W("exercise")} propose, pour le circuit en cours, six cartes d'entraînement — le couloir, les fenêtres, les postes masqués
+            (un blanc autour de chaque poste), les interpostes masqués (un blanc sur le milieu de chaque interposte), une carte par interposte (un changement de
+            carte à chaque poste) et le puzzle (l'image du circuit en pièces mélangées, à imprimer). Fonds, relief et modèle d'altitude : chapitre « Fonds et relief ».</p>
+        </section>`,
+      fonds: () => html`
+        <section class="mx-slide" id="tr-fonds">
+          <p class="mx-kicker">${K}</p>
+          <h2>Fonds et relief</h2>
+          <p>${W("backdrop")} ouvre un panneau, posé sur la carte, qui montre sous le circuit ce que la carte ne dit pas. Il demande une carte géoréférencée
+            (un fichier OCAD ou Mapper l'est le plus souvent ; sinon ${W("georef")}).</p>
+          <ul class="mx-list">
+            <li><b>OpenStreetMap</b>, partout dans le monde : rues, chemins, bâtiments récents — pour vérifier qu'un chemin existe encore, repérer un parking.</li>
+            <li><b>Les cartes et photos aériennes nationales</b> là où Ozimut les connaît : France, Suisse, États-Unis, Nouvelle-Zélande.</li>
+            <li>En France, <b>le LiDAR HD de l'IGN</b> : le sol nu ombré (talus, fossés, anciens chemins, plateformes), la hauteur de la végétation (coupes,
+              jeunes plantations, clairières) et la nature des points (sol, végétation, bâti).</li>
+            <li><b>L'ombrage et les pentes</b> du modèle d'altitude de l'événement, partout.</li>
+          </ul>
+          <p>Chaque fond a sa case et son opacité ; la dernière ligne règle l'intensité de la carte elle-même, pour voir à travers. Le choix est gardé pour
+            l'événement, sur cet appareil. Les fonds ne s'impriment pas — sauf celui choisi comme « fond imprimé » dans la zone d'impression.</p>
+          <h3>Le modèle d'altitude</h3>
+          <p>La dénivelée, le profil, les itinéraires, l'ombrage et la vue 3D lisent les mêmes altitudes : le modèle d'altitude de l'événement (${W("dem")}).
+            Ozimut le charge de lui-même à la première demande — le RGE ALTI de l'IGN en France, les modèles nationaux en Suisse, aux États-Unis, au Canada et
+            en Nouvelle-Zélande, le relief mondial ailleurs — puis le garde avec l'événement : toute l'équipe lit les mêmes altitudes, même hors ligne, et le
+            fichier Ozimut (.ozmt) les emporte. Vous avez mieux ? « Utiliser mon fichier » prend un GeoTIFF ou une grille ASCII : un MNT du LiDAR à 1 m, par exemple.</p>
+          <p>${W("rep-climb")} donne la dénivelée de chaque circuit de trois façons : <b>entre les postes</b> (la somme des montées nettes d'un poste au suivant),
+            <b>le long des interpostes</b> (toutes les montées de la ligne droite) et <b>le long des itinéraires</b> (la règle de l'IOF : la montée de
+            l'itinéraire le plus rapide). Cliquez l'en-tête de la colonne à reporter et cochez les circuits ; la valeur est arrondie à 5 m. Là où le modèle se
+            trompe — un poste sous un pont, au pied d'une falaise —, tapez l'altitude du poste : elle compte alors partout. ${W("profile")} trace le profil du
+            circuit, ou celui de l'interposte choisi avec chacun de ses itinéraires.</p>
+          <h3>Une trace GPS sur la carte</h3>
+          <p>${W("import-track")} pose sur la carte votre reconnaissance du terrain — un fichier GPX, TCX, FIT, NMEA ou FRWD — comme un objet ligne, que vous
+            déplacez, recolorez ou supprimez comme un autre. Elle se montre sur « Tous les postes » seulement, à moins de cocher tous les circuits.</p>
+          <h3>Voir ici</h3>
+          <p>Un clic droit sur la carte, puis « Voir ici sur… », ouvre l'endroit cliqué dans OpenStreetMap, Google Maps et Street View, le Géoportail et
+            « Remonter le temps » de l'IGN en France, la carte nationale en Suisse, Mapy.cz ou Mapillary, ou copie ses coordonnées.</p>
+          <h3>Sans carte : tracer sur OpenStreetMap</h3>
+          <p>Pour un parc, un quartier ou une cour d'école sans carte d'orientation, « Nouvel événement » propose « Pas de carte ? Tracer sur OpenStreetMap » :
+            donnez le centre (ses coordonnées, ou « Ma position »), la feuille et l'échelle. L'événement s'ouvre sur OpenStreetMap, géoréférencé ; le fond
+            s'imprime sous les circuits, avec son crédit. Le calcul des itinéraires, qui lit une carte d'orientation, n'y est pas disponible : dessinez-les à la main.</p>
         </section>`,
       ecran: () => html`
         <section class="mx-slide" id="tr-ecran">
@@ -1190,6 +1229,8 @@ export function build(X) {
             d'un clic dans Circuits › Impression › Papier (« selon le circuit » tourne la feuille dans le sens du circuit). La zone se place toute seule, centrée sur le
             circuit, ou suit un cadre tiré sur la carte. Une zone plus grande que la feuille se découpe sur plusieurs pages qui se chevauchent un peu, ou se réduit à son
             centre. ${W("view-printarea")} la montre en pointillés.</p>
+          <p><b>Catégories</b> : ${W("classes")} lie chaque catégorie à son circuit, avec ses coureurs attendus et, pour un relais, son premier dossard ; un
+            CSV « circuit;catégorie;coureurs » s'importe d'un coup. Les équipes d'un relais sont alors numérotées catégorie par catégorie.</p>
         </section>`,
       definitions: () => html`
         <section class="mx-slide" id="tr-definitions">
@@ -1211,6 +1252,14 @@ export function build(X) {
             Définitions › Langue), parmi 23 langues ; ${W("custom-text")} change le texte d'un symbole. Pour les mettre sur la carte, l'outil Définitions sur la
             carte : glissez un cadre, sa largeur fixe la taille ; le coin en bas à droite redimensionne, un clic droit répartit sur plusieurs colonnes.
             ${W("pdf-descriptions")} les imprime seules, plusieurs par page, à découper pour les porte-définitions.</p>
+          <h3>Lire la définition sur la carte</h3>
+          <p>Sur une carte OCAD ou Mapper, ${W("auto-desc")} remplit la définition d'un nouveau poste d'après l'objet de la carte placé dessous : un rocher, une
+            dépression, un bâtiment, une jonction de chemins. Posez le poste en <b>glissant</b> : la direction du glissé dit de quel côté de l'élément se trouve
+            la balise (colonne G). ${W("desc-table")} montre la correspondance entre les symboles de la carte et les éléments de définition, à ajuster pour votre
+            carte, et remplit les postes encore sans définition. Les courbes de niveau n'ont pas de correspondance : rentrant ou éperon, la ligne est la même.</p>
+          <p><b>ISCD 2024</b> est la norme des nouveaux événements : elle ajoute la voie ferrée ou le tramway et le retournement de carte (clic droit sur un
+            poste du circuit : la carte recto verso se retourne là), accepte un code de départ en colonne B (« S1 », « S2 ») et demande des cases de 5 à 7 mm,
+            que le contrôle vérifie. Côté carte, les normes de ski (ISSkiOM 2019) et de VTT (ISMTBOM 2022) règlent la taille des cercles, du départ, de l'arrivée et des traits.</p>
         </section>`,
       speciaux: () => html`
         <section class="mx-slide" id="tr-speciaux">
@@ -1265,6 +1314,16 @@ export function build(X) {
           <p>Carte › Symboles règle la taille des cercles, l'épaisseur des traits et la hauteur des numéros (en proportion de la norme) ; Carte › Violet › Apparence, la police et le gras des
             numéros, leur contour blanc, la coupure automatique des traits qui se croisent, la taille selon l'échelle d'impression, et le violet. Les textes posés sur
             la carte s'impriment dans la police qu'ils nomment, avec gras et italique, et dans toutes les langues.</p>
+          <h3>Gabarits, papiers, recto verso</h3>
+          <p>${W("canvases")} garde sous un nom les réglages d'impression d'un circuit — papier et orientation, marges, zone, échelle, carte filtrée, fond
+            imprimé — et les remet sur un circuit ou sur tous d'un clic. La zone d'impression connaît les papiers de A2 à A6, B4, B5, SRA3, Tabloid et un format
+            libre. Le PDF des circuits sait faire commencer chaque circuit sur un recto : une page blanche est glissée où il faut, et les deux côtés d'une carte
+            à retourner tombent dos à dos.</p>
+          <p><b>Surimprimer des cartes déjà imprimées</b> : le décalage de l'imprimante, une échelle fine (99 à 101 % rattrapent le retrait du papier) et
+            l'impression en miroir, dans le PDF des circuits.</p>
+          <p><b>QR code</b> : parmi les objets spéciaux, un QR code posé sur la carte mène le coureur aux résultats, aux horaires de départ ou aux analyses de
+            l'événement sur Ozimut, ou à l'adresse de votre choix. <b>Carte Garmin</b> : ${W("export-garmin")} découpe la carte, seule ou avec un circuit, en
+            dalles de 1024 × 1024 pixels au plus, pour les montres et GPS Garmin.</p>
         </section>`,
       verifier: () => html`
         <section class="mx-slide" id="tr-verifier">
@@ -1284,11 +1343,42 @@ export function build(X) {
             ne reste que des rappels, une dénivelée pas encore renseignée par exemple —, et les premiers dans l'onglet même ; un clic ouvre le contrôle complet. Le
             groupe « Circuit en cours » donne sa longueur, sa dénivelée, son nombre de postes, son échelle et ses concurrents attendus.</p>
           <h3>Dénivelée et temps du vainqueur</h3>
-          <p>${W("rep-climb")} calcule la montée de chaque circuit sur le modèle de terrain de l'IGN (carte géoréférencée, en France) ; cochez les circuits pour reprendre
-            la valeur dans leurs propriétés. Dessinez avec l'outil Itinéraire le chemin prévu là où la ligne droite passe sur une colline que les coureurs
-            contourneront. ${W("rep-times")} donne, pour chaque circuit, le temps attendu du vainqueur, d'après les résultats des deux dernières
+          <p>${W("rep-climb")} donne la dénivelée de chaque circuit d'après le modèle d'altitude — entre les postes, le long des interpostes ou le long des itinéraires (chapitre « Fonds et relief ») ; cochez les circuits pour la reporter dans leurs propriétés. ${W("rep-times")} donne, pour chaque circuit, le temps attendu du vainqueur, d'après les résultats des deux dernières
             saisons, et la longueur qui donne un temps visé (chapitre « Ses calculs »).</p>
           <p>La charge vient du nombre de concurrents de chaque circuit : ${W("load")} le reprend des inscriptions officielles quand la course y figure.</p>
+          <p>Le contrôle signale aussi : un circuit sans départ, sans arrivée ou sans dénivelée ; deux circuits identiques ; en sprint, des postes à moins de 25 m
+            en ligne droite, à vérifier par le chemin de course ; les interpostes courus dans les deux sens ; une définition sans colonne D, ou deux éléments
+            (D et E) sans croisement ni jonction pour dire comment ils se rencontrent ; un numéro de boîtier écrit deux fois ou égal au code d'un autre poste ;
+            des cases de définitions hors des 5 à 7 mm de la norme. Les itinéraires, leur rapport et le profil : chapitre « Les itinéraires ».</p>
+        </section>`,
+      itineraires: () => html`
+        <section class="mx-slide" id="tr-itineraires">
+          <p class="mx-kicker">${K}</p>
+          <h2>Les itinéraires</h2>
+          <p>${W("routes")} ouvre l'analyse des itinéraires : pour chaque interposte du circuit, l'itinéraire le plus rapide et ses variantes, calculés sur la
+            carte, et ceux que vous dessinez. C'est le calcul des analyses des coureurs : la carte est lue symbole par symbole (un fichier OCAD ou Mapper) ou par
+            ses couleurs (une image, un PDF), le relief vient du modèle d'altitude, et les zones interdites et les limites que vous avez posées sur le circuit sont fermées.</p>
+          <ul class="mx-list">
+            <li><b>Calculer</b> traite le circuit en cours ; le petit ▾ calcule l'interposte choisi, ou tous les circuits.</li>
+            <li><b>Dessiner</b> ajoute un itinéraire à la main sur l'interposte choisi : une option que le calcul ne propose pas, un passage obligé. Il est collé
+              aux chemins et mesuré sur le même modèle (longueur, montée, temps), et reste le vôtre quand vous relancez le calcul.</li>
+            <li>Chaque itinéraire a sa lettre et sa couleur, sa <b>longueur</b>, sa <b>montée</b> et son <b>temps</b> à l'allure du circuit. L'étoile ★ marque
+              l'itinéraire principal, celui qui compte pour le circuit ; ☆ en choisit un autre. L'œil le masque, le crayon le nomme, la corbeille le supprime.</li>
+            <li>Sur la carte, les étiquettes donnent « longueur | montée | temps » : pour l'itinéraire principal, pour tous, ou aucune.</li>
+            <li><b>L'allure</b> est celle du coureur attendu, en forêt courante et à plat : elle donne les temps, sans changer le choix des itinéraires.</li>
+          </ul>
+          <h3>Longueur, dénivelée, supplément du sprint</h3>
+          <p>C'est à cela que servent d'abord les itinéraires. Le panneau résume le circuit : sa longueur par les itinéraires principaux, ce qu'elle ajoute à la
+            ligne droite, sa montée, son temps. « Reporter sur le circuit… » écrit la dénivelée dans les propriétés du circuit et, si vous le cochez, fait suivre
+            sa longueur aux itinéraires : c'est la règle du sprint, où la longueur annoncée est celle de l'itinéraire idéal. Elle se met ensuite à jour
+            d'elle-même. ${W("rep-routes")} donne le tout en un texte — chaque interposte avec ses itinéraires, chaque circuit avec son supplément —, à imprimer
+            ou en CSV, et reporte tous les circuits d'un coup.</p>
+          <h3>Réglages</h3>
+          <p>Les réglages (la roue du panneau) valent pour l'événement et sont partagés par l'équipe : l'allure par défaut, le nombre de variantes, ce que vaut
+            un mètre de montée, la prudence loin des lignes, le temps pour franchir un talus ou une clôture, et la vitesse de chaque terrain en % de la forêt
+            courante. Sur une carte OCAD ou Mapper, ${W("route-table")} va plus loin : symbole par symbole, ce qu'il vaut pour le calcul — sa nature (chemin,
+            vert, infranchissable, ignoré…) et sa vitesse —, avec un retour aux valeurs d'Ozimut. Une carte où le vert clair se court mal, un symbole maison : c'est là.</p>
+          <p>Les itinéraires ne s'impriment pas. Le ▾ de « Calculer » enregistre une image de la carte avec eux, pour une réunion de traceurs ou un compte rendu.</p>
         </section>`,
       outils: () => html`
         <section class="mx-slide" id="tr-outils">
@@ -1317,6 +1407,10 @@ export function build(X) {
             rapports) : le panneau imprime alors sa carte, ses définitions et son carton de contrôle.</p>
           <p>Aussi : ${W("import-course")} reprend les postes d'un circuit imprimé (un PDF ou une photo d'une course passée), à vérifier ensuite ;
             ${W("view-others")} montre d'autres circuits en pâle, pour éviter les croisements et les postes trop proches.</p>
+          <h3>Prêter la carte</h3>
+          <p>Le propriétaire d'une carte ne veut pas toujours la donner. Dans ${W("team")}, « Carte prêtée » — sur un membre, ou sur un lien d'invitation —
+            laisse tracer sur la carte sans pouvoir l'imprimer ni l'exporter : les PDF sortent avec le circuit seul. Un navigateur ne peut que décourager la
+            copie (la carte est à l'écran), pas l'empêcher. Les analyses ont le même réglage : « Exporter une image de la carte », que les organisateurs décochent.</p>
         </section>`,
       apres: () => html`
         <section class="mx-slide" id="tr-apres">
@@ -1437,11 +1531,6 @@ export function build(X) {
         <section class="mx-slide" id="tr-calculs">
           <p class="mx-kicker">Le tracé</p>
           <h2>Ses calculs, expliqués</h2>
-          <h3>La dénivelée</h3>
-          <p>L'altitude est lue tous les 10 m le long de chaque interposte sur le modèle de terrain de l'IGN (RGE ALTI, précis au mètre en France), puis
-            lissée sur trois points : le modèle a de petites irrégularités qui, additionnées, gonfleraient la montée. La dénivelée est la somme des montées,
-            arrondie à 5 m. En ligne droite, un interposte qui contourne une colline compte la colline : c'est pourquoi l'outil Itinéraire permet de dessiner le
-            chemin prévu, qui sert alors au calcul.</p>
           <h3>Le temps du vainqueur</h3>
           <p>Sur les résultats officiels des deux dernières saisons (environ une centaine de courses du même format), on relève pour chaque circuit l'allure du
             vainqueur, en minutes par kilomètre, et son CN officiel 15 jours avant. Plus le CN est haut, plus l'allure est rapide : la relation est ajustée une
@@ -1462,6 +1551,14 @@ export function build(X) {
           <p>Un poste peut être ramassé quand le dernier coureur de chaque circuit qui y passe l'a passé : son heure de départ, plus la distance jusqu'au poste
             à l'allure d'un coureur lent (15 min/km en forêt, 9 en sprint, en ligne droite), plus une marge. Les postes sont partagés entre les ramasseurs par
             secteur, et chacun les prend dans l'ordre où il peut les atteindre.</p>
+          <h3>Les itinéraires et la dénivelée</h3>
+          <p>Le calcul des itinéraires pose sur la carte une grille d'environ 1,5 m (1 m en sprint). Chaque case a une vitesse — celle de son terrain, en % de la
+            forêt courante — et une altitude. Courir d'une case à la voisine coûte la distance divisée par la vitesse, plus la pente : un mètre de montée vaut
+            8 m à plat. Loin des chemins, des ruisseaux et des limites nettes, la prudence ajoute jusqu'à 20 % : on y court moins vite parce qu'il faut lire.
+            Franchir un talus ou une clôture coûte 10 secondes. L'itinéraire le plus rapide est le chemin de moindre coût ; les variantes sont les autres
+            chemins vraiment différents, tant qu'ils ne sont pas 25 % plus lents. Le temps affiché est ce coût, sans la prudence, à l'allure donnée.</p>
+          <p>La montée d'un itinéraire est lue sur le modèle d'altitude, un point tous les quelques mètres, lissée sur trois points pour que les petites bosses
+            du modèle ne s'additionnent pas : c'est le même chiffre dans le panneau, le rapport, le profil et « Dénivelée ».</p>
         </section>`,
     };
     return buildChapters(CHAPTERS, CH, "principe");

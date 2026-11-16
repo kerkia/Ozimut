@@ -791,8 +791,8 @@ export function build(X) {
   //    descriptions, specials, printing, checks, teamwork, after the race, every menu entry — and its calculations, in plain words
   // ======================================================================================================
   function tracerDoc() {
-    const CHAPTERS = [["principe", "Getting started"], ["carte", "The map"], ["ecran", "The screen"], ["postes", "Controls"], ["circuits", "Courses"],
-      ["definitions", "Descriptions"], ["speciaux", "Special items"], ["sorties", "Printing and exporting"], ["verifier", "Checking"],
+    const CHAPTERS = [["principe", "Getting started"], ["carte", "The map"], ["fonds", "Backgrounds and relief"], ["ecran", "The screen"], ["postes", "Controls"], ["circuits", "Courses"],
+      ["definitions", "Descriptions"], ["speciaux", "Special items"], ["sorties", "Printing and exporting"], ["verifier", "Checking"], ["itineraires", "Routes"],
       ["outils", "Teamwork and the field"], ["apres", "After the race"], ["ruban", "The ribbon"], ["avance", "The advanced level"], ["calculs", "The calculations"]];
     const ic = (k, s = 18) => raw(TR.svg(k, s));
     const K = "Course setting";
@@ -809,7 +809,7 @@ export function build(X) {
       ["exchange", "Map exchange", "", "Click a control of the course: the runner changes maps there, and the course is split into parts."],
       ["bend", "Bend", "C", "Click a leg to bend it (to go round an out-of-bounds area); a bend can be dragged; click a bend to remove it."],
       ["gap", "Gap", "X", "Drag along a leg or a circle to cut it, and keep a map detail readable; click a gap to close it."],
-      ["route", "Route", "", "The route planned for the runners, used for the climb: click the leg, then the points of the route; double-click to finish. It is not printed."],
+      ["route", "Route", "", "Draw a route by hand: click the leg, then the points of the way; double-click to end. It joins the leg's routes (chapter “Routes”) and is not printed."],
       ["descr", "Descriptions on the map", "", "Drag a frame on the map: the course's descriptions go there, and their width sets their size."],
       ["special", "Special items", "", "Opens the list of items: water location, first aid, out-of-bounds area, text, image… (chapter “Special items”)."],
     ];
@@ -1049,6 +1049,45 @@ export function build(X) {
             map (a junction, a building corner) clicked with their latitude and longitude — a right-click on Géoportail or an online map gives
             them —, or three or more for a distorted photo; or a world file (.jgw, .pgw… with its .prj); or a KMZ of the same image. The dialog
             checks the scale obtained against the map's.</p>
+          <p><b>Exercises</b>: ${W("exercise")} offers, for the course in hand, six training maps — the corridor, the windows, controls hidden (a blank round
+            each control), legs hidden (a blank over the middle of each leg), a map per leg (a map exchange at every control) and the puzzle (the course's
+            image in shuffled pieces, to print). Backgrounds, relief and the elevation model: chapter “Backgrounds and relief”.</p>
+        </section>`,
+      fonds: () => html`
+        <section class="mx-slide" id="tr-fonds">
+          <p class="mx-kicker">${K}</p>
+          <h2>Backgrounds and relief</h2>
+          <p>${W("backdrop")} opens a panel, laid over the map, that shows under the course what the map does not say. It needs a georeferenced map (an OCAD
+            or Mapper file usually is; otherwise ${W("georef")}).</p>
+          <ul class="mx-list">
+            <li><b>OpenStreetMap</b>, everywhere in the world: streets, paths, recent buildings — to check that a path still exists, to spot a car park.</li>
+            <li><b>The national maps and aerial photos</b> where Ozimut knows them: France, Switzerland, the United States, New Zealand.</li>
+            <li>In France, <b>IGN's LiDAR HD</b>: the bare ground shaded (banks, ditches, old paths, platforms), the vegetation's height (felled areas, young
+              plantations, clearings) and the points by kind (ground, vegetation, buildings).</li>
+            <li><b>The shading and the slopes</b> of the event's elevation model, everywhere.</li>
+          </ul>
+          <p>Each background has its tick box and its opacity; the last line sets the intensity of the map itself, to see through it. The choice is kept for the
+            event, on this device. Backgrounds are not printed — except the one chosen as the “printed background” in the print area.</p>
+          <h3>The elevation model</h3>
+          <p>The climb, the profile, the routes, the shading and the 3D view read the same heights: the event's elevation model (${W("dem")}). Ozimut loads it by
+            itself the first time it is needed — IGN's RGE ALTI in France, the national models in Switzerland, the United States, Canada and New Zealand, the
+            worldwide relief elsewhere — then keeps it with the event: the whole team reads the same heights, even offline, and the Ozimut file (.ozmt) carries
+            them. You have better? “Use my file” takes a GeoTIFF or an ASCII grid: a 1 m LiDAR terrain model, for instance.</p>
+          <p>${W("rep-climb")} gives each course's climb in three ways: <b>between the controls</b> (the sum of the net ascents from one control to the next),
+            <b>along the legs</b> (every rise of the straight line) and <b>along the routes</b> (the IOF's rule: the ascent of the fastest route). Click the
+            heading of the column to apply and tick the courses; the value is rounded to 5 m. Where the model is wrong — a control under a bridge, at a cliff's
+            foot —, type the control's height: it then counts everywhere. ${W("profile")} draws the profile of the course, or that of the leg chosen with each
+            of its routes.</p>
+          <h3>A GPS track on the map</h3>
+          <p>${W("import-track")} lays your recce walk on the map — a GPX, TCX, FIT, NMEA or FRWD file — as a line object, which you move, recolour or delete like
+            any other. It shows on “All controls” only, unless you tick every course.</p>
+          <h3>Look here</h3>
+          <p>A right click on the map, then “Look here on…”, opens the place clicked in OpenStreetMap, Google Maps and Street View, IGN's Géoportail and
+            “Remonter le temps” in France, the national map in Switzerland, Mapy.cz or Mapillary, or copies its coordinates.</p>
+          <h3>No map: setting courses on OpenStreetMap</h3>
+          <p>For a park, a district or a schoolyard with no orienteering map, “New event” offers “No map? Set courses on OpenStreetMap”: give the centre (its
+            coordinates, or “My position”), the sheet and the scale. The event opens on OpenStreetMap, georeferenced; the background is printed under the
+            courses, with its credit. The route computation, which reads an orienteering map, is not available there: draw the routes by hand.</p>
         </section>`,
       ecran: () => html`
         <section class="mx-slide" id="tr-ecran">
@@ -1189,6 +1228,8 @@ export function build(X) {
             with a click in Courses › Printing › Paper (“fitted to the course” turns the sheet to suit the course). The area places itself, centred on the
             course, or follows a frame drawn on the map. An area larger than the sheet is split over several slightly overlapping pages, or cut down to its
             centre. ${W("view-printarea")} shows it as a dotted line.</p>
+          <p><b>Classes</b>: ${W("classes")} ties each class to its course, with its expected runners and, for a relay, its first bib; a CSV of
+            “course;class;runners” is imported at once. A relay's teams are then numbered class by class.</p>
         </section>`,
       definitions: () => html`
         <section class="mx-slide" id="tr-definitions">
@@ -1210,6 +1251,14 @@ export function build(X) {
             Descriptions › Language), among 23 languages; ${W("custom-text")} changes a symbol's text. To put them on the map, use the “Descriptions on the
             map” tool: drag a frame, its width sets the size; the bottom right corner resizes them, a right-click spreads them over several columns.
             ${W("pdf-descriptions")} prints them alone, several per page, to cut out for the description holders.</p>
+          <h3>Reading the description from the map</h3>
+          <p>On an OCAD or Mapper map, ${W("auto-desc")} fills a new control's description from the map object under it: a boulder, a depression, a building, a
+            path junction. Place the control with a <b>drag</b>: the drag's direction says on which side of the feature the flag is (column G).
+            ${W("desc-table")} shows the correspondence between the map's symbols and the description features, to adjust for your map, and fills the controls
+            still without a description. Contours have no correspondence: re-entrant or spur, the line is the same.</p>
+          <p><b>ISCD 2024</b> is the standard of new events: it adds the railway or tramway and the map flip (right click on a control of the course: the
+            double-sided map is turned over there), accepts a start code in column B (“S1”, “S2”) and asks for boxes of 5 to 7 mm, which the audit checks. On
+            the map's side, the ski (ISSkiOM 2019) and MTB (ISMTBOM 2022) standards set the size of the circles, the start, the finish and the lines.</p>
         </section>`,
       speciaux: () => html`
         <section class="mx-slide" id="tr-speciaux">
@@ -1264,6 +1313,15 @@ export function build(X) {
           <p>Map › Symbols sets the size of the circles, the width of the lines and the height of the numbers (relative to the standard); Map › Purple › Appearance, the font and boldness of the
             numbers, their white outline, the automatic gap in lines that cross, the size by print scale, and the purple. Texts placed on
             the map are printed in the font they name, with bold and italic, and in every language.</p>
+          <h3>Presets, papers, double-sided</h3>
+          <p>${W("canvases")} keeps a course's print settings under a name — paper and orientation, margins, area, scale, filtered map, printed background —
+            and puts them back on one course or on all in one click. The print area knows the papers from A2 to A6, B4, B5, SRA3, Tabloid and a custom size.
+            The courses' PDF can start each course on a front side: a blank page is slipped in where needed, and the two sides of a map to flip come back to back.</p>
+          <p><b>Overprinting maps already printed</b>: the printer's offset, a fine scale (99 to 101% make up for the paper's shrinkage) and mirror printing,
+            in the courses' PDF.</p>
+          <p><b>QR code</b>: among the special items, a QR code placed on the map takes the runner to the event's results, start times or analyses on Ozimut,
+            or to the address you choose. <b>Garmin map</b>: ${W("export-garmin")} cuts the map, alone or with a course, into tiles of 1024 × 1024 pixels at
+            most, for Garmin watches and GPS units.</p>
         </section>`,
       verifier: () => html`
         <section class="mx-slide" id="tr-verifier">
@@ -1283,11 +1341,41 @@ export function build(X) {
             reminders are left, such as a climb not yet filled in — and the first ones in the tab itself; a click opens the full audit. The
             “Course” group gives the current course's length, climb, number of controls, scale and expected competitors.</p>
           <h3>Climb and winning time</h3>
-          <p>${W("rep-climb")} calculates each course's climb from IGN's terrain model (georeferenced map, in France); tick the courses to copy
-            the value into their properties. With the Route tool, draw the planned route where the straight line goes over a hill that the runners
-            will go round. ${W("rep-times")} gives, for each course, the expected winning time, based on the results of the last two
+          <p>${W("rep-climb")} gives each course's climb from the elevation model — between the controls, along the legs or along the routes (chapter “Backgrounds and relief”); tick the courses to apply it to their properties. ${W("rep-times")} gives, for each course, the expected winning time, based on the results of the last two
             seasons, and the length that gives a target time (chapter “The calculations”).</p>
           <p>The load comes from the number of competitors on each course: ${W("load")} takes it from the official entries when the race is listed there.</p>
+          <p>The audit also flags: a course without a start, a finish or a climb; two identical courses; in sprint, controls under 25 m apart in a straight
+            line, to check along the running route; legs run both ways; a description without column D, or two features (D and E) with no crossing or
+            junction to say how they meet; a punching unit's number written twice or equal to another control's code; description boxes outside the
+            standard's 5 to 7 mm. The routes, their report and the profile: chapter “Routes”.</p>
+        </section>`,
+      itineraires: () => html`
+        <section class="mx-slide" id="tr-itineraires">
+          <p class="mx-kicker">${K}</p>
+          <h2>Routes</h2>
+          <p>${W("routes")} opens the route analyzer: for each leg of the course, the fastest route and its alternatives, computed on the map, and those you
+            draw. It is the computation of the runners' analyses: the map is read symbol by symbol (an OCAD or Mapper file) or by its colours (an image, a
+            PDF), the relief comes from the elevation model, and the out-of-bounds areas and boundaries you put on the course are closed.</p>
+          <ul class="mx-list">
+            <li><b>Compute</b> handles the course in hand; the small ▾ computes the leg chosen, or every course.</li>
+            <li><b>Draw</b> adds a route by hand on the leg chosen: an option the computation does not offer, a compulsory way. It is snapped to the paths and
+              measured on the same model (length, climb, time), and stays yours when you compute again.</li>
+            <li>Each route has its letter and colour, its <b>length</b>, its <b>climb</b> and its <b>time</b> at the course's pace. The star ★ marks the main
+              route, the one that counts for the course; ☆ chooses another. The eye hides it, the pencil names it, the bin deletes it.</li>
+            <li>On the map, the labels give “length | climb | time”: for the main route, for all, or none.</li>
+            <li><b>The pace</b> is the expected runner's, in runnable forest on the flat: it gives the times, without changing the choice of routes.</li>
+          </ul>
+          <h3>Length, climb, a sprint's extra length</h3>
+          <p>This is what the routes are for first. The panel sums the course up: its length along the main routes, what that adds to the straight line, its
+            climb, its time. “Apply to the course…” writes the climb into the course's properties and, if you tick it, makes its length follow the routes: the
+            sprint's rule, where the length announced is the ideal route's. It then keeps itself up to date. ${W("rep-routes")} gives it all as a text — each
+            leg with its routes, each course with its extra —, to print or as CSV, and applies every course at once.</p>
+          <h3>Settings</h3>
+          <p>The settings (the panel's sliders button) are the event's and shared by the team: the default pace, the number of alternatives, what a metre
+            climbed is worth, the caution away from handrails, the time to cross a bank or a fence, and each ground's speed in % of runnable forest. On an OCAD
+            or Mapper map, ${W("route-table")} goes further: symbol by symbol, what it is worth to the computation — its kind (path, green, impassable,
+            ignored…) and its speed —, with a reset to Ozimut's values. A map whose light green runs badly, a home-made symbol: that is the place.</p>
+          <p>Routes are not printed. The ▾ of “Compute” saves an image of the map with them, for a setters' meeting or a report.</p>
         </section>`,
       outils: () => html`
         <section class="mx-slide" id="tr-outils">
@@ -1316,6 +1404,10 @@ export function build(X) {
             the panel then prints its map, description sheet and punch card.</p>
           <p>Also: ${W("import-course")} takes the controls of a printed course (a PDF or a photo of a past race), to be checked afterwards;
             ${W("view-others")} shows other courses faintly, to avoid crossings and controls too close together.</p>
+          <h3>Lending the map</h3>
+          <p>A map's owner does not always want to give it away. In ${W("team")}, “Map lent” — on a member, or on an invitation link — lets them set courses on
+            the map without printing or exporting it: the PDFs come with the course alone. A browser can only discourage copying (the map is on the screen),
+            not prevent it. The analyses have the same setting: “Export an image of the map”, which the organisers untick.</p>
         </section>`,
       apres: () => html`
         <section class="mx-slide" id="tr-apres">
@@ -1429,11 +1521,6 @@ export function build(X) {
         <section class="mx-slide" id="tr-calculs">
           <p class="mx-kicker">Course setting</p>
           <h2>The calculations, explained</h2>
-          <h3>The climb</h3>
-          <p>The altitude is read every 10 m along each leg from IGN's terrain model (RGE ALTI, accurate to the metre in France), then
-            smoothed over three points: the model has small irregularities which, added up, would inflate the climb. The climb is the sum of the ascents,
-            rounded to 5 m. In a straight line, a leg that goes round a hill counts the hill: that is why the Route tool lets you draw the
-            planned route, which is then used for the calculation.</p>
           <h3>The winning time</h3>
           <p>From the official results of the last two seasons (about a hundred races of the same format), we record for each course the winner's pace, in
             minutes per kilometre, and their official CN 15 days before. The higher the CN, the faster the pace: the relationship is fitted once
@@ -1454,6 +1541,14 @@ export function build(X) {
           <p>A control can be collected when the last runner of each course that visits it has passed it: their start time, plus the distance to the control
             at a slow runner's pace (15 min/km in forest, 9 in sprint, in a straight line), plus a margin. The controls are shared out among the collectors by
             sector, and each one takes them in the order in which they can be reached.</p>
+          <h3>Routes and climb</h3>
+          <p>The route computation lays a grid of about 1.5 m on the map (1 m in sprint). Each cell has a speed — its ground's, in % of runnable forest — and a
+            height. Running from a cell to its neighbour costs the distance divided by the speed, plus the slope: a metre climbed is worth 8 m on the flat.
+            Away from paths, streams and clear edges, caution adds up to 20%: one runs slower there because one has to read. Crossing a bank or a fence costs
+            10 seconds. The fastest route is the way of least cost; the alternatives are the other truly different ways, as long as they are not 25% slower.
+            The time shown is that cost, without the caution, at the pace given.</p>
+          <p>A route's climb is read on the elevation model, a point every few metres, smoothed over three points so that the model's small bumps do not add
+            up: it is the same figure in the panel, the report, the profile and “Climb”.</p>
         </section>`,
     };
     return buildChapters(CHAPTERS, CH, "principe");

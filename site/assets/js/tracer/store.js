@@ -115,6 +115,10 @@ export async function saveMap(id, bytes, type, key) { return put(`/${id}/map`, b
 export async function loadExtraMap(id, n, key) { const b = await getBlob(`/${id}/maps/${n}`, key); return b ? { bytes: b.bytes, type: b.type } : null; }
 export async function saveExtraMap(id, n, bytes, type, key) { return put(`/${id}/maps/${n}`, bytes, type, key); }
 export const deleteExtraMap = (id, n) => api(`/${id}/maps/${n}`, { method: "DELETE" });
+/** The event's elevation model (relief.js: « OZD1 »), kept beside the map so that the whole team has the same heights. */
+export async function loadDem(id, key) { const b = await getBlob(`/${id}/dem`, key); return b ? b.bytes : null; }
+export const saveDem = (id, bytes, key) => put(`/${id}/dem`, bytes, "application/octet-stream", key);
+export const deleteDem = (id) => api(`/${id}/dem`, { method: "DELETE" });
 /** A control's photo (field mode): JPEG bytes, encrypted with the event's key when it has one. */
 export const savePhoto = (id, pid, bytes, key) => put(`/${id}/photo/${pid}`, bytes, "image/jpeg", key);
 export async function loadPhoto(id, pid, key) { const b = await getBlob(`/${id}/photo/${pid}`, key); return b ? new Blob([b.bytes], { type: "image/jpeg" }) : null; }

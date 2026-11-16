@@ -4,6 +4,7 @@
 // screen (drawItems, a canvas) and in the PDFs (tracer/pdf.js), so the two always match.
 
 import * as M from "./model.js";
+import { qrItems } from "./qr.js";
 import { sheetItems, describe, widthInCells } from "./descr.js";
 import { textWidth, CAP_HEIGHT, wrapText, family, cssFamily } from "./fonts.js";
 
@@ -128,6 +129,7 @@ export function itemsFor(ev, layout, { selected = null, descLines = null } = {})
       case "rect": rectSpecial(o, push); break;
       case "text": textSpecial(o, push); break;
       case "image": push({ t: "image", box: o.box, image: o.image }); break;
+      case "qr": for (const it of qrItems(o.box, o.text)) push(it); break;
       // an enlarged section: its white ground and frame here; the map and the course inside are drawn by the page (layoutx.js)
       case "inset": {
         const [l, b, r, t] = o.box;
@@ -210,14 +212,13 @@ function pointSpecial(o, push) {
       push({ t: "path", d: poly(tr([[-2, 0], [2, 0]], 0, o.ctr, k), false), stroke: o.lw, cap: "butt", join: "miter", color: "upper" });
       push({ t: "path", d: poly(tr([[0, -2], [0, 2]], 0, o.ctr, k), false), stroke: o.lw, cap: "butt", join: "miter", color: "upper" });
       break;
-    // MTB-O (ISMTBOM 2022): an obstacle across the track, two short bars across it; forbidden to pass, one heavy bar with end ticks.
-    // The orientation is the track's direction; the bars lie across it.
+    // MTB-O (ISMTBOM 2022, revision 2; sizes read in the specification on 2026-11-16): 717 obstacle across the track, a bar of
+    // 2.3 × 0.8 mm across it (lower purple); 718 forbidden to pass, an X of 2.5 mm, line 0.52. The orientation is the track's direction.
     case "mtbo-obstacle":
-      for (const dx of [-0.35, 0.35]) push({ t: "path", d: poly(tr([[dx, -1.0], [dx, 1.0]], o.orientation, o.ctr, k), false), stroke: 0.35 * k, cap: "butt", join: "miter", color: "upper" });
+      push({ t: "path", d: poly(tr([[0, -1.15], [0, 1.15]], o.orientation, o.ctr, k), false), stroke: 0.8 * k, cap: "butt", join: "miter", color: "lower" });
       break;
     case "mtbo-forbidden-pass":
-      push({ t: "path", d: poly(tr([[0, -1.25], [0, 1.25]], o.orientation, o.ctr, k), false), stroke: 0.7 * k, cap: "butt", join: "miter", color: "upper" });
-      for (const y of [-1.25, 1.25]) push({ t: "path", d: poly(tr([[-0.6, y], [0.6, y]], o.orientation, o.ctr, k), false), stroke: 0.35 * k, cap: "butt", join: "miter", color: "upper" });
+      for (const sg of [-1, 1]) push({ t: "path", d: poly(tr([[-1.25, -1.25 * sg], [1.25, 1.25 * sg]], o.orientation, o.ctr, k), false), stroke: 0.52 * k, cap: "butt", join: "miter", color: "upper" });
       break;
     default: break;
   }
@@ -228,26 +229,35 @@ function lineSpecial(o, push) {
   if (o.kind?.startsWith("mtbo-")) { mtboLine(o, push); return; }
   strokeKind(o.pts, false, o, push);
 }
-/** MTB-O's line symbols along a track: one-way compulsory (chevrons pointing the way, every 6 mm), forbidden route (a zigzag
- *  along it), dangerous section (a cross-hatched band). Sizes in map mm at the print scale (k). */
+/** MTB-O's line symbols along a track (ISMTBOM 2022, revision 2; sizes in map mm at the print scale, k): 841 one-way compulsory —
+ *  chevrons pointing the way, arms of 2.5 mm at 35°, line 0.45 —; 716 forbidden route — a zigzag of period 3.0 mm and height 3.0,
+ *  line 0.6, closed by a bar at each end —; 719 dangerous section — « !! » 4.0 mm high, 2.5 mm apart, at its middle and every
+ *  20 mm of a long one. */
 function mtboLine(o, push) {
   const k = o.ratio, L = M.pathLength(o.pts);
   const at = (s) => { const p = M.pointAt(o.pts, s), q = M.pointAt(o.pts, Math.min(L, s + 0.01)), r = M.pointAt(o.pts, Math.max(0, s - 0.01)); const a = Math.atan2(q[1] - r[1], q[0] - r[0]); return [p, a]; };
   if (o.kind === "mtbo-oneway") {
-    const step = 6 * k, n = Math.max(1, Math.floor(L / step));
+    const step = 8 * k, n = Math.max(1, Math.floor(L / step)), arm = 2.5 * k, half = (35 * Math.PI) / 180;
     for (let i = 0; i < n; i++) {
-      const [p, a] = at((i + 0.5) * (L / n)), c = Math.cos(a), s = Math.sin(a), h = 0.9 * k, w = 0.8 * k;
-      push({ t: "path", d: poly([[p[0] - c * h - s * w, p[1] - s * h + c * w], [p[0], p[1]], [p[0] - c * h + s * w, p[1] - s * h - c * w]], false), stroke: 0.35 * k, cap: "round", join: "miter", color: "upper" });
+      const [p, a] = at((i + 0.5) * (L / n));
+      const back = (sg) => [p[0] - arm * Math.cos(a + sg * half), p[1] - arm * Math.sin(a + sg * half)];
+      push({ t: "path", d: poly([back(1), [p[0], p[1]], back(-1)], false), stroke: 0.45 * k, cap: "butt", join: "miter", color: "lower" });
     }
   } else if (o.kind === "mtbo-forbidden-route") {
-    const wl = 1.5 * k, amp = 0.7 * k, n = Math.max(2, Math.round(L / (wl / 2))), pts = [];
+    const wl = 3.0 * k, amp = 1.5 * k, n = Math.max(2, 2 * Math.round(L / wl)), pts = [];
     for (let i = 0; i <= n; i++) { const [p, a] = at((i * L) / n), sgn = i % 2 ? 1 : -1, off = i === 0 || i === n ? 0 : sgn * amp; pts.push([p[0] - Math.sin(a) * off, p[1] + Math.cos(a) * off]); }
-    push({ t: "path", d: poly(pts, false), stroke: 0.35 * k, cap: "butt", join: "miter", color: "upper" });
+    push({ t: "path", d: poly(pts, false), stroke: 0.6 * k, cap: "butt", join: "miter", color: "upper" });
+    for (const s0 of [0, L]) { const [p, a] = at(s0); push({ t: "path", d: poly([[p[0] + Math.sin(a) * amp, p[1] - Math.cos(a) * amp], [p[0] - Math.sin(a) * amp, p[1] + Math.cos(a) * amp]], false), stroke: 0.6 * k, cap: "butt", join: "miter", color: "upper" }); }
   } else if (o.kind === "mtbo-danger") {
-    const w = 0.9 * k, left = offsetLine(o.pts, w), right = offsetLine(o.pts, -w);
-    const band = [...left, ...right.slice().reverse()];
-    push({ t: "hatch", d: poly(band, true), angles: [45, 135], width: 0.2 * k, spacing: 0.6 * k, color: "upper" });
-    for (const side of [left, right]) push({ t: "path", d: poly(side, false), stroke: 0.25 * k, cap: "butt", join: "miter", color: "upper" });
+    const n = Math.max(1, Math.round(L / (20 * k)));
+    for (let i = 0; i < n; i++) {
+      const [p] = at((i + 0.5) * (L / n));
+      for (const dx of [-1.25 * k, 1.25 * k]) {
+        const x = p[0] + dx, w = 0.3 * k;
+        push({ t: "path", d: poly([[x - w, p[1] + 2 * k], [x + w, p[1] + 2 * k], [x + w * 0.7, p[1] - 0.8 * k], [x - w * 0.7, p[1] - 0.8 * k]], true), fill: true, color: "upper" });
+        push({ t: "path", d: poly([[x - w, p[1] - 1.35 * k], [x + w, p[1] - 1.35 * k], [x + w, p[1] - 2 * k], [x - w, p[1] - 2 * k]], true), fill: true, color: "upper" });
+      }
+    }
   }
 }
 function strokeKind(pts, closed, o, push) {

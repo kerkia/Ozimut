@@ -38,13 +38,15 @@ for (const k of ["ign", "swisstopo", "usgs", "nrcan", "linz"]) CREDIT[`${k}+tile
 
 /**
  * The grid over a map of W × H pixels whose pixels map to metres by toM(px, py): about MAX_NODES nodes, a step of 5 m at
- * least, no side over MAX_SIDE nodes. Returns { nx, ny, step } (step in metres, along the longer side).
+ * least, no side over MAX_SIDE nodes. Returns { nx, ny, step } (step in metres, along the longer side). o: other limits
+ * ({ maxNodes, minStep, maxSide }: the Tracer's elevation model of a whole event, kept with it, is finer).
  */
-export function gridPlan(W, H, toM) {
+export function gridPlan(W, H, toM, o = {}) {
   const d = (a, b) => Math.hypot(a[0] - b[0], a[1] - b[1]);
   const wm = d(toM(0, 0), toM(W, 0)), hm = d(toM(0, 0), toM(0, H));
-  let step = Math.max(MIN_STEP, Math.sqrt((wm * hm) / MAX_NODES));
-  step = Math.max(step, Math.max(wm, hm) / (MAX_SIDE - 1));
+  const maxNodes = o.maxNodes || MAX_NODES, minStep = o.minStep || MIN_STEP, maxSide = o.maxSide || MAX_SIDE;
+  let step = Math.max(minStep, Math.sqrt((wm * hm) / maxNodes));
+  step = Math.max(step, Math.max(wm, hm) / (maxSide - 1));
   return { nx: Math.max(2, Math.round(wm / step) + 1), ny: Math.max(2, Math.round(hm / step) + 1), step, wm, hm };
 }
 
@@ -160,6 +162,12 @@ const NZ_MAX_SHEETS = 4;
 const PAR = 4;
 /** The grids the sources are in (proj4 texts). */
 const CRS = {
+  2154: "+proj=lcc +lat_0=46.5 +lon_0=3 +lat_1=49 +lat_2=44 +x_0=700000 +y_0=6600000 +ellps=GRS80 +towgs84=0,0,0,0,0,0,0 +units=m +no_defs",
+  27700: "+proj=tmerc +lat_0=49 +lon_0=-2 +k=0.9996012717 +x_0=400000 +y_0=-100000 +ellps=airy +towgs84=446.448,-125.157,542.06,0.15,0.247,0.842,-20.489 +units=m +no_defs",
+  3006: "+proj=utm +zone=33 +ellps=GRS80 +towgs84=0,0,0,0,0,0,0 +units=m +no_defs",
+  31370: "+proj=lcc +lat_0=90 +lon_0=4.36748666666667 +lat_1=51.1666672333333 +lat_2=49.8333339 +x_0=150000.013 +y_0=5400088.438 +ellps=intl +towgs84=-106.8686,52.2978,-103.7239,0.3366,-0.457,1.8422,-1.2747 +units=m +no_defs",
+  3812: "+proj=lcc +lat_0=50.797815 +lon_0=4.35921583333333 +lat_1=49.8333333333333 +lat_2=51.1666666666667 +x_0=649328 +y_0=665262 +ellps=GRS80 +towgs84=0,0,0,0,0,0,0 +units=m +no_defs",
+  28992: "+proj=sterea +lat_0=52.1561605555556 +lon_0=5.38763888888889 +k=0.9999079 +x_0=155000 +y_0=463000 +ellps=bessel +towgs84=565.4171,50.3319,465.5524,1.9342,-1.6677,9.1019,4.0725 +units=m +no_defs",
   2056: "+proj=somerc +lat_0=46.9524055555556 +lon_0=7.43958333333333 +k_0=1 +x_0=2600000 +y_0=1200000 +ellps=bessel +towgs84=674.374,15.056,405.346,0,0,0,0 +units=m +no_defs",
   3979: "+proj=lcc +lat_0=49 +lon_0=-95 +lat_1=49 +lat_2=77 +x_0=0 +y_0=0 +ellps=GRS80 +towgs84=0,0,0,0,0,0,0 +units=m +no_defs",
   2193: "+proj=tmerc +lat_0=0 +lon_0=173 +k=0.9996 +x_0=1600000 +y_0=10000000 +ellps=GRS80 +towgs84=0,0,0,0,0,0,0 +units=m +no_defs",
@@ -172,6 +180,7 @@ export function crsDef(epsg) {
   if (CRS[epsg]) return CRS[epsg];
   if (epsg >= 32601 && epsg <= 32660) return `+proj=utm +zone=${epsg - 32600} +datum=WGS84 +units=m +no_defs`;
   if (epsg >= 32701 && epsg <= 32760) return `+proj=utm +zone=${epsg - 32700} +south +datum=WGS84 +units=m +no_defs`;
+  if (epsg >= 25828 && epsg <= 25838) return `+proj=utm +zone=${epsg - 25800} +ellps=GRS80 +towgs84=0,0,0,0,0,0,0 +units=m +no_defs`;
   if (epsg >= 26901 && epsg <= 26923) return `+proj=utm +zone=${epsg - 26900} +ellps=GRS80 +towgs84=0,0,0,0,0,0,0 +units=m +no_defs`;
   if (CSRS_UTM[epsg]) return `+proj=utm +zone=${CSRS_UTM[epsg]} +ellps=GRS80 +towgs84=0,0,0,0,0,0,0 +units=m +no_defs`;
   return null;
@@ -304,6 +313,51 @@ export async function readWindow(src, box, res = 0) {
   if (c1 <= c0 || r1 <= r0) return null;
   const [data] = await im.readRasters({ window: [c0, r0, c1, r1], samples: [0] });
   return { data, w: c1 - c0, h: r1 - r0, x0: ox + c0 * rx, y0: oy + r0 * ry, rx, ry, nodata: im0.getGDALNoData() ?? null };
+}
+
+/**
+ * One's own elevation model (owner, 2026-11-16: the Tracer's « Modèle d'altitude »): heights at the points [[lat, lon]…] from a
+ * file — a GeoTIFF with its georeference (its EPSG code read from its keys: a projected grid, or degrees), or an ESRI ASCII
+ * grid (.asc: ncols, nrows, xllcorner | xllcenter, yll…, cellsize, NODATA_value), whose grid is `epsg` (asked of the user).
+ * defOf(code): the grid's proj4 text when this module does not know it (the Tracer's table of EPSG codes). Returns { z (NaN
+ * where the file has no height), info: { epsg, res (the file's pixel, in its unit), w, h } }; throws "epsg" when the grid is
+ * not known, "format" when the file is neither.
+ */
+export async function fileHeights(bytes, name, pts, { epsg = 0, defOf = null } = {}) {
+  const u8 = bytes instanceof Uint8Array ? bytes : new Uint8Array(bytes);
+  const tiff = (u8[0] === 0x49 && u8[1] === 0x49) || (u8[0] === 0x4d && u8[1] === 0x4d);
+  let raster = null, code = Number(epsg) || 0;
+  if (tiff) {
+    const GT = await geotiff();
+    const tif = await GT.fromArrayBuffer(u8.buffer.slice(u8.byteOffset, u8.byteOffset + u8.byteLength)), im = await tif.getImage(0);
+    const keys = im.getGeoKeys() || {};
+    code = code || Number(keys.ProjectedCSTypeGeoKey) || Number(keys.GeographicTypeGeoKey) || 0;
+    if (code === 32767) code = 0;                                         // « user defined »
+  } else if (/\.asc$/i.test(name || "") || /^\s*ncols/i.test(new TextDecoder().decode(u8.subarray(0, 40)))) {
+    const text = new TextDecoder().decode(u8), head = {}, lines = text.split(/\r?\n/);
+    let i = 0;
+    for (; i < lines.length; i++) { const m = /^\s*([a-z_]+)\s+(-?[\d.,eE+-]+)\s*$/i.exec(lines[i]); if (!m) break; head[m[1].toLowerCase()] = Number(m[2].replace(",", ".")); }
+    const w = head.ncols, h = head.nrows, cs = head.cellsize;
+    if (!(w > 1 && h > 1 && cs > 0)) throw new Error("format");
+    const data = new Float32Array(w * h);
+    let k = 0;
+    for (; i < lines.length && k < w * h; i++) for (const tok of lines[i].trim().split(/\s+/)) { if (tok === "") continue; data[k++] = Number(tok.replace(",", ".")); if (k >= w * h) break; }
+    const x0 = head.xllcenter != null ? head.xllcenter - cs / 2 : head.xllcorner, yb = head.yllcenter != null ? head.yllcenter - cs / 2 : head.yllcorner;
+    raster = { data, w, h, x0, y0: yb + h * cs, rx: cs, ry: -cs, nodata: head.nodata_value ?? null };
+  } else throw new Error("format");
+  const geographic = code === 4326 || code === 4258 || code === 4269 || code === 4171 || code === 4979;
+  let P;
+  if (geographic) P = pts.map(([la, lo]) => [lo, la]);
+  else {
+    const def = (defOf && (await defOf(code))) || crsDef(code);
+    if (!def) throw new Error("epsg");
+    const p4 = await proj4js(), f = p4("WGS84", def);
+    P = pts.map(([la, lo]) => f.forward([lo, la]));
+  }
+  if (!raster) raster = await readWindow(u8.buffer.slice(u8.byteOffset, u8.byteOffset + u8.byteLength), boxOf(P), 0);
+  const z = new Float32Array(pts.length).fill(NaN);
+  if (raster) sampleInto(z, P, [raster]);
+  return { z, info: { epsg: code, res: raster ? Math.abs(raster.rx) : 0, w: raster?.w || 0, h: raster?.h || 0 } };
 }
 
 /** Heights at the points P [[X, Y]…] of a grid from rasters (readWindow's) in it, bilinear on the pixels' centres. */
@@ -452,13 +506,13 @@ function fillHoles(z, nx, ny) {
  * "nrcan", "linz", "tiles", or one of the first five + "+tiles" when the tiles filled its holes), ms, cached }. node(i, j)
  * gives the node's [lat, lon]; key names the map and its placing (the cache's key).
  */
-export async function loadGrid({ key, nx, ny, step, node, onProgress }) {
+export async function loadGrid({ key, nx, ny, step, node, onProgress, fresh = false }) {
   const [la, lo] = node((nx - 1) / 2, (ny - 1) / 2);
   const order = sourcesAt(la, lo);
   // grids kept before the national sources (2026-11-06) were the tiles' outside France: a key of their own
   const national = order.some((s) => s !== "ign");
   const ck = `dem:${national ? "v3" : "v2"}:${key}:${nx}x${ny}`;
-  const hit = await cached(ck);
+  const hit = fresh ? null : await cached(ck);
   if (hit?.z?.length === nx * ny) return { ...hit, cached: true, ms: 0 };
   const t0 = performance.now(), pts = [];
   for (let j = 0; j < ny; j++) for (let i = 0; i < nx; i++) pts.push(node(i, j));

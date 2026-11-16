@@ -8,26 +8,12 @@ import * as S from "./store.js";
 import * as G from "./geom.js";
 import { modal, field, sel, num } from "../tracer/dialogs.js";
 import { t, tn } from "./lang.js";
+import { ONLINE, LINZ_KEY } from "../onlinemaps.js";
 
 const esc = (s) => String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]);
 export const ACCEPT = "image/*,.pdf,.tif,.tiff,.gpx,.kml,.kmz,.pgw,.jgw,.tfw,.wld,.prj";
-// The online layers, all Web Mercator tiles. `country` (ISO alpha-2): offered only for a map there (trace/terrain.js countryAt
-// at the map's middle; every layer when the map has no georeference); `off`: not offered (New Zealand's photos until Ozimut has
-// a LINZ Basemaps key, free on request to LINZ: their keys made in the browser last 90 days).
-export const LINZ_KEY = "";
-export const ONLINE = {
-  ortho: { url: "https://data.geopf.fr/wmts?SERVICE=WMTS&REQUEST=GetTile&VERSION=1.0.0&LAYER=ORTHOIMAGERY.ORTHOPHOTOS&STYLE=normal&TILEMATRIXSET=PM&FORMAT=image/jpeg&TILEMATRIX={z}&TILEROW={y}&TILECOL={x}", max: 19, country: "FR" },
-  plan: { url: "https://data.geopf.fr/wmts?SERVICE=WMTS&REQUEST=GetTile&VERSION=1.0.0&LAYER=GEOGRAPHICALGRIDSYSTEMS.PLANIGNV2&STYLE=normal&TILEMATRIXSET=PM&FORMAT=image/png&TILEMATRIX={z}&TILEROW={y}&TILECOL={x}", max: 18, country: "FR" },
-  // swisstopo (open data, « © swisstopo »): SWISSIMAGE 10 cm to 25 cm, the national maps
-  swissimage: { url: "https://wmts.geo.admin.ch/1.0.0/ch.swisstopo.swissimage/default/current/3857/{z}/{x}/{y}.jpeg", max: 20, country: "CH" },
-  chmap: { url: "https://wmts.geo.admin.ch/1.0.0/ch.swisstopo.pixelkarte-farbe/default/current/3857/{z}/{x}/{y}.jpeg", max: 18, country: "CH" },
-  // The National Map (USGS, public domain): its imagery (NAIP and others) and topo cached to zoom 16 (~2 m a pixel)
-  usimagery: { url: "https://basemap.nationalmap.gov/arcgis/rest/services/USGSImageryOnly/MapServer/tile/{z}/{y}/{x}", max: 16, country: "US" },
-  ustopo: { url: "https://basemap.nationalmap.gov/arcgis/rest/services/USGSTopo/MapServer/tile/{z}/{y}/{x}", max: 16, country: "US" },
-  // LINZ Basemaps (CC BY 4.0, « © LINZ »): New Zealand's aerial photos, a key needed
-  nzaerial: { url: `https://basemaps.linz.govt.nz/v1/tiles/aerial/WebMercatorQuad/{z}/{x}/{y}.webp?api=${LINZ_KEY}`, max: 20, country: "NZ", off: !LINZ_KEY },
-  osm: { url: "https://tile.openstreetmap.org/{z}/{x}/{y}.png", max: 18 },
-};
+// The online layers, all Web Mercator tiles: one list for Cartographier and the Tracer (../onlinemaps.js).
+export { ONLINE, LINZ_KEY };
 
 /** The map's georeference as functions (data/frame.js), or null when the map has none. */
 async function frame(E) {

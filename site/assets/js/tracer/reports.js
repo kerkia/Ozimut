@@ -3,10 +3,14 @@
 // adds Ozimut's checks after Purple Pen's: controls too close for the discipline (IOF: 30 m, 15 m in sprint; closer than
 // 60 m / 30 m only on clearly different features), controls in out-of-bounds or dangerous areas, legs across them or across
 // an uncrossable boundary, legs passing through another control's circle, dog-legs, very short legs, codes below 31 or
-// readable upside down as another code.
+// readable upside down as another code. After OCAD's consistency check (owner, 2026-11-16): courses with the same controls in
+// the same order, a sprint's controls under 25 m apart (the rule's running distance; 15 m in a straight line), a second feature
+// in column E without the crossing, junction or « between » that calls for one, punching units used twice or equal to
+// another control's code, description boxes on the map outside ISCD's 5 to 7 mm.
 
 import * as M from "./model.js";
 import { inPoly } from "./layout.js";
+import { symbol } from "./symbols.js";
 import { modal, download, fileName, saveFiles } from "./dialogs.js";
 import { where } from "./ribbon-data.js";
 import { t, tn, lang, locale } from "./lang.js";
@@ -161,6 +165,19 @@ export function audit(ev) {
   }
   if (rep.length) sections.push({ id: "repeated", title: t("trc.rep.repeatedTitle"), head: [t("trc.rep.course"), t("trc.rep.control"), t("trc.rep.problem")], align: "lll",
     rows: rep.map((r) => [name(r.c), ctrlName(ev, r.x), r.score ? t("trc.rep.twiceScore") : t("trc.rep.twiceInRow")]) });
+  // courses with the same controls in the same order (one of them is not needed, or a control was forgotten)
+  const seqs = new Map();
+  for (const c of courses) {
+    if (ev.courses[c].kind === "score") continue;
+    for (const d of designators(ev, c)) {
+      const key = M.ccIds(ev, d.cd).map((id) => ev.courseControls[id].control).join(">");
+      if (!key.includes(">")) continue;
+      if (!seqs.has(key)) seqs.set(key, new Set());
+      seqs.get(key).add(c);
+    }
+  }
+  const same = [...seqs.values()].filter((x) => x.size > 1).map((x) => [[...x].map(name).join(", "), t("trc.rep.identical")]);
+  if (same.length) sections.push({ id: "identical", title: t("trc.rep.identicalTitle"), head: [t("trc.rep.courses"), t("trc.rep.remark")], align: "ll", rows: same });
   // Purple Pen: close-together controls (100 m), with the discipline's IOF limits (Ozimut)
   const sprint = isSprint(ev), minD = sprint ? 15 : 30, sameD = sprint ? 30 : 60;
   const normal = Object.keys(ev.controls).map(Number).filter((id) => ev.controls[id].kind === "normal");
@@ -171,7 +188,7 @@ export function audit(ev) {
     if (d >= 100.4999) continue;
     const sa = ev.controls[a].symbols?.[1] || null, sb = ev.controls[b].symbols?.[1] || null, same = !!(sa && sb && sa === sb);
     const codes = [ev.controls[a].code, ev.controls[b].code].sort(M.compareCodes);
-    near.push({ d, row: [codes.join(", "), `${Math.round(d)} m`, same ? t("trc.rep.yes") : t("trc.rep.no"), d < minD ? (sprint ? t("trc.rep.tooCloseSprint", { m: minD }) : t("trc.rep.tooClose", { m: minD })) : d <sameD && same ? t("trc.rep.sameFeature", { m: sameD }) : ""] });
+    near.push({ d, row: [codes.join(", "), `${Math.round(d)} m`, same ? t("trc.rep.yes") : t("trc.rep.no"), d < minD ? (sprint ? t("trc.rep.tooCloseSprint", { m: minD }) : t("trc.rep.tooClose", { m: minD })) : sprint && d < 25 ? t("trc.rep.sprint25") : d <sameD && same ? t("trc.rep.sameFeature", { m: sameD }) : ""] });
   }
   near.sort((x, y) => x.d - y.d);
   if (near.length) sections.push({ id: "near", title: t("trc.rep.nearTitle"), text: sprint ? t("trc.rep.nearTextSprint", { min: minD, same: sameD }) : t("trc.rep.nearText", { min: minD, same: sameD }),
@@ -206,11 +223,26 @@ export function audit(ev) {
     if (c.kind !== "normal" && c.kind !== "start") continue;
     const s = c.symbols || [];
     if (c.kind === "start" && !s.some(Boolean)) continue;
+    const combo = s[3] === "10.1" || s[3] === "10.2", between = s[4] === "11.15" || s[4] === "11.15single";
     if (!s[1]) boxes.push([ctrlName(ev, id), "D", t("trc.rep.emptyD")]);
-    else if ((s[3] === "10.1" || s[3] === "10.2") && !s[2]) boxes.push([ctrlName(ev, id), "E", t("trc.rep.crossingE")]);
+    else if (combo && !s[2]) boxes.push([ctrlName(ev, id), "E", t("trc.rep.crossingE")]);
     else if (s[4] === "11.15" && !s[2]) boxes.push([ctrlName(ev, id), "E", t("trc.rep.betweenE")]);
+    // a second feature in column E says two features: column F (crossing, junction) or G (between) must say how they meet
+    else if (s[2] && symbol(s[2], ev.descStandard)?.k === "D" && !combo && !between) boxes.push([ctrlName(ev, id), "F / G", t("trc.rep.secondFeature")]);
   }
   if (boxes.length) sections.push({ id: "descr", title: t("trc.rep.descTitle"), head: [t("trc.rep.control"), t("trc.rep.column"), t("trc.rep.reason")], align: "lll", rows: boxes });
+  // punching units (the advanced level: a control's other units): one number on two controls, a unit equal to another control's code
+  const unitOf = new Map(), unitRows = [];
+  for (const id of normal) {
+    const c = ev.controls[id], list = [c.code, ...(c.units || [])].map((x) => String(x || "").trim()).filter(Boolean);
+    list.forEach((u, i) => {
+      if (list.indexOf(u) < i) { unitRows.push([ctrlName(ev, id), u, t("trc.rep.unitTwiceSame")]); return; }
+      const other = unitOf.get(u);
+      if (other != null && other !== id) unitRows.push([`${ctrlName(ev, other)}, ${ctrlName(ev, id)}`, u, i === 0 || ev.controls[other].code === u ? t("trc.rep.unitIsCode") : t("trc.rep.unitTwice")]);
+      else unitOf.set(u, id);
+    });
+  }
+  if (unitRows.length) sections.push({ id: "units", title: t("trc.rep.unitsTitle"), head: [t("trc.rep.controls"), t("trc.rep.unit"), t("trc.rep.problem")], align: "lll", rows: unitRows });
   // Purple Pen: missing punch patterns (only when some control has one)
   const punched = normal.filter((id) => !unused.includes(id));
   if (punched.some((id) => /1/.test(ev.controls[id].punch?.dots || ""))) {
@@ -321,6 +353,17 @@ export function audit(ev) {
       more.push(tagged([cs, `${ctrlName(ev, dirs[i].x)}, ${ctrlName(ev, dirs[j].x)}`, t("trc.rep.firstSameWay", { deg: Math.round(diff) })], "first-dir"));
     }
   }
+  // the description sheets placed on the maps: ISCD's boxes are 5 to 7 mm square once printed
+  for (const sp of Object.values(ev.specials)) {
+    if (sp.kind !== "descriptions" || !(sp.pts?.length >= 2)) continue;
+    const cell = Math.abs(sp.pts[1][0] - sp.pts[0][0]);
+    for (const x of sp.all ? courses.map((c) => ({ course: c })) : sp.courses) {
+      const c = ev.courses[x.course];
+      if (!c || c.hideFromReports) continue;
+      const printed = cell * (ev.map.scale / (c.printScale || ev.map.scale));
+      if (printed < 4.95 || printed > 7.05) more.push(tagged([name(x.course), t("trc.rep.descSheet"), t("trc.rep.descBox", { mm: nf(printed, 1) })], "desc-box"));
+    }
+  }
   if (more.length) sections.push({ id: "more", title: t("trc.rep.moreTitle"), text: t("trc.rep.moreText"), head: [t("trc.rep.course"), t("trc.rep.object"), t("trc.rep.remark")], align: "lll", rows: more });
   return { title: t("trc.rep.auditTitle"), intro: sections.length ? "" : t("trc.rep.noProblem"), sections };
 }
@@ -358,7 +401,7 @@ export const trailReport = (E) => show(E, trailAnswers(E.ev), t("trc.rep.slugTra
 function html(rep) {
   return `${rep.intro ? rep.intro.split("\n").map((t) => `<p class="tr-hint">${esc(t)}</p>`).join("") : ""}${rep.sections.map((s) => `
     ${s.title ? `<h3>${esc(s.title)}</h3>` : ""}${s.text ? `<p class="tr-hint">${esc(s.text)}</p>` : ""}
-    <div class="table-wrap"><table class="tr-table"><thead><tr>${s.head.map((h, i) => `<th class="${s.align[i] === "r" ? "r" : ""}">${esc(h)}</th>`).join("")}</tr></thead>
+    <div class="table-wrap"><table class="tr-table${s.nowrap ? " tr-nw" : ""}"><thead><tr>${s.head.map((h, i) => `<th class="${s.align[i] === "r" ? "r" : ""}">${esc(h)}</th>`).join("")}</tr></thead>
     <tbody>${s.rows.map((r, ri) => `<tr${s.rule3 && ri % 3 === 2 ? ' class="tr-rule"' : ""}>${r.map((c, i) => `<td class="${s.align[i] === "r" ? "r" : ""}">${esc(c)}</td>`).join("")}</tr>`).join("") || `<tr><td colspan="${s.head.length}"><small>${esc(t("trc.rep.nothing"))}</small></td></tr>`}
     ${s.foot ? `<tr class="tr-sum">${s.foot.map((c, i) => `<td class="${s.align[i] === "r" ? "r" : ""}">${esc(c)}</td>`).join("")}</tr>` : ""}</tbody></table></div>`).join("")}`;
 }
@@ -377,15 +420,18 @@ export function csv(rep) {
   }
   return `﻿${lines.join("\r\n")}\r\n`;
 }
-async function show(E, rep, slug) {
+/** A report shown, with its CSV and print buttons; more: { extra (more buttons, html), onOpen(form, done) } (the routes' report). */
+async function show(E, rep, slug, more = {}) {
   await modal(E, { title: `${rep.title} — ${E.ev.title.replace(/\|/g, " ")}`, wide: true, ok: null, cancel: t("trc.rep.close"),
     body: `<div class="tr-report">${html(rep)}</div>`,
-    extra: `<button type="button" class="btn" data-csv>CSV</button><button type="button" class="btn" data-print>${esc(t("trc.rep.print"))}</button>`,
-    onOpen: (f) => {
+    extra: `${more.extra || ""}<button type="button" class="btn" data-csv>CSV</button><button type="button" class="btn" data-print>${esc(t("trc.rep.print"))}</button>`,
+    onOpen: (f, done) => {
       f.querySelector("[data-csv]").addEventListener("click", () => download(`${fileName(E.ev.title)} - ${slug}.csv`, csv(rep), "text/csv;charset=utf-8"));
       f.querySelector("[data-print]").addEventListener("click", () => printReport(rep, E.ev.title));
+      more.onOpen?.(f, done);
     } });
 }
+export { show as showReport };
 function printReport(rep, title) {
   const w = window.open("", "_blank");
   if (!w) return;

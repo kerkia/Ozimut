@@ -1880,6 +1880,8 @@ export async function render(main, { query = {}, route } = {}) {
     const shotSet = () => { shot.zone = $("#an-shot-zone").value; shot.type = $("#an-shot-type").value; shot.legend = $("#an-shot-legend").checked; savePrefs(); };
     ["#an-shot-zone", "#an-shot-type", "#an-shot-legend"].forEach((s) => $(s).addEventListener("change", shotSet));
     $("#an-shot").addEventListener("click", () => exportImage());
+    // an organiser's map lent, not given (their switch « export », owner 2026-11-16): no image of it from here
+    if (!orgaOpt("export", true) && !orga?.organiser) rightP.pane("export").querySelector(".an-shot").innerHTML = html`<b>${t("an.shot.title")}</b><p class="hint" style="margin:0">${t("sh.export.closed")}</p>`;
     // « Enregistrer dans Mes cartes » (owner, 2026-11-01): the map and the run as drawn here (trace/mymapsave.js)
     // a run replayed from « Mes cartes » is there already; a kept analysis replayed may go there
     if (!orgaOpt("mymaps", true) || (track?.drawn?.replay && !openedKept)) $("#an-mymaps").hidden = true;

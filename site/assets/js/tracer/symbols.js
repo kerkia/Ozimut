@@ -6,6 +6,28 @@
 import { lang as uiLang } from "./lang.js";
 
 let DB = null, LOADING = null, ALL_TEXTS = null;
+// ISCD 2024 (owner, 2026-11-16) is ISCD 2018 with two more symbols — 5.24 « Railway » (« a railway, tramway, or other kind of railed
+// track »: Purple Pen's 5.26) and 15.6 « Map flip » — which Purple Pen files under its « 2018 »: the strict 2018 standard does not
+// offer them. Purple Pen's file has no French, German or Spanish for a few symbols of 2018 and 2024: ISCD 2024's own words here,
+// so that no sheet falls back to English.
+const NEW_2024 = new Set(["5.26", "15.6"]);
+const base = (std) => (std === "2024" ? "2018" : std || "2018");
+const PATCH = {                                                    // i18n-ignore-next 8
+  "2.10": { n: { fr: "Tranchée", es: "Trinchera" }, t: { fr: [{ t: "tranchée" }, { t: "tranchées", p: 1 }], es: [{ t: "trinchera" }, { t: "trincheras", p: 1 }] } },
+  "5.25": { n: { fr: "Zone interdite", es: "Área fuera de límites" }, t: { fr: [{ t: "zone interdite" }, { t: "zones interdites", p: 1 }], es: [{ t: "área prohibida" }, { t: "áreas prohibidas", p: 1 }] } },
+  "5.26": { n: { en: "Railway, tramway", fr: "Voie ferrée, tramway", de: "Eisenbahn, Straßenbahn", es: "Vía férrea, tranvía" },
+    t: { fr: [{ t: "voie ferrée" }, { t: "voies ferrées", p: 1 }], de: [{ t: "Eisenbahn" }, { t: "Eisenbahnen", p: 1 }], es: [{ t: "vía férrea" }, { t: "vías férreas", p: 1 }] } },
+  "13.5control": { n: { fr: "Changement de carte au poste", es: "Cambio de mapa en el control" }, t: { fr: [{ t: "changement de carte au poste" }], es: [{ t: "cambio de mapa en el control" }] } },
+  "15.6": { n: { fr: "Retournement de carte", de: "Karte wenden", es: "Volteo del mapa" }, t: { fr: [{ t: "retourner la carte" }], de: [{ t: "Karte wenden" }], es: [{ t: "dar la vuelta al mapa" }] } },
+  "13.6": { n: { fr: "Point de remise de carte", es: "Punto de entrega del mapa" }, t: { fr: [{ t: "{0}jusqu'au départ" }], es: [{ t: "{0}hasta la salida" }] } },
+};
+function patch() {
+  for (const [id, p] of Object.entries(PATCH)) for (const s of DB?.byId[id] || []) {
+    s.n = { ...(s.n || {}) }; s.t = { ...(s.t || {}) };
+    for (const [l, v] of Object.entries(p.n)) if (!s.n[l] || l === "en") s.n[l] = v;
+    for (const [l, v] of Object.entries(p.t)) if (!s.t[l]) s.t[l] = v;
+  }
+}
 const URL_MAIN = "assets/tracer/symbols.json", URL_TEXTS = "assets/tracer/symbol-texts.json";
 
 /** Load the symbols (once). */
@@ -15,6 +37,7 @@ export async function loadSymbols() {
     const byId = {};
     for (const s of Object.values(j.symbols)) (byId[s.id] ||= []).push(s);
     DB = { languages: j.languages, byId, all: Object.values(j.symbols) };
+    patch();
     return DB;
   });
   return LOADING;
@@ -29,6 +52,7 @@ export async function loadAllTexts() {
     const s = DB.all.find((x) => (x.std ? `${x.id}@${x.std.join(",")}` : x.id) === key) || DB.byId[key.split("@")[0]]?.[0];
     if (s) { s.n = v.n; s.t = v.t; }
   }
+  patch();
   return ALL_TEXTS;
 }
 export const symbolsLoaded = () => !!DB;
@@ -48,17 +72,17 @@ export function setCustomSymbols(map) {
   CUSTOM = {};
   for (const [id, s] of Object.entries(map || {})) CUSTOM[`x:${id}`] = { ...s, id: `x:${id}`, custom: true };
 }
-/** The symbol with this id in a standard ("2004" or "2018"), or null. */
+/** The symbol with this id in a standard ("2004", "2018" or "2024"), or null. */
 export function symbol(id, standard = "2018") {
   if (CUSTOM[id]) return CUSTOM[id];
   const list = DB?.byId[id];
   if (!list) return null;
-  return list.find((s) => !s.std || s.std.includes(standard)) || null;
+  return list.find((s) => !s.std || s.std.includes(base(standard))) || null;
 }
 export const existsIn = (id, standard) => !!symbol(id, standard);
 /** Symbols offered for a column (C…H, or a directive letter), in the standard, in Purple Pen's order; the event's own last. */
 export function symbolsFor(kind, standard = "2018") {
-  return [...(DB?.all || []).filter((s) => s.k === kind && (!s.std || s.std.includes(standard))), ...Object.values(CUSTOM).filter((s) => s.k === kind)];
+  return [...(DB?.all || []).filter((s) => s.k === kind && (!s.std || s.std.includes(base(standard))) && !(standard === "2018" && NEW_2024.has(s.id))), ...Object.values(CUSTOM).filter((s) => s.k === kind)];
 }
 
 // ---- texts ---------------------------------------------------------------------------------------------------------

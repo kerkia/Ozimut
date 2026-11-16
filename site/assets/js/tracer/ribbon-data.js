@@ -39,7 +39,11 @@ export const TABS = [
     { id: "descr", title: t("trc.rd.gDescr"), guide: "definitions", launcher: "standards", items: [
       T("descr", t("trc.rd.descr"), "descr", { tip: t("trc.rd.descrTip") }),
       stack({ t: "field", id: "descStandard" }, { t: "field", id: "lang" }, S("custom-text", t("trc.rd.customText"), "text", { need: "edit", tip: t("trc.rd.customTextTip") })),
-      stack(S("my-symbols", t("trc.rd.mySymbols"), "symbol", { need: "edit", pro: true, tip: t("trc.rd.mySymbolsTip") }))] },
+      // read from the map (owner, 2026-11-16, after OCAD's automatic control description): a new control's columns D to G from the
+      // OCAD or Mapper object under it, by a table of map symbols the setter may change (autodesc.js)
+      stack(S("auto-desc", t("trc.rd.autoDesc"), "wand", { need: "vector", toggle: "autoDesc", tip: t("trc.rd.autoDescTip") }),
+        S("desc-table", t("trc.rd.descTable"), "table", { need: "vector", tip: t("trc.rd.descTableTip") }),
+        S("my-symbols", t("trc.rd.mySymbols"), "symbol", { need: "edit", pro: true, tip: t("trc.rd.mySymbolsTip") }))] },
   ] },
   { id: "courses", label: t("trc.rd.tabCourses"), key: "C", icon: "course", guide: "circuits", groups: [
     { id: "course", title: t("trc.rd.gCourse"), launcher: "course-props", items: [
@@ -64,7 +68,9 @@ export const TABS = [
       S("finish-at-start", t("trc.rd.finishAtStart"), "finish", { need: "course", tip: t("trc.rd.finishAtStartTip") }))] },
     { id: "print", title: t("trc.rd.gPrint"), guide: "sorties", launcher: "print-area", items: [
       B("print-area", t("trc.rd.printArea"), "frame", { tip: t("trc.rd.printAreaTip") }),
-      stack({ t: "field", id: "printScale" }, { t: "field", id: "paper" }, S("view-printarea", t("trc.rd.viewPrintarea"), "frame", { toggle: "printArea", tip: t("trc.rd.viewPrintareaTip") }))] },
+      stack({ t: "field", id: "printScale" }, { t: "field", id: "paper" }, S("view-printarea", t("trc.rd.viewPrintarea"), "frame", { toggle: "printArea", tip: t("trc.rd.viewPrintareaTip") })),
+      // print presets (owner, 2026-11-16, after OCAD's canvases): paper, area, scale, map filter and backgrounds, one click for every course
+      B("canvases", t("trc.rd.canvases"), "preset", { tip: t("trc.rd.canvasesTip") })] },
     { id: "numbers", title: t("trc.rd.gNumbers"), items: [
       stack(S("numbering", t("trc.rd.numbering"), "hash", { need: "edit", tip: t("trc.rd.numberingTip") }),
         S("codes", t("trc.rd.codes"), "tag", { need: "edit", tip: t("trc.rd.codesTip") }),
@@ -85,6 +91,12 @@ export const TABS = [
     { id: "training", title: t("trc.rd.gTraining"), items: [
       B("map-colors", t("trc.rd.mapColors"), "colors", { need: "vector", tip: t("trc.rd.mapColorsTip") }),
       B("exercise", t("trc.rd.exercise"), "mask", { need: "course", tip: t("trc.rd.exerciseTip") })] },
+    // what lies under and over the map (owner, 2026-11-16): OpenStreetMap, aerial photos, the relief's shading and slopes, the
+    // vegetation's height from LiDAR, GPS tracks; and the elevation model everything about the relief reads (relief.js)
+    { id: "layers", title: t("trc.rd.gLayers"), items: [
+      B("backdrop", t("trc.rd.backdrop"), "backdrop", { toggle: "backdrop", tip: t("trc.rd.backdropTip") }),
+      stack(S("dem", t("trc.rd.dem"), "dem", { tip: t("trc.rd.demTip") }),
+        S("import-track", t("trc.rd.importTrack"), "track", { need: "edit", tip: t("trc.rd.importTrackTip") }))] },
     { id: "position", title: t("trc.rd.gPosition"), items: [
       B("calage", t("trc.rd.calage"), "target", { need: "edit", tip: t("trc.rd.calageTip") }),
       stack(S("georef", t("trc.rd.georef"), "globe", { tip: t("trc.rd.georefTip") }),
@@ -109,6 +121,12 @@ export const TABS = [
       stack(S("rep-cross", t("trc.rd.repCross"), "table", { tip: t("trc.rd.repCrossTip") }),
         S("rep-load", t("trc.rd.repLoad"), "bars", { tip: t("trc.rd.repLoadTip") }),
         S("export-csv", t("trc.rd.exportCsv"), "table", { tip: t("trc.rd.exportCsvTip") }))] },
+    // the route analyzer (owner, 2026-11-16, after OCAD's): each leg's fastest route and its alternatives, kept with the event
+    { id: "routes", title: t("trc.rd.gRoutes"), guide: "itineraires", items: [
+      B("routes", t("trc.rd.routes"), "routes", { toggle: "routes", tip: t("trc.rd.routesTip") }),
+      stack(S("route-table", t("trc.rd.routeTable"), "speed", { need: "vector", tip: t("trc.rd.routeTableTip") }),
+        S("rep-routes", t("trc.rd.repRoutes"), "list", { tip: t("trc.rd.repRoutesTip") }),
+        S("profile", t("trc.rd.profile"), "profile", { tip: t("trc.rd.profileTip") }))] },
     { id: "calc", title: t("trc.rd.gCalc"), guide: "calculs", items: [
       B("rep-climb", t("trc.rd.repClimb"), "mountain", { tip: t("trc.rd.repClimbTip") }),
       B("rep-times", t("trc.rd.repTimes"), "stopwatch", { tip: t("trc.rd.repTimesTip") }),
@@ -133,7 +151,8 @@ export const TABS = [
       stack(S("export-gpx", t("trc.rd.exportGpx"), "pin", { tip: t("trc.rd.exportGpxTip") }),
         S("export-kml", t("trc.rd.exportKml"), "globe", { tip: t("trc.rd.exportKmlTip") }),
         S("export-images", t("trc.rd.exportImages"), "image", { tip: t("trc.rd.exportImagesTip") })),
-      stack(S("export-routegadget", "RouteGadget", "route", { tip: t("trc.rd.exportRoutegadgetTip") }))] },
+      stack(S("export-routegadget", "RouteGadget", "route", { tip: t("trc.rd.exportRoutegadgetTip") }),
+        S("export-garmin", t("trc.rd.exportGarmin"), "globe", { tip: t("trc.rd.exportGarminTip") }))] },
     { id: "software", title: t("trc.rd.gSoftware"), items: [stack(
       S("export-ocad", t("trc.rd.exportOcad"), "layers", { tip: t("trc.rd.exportOcadTip") }),
       S("export-ocn", t("trc.rd.exportOcn"), "export", { tip: t("trc.rd.exportOcnTip") }),
@@ -203,13 +222,14 @@ export const INFO = {
  *  (its ▾, or a right-click on any button of the ribbon), kept in ocn.tr.prefs « qat ». QAT_CHOICES: offered in its ▾ menu. */
 export const QAT_DEFAULT = ["undo", "redo", "pdf-course", "rep-audit", "course-props"];
 export const QAT_CHOICES = ["undo", "redo", "save", "pdf-course", "pdf-courses", "rep-audit", "course-props", "course-new", "print-area", "view-course",
-  "export-iof3", "versions", "comments", "field", "tour"];
+  "export-iof3", "versions", "comments", "field", "tour", "routes", "backdrop", "profile"];
 
 /** The contextual tabs, by the selection's kind (ribbon.js fills in titles and figures). */
 export const CONTEXT = {
   control: { label: t("trc.rd.ctxControl"), head: t("trc.rd.ctxControlHead"), guide: "postes", groups: [
     { id: "ctl", title: t("trc.rd.gCtl"), items: [stack({ t: "field", id: "code" }, S("control-props", t("trc.rd.controlProps"), "descr", { need: "edit", tip: t("trc.rd.controlPropsTip") }),
-      S("toggle-exchange", t("trc.rd.toggleExchange"), "exchange", { need: "edit", toggle: "exchange", tip: t("trc.rd.toggleExchangeTip") }))] },
+      S("toggle-exchange", t("trc.rd.toggleExchange"), "exchange", { need: "edit", toggle: "exchange", tip: t("trc.rd.toggleExchangeTip") })),
+      stack(S("toggle-flip", t("trc.rd.toggleFlip"), "backside", { need: "edit", toggle: "flip", tip: t("trc.rd.toggleFlipTip") }))] },
     { id: "vars", title: t("trc.rd.gVars"), items: [B("var-fork", t("trc.rd.ctlVarFork"), "fork", { need: "edit", tip: t("trc.rd.ctlVarForkTip") }),
       B("var-loop", t("trc.rd.ctlVarLoop"), "loop", { need: "edit", tip: t("trc.rd.ctlVarLoopTip") }),
       B("var-phi", t("trc.rd.ctlVarPhi"), "phi", { need: "edit", pro: true, tip: t("trc.rd.varPhiTip") }),
@@ -232,10 +252,10 @@ export const CONTEXT = {
       B("gap-add-leg", t("trc.rd.gapAddLeg"), "gap", { need: "edit", tip: t("trc.rd.gapAddLegTip") }),
       stack(S("bend-remove", t("trc.rd.bendRemove"), "bend", { need: "edit", tip: t("trc.rd.bendRemoveTip") }),
         S("gap-remove-leg", t("trc.rd.gapRemoveLeg"), "gap", { need: "edit", tip: t("trc.rd.gapRemoveLegTip") })),
+      B("route-calc", t("trc.rd.routeCalc"), "routes", { need: "edit", tip: t("trc.rd.routeCalcTip") }),
       stack(S("route-draw", t("trc.rd.routeDraw"), "route", { need: "edit", tip: t("trc.rd.routeDrawTip") }),
-        S("route-clear", t("trc.rd.routeClear"), "trash", { need: "edit", tip: t("trc.rd.routeClearTip") })),
-      stack(S("routes-alt", t("trc.rd.routesAlt"), "routes", { need: "edit", pro: true, tip: t("trc.rd.routesAltTip") }),
-        S("routes-alt-clear", t("trc.rd.routesAltClear"), "trash", { need: "edit", pro: true, tip: t("trc.rd.routesAltClearTip") }))] },
+        S("route-clear", t("trc.rd.routeClear"), "trash", { need: "edit", tip: t("trc.rd.routeClearTip") }),
+        S("profile", t("trc.rd.profile"), "profile", { tip: t("trc.rd.profileTip") }))] },
     { id: "flagging", title: t("trc.rd.gFlagging"), items: [{ t: "modes", id: "flag" }] },
     { id: "where", title: t("trc.rd.gWhereLeg"), items: [{ t: "chip", id: "leg" }] },
   ] },
@@ -267,6 +287,7 @@ export const BACKSTAGE = [
     ["import-courses", t("trc.rd.importCourses"), t("trc.rd.importCoursesTip")],
     ["map-change", t("trc.rd.bsMapChange"), t("trc.rd.bsMapChangeDesc")],
     ["import-course", t("trc.rd.bsImportCourse"), t("trc.rd.bsImportCourseDesc")],
+    ["import-track", t("trc.rd.importTrack"), t("trc.rd.importTrackTip")],
     ["georef", t("trc.rd.bsGeoref"), t("trc.rd.bsGeorefDesc")]] },
   { id: "save", label: t("trc.rd.bsSave"), icon: "save", items: [
     ["save", t("trc.rd.save"), t("trc.rd.saveTip")],
@@ -277,7 +298,7 @@ export const BACKSTAGE = [
       ["pdf-descriptions", t("trc.rd.bsPdfDescriptions"), t("trc.rd.bsPdfDescriptionsDesc")], ["pdf-punch", t("trc.rd.pdfPunch"), t("trc.rd.bsPdfPunchDesc")]]],
     [t("trc.rd.bsForTiming"), [["export-iof3", "IOF XML 3.0", t("trc.rd.bsIof3Desc")],
       ["export-iof2", "IOF XML 2.0.3", t("trc.rd.bsIof2Desc")]]],
-    [t("trc.rd.bsForGps"), [["export-gpx", t("trc.rd.exportGpx"), t("trc.rd.exportGpxTip")], ["export-kml", t("trc.rd.exportKml"), t("trc.rd.bsKmlDesc")],
+    [t("trc.rd.bsForGps"), [["export-gpx", t("trc.rd.exportGpx"), t("trc.rd.exportGpxTip")], ["export-kml", t("trc.rd.exportKml"), t("trc.rd.bsKmlDesc")], ["export-garmin", t("trc.rd.exportGarmin"), t("trc.rd.exportGarminTip")],
       ["export-images", t("trc.rd.bsImages"), t("trc.rd.bsImagesDesc")], ["export-routegadget", "RouteGadget", t("trc.rd.bsRoutegadgetDesc")]]],
     [t("trc.rd.bsForSoftware"), [["export-ocn", t("trc.rd.bsOcn"), t("trc.rd.bsOcnDesc")],
       ["export-ocad", t("trc.rd.bsOcad"), t("trc.rd.bsOcadDesc")], ["export-ppen", "Purple Pen (.ppen)", t("trc.rd.bsPpenDesc")],

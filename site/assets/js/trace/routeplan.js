@@ -6,7 +6,7 @@
 import { html, raw, $, fmt, pct, pctN } from "../util.js";
 import { t } from "../i18n.js";
 import { DEFAULTS, LEGEND, A, CROSS_PACE } from "./routechoice.js";
-import { layers, resampleLayers, LAYER_KEYS, VECTOR_ACCEPT } from "./vectorroutes.js";
+import { layers, resampleLayers, LAYER_KEYS, OPTIONAL_KEYS, VECTOR_ACCEPT } from "./vectorroutes.js";
 
 const PREFS = "ocn.rc.prefs";                        // the settings, kept on the device (the map's kind apart: the race's)
 const MAX_PX = 9e6;                                  // a larger map is read at a reduced size (memory, time)
@@ -64,6 +64,7 @@ export function planner(image, toM, vector = null, opts = {}) {
     // sent to the worker, not copied: a copy of layers kept by the page (they serve the planner made after a change)
     const planes = {};
     for (const k of LAYER_KEYS) planes[k] = (L[k] ? (L === vector.layers ? L[k].slice() : L[k]) : new Uint8Array(W * H)).buffer;
+    for (const k of OPTIONAL_KEYS) if (L[k]) planes[k] = (L === vector.layers ? L[k].slice() : L[k]).buffer;      // a table per symbol's speeds
     ready = ask("layers", { ...planes, w: W, h: H, J }, Object.values(planes))
       .then((r) => ({ ...r, vector: { counts: L.counts, ms: L.ms, name: vector.name || vector.v.name } }));
   } else {
