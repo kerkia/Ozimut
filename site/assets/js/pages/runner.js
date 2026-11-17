@@ -84,8 +84,7 @@ export async function render(main, { arg, query }) {
     <div class="tiles" id="tiles" style="margin-bottom:16px"></div>
     <div data-panel="courses">
     <section class="card" style="margin-bottom:16px"><div class="card-head"><h2>${t("rn.history")}</h2>
-      <div class="row"><span id="hist-terrain"></span>
-        <label class="field" style="flex-direction:row;align-items:center;gap:8px"><span>${t("f.season")}</span>
+      <div class="row"><label class="field" style="flex-direction:row;align-items:center;gap:8px"><span>${t("f.season")}</span>
         <select id="season"></select></label></div></div>
       <div id="history" class="scroll-box"></div></section>
     </div>
@@ -628,14 +627,11 @@ export async function render(main, { arg, query }) {
   }
 
   // ---- race history and seasons ------------------------------------------------------
-  // every race, whatever the discipline — a race is a race, even a PM; the
-  // CN-related sections above stay per discipline
-  let histTerrain = "";
+  // the races of the discipline chosen in the filters (owner, 2026-11-17: the « Spécialité » filters the table too;
+  // its own « Tous / Forêt / … » buttons, which ignored it, are gone) — a race is a race, even a PM
   function drawHistory() {
     const methods = store.get().methods;
-    $("#hist-terrain").innerHTML = seg("ht", [["", t("f.all")], ...store.TERRAINS.map((x) => [x, t(`terrain.${x}`)])], histTerrain);
-    $$('[data-seg="ht"]').forEach((b) => b.addEventListener("click", () => { histTerrain = b.dataset.value; drawHistory(); }));
-    const pool = races.filter((r) => !histTerrain || r[R.terrain] === histTerrain);
+    const pool = mineT;
     const seasonsR = [...new Set(pool.map((r) => r[R.date].slice(0, 4)))].sort().reverse();
     const sel = $("#season");
     const prevSel = sel.value;
