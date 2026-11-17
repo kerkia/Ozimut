@@ -10,6 +10,7 @@
 // The WebSocket Hibernation API keeps idle connections free; only what changed is written to storage.
 
 import { DurableObject } from "cloudflare:workers";
+import { watchRuns } from "../../functions/_lib/ciwatch.js";
 import * as mop from "./mop.js";
 import * as md from "./meosdjango.js";
 import * as ol from "./olive.js";
@@ -781,6 +782,12 @@ export default {
     if (m) return env.LIVE.get(env.LIVE.idFromName(m[1])).fetch(request);
     if (url.pathname === "/list") return env.DIR.get(env.DIR.idFromName("directory")).fetch(request);
     return new Response("Not found", { status: 404 });
+  },
+  // Every 10 minutes (wrangler.toml [triggers]): a results run GitHub's schedule skipped is started again, day and night
+  // (functions/_lib/ciwatch.js; the site does it too from its page views). Needs the secret GH_DISPATCH_TOKEN.
+  async scheduled(event, env, ctx) {
+    ctx.waitUntil(watchRuns(env).then((mode) => { if (mode) console.log(`ciwatch: started a ${mode} run`); })
+      .catch((e) => console.error(`ciwatch: ${e.message || e}`)));
   },
 };
 

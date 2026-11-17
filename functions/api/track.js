@@ -1,7 +1,7 @@
 // POST /api/track { page, visit } — counts one page view of the logged-in account, by day (Paris time) and page;
 // visit: true when the page opens a new browser session (one visit). Shown to the administrator only, on the
 // admin page; kept 13 months. Two upserts at most per page view, well within D1's free quota.
-import { json, readBody, withUser } from "../_lib/api.js";
+import { allow, json, readBody, withUser } from "../_lib/api.js";
 import { announceSoon, translateSoon } from "../_lib/nutrition.js";
 import { robotsSoon } from "../_lib/robots.js";
 import { bookingSoon } from "../_lib/booking.js";
@@ -28,7 +28,7 @@ export const onRequestPost = withUser(async (ctx, user) => {
   robotsSoon(ctx);               // the copy of Cloudflare's figures on the AI bots, when due (admin › « Robots »)
   bookingSoon(ctx);              // the start-time bookings closing, their start lists published, the day before's reminders
   maplibSoon(ctx);               // the maps sent to Ozimut copied into the administrators' collection, a few at a time
-  runsSoon(ctx);                 // a results run GitHub's schedule skipped, started through workflow_dispatch (_lib/ciwatch.js)
+  runsSoon(ctx, allow);          // a results run GitHub's schedule skipped, started through workflow_dispatch (_lib/ciwatch.js)
   const b = await readBody(request);
   const page = String(b?.page || "");
   if (!PAGES.has(page)) return json({ error: "bad request" }, 400);

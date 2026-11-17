@@ -17,6 +17,11 @@ class_name = "Directory"
 
 # Ozimut's R2 bucket: an organiser's broadcast tied to a competition is saved there (broadcasts/<number>.json) every couple
 # of minutes, for « Résultats » (the workflow copies the folder; ffco_scraper/prov/sources/broadcast.py)
+# Every 10 minutes: the results runs GitHub's schedule skips, started again (functions/_lib/ciwatch.js; secret GH_DISPATCH_TOKEN,
+# `npx wrangler secret put GH_DISPATCH_TOKEN`, the same fine-grained token as the Pages project's)
+[triggers]
+crons = ["*/10 * * * *"]
+
 [[r2_buckets]]
 binding = "BUCKET"
 bucket_name = "cn-state"

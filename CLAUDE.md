@@ -64,8 +64,12 @@ commit results, personal data, secrets or credentials.
   deployments and stored data are gone; its live relay became O'CN's `live/` (it held no broadcast to carry over).
 - **Open tabs follow a deploy** (2026-10-15): the pages' modules stay in memory for the whole visit, so a tab left
   open kept running old code after a fix. `update.deploy` writes `site/assets/build.txt` (`write_build_stamp`: a hash
-  of site/ without data/ and auth/, unchanged by data-only deploys; git-ignored); `app.codeChanged` reads it at a change
+  of site/ without data/ and auth/, unchanged by data-only deploys; git-ignored); `app.siteChanged` reads it at a change
   of page, at most once a minute, and reloads the page when it differs. No file on the local server: nothing happens.
+  **The data too** (owner, 2026-11-17: Stats still showed 8 November as the last race hours after FFCO's 14 and 15 were
+  in): the files a page read stay in memory for the visit (data.js's cache and the pages' own), so every deploy also writes
+  `site/assets/data.txt` (`update.write_data_stamp`: the deploy's UTC time, git-ignored, left out of the code's fingerprint)
+  and `siteChanged` reloads the page at its next change of page when that differs as well.
 - A push only triggers a run when it touches `site/**`, `functions/**` or `wrangler.toml`. A Python-only change is picked up by
   the next hourly run (it checks out `main`), or trigger it with `workflow_dispatch`.
 - The GitHub repository is `kerkia/Ozimut` (`kerkia/CN` until 2026-11-09; GitHub redirects the old name).
@@ -527,7 +531,7 @@ categories' years, its bars' areas their shares; `tour2.mjs` scrolls its card un
 Organisers publish results (and often split times) on race day or the next, days before FFCO. `ffco_scraper/prov`
 collects them for the races of the agenda (upcoming ones are kept, with their website and place, since the agenda
 drops past races) and of FFCO's last month — relays excluded — and `update.py` runs it after each hourly update
-(`PROV_BUDGET` seconds, 240 by default), plus `--prov-only` runs every 20 min on Saturday and Sunday evenings (600 s) — **runs GitHub's schedule skips are started by the site** (owner, 2026-11-15: GitHub started 7 to 10 of the 24-45 runs planned a day from 8 November, none from 17:05 to 20:38 UTC that Sunday evening): `functions/_lib/ciwatch.js` `runsSoon`, from `/api/track` (signed-in page views, at most every 10 min an isolate and once every 10 min for the site, D1 rate key `ci:watch`), reads `update.yml`'s latest runs and, none running and the last scheduled or dispatched one older than 25 min (Sat/Sun 16-22 UTC, mode `prov`) or 70 min (else, mode `quick`), starts one through workflow_dispatch with `GH_DISPATCH_TOKEN`; the daily full and agenda runs are left to GitHub;
+(`PROV_BUDGET` seconds, 240 by default), plus `--prov-only` runs every 20 min on Saturday and Sunday evenings (600 s) — **runs GitHub's schedule skips are started by the site** (owner, 2026-11-15: GitHub started 7 to 10 of the 24-45 runs planned a day from 8 November, none from 17:05 to 20:38 UTC that Sunday evening): `functions/_lib/ciwatch.js` `runsSoon`, from `/api/track` (signed-in page views, at most every 10 min an isolate and once every 10 min for the site, D1 rate key `ci:watch`), reads `update.yml`'s latest runs and, none running and the last scheduled or dispatched one older than 25 min (Sat/Sun 16-22 UTC, mode `prov`) or 70 min (else, mode `quick`), starts one through workflow_dispatch with `GH_DISPATCH_TOKEN`; the daily full and agenda runs are left to GitHub; **and by the live relay's Worker every 10 minutes** (owner, 2026-11-17: page views left the night to GitHub — nothing from 20:26 to 03:49 UTC on 16-17 November): `live/wrangler.toml` `[triggers] crons`, `scheduled()` calls the same `ciwatch.watchRuns` (the module imports nothing so the relay bundles it alone; the site passes its D1 rate key as `gate`), with the relay's own secret `GH_DISPATCH_TOKEN` (`cd live && npx wrangler secret put GH_DISPATCH_TOKEN`; without it the cron does nothing);
 a deploy only when something new was found — Pages' free plan counts deploys. A race is watched 14 days whether
 FFCO has published it or not (FFCO has no splits); a finished race comes back when a platform competition is
 newly matched to it. Sources: liveresultat.orientering.se (JSON API, matched by date + name/organiser), WinSplits

@@ -9,9 +9,13 @@
 // starts one through workflow_dispatch with GH_DISPATCH_TOKEN (the token uploads and generated maps already use):
 //   Saturday and Sunday 16:00-22:59 UTC (the cron's window)  mode "prov", the last one over 25 minutes ago
 //   otherwise                                                 mode "quick" (it runs the provisional results after), over 70 minutes
-// The daily full (03:00 Paris) and agenda (06:00 Paris) runs are left to GitHub: few visitors at those hours, and a quick
-// run catches up on the competitions meanwhile. Nothing is stored: GitHub's list of runs is the state.
-import { allow } from "./api.js";
+// The daily full (03:00 Paris) and agenda (06:00 Paris) runs are left to GitHub: a quick run catches up on the competitions
+// meanwhile. Nothing is stored: GitHub's list of runs is the state.
+//
+// Page views alone left the night to GitHub (owner, 2026-11-17: nothing ran from 20:26 to 03:49 UTC on 16-17 November,
+// and FFCO's races of the weekend waited): the live relay's Worker (live/, which has a Cron Trigger: Pages has none) calls
+// watchRuns every 10 minutes too, with its own GH_DISPATCH_TOKEN secret. This module imports nothing, so that the relay
+// bundles it alone; the site passes its D1 rate key as the gate.
 
 const EVERY_MS = 10 * 60e3;
 const WEEKEND_MIN = 25;
@@ -38,10 +42,11 @@ export function decide(runs, now = new Date()) {
 const headers = (env) => ({ Authorization: `Bearer ${env.GH_DISPATCH_TOKEN}`, Accept: "application/vnd.github+json",
   "X-GitHub-Api-Version": "2022-11-28", "User-Agent": "ozimut-ciwatch" });
 
-/** Looks, and starts a run when one is late; the mode started, or null. */
-export async function watchRuns(env, now = new Date()) {
-  if (!env.GH_DISPATCH_TOKEN || !env.DB) return null;
-  if (!(await allow(env, "ci:watch", 1, EVERY_MS / 1000))) return null;      // another isolate looked in these 10 minutes
+/** Looks, and starts a run when one is late; the mode started, or null. `gate`: an async check that may refuse the look
+ *  (the site's: another isolate looked in these 10 minutes). */
+export async function watchRuns(env, now = new Date(), gate = null) {
+  if (!env.GH_DISPATCH_TOKEN) return null;
+  if (gate && !(await gate())) return null;
   const base = `https://api.github.com/repos/${env.GH_REPO || "kerkia/Ozimut"}/actions/workflows/update.yml`;
   const r = await fetch(`${base}/runs?per_page=15`, { headers: headers(env) });
   if (!r.ok) return null;
@@ -52,9 +57,10 @@ export async function watchRuns(env, now = new Date()) {
   return d.status === 204 ? mode : null;
 }
 
-/** At most every 10 minutes an isolate (api/track.js, after the response, ctx.waitUntil). */
-export function runsSoon(ctx) {
-  if (!ctx.env.GH_DISPATCH_TOKEN || Date.now() - lastCheck < EVERY_MS) return;
+/** At most every 10 minutes an isolate (api/track.js, after the response, ctx.waitUntil); `allow` is api.js's rate key. */
+export function runsSoon(ctx, allow) {
+  if (!ctx.env.GH_DISPATCH_TOKEN || !ctx.env.DB || Date.now() - lastCheck < EVERY_MS) return;
   lastCheck = Date.now();
-  ctx.waitUntil(watchRuns(ctx.env).catch(() => null));
+  const gate = () => allow(ctx.env, "ci:watch", 1, EVERY_MS / 1000);
+  ctx.waitUntil(watchRuns(ctx.env, new Date(), gate).catch(() => null));
 }
