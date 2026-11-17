@@ -273,11 +273,11 @@ holds `#nav` as Arena's). An administrator's « Tous les événements » is reme
 `orgMapper`; `#/orga-carto` still opens it): « Cartographier » as a module of its own — a map outlives its events, mappers are not
 organisers, and it works on a phone — every signed-in account, no Orga needed, in the map's contour brown (`--carto`); its editor's top line (the map's name, undo, redo, search, ⤢) sits in the site's bar on a computer out of full window, over the
 ribbon in full window and under 900 px (`mapper/editor.js` `placeTop`; owner, 2026-11-12); a home-page
-section (`tour.js` `carto`, no screenshot yet) and a column in the pricing table. **Ozimut Pixel** (`#/pixel`, route `virtually`;
+section (`tour.js` `carto`) and a column in the pricing table, whose third row is « Avec les modules Orga et Carto » (owner, 2026-11-17: Carto's capabilities on it). **Ozimut Pixel** (`#/pixel`, route `virtually`;
 `#/virtually` still opens it): « Virtually » renamed and out of Coach, in teal (`--pixel`); **every account's since 2026-11-12**
 (owner), its Entraînement and Avatar tabs, and Analyse since 2026-11-14 — Résultats, Classement and Orga stay the administrators' (`pages/virtually.js`
 filters the tabs, `app.moduleShown` no longer hides Pixel, `NUTRITION_ROUTES` no longer names it); no documentation
-(its page explains itself: the documentation lists `DOC_MODS`, Pixel apart) and no home-page section yet. The modules page's cards of
+(its page explains itself: the documentation lists `DOC_MODS`, Pixel apart). **The home page has a section for each of the six modules** (owner, 2026-11-17: Pixel's added, Pixel in its bar too, a Pixel column in the pricing table, the modules page's picture retaken with six): Carto's and Pixel's pictures (`carto-editor`, `carto-bern`, `carto-new`, `pixel-race`, `pixel-map`, `pixel-maps`, `hub`) were taken on a copy of a local test state holding only open-data maps — Fougères and Bern made from BD TOPO / OSM / swisstopo, Pixel's Autrans LiDAR race; the club maps (Foley, Granites, Desquinemarre) deleted from that copy first — with the scrambled data and the invented account name (scripts `home.mjs`, `run.ps1`, `check.mjs` in `C:\kerkia\Ozimut\work\scratch-scripts\home-pixel-carto`). The modules page's cards of
 one-page modules list what they offer (`hub.js` `STEPS`, `hub.<module>.step.<key>`); Orga's card is still hidden on a phone, Carto's
 and Pixel's are not.
 

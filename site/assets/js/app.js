@@ -558,9 +558,10 @@ function renderHeader(r) {
   const mod = route === "methods" ? own : own ? lastModule(own) : visitor && !["hub", "overview", "account", "orgaOff"].includes(route) ? lastModule() : null;
   // Orga's documentation to a visitor without the module: Orga's menu, its pages greyed out (owner, 2026-10-31)
   const off = mod === "orga" && !orgaOpen();
-  // the home page (no visitor yet): its sections — the four modules, who sees what — in the bar (owner, 2026-10-30)
+  // the home page (no visitor yet): its sections — the modules (Pixel too since 2026-11-17, owner), who sees what — in the bar
+  // (owner, 2026-10-30)
   const items = mod ? moduleMenus()[mod] : !visitor && route === "overview"
-    ? [["home-overview", "#/?s=overview", t("tour.ov.menu")], ...MODULES.filter((m) => m !== "pixel").map((m) => [`home-${m}`, `#/?s=${m}`, t(`mod.${m}`)]),
+    ? [["home-overview", "#/?s=overview", t("tour.ov.menu")], ...MODULES.map((m) => [`home-${m}`, `#/?s=${m}`, t(`mod.${m}`)]),
       ["home-features", "#/?s=features", t("tour.feat.eyebrow")]] : [];
   const current = menuKey(r);
   document.body.dataset.group = mod || "";

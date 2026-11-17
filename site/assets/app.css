@@ -4845,6 +4845,7 @@ body[data-group="pixel"] { --grp: var(--pixel); --grp-wash: var(--pixel-wash); }
 .hub-card[data-mod="pixel"], .hub-tabs button[data-mod="pixel"], .doc[data-mod="pixel"], .doc-card[data-mod="pixel"], .doc-mods a[data-mod="pixel"],
 .tour-mod[data-mod="pixel"], .mod-tiles-page[data-mod="pixel"] { --m: var(--pixel); --m-wash: var(--pixel-wash); }
 .tour-feat-table th[data-mod="carto"], .tour-feat-table td[data-mod="carto"] .tour-feat-m { color: var(--carto); }
+.tour-feat-table th[data-mod="pixel"], .tour-feat-table td[data-mod="pixel"] .tour-feat-m { color: var(--pixel); }
 /* Orga's event page: the « Tracé » tab's course-setting events */
 .mg-trlist { display: grid; gap: 8px; }
 .mg-tr { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; padding: 8px 0; border-bottom: 1px solid var(--border); }
