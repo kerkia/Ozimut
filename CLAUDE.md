@@ -2550,9 +2550,14 @@ Every multiple-choice game was played through to its score page at phone size, w
   file, `pm` {licence: {terrain: [n, pm]}} by `site_extras.member_pm` — it read every member's race file, up to a hundred
   requests a club; a member the file does not list still from their race file — filled in place) and the runner page's « PM sur 12 mois » tile (beside « Courses sur 12 mois »).
 - **Qualification for the championships in « Classement »** (owner, 2026-11-17): the list's « CF » column tags each runner
-  « MD » / « LD » (forest) or « Sprint » whose **official** CN of the month shown — whatever method the list shows — reaches the
-  threshold FFCO last published for their category, and « Qualifiés aux CF » (`?cf=1`) keeps only them; France from 2026 on (the
-  split rankings), not VTT or ski (no qualification by the ranking). FFCO's rule since the RC 2026: the CN in the discipline about
+  « MD », « LD » and « Sprint » — every runner, whatever the discipline and method listed (owner, the same day: « always show
+  them, green when qualified, red otherwise, the threshold on hover ») —: green (`tag-cf-ok`) when the **official** CN of the
+  month shown in the championship's discipline (forest for MD and LD, sprint for the sprint; `officialCn[terrain]`, read
+  beside the list) reaches the threshold FFCO last published for their category, red (`tag-cf-no`) below it or without a CN
+  there, outlined grey (`tag-cf-na`) when the category does not run it (D/H12 in sprint, H/D10); the tooltip names the
+  championship, the standing, the category's threshold with its season and CN day, and the runner's official CN
+  (`cfqual.standing`, `ranking.js cfTip`). « Qualifiés aux CF » (`?cf=1`) keeps the runners green in at least one; France
+  from 2026 on (the split rankings); VTT and ski championships have no qualification by the ranking. FFCO's rule since the RC 2026: the CN in the discipline about
   three months before the race at or above a threshold per category (none for D/H12 — every one runs the MD and LD —, any CN for
   D/H75 and older), set again for each championship to qualify roughly 65-80 a category, twice that in D/H21. The thresholds are
   `site/assets/js/cfqual.js` `CHAMPS`, by championship and season, read from FFCO's lists (archives.ffcorientation.fr › Courses ›

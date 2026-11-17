@@ -48,6 +48,16 @@ export const CHAMPS = {
 
 /** The championships a discipline's ranking qualifies for. */
 export const champsOf = (terrain) => Object.keys(CHAMPS).filter((k) => CHAMPS[k].terrain === terrain);
+/** Every championship, in the order they are shown (MD, LD, Sprint). */
+export const ALL_CHAMPS = Object.keys(CHAMPS);
+
+/** One runner's standing for a season: "ok" (at or above the threshold), "no" (below, or no CN in the discipline),
+ *  "na" (their category does not run that championship); s the threshold (0 every runner, 1 any CN). */
+export function standing(season, cat, cn) {
+  const s = threshold(season, cat);
+  if (s == null) return { st: "na", s: null };
+  return { st: s === ALL || (cn != null && cn >= s) ? "ok" : "no", s };
+}
 
 /** The thresholds that apply to a month: its season's, else the latest season before it; none before 2026. */
 export function seasonFor(champ, monthIso) {

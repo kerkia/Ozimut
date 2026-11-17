@@ -212,17 +212,24 @@ export async function render(main, { query }) {
 
   // a qualification's tooltip: the championship, the threshold of the runner's category, their official CN
   function cfTip(k, season, r) {
-    const s = cfqual.threshold(season, r.cat);
-    const v = { champ: t(`rk.cf.name.${k}`), year: season.year, cat: fmtCat(r.cat), s: fmt(s), cn: fmt(officialCn?.get(r.lic) ?? 0) };
-    return t(s === 0 ? "rk.cf.tipAll" : s === 1 ? "rk.cf.tipAny" : "rk.cf.tip", v);
+    const q = r.cf?.[k];
+    const disc = t(`terrain.${cfqual.CHAMPS[k].terrain}`);
+    const v = { champ: t(`rk.cf.name.${k}`), year: season.year, cat: fmtCat(r.cat), s: fmt(q?.s), cn: fmt(q?.cn), disc, day: fmtDate(season.cnDay) };
+    const status = q?.st === "na" ? t("rk.cf.st.na", v) : q?.s === 0 ? "" : q?.st === "ok" ? t("rk.cf.st.ok", v)
+      : q?.cn == null ? t("rk.cf.st.none", v) : t("rk.cf.st.no", v);
+    const rule = q?.st === "na" ? "" : q.s === 0 ? t("rk.cf.ruleAll", v) : q.s === 1 ? t("rk.cf.ruleAny", v) : t("rk.cf.rule", v);
+    return [`${v.champ} ${season.year}`, status, rule, q?.cn != null && q.st !== "na" ? t("rk.cf.yourCn", v) : ""].filter(Boolean).join("\n");
   }
-  // France's championships the discipline qualifies for (MD and LD in forest, the sprint's in sprint), judged on the official
-  // CN of the month shown against the thresholds FFCO last published for that month's season (cfqual.js); none before 2026
-  let officialCn = null;                                  // Map(licence -> official CN) of the month, read by reload()
-  const champs = () => (data.loadedCountry() === "FR" ? cfqual.champsOf(terrain) : [])
+  // France's three individual championships — MD and LD on the official forest CN, the sprint's on the official sprint CN —,
+  // shown for every runner whatever the discipline listed: green at or above the threshold FFCO last published for that
+  // month's season (cfqual.js), red below it; none before 2026
+  let officialCn = null;                                  // { For: Map, Spr: Map } (licence -> official CN) of the month
+  const champs = () => (data.loadedCountry() === "FR" ? cfqual.ALL_CHAMPS : [])
     .map((k) => ({ k, season: cfqual.seasonFor(k, f.month) })).filter((c) => c.season);
-  const qualOf = (r) => Object.fromEntries(champs().map(({ k, season }) =>
-    [k, cfqual.qualifies(season, r.cat, officialCn?.get(r.lic) ?? null)]));
+  const qualOf = (r) => Object.fromEntries(champs().map(({ k, season }) => {
+    const cn = officialCn?.[cfqual.CHAMPS[k].terrain]?.get(r.lic) ?? null;
+    return [k, { ...cfqual.standing(season, r.cat, cn), cn }];
+  }));
 
   // France's licences and FFCO's club numbers; another country's runner numbers and club keys are Ozimut's own: not shown
   const fr = data.loadedCountry() === "FR";
@@ -309,11 +316,14 @@ export async function render(main, { query }) {
     foundLic = null;
     $("#list-card").classList.add("loading-veil");
     const ms = store.get().methods;
-    [loaded, officialCn] = await Promise.all([
+    // the qualification is FFCO's: the official CN of each championship's discipline, whichever method and discipline the list shows
+    const cfTerrains = [...new Set(champs().map(({ k }) => cfqual.CHAMPS[k].terrain))];
+    let maps;
+    [loaded, ...maps] = await Promise.all([
       loadRanking(ms, terrain, f.month),
-      // the qualification is FFCO's: the official CN, whichever method the list shows
-      champs().length ? data.cnAt("official", terrain, f.month) : null,
+      ...cfTerrains.map((tr) => data.cnAt("official", tr, f.month)),
     ]);
+    officialCn = Object.fromEntries(cfTerrains.map((tr, i) => [tr, maps[i]]));
     for (const r of loaded.rows) r.cf = qualOf(r);
     $("#list-card").classList.remove("loading-veil");
     drawFilters(loaded.rows);
@@ -325,7 +335,7 @@ export async function render(main, { query }) {
     const cfs = champs();
     const rows = applyFilters(loaded.rows, f, sortMethod)
       .filter((r) => methods.some((m) => r.cn[m] != null))
-      .filter((r) => !f.cf || !cfs.length || cfs.some(({ k }) => r.cf?.[k]));
+      .filter((r) => !f.cf || !cfs.length || cfs.some(({ k }) => r.cf?.[k]?.st === "ok"));
     syncUrl();
     const year = Number(f.month.slice(0, 4));
     const notes = [];
@@ -381,8 +391,8 @@ export async function render(main, { query }) {
         render: (r) => (r.pct[sortMethod] == null ? html`<span class="dim">—</span>`
           : html`<span title="${t("rk.pct.tip", { p: data.fmtPct(r.pct[sortMethod]), cat: fmtCat(r.cat) })}">${data.fmtPct(r.pct[sortMethod])}</span>`) },
       ...(cfs.length ? [{ key: "cf", label: html`<span title="${t("rk.cf.colTip")}">${t("rk.col.cf")}</span>`, cls: "nowrap",
-        sort: (r) => cfs.filter(({ k }) => r.cf?.[k]).length,
-        render: (r) => html`${cfs.filter(({ k }) => r.cf?.[k]).map(({ k, season }) => html`<span class="tag tag-cf" title="${cfTip(k, season, r)}">${t(`rk.cf.short.${k}`)}</span> `)}` }] : []),
+        sort: (r) => cfs.filter(({ k }) => r.cf?.[k]?.st === "ok").length,
+        render: (r) => html`${cfs.map(({ k, season }) => html`<span class="tag tag-cf tag-cf-${r.cf?.[k]?.st || "na"}" title="${cfTip(k, season, r)}">${t(`rk.cf.short.${k}`)}</span> `)}` }] : []),
       fr ? { key: "club", label: t("rk.col.club"), cls: "num", sort: (r) => r.clubCode, defaultDir: 1,
         render: (r) => r.clubCode ? html`<a href="${link.club(r.clubCode)}" title="${data.clubName(r.club)}">${r.clubCode}</a>` : "" }
         : { key: "club", label: t("rk.col.club"), sort: (r) => data.clubName(r.club), defaultDir: 1,
@@ -435,7 +445,7 @@ export async function render(main, { query }) {
       [t("csv.place"), t("csv.name"), ...(fr ? [t("csv.licence")] : []), t("csv.cat"), t("csv.club"), ...methods.map((m) => `cn_${m}`),
         ...cfs.map(({ k, season }) => `${t(`rk.cf.short.${k}`)} ${season.year}`)],
       table.rows().map((r) => [r.pos ?? "", r.nom, ...(fr ? [r.lic] : []), r.cat, fr ? r.club : data.clubName(r.club), ...methods.map((m) => r.cn[m] ?? ""),
-        ...cfs.map(({ k }) => (r.cf?.[k] ? "1" : ""))]));
+        ...cfs.map(({ k }) => ({ ok: "1", no: "0" }[r.cf?.[k]?.st] ?? ""))]));
   }
   function updateCompareBtn() {
     const n = store.get().compare.length;
