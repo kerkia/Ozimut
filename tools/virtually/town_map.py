@@ -1920,56 +1920,9 @@ def _corners_only(r, closed):
 
 # no needle (2026-11-14, remark 1's test: 37 spikes in the paving, rings running out and back along themselves after the areas'
 # overlays): a vertex where a ring turns back (over 170°) on a triangle under 0.5 m², or a needle under 0.25 m wide, is taken out,
-# again until none is left
-
-
-def despike(r):
-    pts = [tuple(q) for q in r]
-    closed = len(pts) > 3 and pts[0] == pts[-1]
-    if closed:
-        pts = pts[:-1]
-    # (points under 10 cm apart made one first: a needle's tip of two points 3-9 cm apart — a crack 1.2 m into a building, its outline
-    # drawn with building on both sides; 2026-11-15, remark 12's test)
-    eps = 0.1 / (SCALE / 1000)
-    merged = []
-    for q in pts:
-        if not merged or math.dist(merged[-1], q) >= eps:
-            merged.append(q)
-    if len(merged) > 3 and math.dist(merged[0], merged[-1]) < eps:
-        merged.pop()
-    if len(merged) > 3:
-        pts = merged
-    changed = True
-    while changed and len(pts) > 3:
-        changed = False
-        i = 0
-        while i < len(pts) and len(pts) > 3:
-            a, b_, c = pts[i - 1], pts[i], pts[(i + 1) % len(pts)]
-            area2 = abs((b_[0] - a[0]) * (c[1] - a[1]) - (b_[1] - a[1]) * (c[0] - a[0]))
-            ac = math.dist(a, c)
-            # (map mm: a triangle of twice 0.5 m², or a needle under 0.4 m (0.1 mm) wide at its base however long — a 25 m sliver
-            # of road, a crack 1.2 m into a building)
-            tb = _turn(a, b_, c)
-            if a == b_ or (tb > 170 and (area2 < 1.0 / (SCALE / 1000) ** 2 or (ac > 0 and area2 / ac < 0.25 / (SCALE / 1000))))                     or (tb > 150 and ac < 0.4 / (SCALE / 1000)):
-                pts.pop(i); changed = True
-                continue
-            i += 1
-    return [list(q) for q in pts] + ([list(pts[0])] if closed else [])
-
-
-def thin_hole(r):
-    # a hole under 0.3 m wide on average (twice its area over its perimeter; a triangle's half base) is a sliver left by a cut:
-    # no hole (2026-11-15, remark 1's test: triangles 5 m long, a few centimetres wide, drew spikes in the paving)
-    q = Polygon(r)
-    return q.length > 0 and 2 * abs(q.area) / q.length < 0.3 / (SCALE / 1000)
-
-
-n_spk = 0
-for o in objects:
-    if o["otp"] == 3:
-        new_r = [despike(r) for r in o["rings"]]
-        n_spk += sum(len(r0) - len(r1) for r0, r1 in zip(o["rings"], new_r))
-        o["rings"] = [r for k, r in enumerate(new_r) if k == 0 or (len(r) >= 4 and not thin_hole(r))]
+# again until none is left — legibility.despike_doc, which the check already runs before and after each of its passes (what is
+# checked is what is published; the points two areas share stay, 2026-11-17): here for a map made with --no-fix
+n_spk = legibility.despike_doc(DOC)
 log("ring points of needles taken out", n_spk)
 n_curved = 0
 for o in objects:
