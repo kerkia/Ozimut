@@ -3,7 +3,7 @@
 // reached through this site's Functions (/api/live/list, /ws/<race>). What it adds: each runner recognised
 // (name + club) and linked to their page, their CN (Top and official) in the race's discipline, and the place their
 // CN predicts. Times are liveresultat's hundredths of a second.
-import { html, raw, $, $$, fmt, fmtDate, normalise, fmtCat, ord, pctN, addDays } from "../util.js";
+import { html, raw, $, $$, fmt, fmtDate, normalise, fmtCat, ord, pctN, addDays, dateFormat } from "../util.js";
 import { loadRanking } from "./ranking.js";
 import { t, tn, lang, locale } from "../i18n.js";
 import * as data from "../data.js";
@@ -136,7 +136,7 @@ const hs = (h) => {
 function nowAt(info) {
   const tz = info?.timezone || "Europe/Stockholm";
   let p;
-  try { p = new Intl.DateTimeFormat("en-GB", { timeZone: tz, hour: "2-digit", minute: "2-digit", second: "2-digit", hourCycle: "h23" }).formatToParts(new Date()); }
+  try { p = dateFormat({ timeZone: tz, hour: "2-digit", minute: "2-digit", second: "2-digit", hourCycle: "h23" }, "en-GB").formatToParts(new Date()); }
   catch (e) { p = new Intl.DateTimeFormat("en-GB", { hour: "2-digit", minute: "2-digit", second: "2-digit", hourCycle: "h23" }).formatToParts(new Date()); }
   const v = (k) => Number(p.find((x) => x.type === k)?.value || 0);
   return ((v("hour") * 3600 + v("minute") * 60 + v("second")) + (info?.timezone ? 0 : (info?.timediff || 0) * 3600)) * 100;

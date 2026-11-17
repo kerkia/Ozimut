@@ -221,7 +221,9 @@ export const body = (SITE, { world = false } = {}) => `
       <p>Para conocer el uso del sitio y mejorarlo (interés legítimo), el sitio registra, para cada cuenta, el número de
         páginas vistas por día y por sección (Clasificación, Corredor, Red, etc.) y el número de visitas. No se registra ningún otro dato
         con este fin: ni las búsquedas realizadas, ni la dirección IP. Estas estadísticas solo son accesibles para
-        el administrador; se conservan 13 meses y se eliminan con la cuenta.</p>
+        el administrador; se conservan 13 meses y se eliminan con la cuenta. Con cada página vista, el sitio anota además
+        el tiempo que la página ha tardado en mostrarse y en reaccionar, para seguir su rapidez. Esos tiempos se cuentan por día,
+        por página y por versión del sitio, sin vínculo con la cuenta.</p>
       <h2 style="font-size:16px">Seguridad</h2>
       <p>Para limitar los intentos repetidos (inicio de sesión, registro, contraseña olvidada), el sitio contabiliza los intentos por
         dirección IP y por dirección de correo (interés legítimo); estos contadores se borran al cabo de un día aproximadamente. El proveedor de alojamiento puede
@@ -279,5 +281,5 @@ export const body = (SITE, { world = false } = {}) => `
       <p><b>Créditos:</b> los símbolos y los textos de las descripciones de control (Coach › Descripciones de control, el trazado de recorridos)
         proceden de Purple Pen, de Peter Golde (<a href="https://github.com/petergolde/PurplePen" target="_blank" rel="noopener">github.com/petergolde/PurplePen</a>),
         bajo <a href="assets/tracer/LICENSE-PurplePen.txt" target="_blank" rel="noopener">licencia BSD</a>.</p>
-      <p class="muted">Última actualización: 12 de noviembre de 2026.</p>
+      <p class="muted">Última actualización: 17 de noviembre de 2026.</p>
 `;

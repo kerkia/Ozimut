@@ -2,6 +2,7 @@
 // visit: true when the page opens a new browser session (one visit). Shown to the administrator only, on the
 // admin page; kept 13 months. Two upserts at most per page view, well within D1's free quota.
 import { allow, json, readBody, withUser } from "../_lib/api.js";
+import { recordPerf } from "../_lib/perf.js";
 import { announceSoon, translateSoon } from "../_lib/nutrition.js";
 import { robotsSoon } from "../_lib/robots.js";
 import { bookingSoon } from "../_lib/booking.js";
@@ -40,5 +41,8 @@ export const onRequestPost = withUser(async (ctx, user) => {
   if (b.visit === true) stmts.push(up("_visit"));
   if (Math.random() < 0.01) stmts.push(env.DB.prepare("DELETE FROM usage_daily WHERE day < ?").bind(parisDay(-KEEP_DAYS)));
   await env.DB.batch(stmts);
+  // how fast the page showed, the slowest reaction on the page before, the texts loaded late (admin › « Vitesse »): counted
+  // by day, page and build, no account (_lib/perf.js), once the answer has gone
+  ctx.waitUntil(recordPerf(env, b, day, PAGES).catch(() => {}));
   return json({ ok: true });
 });

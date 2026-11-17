@@ -6,6 +6,7 @@ import { t, lang, setLang, OPEN, LANGS, LANG_NAMES, setDefaults } from "./i18n.j
 import * as store from "./store.js";
 import * as data from "./data.js";
 import { disposeAll, loadECharts } from "./charts.js";
+import * as front from "./front.js";
 import { methodSwitch, cnWords } from "./ui.js";
 import * as auth from "./auth.js";
 import * as bridge from "./bridge.js";
@@ -897,10 +898,13 @@ function renderFooter() {
 // the page — never in the middle of a page's work. The data alike (owner, 2026-11-17: Stats still showed 8 November as
 // the last race hours after FFCO's 14 and 15 were in): the files read stay in memory for the visit (data.js and the
 // pages' own caches), so a new deploy's time (assets/data.txt, update.write_data_stamp) reloads the page the same way.
-const stamps = { "/assets/build.txt": [/^[0-9a-f]{8,40}$/, null], "/assets/data.txt": [/^\d{8}T\d{6}Z$/, null] };
-let stampAt = 0;
+// Since 2026-11-17 no change of page waits for those files (a round trip before every page opened after a minute): they
+// are asked for beside the page, and when the tab comes back into view; a change found reloads at the next change of
+// page. A deploy's build names itself (front.BUILD), so the first check tells.
+const stamps = { "/assets/build.txt": [/^[0-9a-f]{8,40}$/, front.BUILD], "/assets/data.txt": [/^\d{8}T\d{6}Z$/, null] };
+let stampAt = 0, stale = false;
 async function siteChanged() {
-  if (Date.now() - stampAt < 60e3) return false;
+  if (stale || Date.now() - stampAt < 60e3) return stale;
   stampAt = Date.now();
   const read = async ([url, s]) => {
     try {
@@ -911,8 +915,20 @@ async function siteChanged() {
       return v !== s[1];
     } catch (e) { return false; }
   };
-  return (await Promise.all(Object.entries(stamps).map(read))).some(Boolean);
+  if ((await Promise.all(Object.entries(stamps).map(read))).some(Boolean)) stale = true;
+  return stale;
 }
+
+// The pages that read neither the runners' list nor the competitions (checked 2026-11-17 over each one's modules): a
+// signed-in visit opening on one — the modules page, Coach's tools, Réglages — no longer waits for those files (1.6 MB
+// and 0.5 MB for France); they load once the page is drawn, for the pages that follow. Keep it to pages checked so.
+const NO_RUNNERS = new Set(["hub", "orgaOff", "modtiles", "games", "vma", "learn", "nutrition", "nutritionWrite",
+  "myMaps", "settings", "contact", "orgMapper", "needCountry", "phoneSend"]);
+// the pages a text loaded late never draws again (i18n « ocn:i18n-late »): they hold work in hand
+const NO_REDRAW = new Set(["orgTracer", "orgMapper", "analysis", "analysisPerso", "analysisOrga", "analysisClub", "analysisRace",
+  "orgAnalyses", "orgManage", "orgDirect", "deposit", "games", "virtually", "learn", "nutritionWrite", "myMaps"]);
+let refreshed = false;                    // the account read again from the server, once a visit
+let drawing = false, drawnAt = 0, lateRedraw = false, lateKeys = [];
 
 // ---- routing ---------------------------------------------------------------
 let current = null;
@@ -920,7 +936,9 @@ let lastRoute = null;
 let token = 0;
 async function route_() {
   if (silent) return;
-  if (await siteChanged()) { location.reload(); return; }
+  if (stale) { location.reload(); return; }
+  siteChanged();
+  const t0 = performance.now();
   let r = parseHash();
   // a page that follows its own address (the Agenda: list <-> details) is not rebuilt for a change of query
   if (current?.onQuery && lastRoute === r.route) { current.onQuery(r.query); return; }
@@ -967,16 +985,24 @@ async function route_() {
     }
     if (id && id.cc === country.current()) r = { ...r, arg: id.n };
   }
-  if ((me || guest) && !data.isPrivateLoaded()) {
-    // only a session the server refuses (401, data.getJson) signs out; anything else is shown as a failed load. (Every
-    // visitor reads the runners: the country's own file, or its public copy, data.setPublicRule.)
-    try { await data.bootPrivate({ open: true }); } catch (e) {
-      if (/HTTP 401/.test(e.message)) return signedOut();
-      $("#main").innerHTML = html`<div class="card"><div class="empty">${t("err.load")}<br><span class="muted">${String(e.message || e)}</span></div></div>`;
-      return;
+  // the page's modules and texts asked for now, beside what follows (front.js: a deploy's build knows them; the route may
+  // still turn below — a few files asked for nothing then)
+  front.prepare(r.route).catch(() => {});
+  {
+    // the account read again (rights granted or withdrawn since the login) beside the data, not after it
+    const fresh = me && !refreshed ? auth.refresh() : null;
+    if (fresh) { refreshed = true; fresh.catch(() => {}); }
+    if ((me || guest) && !data.isPrivateLoaded() && !NO_RUNNERS.has(r.route)) {
+      // only a session the server refuses (401, data.getJson) signs out; anything else is shown as a failed load. (Every
+      // visitor reads the runners: the country's own file, or its public copy, data.setPublicRule.)
+      try { await data.bootPrivate({ open: true }); } catch (e) {
+        if (/HTTP 401/.test(e.message)) return signedOut();
+        $("#main").innerHTML = html`<div class="card"><div class="empty">${t("err.load")}<br><span class="muted">${String(e.message || e)}</span></div></div>`;
+        return;
+      }
     }
-    if (me) {
-      await auth.refresh();                   // rights granted or withdrawn since the login
+    if (fresh) {
+      await fresh;
       if (my !== token) return;
       movedNotice();
     }
@@ -1046,19 +1072,39 @@ async function route_() {
     // the landing pages that never do show without it the first time, and it loads once they are drawn
     const first = !routed;
     routed = true;
-    const [mod] = await Promise.all([PAGES[r.route](), first && NO_CHARTS.has(r.route) ? null : loadECharts().catch(() => {})]);
+    drawing = true;
+    const charts = first && NO_CHARTS.has(r.route) ? null : loadECharts().catch(() => {});
+    await front.prepare(r.route);            // the page's own texts, before its module runs (its modules come meanwhile)
+    if (my !== token) return;
+    const [mod] = await Promise.all([PAGES[r.route](), charts]);
     if (my !== token) return;
     current = (await mod.render(main, r)) || null;
+    if (my !== token) return;
+    drawing = false;
+    drawnAt = Date.now();
     if (first) setTimeout(() => loadECharts().catch(() => {}), 0);
+    // the runners and the competitions, for the pages that follow one that did not wait for them
+    if ((me || guest) && !data.isPrivateLoaded() && !navigator.connection?.saveData) setTimeout(() => data.bootPrivate({ open: true }).catch(() => {}), 2000);
+    // the menu's other pages, fetched while nothing else is going on
+    // (the menu's, and on the modules page each module's own)
+    front.warm($$("#nav a[href^='#/'], .mod-nav a[href^='#/'], .hub-card a[href^='#/']").map((a) => parseHash(a.getAttribute("href")).route));
     if (SEARCH_IN_TABS.has(r.route)) placeSearch(main);
     if (isLean(r)) leanHead(main);
     placeMethod(main, r);
     placeBarTabs(main, r);
     lastRoute = r.route;
-    track(r);
+    // (how long the page took: the first of a visit from the moment the address was opened, the others from the click)
+    track(r, quiet ? null : { ms: Math.round(first ? performance.now() : performance.now() - t0), first });
     document.title = (current?.title ? current.title + " — " : "") + SITE;
+    if (lateRedraw) { lateRedraw = false; if (!NO_REDRAW.has(r.route)) setTimeout(redraw, 0); }
   } catch (e) {
+    drawing = false;
     console.error(e);
+    // a module this deploy no longer has (the tab is of the build before): the new version, at once
+    if (front.BUILD && /dynamically imported module|module script|MIME/i.test(String(e?.message || e))) {
+      stampAt = 0;
+      if (await siteChanged()) { location.reload(); return; }
+    }
     main.innerHTML = html`<div class="card"><div class="empty">${t("err.load")}<br><span class="muted">${String(e.message || e)}</span></div></div>`;
   }
   if (!quiet && !location.hash.includes("?")) window.scrollTo(0, 0);
@@ -1105,12 +1151,25 @@ function pageKey(r) {
   return `network:${r.arg ? "ego" : v === "meilleurs" ? "leaders" : v === "territoires" ? "territories"
     : ["stats", "ages", "activite"].includes(v) ? "stats" : store.get().lastRunner ? "ego" : "leaders"}`;
 }
-function track(r) {
+// How fast the site is (2026-11-17; the admin page's « Vitesse »): with a page view go the time the page took to show
+// (`perf`), the slowest reaction to a click, a tick or a key on the page before it (`tap`: the browser's own measure, from the
+// gesture to the next frame drawn) and the texts loaded late (`late`). Kept as counts by day, page and build, no account.
+let slowest = 0, taps = 0, tapPage = null;
+try {
+  new PerformanceObserver((list) => {
+    for (const e of list.getEntries()) if (e.interactionId) { taps++; if (e.duration > slowest) slowest = e.duration; }
+  }).observe({ type: "event", durationThreshold: 16 });
+} catch (e) { /* a browser without it: no reaction times */ }
+function track(r, perf) {
   if (!auth.session()) return;
   let visit = false;                                     // the first page of a browser session opens a visit
   try { visit = !sessionStorage.getItem("ocn.visit"); sessionStorage.setItem("ocn.visit", "1"); } catch (e) {}
+  const page = pageKey(r);
+  const tap = taps && tapPage ? { page: tapPage, ms: Math.round(slowest) } : undefined;
+  slowest = 0; taps = 0; tapPage = page;
+  const late = lateKeys.length ? lateKeys.splice(0) : undefined;
   fetch("api/track", { method: "POST", headers: { "Content-Type": "application/json" }, credentials: "same-origin",
-    keepalive: true, body: JSON.stringify({ page: pageKey(r), visit }) }).catch(() => {});
+    keepalive: true, body: JSON.stringify({ page, visit, perf: perf || undefined, tap, late, build: front.BUILD || undefined }) }).catch(() => {});
 }
 
 /** « Entrer sans compte » (owner, 2026-10-30): a visit without an account, on the modules page or a module's first page. */
@@ -1202,6 +1261,15 @@ async function start() {
   await data.bootPublic();
   renderFooter();
   siteChanged();                                   // the code and data this visit runs
+  document.addEventListener("visibilitychange", () => { if (!document.hidden) siteChanged(); });
+  // a text the page's own catalogue lacked (i18n.js): the whole catalogue came; the page is drawn again when it has just
+  // been drawn (or once it is), and the key goes with the next page view
+  window.addEventListener("ocn:i18n-late", (e) => {
+    lateKeys = [...new Set([...lateKeys, ...(e.detail || [])])].slice(0, 10);
+    console.warn("texts loaded late:", e.detail);
+    if (drawing) lateRedraw = true;
+    else if (Date.now() - drawnAt < 1500 && !NO_REDRAW.has(lastRoute)) redraw();
+  });
   window.addEventListener("hashchange", route_);
   window.addEventListener("ocn:install", () => { const b = $("#install-btn"); if (b) b.hidden = pwa.installState() !== "ready"; });
   // a page's own « Choisir un autre pays » (country.hint)

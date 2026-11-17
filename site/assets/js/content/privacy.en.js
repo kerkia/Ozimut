@@ -202,7 +202,9 @@ export const body = (SITE, { world = false } = {}) => `
       <p>To know how the site is used and to improve it (legitimate interest), the site records, for each account, the number of
         pages viewed per day and per section (Ranking, Runner, Network, etc.) and the number of visits. No other data is recorded for
         this purpose: neither the searches made nor the IP address. These statistics are only accessible to the administrator; they
-        are kept for 13 months and deleted with the account.</p>
+        are kept for 13 months and deleted with the account. With each page view the site also notes how long the page took
+        to show and to react, to follow its speed. These times are counted by day, page and version of the site, with no link
+        to the account.</p>
       <h2 style="font-size:16px">Security</h2>
       <p>To limit repeated attempts (login, registration, forgotten password), the site counts the attempts per IP address and per
         email address (legitimate interest); these counters are erased after about a day. The host may also process the IP address to
@@ -255,5 +257,5 @@ export const body = (SITE, { world = false } = {}) => `
       <p><b>Credits:</b> the control description symbols and texts (Coach › Control descriptions, the course setting) come from Purple
         Pen, by Peter Golde (<a href="https://github.com/petergolde/PurplePen" target="_blank" rel="noopener">github.com/petergolde/PurplePen</a>),
         under the <a href="assets/tracer/LICENSE-PurplePen.txt" target="_blank" rel="noopener">BSD licence</a>.</p>
-      <p class="muted">Last updated: 12 November 2026.</p>
+      <p class="muted">Last updated: 17 November 2026.</p>
 `;

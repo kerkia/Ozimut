@@ -14,7 +14,8 @@ const FROZEN = "table[data-freeze]";
 function freezeOffsets(main) {
   for (const tb of main.querySelectorAll(FROZEN)) {
     if (!tb.offsetParent) continue;
-    const row = [...tb.rows].find((r) => ![...r.cells].some((c) => c.colSpan > 1));
+    let row = null;                          // (the first row without a merged cell: not a copy of a long table's rows)
+    for (const r of tb.rows) if (![...r.cells].some((c) => c.colSpan > 1)) { row = r; break; }
     if (!row || row.cells.length < 2) continue;
     // (widths, not positions: a stuck cell's position moves with the scroll)
     for (const i of [1, 2]) {
@@ -58,10 +59,20 @@ export function fitTables() {
 export function watchTables() {
   const main = document.getElementById("main");
   if (!main) return;
-  new MutationObserver((list) => {
-    // (the fit's own changes — a box's style, data-fit and class — are not news)
-    if (list.some((m) => !(m.type === "attributes" && m.target.matches?.(`${SEL}, ${FROZEN}`)))) fitTables();
-  }).observe(main, { childList: true, subtree: true, attributes: true, attributeFilter: ["class", "hidden", "style", "open"] });
+  // What is news (2026-11-17: every class and style change in the page was — a row under the mouse, a replay's runner moving
+  // at each tick — and all the tables were measured again at the next frame): elements added or removed (not a text
+  // rewritten, a clock); something shown, hidden, opened or closed; a class or style changed on what holds a table. The
+  // fit's own changes — a box's style, data-fit and class — are not; a part that only grows or shrinks beside the tables
+  // is seen by the page's height (below).
+  const BOXES = `${SEL}, ${FROZEN}`;
+  const news = (m) => {
+    if (m.type === "childList") { for (const n of m.addedNodes) if (n.nodeType === 1) return true; for (const n of m.removedNodes) if (n.nodeType === 1) return true; return false; }
+    if (m.target.matches?.(BOXES)) return false;
+    return m.attributeName === "hidden" || m.attributeName === "open" || !!m.target.querySelector?.(BOXES);
+  };
+  new MutationObserver((list) => { if (list.some(news)) fitTables(); })
+    .observe(main, { childList: true, subtree: true, attributes: true, attributeFilter: ["class", "hidden", "style", "open"] });
+  if (window.ResizeObserver) new ResizeObserver(fitTables).observe(main);
   let w = window.innerWidth, h = window.innerHeight;
   window.addEventListener("resize", () => {
     if (window.innerWidth === w && Math.abs(window.innerHeight - h) < 100) return;

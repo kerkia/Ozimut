@@ -17,7 +17,7 @@ export const setPublicRule = (fn) => { publicOnly = fn; };
 // a country whose ranking only the administrators read (Canada for now, access « admins »): none for the others (app.js)
 let hiddenRanking = () => false;
 export const setHiddenRule = (fn) => { hiddenRanking = fn; };
-const SHARED = /^(agenda|evaluation|validation)\.json$/;
+const SHARED = /^(agenda|evaluation|validation|meta_more)\.json$/;
 const dirOf = (cc, path = "") => `data/${String(cc).toLowerCase()}/${publicOnly(cc) && !SHARED.test(path) ? "pub/" : ""}`;
 /** Is the loaded country read from its public copy (the federation's open seasons only)? */
 export const isPublicCopy = () => publicOnly(loadedCountry());
@@ -96,6 +96,7 @@ export async function useCountry(cc) {
   for (const k of [...cache.keys()]) if (!k.startsWith("data/meta.json") && !k.startsWith("data/prov/")) cache.delete(k);
   RUNNERS = null;
   COMPS = null;
+  epoch++; booting = null;
   LOADED = cc;
   storeCountry(cc, SITE?.countries?.[cc]?.methods);
   META = await getJson("meta.json").catch(() => null);
@@ -108,6 +109,7 @@ export async function reloadCountry() {
   for (const k of [...cache.keys()]) if (!k.startsWith("data/meta.json") && !k.startsWith("data/prov/")) cache.delete(k);
   RUNNERS = null;
   COMPS = null;
+  epoch++; booting = null;
   META = await getJson("meta.json").catch(() => null);
 }
 
@@ -116,14 +118,25 @@ export async function reloadCountry() {
  * auth.sees); without it the login gate refuses them (_middleware.js `needs`), so the list stays empty and nobody is
  * recognised by name. A country without a ranking has neither file: both empty.
  */
-export async function bootPrivate({ open = true } = {}) {
-  if (RUNNERS) return;
+// (one read at a time, shared by those who ask — the router, and the load started once a page that needs neither file is
+// drawn, 2026-11-17 —; a read begun for a country or a visitor since replaced is dropped: `epoch`)
+let booting = null, epoch = 0;
+export function bootPrivate(opts) {
+  if (RUNNERS) return Promise.resolve();
+  if (!booting) {
+    const p = readPrivate(opts, epoch).finally(() => { if (booting === p) booting = null; });
+    booting = p;
+  }
+  return booting;
+}
+async function readPrivate({ open = true } = {}, mine) {
   // (refused all the same — the country left on another device, this one not told yet —: the empty list too)
   const none = { cols: [], rows: [] };
   const ranks = !!SITE?.countries?.[loadedCountry()]?.ranking && !hiddenRanking(loadedCountry());
   const [runners, comps] = await Promise.all([
     open && ranks ? getJson("runners.json").catch((e) => (/HTTP 403/.test(e.message) ? none : Promise.reject(e))) : none,
     ranks ? getJson("competitions.json").then((c) => c || { rows: {} }) : { rows: {} }]);
+  if (mine !== epoch) return;                                 // the country or the visitor changed meanwhile: not these files
   const cols = (runners || none).cols;                  // a file missing (a public copy not built yet) reads as the empty list
   const ix = Object.fromEntries(cols.map((c, i) => [c, i]));
   const byLic = new Map();
@@ -147,11 +160,17 @@ export async function bootPrivate({ open = true } = {}) {
 export function dropPrivate() {
   RUNNERS = null;
   COMPS = null;
+  epoch++; booting = null;
   for (const k of [...cache.keys()]) if (!k.endsWith("meta.json")) cache.delete(k);
 }
 export const meta = () => META;
-export const runners = () => RUNNERS;
-export const runner = (lic) => RUNNERS.byLic.get(String(lic));
+/** What meta.json held besides (the ranking's levels month by month, the methods' agreement): a file of its own since
+ *  2026-11-17, read only by the pages that draw them; a country built before still has them in meta.json. */
+export const metaMore = async () => (META?.agreement ? META : (await getJson("meta_more.json").catch(() => null)) || {});
+const NO_RUNNERS = { list: [], byLic: new Map() };
+/** The runners (an empty list while they are not read: a page that needs none does not wait for them, app.js NO_RUNNERS). */
+export const runners = () => RUNNERS || NO_RUNNERS;
+export const runner = (lic) => RUNNERS?.byLic.get(String(lic));
 
 // ---- runner ids --------------------------------------------------------------
 // On the site a runner is their country's code and that country's own number (countries/base.py): fr1234567 (an FFCO
@@ -171,8 +190,8 @@ export function localId(id) {
 /** An anonymised runner's pseudonym (privacy.py: 8 digits from 90000001; real licences have at most 7): its name is
  *  « Coureur anonyme N », and no licence is shown nor looked up on FFCO's site. */
 export const isAnon = (lic) => /^9\d{7}$/.test(String(lic ?? ""));
-export const comp = (id) => COMPS.get(String(id));
-export const comps = () => COMPS;
+export const comp = (id) => COMPS?.get(String(id));
+export const comps = () => COMPS || new Map();
 
 // ---- names -----------------------------------------------------------------
 export function clubParts(club) {

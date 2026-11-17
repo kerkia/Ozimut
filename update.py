@@ -170,10 +170,14 @@ def write_build_stamp() -> str:
     h = hashlib.sha1()
     for p in sorted(site.rglob("*")):
         rel = p.relative_to(site).as_posix()
-        if not p.is_file() or rel.startswith(("data/", "auth/")) or rel in ("assets/build.txt", "assets/data.txt"):
+        # (assets/v/ is the deploy's own copy of the code, front_build below: made from the rest, named by this stamp)
+        if not p.is_file() or rel.startswith(("data/", "auth/", "assets/v/")) or rel in ("assets/build.txt", "assets/data.txt"):
             continue
         h.update(rel.encode("utf-8"))
         h.update(p.read_bytes())
+    # the tool that makes that copy: a change to it changes what is published under the stamp's name
+    if FRONT_BUILD.exists():
+        h.update(FRONT_BUILD.read_bytes())
     stamp = h.hexdigest()[:16]
     (site / "assets" / "build.txt").write_text(stamp, encoding="utf-8")
     return stamp
@@ -188,6 +192,40 @@ def write_data_stamp() -> str:
     stamp = time.strftime("%Y%m%dT%H%M%SZ", time.gmtime())
     (ROOT / "site" / "assets" / "data.txt").write_text(stamp, encoding="utf-8")
     return stamp
+
+
+FRONT_BUILD = ROOT / "tools" / "front_build.mjs"
+
+
+def front_build(stamp: str) -> bytes | None:
+    """The code as browsers keep it (2026-11-17, tools/front_build.mjs): a copy of site/assets/js and app.css under
+    site/assets/v/<stamp>/ — served « immutable » (site/_headers), so a returning visitor asks the server for none of it —,
+    the texts cut to what each page says, each page's list of modules, and index.html pointing at that copy. -> index.html's
+    own bytes, for the caller to put back once the site is uploaded (the page in git stays the one the local server shows);
+    None when the copy could not be made: the site is then published as it is written, as before."""
+    node = shutil.which("node.exe") or shutil.which("node")
+    index = ROOT / "site" / "index.html"
+    if not node or not FRONT_BUILD.exists():
+        print("   front build: skipped (no node)")
+        return None
+    before = index.read_bytes()
+    try:
+        r = subprocess.run([node, str(FRONT_BUILD), "--stamp", stamp], cwd=ROOT, capture_output=True, text=True,
+                           encoding="utf-8", errors="replace", timeout=300)
+    except Exception as e:                                  # noqa: BLE001 (whatever fails, the site is published as written)
+        r = None
+        print(f"   front build: FAILED ({e})")
+    if r is not None and r.returncode == 0:
+        for ln in r.stdout.splitlines()[-2:]:
+            print(f"   {ln}")
+        return before
+    if r is not None:
+        print("   front build: FAILED, the site is published as written")
+        for ln in (r.stdout + r.stderr).splitlines()[-6:]:
+            print(f"   {ln}")
+    index.write_bytes(before)
+    shutil.rmtree(ROOT / "site" / "assets" / "v", ignore_errors=True)
+    return None
 
 
 def code_fingerprint() -> str:
@@ -222,10 +260,16 @@ def deploy(db: Path | None = None) -> bool:
     code = code_fingerprint()
     write_data_stamp()
     t0 = time.monotonic()
+    stamp = (ROOT / "site" / "assets" / "build.txt").read_text(encoding="utf-8").strip()
+    index = front_build(stamp)
     cmd = [npx, "--yes", "wrangler", "pages", "deploy", "site", "--project-name", PAGES_PROJECT,
            "--branch", "main", "--commit-dirty=true"]
     # run from the project root: wrangler picks up ./functions from the working directory
-    r = subprocess.run(cmd, cwd=ROOT, capture_output=True, text=True, encoding="utf-8", errors="replace")
+    try:
+        r = subprocess.run(cmd, cwd=ROOT, capture_output=True, text=True, encoding="utf-8", errors="replace")
+    finally:
+        if index is not None:                                # the page as it is written, back in its place
+            (ROOT / "site" / "index.html").write_bytes(index)
     tail = [ln for ln in (r.stdout + r.stderr).splitlines() if ln.strip()][-4:]
     print(f"4. deploy to {PAGES_PROJECT}: {'ok' if r.returncode == 0 else 'FAILED'} in {time.monotonic() - t0:.0f}s")
     for ln in tail:

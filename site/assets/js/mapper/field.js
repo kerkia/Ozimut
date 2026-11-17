@@ -6,6 +6,7 @@
 import * as S from "./store.js";
 import { modal, field } from "../tracer/dialogs.js";
 import { t, locale } from "./lang.js";
+import { catalogueFiles } from "../i18n.js";
 
 const esc = (s) => String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]);
 
@@ -26,14 +27,14 @@ export const idbDel = (s, k) => tx(s, "readwrite", (o) => o.delete(k)).catch(() 
 export const idbKeys = (s) => tx(s, "readonly", (o) => o.getAllKeys()).catch(() => []);
 
 const MODULES = ["doc", "editor", "geom", "view", "tools", "ribbon", "panels", "store", "boolean", "backgrounds", "dataui", "field", "checks", "layout", "io", "team", "lang", "ocadout", "fromomap", "toomap",
-  "data/frame", "data/contours", "data/osm", "data/lidar"].map((m) => `/assets/js/mapper/${m}.js`);
+  "data/frame", "data/contours", "data/osm", "data/lidar"].map((m) => new URL(`./${m}.js`, import.meta.url).href);   // (beside this module: a deploy's copy of the code has its own folder)
 /** The site's files this page needs, kept by the service worker (network first: online nothing changes). */
 async function prepareSite() {
   if (!("serviceWorker" in navigator) || !window.caches) throw new Error(t("map.off.noSupport"));
   await navigator.serviceWorker.register("/sw.js", { scope: "/" });
   const reg = await navigator.serviceWorker.ready;
   const loaded = performance.getEntriesByType("resource").map((e) => e.name).filter((u) => { try { const x = new URL(u); return x.origin === location.origin && x.pathname.startsWith("/assets/"); } catch (e) { return false; } });
-  const urls = [...new Set([location.origin + "/", location.origin + "/assets/js/pages/mapper.js", ...MODULES.map((p) => location.origin + p), ...["fr", "en", "de", "es"].map((l) => `${location.origin}/assets/js/i18n/mapper.${l}.js`), ...loaded])];
+  const urls = [...new Set([location.origin + "/", new URL("../pages/mapper.js", import.meta.url).href, ...MODULES, ...catalogueFiles("mapper", ["mapper", "tracer"]), ...loaded])];
   const c = await caches.open("ocn-offline-v1");
   (reg.active || navigator.serviceWorker.controller)?.postMessage({ type: "ocn-offline", on: true });
   await Promise.all(urls.map(async (u) => { try { const r = await fetch(u, { credentials: "same-origin" }); if (r.ok) await c.put(u, r); } catch (e) { /* later */ } }));

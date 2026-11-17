@@ -229,7 +229,9 @@ export const body = (SITE, { world = false } = {}) => `
       <p>Um die Nutzung der Website zu kennen und sie zu verbessern (berechtigtes Interesse), speichert die Website für jedes Konto die Zahl der
         aufgerufenen Seiten pro Tag und Rubrik (Rangliste, Läufer, Netzwerk usw.) und die Zahl der Besuche. Zu diesem Zweck werden keine weiteren Daten
         gespeichert: weder die durchgeführten Suchen noch die IP-Adresse. Diese Statistiken sind nur dem
-        Administrator zugänglich; sie werden 13 Monate aufbewahrt und mit dem Konto gelöscht.</p>
+        Administrator zugänglich; sie werden 13 Monate aufbewahrt und mit dem Konto gelöscht. Mit jedem Seitenaufruf hält die Website
+        außerdem fest, wie lange die Seite zum Anzeigen und Reagieren gebraucht hat, um ihre Geschwindigkeit zu verfolgen. Diese
+        Zeiten werden nach Tag, Seite und Version der Website gezählt, ohne Bezug zum Konto.</p>
       <h2 style="font-size:16px">Sicherheit</h2>
       <p>Um wiederholte Versuche zu begrenzen (Anmeldung, Registrierung, Passwort vergessen), zählt die Website die Versuche pro
         IP-Adresse und pro E-Mail-Adresse (berechtigtes Interesse); diese Zähler werden nach etwa einem Tag gelöscht. Der Hoster kann
@@ -287,5 +289,5 @@ export const body = (SITE, { world = false } = {}) => `
       <p><b>Danksagung:</b> Die Symbole und Texte der Postenbeschreibungen (Coach › Postenbeschreibungen, die Bahnlegung)
         stammen aus Purple Pen von Peter Golde (<a href="https://github.com/petergolde/PurplePen" target="_blank" rel="noopener">github.com/petergolde/PurplePen</a>),
         unter der <a href="assets/tracer/LICENSE-PurplePen.txt" target="_blank" rel="noopener">BSD-Lizenz</a>.</p>
-      <p class="muted">Letzte Aktualisierung: 12. November 2026.</p>
+      <p class="muted">Letzte Aktualisierung: 17. November 2026.</p>
 `;

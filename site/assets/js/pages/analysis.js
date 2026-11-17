@@ -17,7 +17,7 @@
 //    rule; the trace's length against the straight line; pace; mean heart rate and cadence).
 // Only the calibration (the controls' positions) is kept, in localStorage, per race, circuit, runner and image.
 
-import { html, raw, $, $$, fmt, fmtDate, pctN, fileAccept, traceAccept, touchScreen } from "../util.js";
+import { html, raw, $, $$, fmt, fmtDate, pctN, fileAccept, traceAccept, touchScreen, dateFormat } from "../util.js";
 import { backLine, multiHref, orgaHref } from "./mapanalysis.js";
 import { fitFromGeo, geoFromFit, frameAt, validGeo } from "../trace/share.js";
 import { anchorsOf, straightPx, timeline, ownGeo, toGpx, drawingOf, parseClock, pxToLatLon } from "../trace/drawroute.js";
@@ -108,7 +108,7 @@ function matchTimes(det, off, P = 120) {
   return pairs.reverse();
 }
 
-const parisDay = (ms) => new Intl.DateTimeFormat("fr-CA", { timeZone: "Europe/Paris", year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date(ms));
+const parisDay = (ms) => dateFormat({ timeZone: "Europe/Paris", year: "numeric", month: "2-digit", day: "2-digit" }, "fr-CA").format(new Date(ms));
 
 // ---- the files ------------------------------------------------------------------------------------------------------
 const ACCEPT = `.png,.jpg,.jpeg,.webp,.gif,.bmp,.pdf,.kmz,.kml,.gpx,.tcx,.fit,.xml,.jgw,.pgw,.tfw,.gfw,.bpw,.wld,.prj,${VECTOR_ACCEPT},image/*,application/pdf`;
@@ -601,7 +601,7 @@ export async function render(main, { query = {}, route } = {}) {
     return [t(`an.src.${track.source}`), `${fmt(track.n)} ${t("an.points")}`, clock(track.dur), ...(others.length ? [others.map((c) => t(CHANNEL_LABEL[c])).join(", ")] : []),
       ...(track.cut ? [t("an.cut.done", { a: clock(track.cut.s0), b: clock(traceFull.dur - track.cut.s1) })] : [])].join(" · ");
   }
-  const timeOfDay = (full, s) => new Date(full.ms0 + s * 1000).toLocaleTimeString(locale(), { hour: "2-digit", minute: "2-digit", second: "2-digit" });
+  const timeOfDay = (full, s) => dateFormat({ hour: "2-digit", minute: "2-digit", second: "2-digit" }).format(new Date(full.ms0 + s * 1000));
   /** The files card's block: two sliders over the whole trace's pace, the parts left out shaded. */
   function cutBlock() {
     if (traceFull?.drawn) return "";

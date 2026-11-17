@@ -1703,11 +1703,13 @@ export function build(X) {
   const AGREE_COL = { fair: 1, top6w: 2 };
   const computed = M.filter((m) => m !== "official");     // never the Fits (M excludes them)
   let agTerrain = "For";
+  let agreement = meta.agreement || null;      // (its own file since 2026-11-17, data.metaMore: read when the chart is drawn)
   function drawAgreement() {
     if (!$("#agr-filters", main)) return;
-    $("#agr-filters").innerHTML = html`<div class="field"><span>${t("f.terrain")}</span>${seg("agt", TERRAINS.filter((x) => meta.agreement[x]?.length).map((x) => [x, t(`terrain.${x}`)]), agTerrain)}</div>`;
+    if (!agreement) { data.metaMore().then((m) => { agreement = m?.agreement || {}; drawAgreement(); }).catch(() => { agreement = {}; drawAgreement(); }); return; }
+    $("#agr-filters").innerHTML = html`<div class="field"><span>${t("f.terrain")}</span>${seg("agt", TERRAINS.filter((x) => agreement[x]?.length).map((x) => [x, t(`terrain.${x}`)]), agTerrain)}</div>`;
     $$('[data-seg="agt"]').forEach((b) => b.addEventListener("click", () => { agTerrain = b.dataset.value; drawAgreement(); }));
-    const pts = meta.agreement[agTerrain] || [];
+    const pts = agreement[agTerrain] || [];
     const series = computed.map((m) => ({
       m, name: methodShort(m), color: methodColor(m),
       data: pts.filter((p) => p[0] && p[AGREE_COL[m]]).map((p) => [p[0], p[AGREE_COL[m]]]),

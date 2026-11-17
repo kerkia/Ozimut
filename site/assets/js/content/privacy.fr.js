@@ -224,7 +224,9 @@ export const body = (SITE, { world = false } = {}) => `
       <p>Afin de connaître l'usage du site et de l'améliorer (intérêt légitime), le site enregistre, pour chaque compte, le nombre de
         pages vues par jour et par rubrique (Classement, Coureur, Réseau, etc.) et le nombre de visites. Aucune autre donnée n'est
         enregistrée à ce titre : ni les recherches effectuées, ni l'adresse IP. Ces statistiques ne sont accessibles qu'à
-        l'administrateur ; elles sont conservées 13 mois et supprimées avec le compte.</p>
+        l'administrateur ; elles sont conservées 13 mois et supprimées avec le compte. Avec chaque page vue, le site
+        note aussi le temps que la page a mis à s'afficher et à réagir, pour suivre sa rapidité. Ces durées sont comptées par jour,
+        par page et par version du site, sans lien avec le compte.</p>
       <h2 style="font-size:16px">Sécurité</h2>
       <p>Afin de limiter les tentatives répétées (connexion, inscription, mot de passe oublié), le site comptabilise les essais par
         adresse IP et par adresse e-mail (intérêt légitime) ; ces compteurs sont effacés au bout d'un jour environ. L'hébergeur peut en
@@ -282,5 +284,5 @@ export const body = (SITE, { world = false } = {}) => `
       <p><b>Crédits :</b> les symboles et les textes des définitions de postes (Coach › Définitions de postes, le tracé des circuits)
         viennent de Purple Pen, de Peter Golde (<a href="https://github.com/petergolde/PurplePen" target="_blank" rel="noopener">github.com/petergolde/PurplePen</a>),
         sous <a href="assets/tracer/LICENSE-PurplePen.txt" target="_blank" rel="noopener">licence BSD</a>.</p>
-      <p class="muted">Dernière mise à jour : 12 novembre 2026.</p>
+      <p class="muted">Dernière mise à jour : 17 novembre 2026.</p>
 `;

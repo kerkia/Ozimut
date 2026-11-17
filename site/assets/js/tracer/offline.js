@@ -11,6 +11,7 @@ import { FONT_CSS } from "./fonts.js";
 import { PDFLIB, FFLATE, FONTKIT, PDFJS, PDFJS_WORKER, PROJ4, FONT_PKG } from "../vendor.js";
 import { t, tn } from "./lang.js";
 import { provDir } from "../auth.js";
+import { catalogueFiles } from "../i18n.js";
 
 const CACHE = "ocn-offline-v1";
 const enc = new TextEncoder(), dec = new TextDecoder();
@@ -20,14 +21,15 @@ const TRACER = ["actions", "appear", "calage", "descr", "dialogs", "draw", "edit
   "panes", "pdf", "ppen", "race", "relay", "reports", "store", "symbols", "team", "textify", "tiff",
   "vmap/geom", "vmap/georef", "vmap/map", "vmap/ocad", "vmap/ocadwrite", "vmap/oom", "vmap/oomwrite", "vmap/symdefs", "vmap/sympath", "vmap/target", "coursefiles", "ocnfile", "context", "lang",
   // the routes, the elevation model, the backgrounds' panel, the descriptions read from the map, the presets, the QR codes (2026-11-16)
-  "analyzer", "routedraw", "relief", "backdrop", "autodesc", "canvases", "qr"].map((m) => `/assets/js/tracer/${m}.js`)
-  .concat(["onlinemaps", "waitbar", "trace/routeplan", "trace/routechoice", "trace/routeworker", "trace/vectorroutes", "trace/terrain", "trace/contours"].map((m) => `/assets/js/${m}.js`));
+  "analyzer", "routedraw", "relief", "backdrop", "autodesc", "canvases", "qr"].map((m) => new URL(`./${m}.js`, import.meta.url).href)   // (beside this module: a deploy's copy of the code has its own folder)
+  .concat(["onlinemaps", "waitbar", "trace/routeplan", "trace/routechoice", "trace/routeworker", "trace/vectorroutes", "trace/terrain", "trace/contours"].map((m) => new URL(`../${m}.js`, import.meta.url).href));
 const LIBS = [PDFLIB, FFLATE, FONTKIT, PDFJS, PDFJS_WORKER, PROJ4,
   `${FONT_PKG.Roboto}/files/roboto-latin-400-normal.woff`, `${FONT_PKG.Roboto}/files/roboto-latin-700-normal.woff`,
   `${FONT_PKG["Roboto Condensed"]}/files/roboto-condensed-latin-400-normal.woff`, `${FONT_PKG["Roboto Condensed"]}/files/roboto-condensed-latin-700-normal.woff`,
   ...FONT_CSS];
-const PAGES = ["/", "/assets/js/pages/tracer.js", "/assets/js/i18n/fr.js", "/assets/js/i18n/en.js", "/assets/js/i18n/de.js", "/assets/js/i18n/es.js", "/assets/js/i18n/tracer.fr.js",
-  "/assets/js/i18n/tracer.en.js", "/assets/js/i18n/tracer.de.js", "/assets/js/i18n/tracer.es.js", "/assets/tracer/symbols.json", "/assets/tracer/symbol-texts.json", "/assets/tracer/crs.json", "/data/fr/agenda.json"];
+// (the texts: the files this build reads them from, i18n.catalogueFiles)
+const CODE = [new URL("../pages/tracer.js", import.meta.url).href, ...catalogueFiles("tracer", ["tracer"])];
+const PAGES = ["/", "/assets/tracer/symbols.json", "/assets/tracer/symbol-texts.json", "/assets/tracer/crs.json", "/data/fr/agenda.json"];
 
 /** The service worker and the page's files, for opening the Tracer without the network. */
 async function prepareSite() {
@@ -39,7 +41,7 @@ async function prepareSite() {
     .filter((u) => { try { const x = new URL(u); return x.origin === location.origin && (x.pathname.startsWith("/assets/") || /^\/data\/(meta|runners|competitions)\.json$/.test(x.pathname)); } catch (e) { return false; } })
     .filter((u) => !u.includes("/assets/build.txt"));
   // (the provisional index this account reads: the full one or the copy without CNs)
-  const urls = [...new Set([...[...PAGES, `/${provDir()}index.json`].map((p) => location.origin + p), ...TRACER.map((p) => location.origin + p), ...LIBS, ...loaded])];
+  const urls = [...new Set([...[...PAGES, `/${provDir()}index.json`].map((p) => location.origin + p), ...TRACER, ...CODE, ...LIBS, ...loaded])];
   const c = await caches.open(CACHE);
   tell(reg, true);
   let ok = 0;

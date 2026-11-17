@@ -12,6 +12,7 @@ import * as data from "../data.js";
 import { tile, seg, chartCard, bindChartCard, legend, setLede } from "../ui.js";
 import { columnChart, timeChart, css } from "../charts.js";
 import { link, replaceQuery } from "../app.js";
+import { draw as drawPerf } from "./adminperf.js";
 
 const PRESETS = ["7", "30", "90", "365", "all"];
 const isoDay = (d) => d.toLocaleDateString("en-CA", { timeZone: "Europe/Paris" });     // YYYY-MM-DD, Paris
@@ -44,7 +45,7 @@ export async function render(main, { query = {} } = {}) {
     return { title: t("ad.title") };
   }
   let { users, duplicates, queued, me } = await r.json();
-  let tab = { inscrits: "members", utilisation: "usage", consommation: "conso", depots: "uploads", sites: "sites", anonymises: "anon", demo: "demo", cartes: "mymaps", evenements: "events" }[query.onglet] || "accounts";
+  let tab = { inscrits: "members", utilisation: "usage", consommation: "conso", depots: "uploads", sites: "sites", anonymises: "anon", demo: "demo", cartes: "mymaps", evenements: "events", vitesse: "perf" }[query.onglet] || "accounts";
   await loadArea("manage");          // « Événements » (Orga › Gérer, 2026-11-11): its texts are the page's
 
   main.innerHTML = html`
@@ -129,6 +130,7 @@ export async function render(main, { query = {} } = {}) {
       <p class="muted" style="margin:0 2px 12px">${t("ad.up.lede")}</p>
       <section class="card"><div class="table-wrap" id="up-list"></div></section>
     </div>
+    <div data-panel="perf" hidden><div id="pf-body"></div></div>
     <div data-panel="conso" hidden>
       <p class="muted" style="margin:0 2px 12px">${t("ad.co.lede")}</p>
       <div id="co-note"></div>
@@ -158,11 +160,11 @@ export async function render(main, { query = {} } = {}) {
 
   function showTab() {
     $("#ad-tabs").innerHTML = seg("adtab", [["accounts", t("ad.tab.accounts")], ["members", t("ad.tab.members")], ["usage", t("ad.tab.usage")], ["conso", t("ad.tab.conso")], ["uploads", t("ad.tab.uploads")],
-      ["sites", t("ad.tab.sites")], ["anon", t("ad.tab.anon")], ["demo", t("ad.tab.demo")], ["mymaps", t("ad.tab.mymaps")], ["events", t("mg.ad.tab")]], tab);
+      ["sites", t("ad.tab.sites")], ["anon", t("ad.tab.anon")], ["demo", t("ad.tab.demo")], ["mymaps", t("ad.tab.mymaps")], ["events", t("mg.ad.tab")], ["perf", t("ad.tab.perf")]], tab);
     $$('[data-seg="adtab"]').forEach((b) => b.addEventListener("click", () => { tab = b.dataset.value; showTab(); }));
     $$("[data-panel]", main).forEach((p) => { p.hidden = p.dataset.panel !== tab; });
     setLede(t(`ad.lede.${tab}`));       // the head says what the tab shows (one line: the tabs' own paragraphs say more)
-    if (tab === "usage") saveUsage(); else replaceQuery({ members: { onglet: "inscrits" }, conso: { onglet: "consommation" }, uploads: { onglet: "depots" }, sites: { onglet: "sites" }, anon: { onglet: "anonymises" }, demo: { onglet: "demo" }, mymaps: { onglet: "cartes" }, events: { onglet: "evenements" } }[tab] || {});   // the address keeps the usage filters
+    if (tab === "usage") saveUsage(); else replaceQuery({ members: { onglet: "inscrits" }, conso: { onglet: "consommation" }, uploads: { onglet: "depots" }, sites: { onglet: "sites" }, anon: { onglet: "anonymises" }, demo: { onglet: "demo" }, mymaps: { onglet: "cartes" }, events: { onglet: "evenements" }, perf: { onglet: "vitesse" } }[tab] || {});   // the address keeps the usage filters
     if (tab === "usage" && !usageStarted) { usageStarted = true; startUsage(); }
     if (tab === "members") drawMembers();
     if (tab === "uploads") drawUploads();
@@ -170,6 +172,7 @@ export async function render(main, { query = {} } = {}) {
     if (tab === "anon") drawAnon();
     if (tab === "demo") drawDemo();
     if (tab === "conso") drawConso();
+    if (tab === "perf" && !$("#pf-body").firstChild) drawPerf($("#pf-body"));     // how fast the site is (adminperf.js)
     if (tab === "mymaps") drawMymaps();
     if (tab === "events") drawEvents();
   }

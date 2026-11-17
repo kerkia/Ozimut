@@ -34,7 +34,7 @@ const parisToday = () => new Date().toLocaleDateString("en-CA", { timeZone: "Eur
 // a country's list of competitions and agenda, the study's aggregates (the Documentation), and the provisional results'
 // copy without CN, scores or licences (prov/pub/). Deny by default: a country folder without a rule is nobody's, and
 // anything else under /data/ (the provisional results' full files) is France's.
-const DATA_FOR_ALL = [/^\/data\/[a-z]{2}\/(competitions|agenda|evaluation|validation)\.json$/, /^\/data\/prov\/pub\//,
+const DATA_FOR_ALL = [/^\/data\/[a-z]{2}\/(competitions|agenda|evaluation|validation|meta_more)\.json$/, /^\/data\/prov\/pub\//,
   /^\/data\/[a-z]{2}\/pub\//];       // a country's public copy (site_public.py): its federation's open seasons
 // What a visitor without an account may read (owner, 2026-10-30: « Entrer sans compte »), by GET only: what is open to every
 // account above, the countries whose results are all public (DATA_ACCESS "all": Spain, the agendas' countries), the live

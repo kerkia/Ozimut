@@ -4414,6 +4414,51 @@ Every multiple-choice game was played through to its score page at phone size, w
   « Analyse », « Analyse solo »… — add a page there only after checking it), and starts it once that page shows; `geo.js` waits for
   it before registering a map. The catalogues load together (`i18n.js`: French, the reader's, English beneath German and Spanish —
   they came one after the other).
+- **Speed** (owner, 2026-11-17: pages slower to load and to react; the review found no caching rule at all — every file asked
+  again at each visit —, the modules found one level of imports after the other, 400 KB of texts and 2 MB of ranking data read
+  before any page, a round trip before each change of page, and number and date formatters built again for every table cell).
+  **A deploy publishes a copy of the code** (`tools/front_build.mjs`, run by `update.deploy` → `front_build`, node; the pages are
+  still written and tried without any build step): `site/assets/v/<build>/` (git-ignored; `<build>` = `assets/build.txt`, which now
+  also hashes the tool and leaves `assets/v/` out) holds `js/` (assets/js as it is: every import is relative), `app.css`, the files
+  a module reads beside the code (`new URL("../…", import.meta.url)`), and `index.html` is rewritten to point at it (put back as
+  written once uploaded; if the tool fails the site is published as written, as before). `site/_headers` serves `/assets/v/*` and
+  `/assets/vendor/*` « immutable » for a year: a returning visitor asks the server for no code until the next deploy of code.
+  **Never write an absolute `/assets/js/…` path in the code** (it would name the unversioned copy): `new URL("./x.js",
+  import.meta.url)`, as `tracer/offline.js` and `mapper/field.js` do for their offline lists. A tab of the build before that asks
+  for a module gone is reloaded (`app.route_`'s catch); a reverted commit gives the same build name again.
+  **Texts per page** (`js/i18n/gen/` in the copy; the catalogues stay as they are written, and the local server reads them whole):
+  `core.<lang>.js` (what the shared modules name, ~30 KB instead of 400), `p.<page>.<lang>.js` (a page's own: the keys its modules —
+  static and dynamic imports, not entering the shared ones — name as strings, « agd.count », or begin, `agd.when.${w}`),
+  `area.<name>.<lang>.js` (an area's catalogues in one), `all.<lang>.js`; each already merged (the reader's language over English over
+  French: one file a reader). `i18n.js`: `window.__oz` (set by the built index.html) → `MERGED`, `loadPage(page)` — awaited by the
+  router **before** the page's module runs (module-level `t()` calls) —, `loadArea` reads the merged area. A key none of them
+  brought (built in a way the tool cannot read, e.g. a prefix kept in a variable) loads `all` once and fires « ocn:i18n-late »:
+  app.js draws the page again (not the tools holding work, `NO_REDRAW`) and sends the key with the next page view (admin
+  « Vitesse » lists them: fix the reading in the tool, or write the key's stem as a string); that browser session then starts
+  from `all` (`sessionStorage ocn.i18n.full`). `i18n.catalogueFiles(page, areas)` gives the files to keep for work offline.
+  **Each page's modules at once** (`js/gen/manifest.js`: route → page, page → modules; `front.js` `prepare(route)` adds
+  `modulepreload` links for all of them and loads the page's texts, `warm(routes)` fetches the menu's other pages when idle, heavy
+  tools and data-saving connections apart); the built index.html preloads the boot modules and the reader's core texts.
+  **No wait that nothing needs**: `build.txt` is read beside the page and when the tab comes back into view (`stale` → reload at
+  the next change of page); the account is read again (`auth.refresh`) beside the data, once a visit; the pages of
+  `app.NO_RUNNERS` (the modules page, Coach's tools, Réglages… — checked to read neither `runners.json` nor `competitions.json`;
+  add a page only after checking its modules) no longer wait for those files, which load 2 s after the page is drawn
+  (`data.bootPrivate` is one shared read, dropped when the country changes: `epoch`; `data.runners()` is an empty list until then).
+  `meta.json` lost `levels` and `agreement` (230 of 270 KB) to `meta_more.json` (`build_site`; `data.metaMore`, open as
+  meta.json: `_middleware.js DATA_FOR_ALL`; a country built before still has them in meta.json, read from there).
+  **Reactions**: `util.fmt` / `fmtDate` keep their formatters and `util.dateFormat(opts, locale)` gives a kept one — never call
+  `toLocaleString` / `toLocaleDateString` with options in a loop (0.07-0.3 ms a call); `fit.js` refits on elements added or
+  removed, something shown or hidden, a class or style changed on what holds a table, and the page's height (not on every class
+  and style change); the Agenda keeps its rows and hides those a filter leaves out (`drawTable`: rows kept when those to show are
+  in the page in the same order under the same headings — a hide 30 ms against 140 —, a changed row replaced alone).
+  **Measured** (`app.js track`: with each page view of an account, `perf` { ms, first } — the page's time to show —, `tap` — the
+  slowest reaction on the page before, the browser's Event Timing —, `late` — texts loaded late —, `build`; `_lib/perf.js`,
+  D1 `perf_daily`, **migration 0028**, counts by day, page, kind and build, no account, nothing kept before the migration;
+  admin › « Vitesse », `pages/adminperf.js`, `/api/admin/perf`; the privacy page says so, 17 November 2026).
+  **Not done**: `app.css` is still one file of 350 KB (its rules cannot be moved to per-tool files without changing which rule
+  wins where two of equal weight meet; to do by hand, tool by tool); the two `body:has()` rules stay (browsers re-evaluate them
+  only when their own classes change). Local test of a built copy: `node tools/front_build.mjs --stamp <hex> --site <copy> --out
+  <copy>` on a copy of site/ (data/ as a junction), `wrangler pages dev <copy>` from the project root.
 - **The move to ozimut.com** (owner, 2026-10-19; plan: private artifact https://claude.ai/artifact/HQuwgQwKg9nexvGioSK77M).
   The name « Ozimut » is written with a capital O, the rest lower case, and **its O in the control-flag orange** wherever it
   is drawn (`.brand-o`, the e-mails' header, the reel's `.rv-logo-o`); tagline « La course d'orientation, en cartes et en

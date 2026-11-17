@@ -596,7 +596,10 @@ def main(argv: list[str] | None = None) -> None:
     levels = defaultdict(list)   # "method_terrain" -> [[yyyy-mm, n, median, top30mean]]
     if since:
         # seasons before the change are unchanged: keep their snapshots and levels
-        for key, rows in old_meta.get("levels", {}).items():
+        # (in meta_more.json since 2026-11-17, in meta.json before)
+        more_file = OUT / "meta_more.json"
+        old_more = json.loads(more_file.read_text(encoding="utf-8")) if more_file.exists() else old_meta
+        for key, rows in old_more.get("levels", {}).items():
             levels[key] = [r for r in rows if int(r[0][:4]) < since.year]
     snap_keep: set[str] = set()
     for Y in years:
@@ -742,9 +745,11 @@ def main(argv: list[str] | None = None) -> None:
         "counts": {"runners": len(runners), "competitions": len(comps),
                    "circuits": len(circuits), "results": len(raw_res)},
         "overview": overview,
-        "levels": levels,
-        "agreement": agree,
     }
+    # The ranking's level month by month and the methods' agreement (the Documentation's chart), 230 of the 270 KB this file
+    # weighed: in a file of their own since 2026-11-17 — every visit reads meta.json before it draws anything, and nothing
+    # read at the start needs them (the pages read them from either place: data.metaMore).
+    dump(OUT / "meta_more.json", {"levels": levels, "agreement": agree})
     # another country's federation ranking as it publishes it (Spain: FEDO's season tables, countries/es/official.py)
     if not fr:
         import importlib

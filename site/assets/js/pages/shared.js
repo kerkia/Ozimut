@@ -18,7 +18,7 @@
 // state in the address. Stored by /api/analyses (R2). Other sources (owner, 2026-11-14): Pixel's runs (pages/virtuallysrc.js) are
 // served to the same page through `useSource` — an analysis « px~<race> », read only (`readonly`: no trace added, no comment).
 
-import { html, raw, $, $$, fmt, fmtDate, traceAccept, touchScreen } from "../util.js";
+import { html, raw, $, $$, fmt, fmtDate, traceAccept, touchScreen, dateFormat } from "../util.js";
 import { t, tn, locale } from "../i18n.js";
 import * as auth from "../auth.js";
 import { pageTabs, tabFrom, bindPageTabs, dataTable } from "../ui.js";
@@ -104,7 +104,7 @@ const PREFS_KEY = "ocn.sh.prefs";                         // the replay's displa
 const loadPrefs = () => { try { return JSON.parse(localStorage.getItem(PREFS_KEY) || "{}") || {}; } catch (e) { return {}; } };
 const signed = (s) => (s == null ? "—" : `${s >= 0 ? "+" : "−"}${clock(Math.abs(s))}`);
 const pace = (v) => (v > 0.05 ? `${Math.floor(1000 / v / 60)}'${String(Math.round((1000 / v) % 60)).padStart(2, "0")}` : "—");
-const hms = (sec) => new Date(sec * 1000).toLocaleTimeString("fr-FR", { timeZone: "Europe/Paris", hour: "2-digit", minute: "2-digit", second: "2-digit" });
+const hms = (sec) => dateFormat({ timeZone: "Europe/Paris", hour: "2-digit", minute: "2-digit", second: "2-digit" }, "fr-FR").format(new Date(sec * 1000));
 const today = () => new Date().toISOString().slice(0, 10);
 const keyOf = (id) => { try { return sessionStorage.getItem(`ocn.an.key.${id}`) || ""; } catch (e) { return ""; } };
 const setKey = (id, k) => { try { sessionStorage.setItem(`ocn.an.key.${id}`, k); } catch (e) { /* this visit only */ } };
@@ -135,7 +135,7 @@ async function api(path, { method = "GET", body, type, key } = {}) {
 // an analysis's state (owner, 2026-11-16): published, a draft, or a draft whose opening is set (`openAt`, an ISO time)
 const later = (a) => !!a?.draft && !!a.openAt;
 /** A time in the reader's language: « dim. 22 nov. 2026, 20:00 ». */
-export const fmtWhen = (iso) => new Date(iso).toLocaleString(locale(), { weekday: "short", day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" });
+export const fmtWhen = (iso) => dateFormat({ weekday: "short", day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" }).format(new Date(iso));
 export const stateText = (a) => (later(a) ? t("sh.m.state.later", { when: fmtWhen(a.openAt) }) : t(a?.draft ? "sh.m.state.draft" : "sh.m.state.live"));
 export const stateClass = (a) => (later(a) ? "sh-m-later" : a?.draft ? "sh-m-draft" : "sh-m-live");
 /** The opening's field: the one set, else the analysis's day at 20:00 if still to come, else empty. */
@@ -620,7 +620,7 @@ async function eventPage(main, kind, id, org = false, query = {}) {
 // one class per circuit, a runner per track: the passes as « Analyse multi » reads them (the first visit within 25 m after the
 // previous control, the start's departure, the finish's arrival), the split times from the start, the place among those who
 // passed every control and finished; the start's clock time (Paris) for « Passages », « Groupes » and « Autonomie »
-const parisSec = (unix) => { const d = new Date(unix * 1000); const [h, m, s] = d.toLocaleTimeString("en-GB", { timeZone: "Europe/Paris", hour12: false }).split(":").map(Number); return h * 3600 + m * 60 + s; };
+const parisSec = (unix) => { const d = new Date(unix * 1000); const [h, m, s] = dateFormat({ timeZone: "Europe/Paris", hour12: false, hour: "numeric", minute: "numeric", second: "numeric" }, "en-GB").format(d).split(":").map(Number); return h * 3600 + m * 60 + s; };
 async function splitsDoc({ A, id, traces }) {
   const classes = [];
   for (const c of A.courses) {

@@ -373,16 +373,47 @@ export async function render(main, { query }) {
     const box0 = $("#table"), top0 = box0.getBoundingClientRect().top;
     const anchor = !toToday && box0.scrollTop > 0 ? $$("#table tbody tr").find((r) => r.getBoundingClientRect().bottom > top0 + 1) : null;
     const at0 = anchor ? anchor.getBoundingClientRect().top - top0 : 0, key0 = anchor?.dataset.key;
-    $("#table").innerHTML = shown.length ? html`<table class="data"><thead><tr>
-        ${sortHead("date", t("agd.col.date"))}${sees("FR") && fr ? sortHead("cn", t("agd.col.cn")) : ""}${sortHead("event", t("agd.col.event"))}${sortHead("place", t(inWre ? "agd.col.country" : "agd.col.place"))}${places ? sortHead("region", levelName("region")) : ""}${sortHead("type", t("agd.col.type"))}</tr></thead>
-      <tbody>${shown.map((e) => html`<tr data-key="${e.key}" data-period="${periodOf(e)}" tabindex="0" class="${e.key === st.selected ? "selected" : ""} ${e.cancelled ? "cancelled" : ""} ${e.past ? "past" : ""}">
+    const head = html`<table class="data"><thead><tr>
+        ${sortHead("date", t("agd.col.date"))}${sees("FR") && fr ? sortHead("cn", t("agd.col.cn")) : ""}${sortHead("event", t("agd.col.event"))}${sortHead("place", t(inWre ? "agd.col.country" : "agd.col.place"))}${places ? sortHead("region", levelName("region")) : ""}${sortHead("type", t("agd.col.type"))}</tr></thead>`.toString();
+    const rows = shown.map((e) => html`<tr data-key="${e.key}" data-period="${periodOf(e)}" tabindex="0" class="${e.key === st.selected ? "selected" : ""} ${e.cancelled ? "cancelled" : ""} ${e.past ? "past" : ""}">
         <td class="num nowrap d">${fmtDate(e.date, "short")}${e.end ? html`<span class="dim d-end"> → ${fmtDate(e.end, "short")}</span>` : ""}${(e.natcal?.alt || []).map((d) => html`<span class="dim d-end"> ${t("agd.nat.or")} ${fmtDate(d, "short")}</span>`)}</td>
         ${sees("FR") && fr ? html`<td class="c">${e.natcal ? html`<span class="dim" title="${t("agd.nat.cnTip")}">—</span>` : e.cn ? html`<span class="tag tag-in"><span class="m-only">CN</span><span class="d-only">${t("agd.yes")}</span></span>` : html`<span class="dim"><span class="m-only">${t("agd.notCn")}</span><span class="d-only">${t("agd.no")}</span></span>`}</td>` : ""}
         <td class="n">${nameOf(e)}${wreTags(e)}${natTag(e)}${e.cancelled ? html` <span class="tag">${t("agd.cancelled")}</span>` : ""}${starts.has(String(e.id)) ? html` <span class="tag" style="color:var(--accent)" title="${t("agd.startsTip")}">${t("agd.starts")}</span>` : ""}${lives.get(String(e.id))?.now ? html` <a class="lv-badge" href="#/direct/${lives.get(String(e.id)).id}" title="${t("agd.liveTip")}">${t("lv.badge")}</a>` : ""}${trackOf(e) ? html` <span class="tag" title="${t("trk.tagTip")}">${t("trk.tag")}</span>` : ""}${e.past ? pastTags(e) : ""}</td>
         <td class="p">${inWre && e.host ? html`<span class="nowrap">${country.flagImg(e.host)} ${country.name(e.host)}</span>${e.place ? html` <span class="dim">· ${e.place}</span>` : ""}`
           : html`${e.place || ""}${deptTag(e) ? html` <span class="dim">${deptTag(e)}</span>` : ""}`}</td>
         ${places ? html`<td class="r">${fmtRegion(e.region)}</td>` : ""}
-        <td class="nowrap t">${typeLabel(e)}</td></tr>`)}</tbody></table>` : html`<div class="empty">${t("agd.empty")}</div>`;
+        <td class="nowrap t">${typeLabel(e)}</td></tr>`.toString());
+    // The rows are kept (2026-11-17: a tick of a filter built the whole table again — measured, two thirds of the wait
+    // were the browser styling and laying out rows it had just thrown away). When the rows to show are among those in
+    // the page, in the same order, under the same headings, the others are only hidden, and a row whose content changed
+    // (the selection, a live race, a start list found) is replaced alone; else — another order, rows never drawn — the
+    // table is built as before.
+    {
+      const box = $("#table"), body = $("tbody", box);
+      const rowEl = (h) => { const tb = document.createElement("tbody"); tb.innerHTML = h; const tr = tb.firstElementChild; tr.rowHtml = h; return tr; };
+      let kept = !!body && shown.length > 0 && box.dataset.head === head;
+      if (kept) {
+        const have = new Map();
+        let i = 0, last = -1;
+        for (const tr of body.rows) have.set(tr.dataset.key, [i++, tr]);
+        for (const e of shown) { const h = have.get(String(e.key)); if (!h || h[0] <= last) { kept = false; break; } last = h[0]; }
+        if (kept) {
+          const on = new Set();
+          shown.forEach((e, k) => {
+            let tr = have.get(String(e.key))[1];
+            if (tr.rowHtml !== rows[k]) { const neu = rowEl(rows[k]); tr.replaceWith(neu); tr = neu; }
+            on.add(tr);
+          });
+          for (const tr of body.rows) { const off = !on.has(tr); if (tr.hidden !== off) tr.hidden = off; }
+        }
+      }
+      if (!kept) {
+        box.innerHTML = shown.length ? `${head}<tbody>${rows.join("")}</tbody></table>` : html`<div class="empty">${t("agd.empty")}</div>`;
+        box.dataset.head = shown.length ? head : "";
+        const b = $("tbody", box);
+        if (b) { let k = 0; for (const tr of b.rows) tr.rowHtml = rows[k++]; }
+      }
+    }
     const back = key0 && $(`#table tr[data-key="${CSS.escape(key0)}"]`);
     if (back) box0.scrollTop += back.getBoundingClientRect().top - top0 - at0;
     // past competitions above today's: the list opens on today (after a change of the three boxes), the last past competition
@@ -392,8 +423,10 @@ export async function render(main, { query }) {
     if (toToday) {
       toToday = false;
       const box = $("#table");
-      const first = st.when.has("past") && $('#table tr[data-period="today"], #table tr[data-period="coming"]');
-      const prev = first?.previousElementSibling?.dataset.period === "past" ? first.previousElementSibling : null;
+      const first = st.when.has("past") && $('#table tr[data-period="today"]:not([hidden]), #table tr[data-period="coming"]:not([hidden])');
+      let before = first?.previousElementSibling;
+      while (before?.hidden) before = before.previousElementSibling;       // (rows a filter hides stay in the page)
+      const prev = before?.dataset.period === "past" ? before : null;
       const head = $("#table thead")?.offsetHeight || 0;
       // placed again once the box has settled (fit.js frames it, which narrows it and wraps its rows anew), unless the reader
       // has scrolled since

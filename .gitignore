@@ -41,3 +41,6 @@ docs/whitepaper/*.aux
 docs/whitepaper/*.log
 docs/whitepaper/*.out
 docs/whitepaper/*.toc
+
+# the deploy's copy of the code (tools/front_build.mjs, made by update.deploy)
+site/assets/v/

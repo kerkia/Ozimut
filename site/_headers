@@ -1,0 +1,18 @@
+# What browsers may keep without asking again (2026-11-17). Everything else keeps Pages' default (asked again at each
+# visit) or what the login gate sets (the data: five minutes).
+#
+# The deploy's copy of the code (tools/front_build.mjs): its folder is named by the build, so a file there never changes.
+/assets/v/*
+  Cache-Control: public, max-age=31536000, immutable
+
+# The third-party libraries and fonts: each in a folder named by its version (tools/vendor.py).
+/assets/vendor/*
+  Cache-Control: public, max-age=31536000, immutable
+
+# Pictures and outlines that change with a deploy at most: a day, then asked again.
+/assets/tour/*
+  Cache-Control: public, max-age=86400
+/assets/learn/*
+  Cache-Control: public, max-age=86400
+/assets/geo/*
+  Cache-Control: public, max-age=86400
