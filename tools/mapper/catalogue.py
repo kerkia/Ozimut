@@ -50,6 +50,9 @@ k("map.start.importNeed", "<b>Il vous faut</b> le fichier de la carte : OCAD (.o
   "<b>Necesitas</b> el archivo del mapa: OCAD (.ocd), OpenOrienteering Mapper (.omap, .xmap) u Ozimut (.ozmap).")
 k("map.start.importBtn", "Importer…", "Import…", "Importieren…", "Importar…")
 k("map.start.open", "Ouvrir une carte", "Open a map", "Karte öffnen", "Abrir un mapa")
+k("map.start.err.tooMany", "Trop de cartes créées aujourd'hui (30 par jour au plus) : réessayez demain.", "Too many maps created today (30 a day at most): try again tomorrow.", "Heute wurden zu viele Karten angelegt (höchstens 30 pro Tag): Versuche es morgen wieder.", "Hoy se han creado demasiados mapas (30 al día como máximo): inténtalo mañana.")
+k("map.start.err.quota", "Vous avez déjà {max} cartes, le maximum : supprimez-en une (« Ouvrir une carte ») avant d'en créer une autre.", "You already have {max} maps, the maximum: delete one (“Open a map”) before creating another.", "Du hast schon {max} Karten, das Maximum: Lösche eine („Karte öffnen“), bevor du eine neue anlegst.", "Ya tienes {max} mapas, el máximo: elimina uno («Abrir un mapa») antes de crear otro.")
+k("map.start.err.other", "La carte n'a pas pu être créée : {error}.", "The map could not be created: {error}.", "Die Karte konnte nicht angelegt werden: {error}.", "No se ha podido crear el mapa: {error}.")
 k("map.start.openDesc", "Reprendre une de vos cartes : celles que vous avez créées ou importées et celles dont l'équipe vous compte.",
   "Pick up one of your maps: those you created or imported and those whose team you are on.",
   "Eine deiner Karten wieder aufnehmen: die, die du angelegt oder importiert hast, und die, in deren Team du bist.",
@@ -163,7 +166,7 @@ RIB = {
   "bg-calage": ("Caler", "Adjust", "Einpassen", "Ajustar"), "bg-georef": ("Géoréférencer", "Georeference", "Georeferenzieren", "Georreferenciar"),
   "bg-toggle": ("Afficher les fonds", "Show backgrounds", "Hintergründe zeigen", "Mostrar fondos"), "map-fade": ("Estomper la carte", "Fade the map", "Karte abblenden", "Atenuar el mapa"),
   "data-area": ("Zone des données", "Data area", "Datengebiet", "Zona de datos"), "data-lidar": ("LiDAR", "LiDAR", "LiDAR", "LiDAR"), "data-contours": ("Courbes de niveau", "Contours", "Höhenlinien", "Curvas de nivel"),
-  "data-osm": ("OpenStreetMap", "OpenStreetMap", "OpenStreetMap", "OpenStreetMap"), "data-bdtopo": ("BD TOPO (France)", "BD TOPO (France)", "BD TOPO (Frankreich)", "BD TOPO (Francia)"), "data-town": ("Plan de ville (sprint)", "Town plan (sprint)", "Stadtplan (Sprint)", "Plano urbano (sprint)"), "draft-accept": ("Accepter", "Accept", "Übernehmen", "Aceptar"),
+  "data-osm": ("OpenStreetMap", "OpenStreetMap", "OpenStreetMap", "OpenStreetMap"), "data-bdtopo": ("BD TOPO (France)", "BD TOPO (France)", "BD TOPO (Frankreich)", "BD TOPO (Francia)"), "data-town": ("Plan de ville (sprint)", "Town plan (sprint)", "Stadtplan (Sprint)", "Plano urbano"), "draft-accept": ("Accepter", "Accept", "Übernehmen", "Aceptar"),
   "draft-acceptKind": ("Accepter ce symbole partout", "Accept this symbol everywhere", "Diese Signatur überall übernehmen", "Aceptar este símbolo en todo"), "draft-reject": ("Rejeter", "Reject", "Verwerfen", "Rechazar"),
   "gps": ("Ma position", "My position", "Meine Position", "Mi posición"), "gps-follow": ("Suivre", "Follow", "Folgen", "Seguir"), "gps-track": ("Enregistrer la trace", "Record track", "Spur aufzeichnen", "Grabar el track"),
   "gps-north": ("Boussole", "Compass", "Kompass", "Brújula"), "photo": ("Photo", "Photo", "Foto", "Foto"), "comment": ("Note sur la carte", "Note on the map", "Notiz auf der Karte", "Nota en el mapa"),
@@ -242,7 +245,7 @@ k("map.exp.export-kmz.d", "La carte posée sur le globe, pour Google Earth, un G
 k("map.exp.to-tracer", "Vers le tracé", "To course setting", "Zur Bahnlegung", "Al trazado")
 k("map.exp.to-tracer.d", "Un nouvel événement du tracé sur cette carte, pour y tracer des circuits.",
   "A new course-setting event on this map, to set courses on it.",
-  "Ein neues Bahnlegungs-Ereignis auf dieser Karte, um Bahnen zu legen.",
+  "Eine neue Bahnlegungs-Veranstaltung auf dieser Karte, um Bahnen zu legen.",
   "Un nuevo evento de trazado sobre este mapa, para trazar recorridos.")
 k("map.exp.to-mymaps", "Vers Mes cartes", "To My maps", "Zu Meine Karten", "A Mis mapas")
 k("map.exp.to-mymaps.d", "Une image de la carte dans votre bibliothèque, pour y garder vos traces.",
@@ -284,6 +287,36 @@ for key, v in {
   "rect": ("Chaque côté à angle droit du précédent (bâtiments) ; revenir au départ ferme", "Each side at a right angle to the previous one (buildings); back to the start closes", "Jede Seite im rechten Winkel zur vorigen (Gebäude); zurück zum Start schließt", "Cada lado en ángulo recto con el anterior (edificios); volver al inicio cierra"),
   "circle": ("Cliquez le centre et glissez jusqu'au rayon", "Click the centre and drag to the radius", "Klicke den Mittelpunkt und ziehe bis zum Radius", "Haz clic en el centro y arrastra hasta el radio"),
   }.items(): k(f"map.hint.draw.{key}", *v)
+k("map.hint.draw.point", "Cliquez où poser le symbole ; glissez pour l'orienter", "Click where the symbol goes; drag to turn it", "Klicke, wo die Signatur hin soll; ziehe, um sie zu drehen", "Haz clic donde va el símbolo; arrastra para orientarlo")
+k("map.hint.draw.text", "Cliquez où placer le texte", "Click where the text goes", "Klicke, wo der Text hin soll", "Haz clic donde va el texto")
+# the same by touch (a phone, a tablet: no key, no button, no hover)
+for key, v in {
+  "select": ("Touchez un objet pour le choisir ; glissez-le pour le déplacer ; un doigt déplace la carte, deux doigts zooment", "Tap an object to select it; drag it to move it; one finger moves the map, two fingers zoom", "Tippe ein Objekt an, um es zu wählen; ziehe es, um es zu verschieben; ein Finger verschiebt die Karte, zwei Finger zoomen", "Toca un objeto para elegirlo; arrástralo para moverlo; un dedo mueve el mapa, dos dedos hacen zoom"),
+  "pan": ("Glissez pour déplacer la carte ; deux doigts pour zoomer", "Drag to move the map; two fingers to zoom", "Ziehe, um die Karte zu verschieben; zwei Finger zum Zoomen", "Arrastra para mover el mapa; dos dedos para el zoom"),
+  "vertex": ("Glissez un point ou une poignée ; touchez la ligne pour ajouter un point ; touchez un point pour le retirer ou changer son angle", "Drag a point or a handle; tap the line to add a point; tap a point to remove it or change its corner", "Punkt oder Anfasser ziehen; tippe auf die Linie, um einen Punkt hinzuzufügen; tippe einen Punkt an, um ihn zu entfernen oder seine Ecke zu ändern", "Arrastra un punto o un tirador; toca la línea para añadir un punto; toca un punto para quitarlo o cambiar su esquina"),
+  "fill": ("Touchez l'intérieur d'une zone fermée par des lignes", "Tap inside a region closed by lines", "Tippe in einen von Linien geschlossenen Bereich", "Toca dentro de una zona cerrada por líneas"),
+  "cut": ("Touchez une ligne pour la couper, ou tracez une ligne à travers une surface puis « Couper »", "Tap a line to cut it, or draw a line across an area then “Cut”", "Tippe auf eine Linie, um sie zu schneiden, oder zeichne eine Linie durch eine Fläche, dann „Schneiden“", "Toca una línea para cortarla, o traza una línea a través de una superficie y luego «Cortar»"),
+  "hole": ("Touchez les points du trou dans la surface choisie, puis « Terminer »", "Tap the points of the hole in the selected area, then “Finish”", "Tippe die Punkte des Lochs in der gewählten Fläche, dann „Fertig“", "Toca los puntos del agujero en la superficie elegida y luego «Terminar»"),
+  "measure": ("Touchez les points à mesurer", "Tap the points to measure", "Tippe die Punkte zum Messen", "Toca los puntos que medir"),
+  }.items(): k(f"map.hint.touch.{key}", *v)
+for key, v in {
+  "straight": ("Touchez chaque point, puis « Terminer » ; deux doigts déplacent la carte", "Tap each point, then “Finish”; two fingers move the map", "Tippe jeden Punkt, dann „Fertig“; zwei Finger verschieben die Karte", "Toca cada punto y luego «Terminar»; dos dedos mueven el mapa"),
+  "curve": ("Touchez et glissez pour donner la direction de la courbe en chaque point, puis « Terminer »", "Tap and drag to set the curve's direction at each point, then “Finish”", "Tippen und ziehen, um die Richtung der Kurve an jedem Punkt festzulegen, dann „Fertig“", "Toca y arrastra para dar la dirección de la curva en cada punto y luego «Terminar»"),
+  "free": ("Dessinez du doigt ; deux doigts déplacent la carte", "Draw with your finger; two fingers move the map", "Zeichne mit dem Finger; zwei Finger verschieben die Karte", "Dibuja con el dedo; dos dedos mueven el mapa"),
+  "rect": ("Touchez chaque coin : les côtés restent à angle droit ; revenir au départ ferme", "Tap each corner: the sides stay at right angles; back to the start closes", "Tippe jede Ecke: Die Seiten bleiben rechtwinklig; zurück zum Start schließt", "Toca cada esquina: los lados quedan en ángulo recto; volver al inicio cierra"),
+  "circle": ("Touchez le centre et glissez jusqu'au rayon", "Tap the centre and drag to the radius", "Tippe den Mittelpunkt und ziehe bis zum Radius", "Toca el centro y arrastra hasta el radio"),
+  "point": ("Touchez où poser le symbole ; glissez pour l'orienter", "Tap where the symbol goes; drag to turn it", "Tippe, wo die Signatur hin soll; ziehe, um sie zu drehen", "Toca donde va el símbolo; arrastra para orientarlo"),
+  "text": ("Touchez où placer le texte", "Tap where the text goes", "Tippe, wo der Text hin soll", "Toca donde va el texto"),
+  }.items(): k(f"map.hint.touch.draw.{key}", *v)
+# the bar over the map's bottom, by touch: what a key does with a mouse
+k("map.touch.undoPoint", "Annuler le point", "Undo point", "Punkt zurück", "Deshacer punto")
+k("map.touch.cancel", "Abandonner", "Discard", "Verwerfen", "Descartar")
+k("map.touch.finish", "Terminer", "Finish", "Fertig", "Terminar")
+k("map.touch.cut", "Couper", "Cut", "Schneiden", "Cortar")
+k("map.touch.apply", "Appliquer", "Apply", "Anwenden", "Aplicar")
+k("map.touch.clear", "Effacer la mesure", "Clear the measure", "Messung löschen", "Borrar la medida")
+k("map.touch.delPoint", "Retirer le point", "Remove point", "Punkt entfernen", "Quitar el punto")
+k("map.touch.corner", "Angle ou arrondi", "Corner or smooth", "Ecke oder rund", "Esquina o curva")
 
 # ---- tools' messages -------------------------------------------------------------------------------------------------------------
 k("map.tool.pickSymbol", "Choisissez d'abord un symbole dans la liste à gauche.", "Choose a symbol in the list on the left first.", "Wähle zuerst eine Signatur in der Liste links.", "Elige primero un símbolo en la lista de la izquierda.")
@@ -504,10 +537,15 @@ k("map.field.noFix", "Position introuvable pour l'instant.", "No position for no
 k("map.field.noCompass", "La boussole n'est pas disponible.", "The compass is not available.", "Der Kompass ist nicht verfügbar.", "La brújula no está disponible.")
 k("map.field.recording", "Enregistrement de la trace ; touchez à nouveau pour l'arrêter.", "Recording the track; tap again to stop.", "Spur wird aufgezeichnet; erneut tippen zum Beenden.", "Grabando el track; toca de nuevo para pararlo.")
 k("map.field.trackShort", "Trace trop courte : rien de gardé.", "Track too short: nothing kept.", "Spur zu kurz: nichts behalten.", "Track demasiado corto: no se guarda nada.")
+k("map.field.gps", "GPS ± {m} m", "GPS ± {m} m", "GPS ± {m} m", "GPS ± {m} m")
+k("map.field.outside", "Vous êtes à {d} de la carte : la vue reste sur la carte.", "You are {d} from the map: the view stays on the map.", "Du bist {d} von der Karte entfernt: Die Ansicht bleibt auf der Karte.", "Estás a {d} del mapa: la vista se queda en el mapa.")
+k("map.field.recBusy", "La trace s'enregistre : arrêtez-la d'abord (Terrain › Enregistrer la trace).", "The track is being recorded: stop it first (Field › Record track).", "Die Spur wird aufgezeichnet: Beende sie zuerst (Gelände › Spur aufzeichnen).", "El track se está grabando: páralo primero (Terreno › Grabar el track).")
+k("map.field.trackKept", "Trace gardée parmi les fonds ({d}).", "Track kept among the backgrounds ({d}).", "Spur bei den Hintergründen abgelegt ({d}).", "Track guardado entre los fondos ({d}).")
+k("map.comment.delete", "Supprimer la note", "Delete the note", "Notiz löschen", "Eliminar la nota")
 k("map.field.trackName", "Trace de terrain", "Field track", "Geländespur", "Track de campo")
 k("map.comment.title", "Note sur la carte", "Note on the map", "Notiz auf der Karte", "Nota en el mapa")
 k("map.comment.text", "Note", "Note", "Notiz", "Nota")
-k("map.comment.where", "Cliquez où placer la note.", "Click where to place the note.", "Klicke, wo die Notiz hin soll.", "Haz clic donde poner la nota.")
+k("map.comment.where", "Indiquez sur la carte où placer la note.", "Point on the map where the note goes.", "Zeige auf der Karte, wo die Notiz hin soll.", "Indica en el mapa dónde va la nota.")
 k("map.comment.later", "La note sera envoyée quand le réseau reviendra.", "The note will be sent when the network returns.", "Die Notiz wird gesendet, sobald das Netz zurück ist.", "La nota se enviará cuando vuelva la red.")
 k("map.comment.none", "Aucun commentaire.", "No comments.", "Keine Kommentare.", "No hay comentarios.")
 k("map.comment.go", "Voir sur la carte", "Show on the map", "Auf der Karte zeigen", "Ver en el mapa")
@@ -670,7 +708,7 @@ SYM = {
   "font": ("Police", "Font", "Schrift", "Fuente"), "size": ("Taille", "Size", "Größe", "Tamaño"), "bold": ("Gras", "Bold", "Fett", "Negrita"), "italic": ("Italique", "Italic", "Kursiv", "Cursiva"),
   "align": ("Alignement", "Alignment", "Ausrichtung", "Alineación"), "lineSpace": ("Interligne (%)", "Line spacing (%)", "Zeilenabstand (%)", "Interlineado (%)"), "frMode": ("Cadre du texte", "Text frame", "Textrahmen", "Marco del texto"),
   "radius": ("Rayon des coins", "Corner radius", "Eckenradius", "Radio de las esquinas"),
-  "points": ("Points", "Points", "Punkte", "Puntos"), "pointsHint": ("x y en mm, séparés par « ; » ; « *1 » ou « *2 » marquent les poignées d'une courbe", "x y in mm, separated by « ; »; « *1 » or « *2 » mark a curve's handles", "x y in mm, getrennt durch „;“; „*1“ oder „*2“ markieren die Anfasser einer Kurve", "x y en mm, separados por «;»; «*1» o «*2» marcan los tiradores de una curva"),
+  "points": ("Points (mm)", "Points (mm)", "Punkte (mm)", "Puntos (mm)"), "pointsHint": ("x y en mm, séparés par « ; » ; « *1 » ou « *2 » marquent les poignées d'une courbe", "x y in mm, separated by « ; »; « *1 » or « *2 » mark a curve's handles", "x y in mm, getrennt durch „;“; „*1“ oder „*2“ markieren die Anfasser einer Kurve", "x y en mm, separados por «;»; «*1» o «*2» marcan los tiradores de una curva"),
   "addElt": ("Ajouter un élément", "Add an element", "Element hinzufügen", "Añadir un elemento"), "badNumber": ("Numéro de la forme 101 ou 101.1.", "A number like 101 or 101.1.", "Eine Nummer wie 101 oder 101.1.", "Un número como 101 o 101.1."),
   "taken": ("Le numéro {n} est déjà pris.", "Number {n} is already used.", "Die Nummer {n} ist schon vergeben.", "El número {n} ya está en uso."),
   "inUse": ("Des objets utilisent ce symbole : changez-les d'abord de symbole.", "Objects use this symbol: change their symbol first.", "Objekte verwenden diese Signatur: Ändere zuerst ihre Signatur.", "Hay objetos que usan este símbolo: cámbiales antes el símbolo."),
@@ -678,6 +716,9 @@ SYM = {
   "startFrom": ("Partir de", "Start from", "Ausgehend von", "Partir de"), "copyOf": ("une copie de {s}", "a copy of {s}", "einer Kopie von {s}", "una copia de {s}"),
   }
 for key, v in SYM.items(): k(f"map.sym.{key}", *v)
+for key, v in {"stroke": ("Trait", "Stroke", "Strich", "Trazo"), "dashes": ("Tirets", "Dashes", "Strichelung", "Trazos discontinuos"), "double": ("Ligne double", "Double line", "Doppellinie", "Línea doble"),
+  "frame": ("Contour", "Framing", "Umrandung", "Contorno"), "fill": ("Fond", "Fill", "Füllung", "Relleno"), "hatch": ("Hachures", "Hatching", "Schraffur", "Rayado"),
+  "pattern": ("Motif", "Pattern", "Muster", "Patrón"), "border": ("Bordure", "Border", "Rand", "Borde")}.items(): k(f"map.sym.grp.{key}", *v)
 for key, v in {"flat": ("Plates", "Flat", "Flach", "Planos"), "round": ("Arrondies", "Round", "Rund", "Redondeados"), "miter": ("Plates, angles vifs", "Flat, sharp corners", "Flach, spitze Ecken", "Planos, esquinas vivas"),
   "pointed": ("Pointues", "Pointed", "Spitz", "Puntiagudos"), "pointedRound": ("Pointues, angles arrondis", "Pointed, round corners", "Spitz, runde Ecken", "Puntiagudos, esquinas redondeadas")}.items(): k(f"map.sym.ends.{key}", *v)
 for key, v in {"line": ("Ligne", "Line", "Linie", "Línea"), "area": ("Surface", "Area", "Fläche", "Superficie"), "circle": ("Cercle", "Circle", "Kreis", "Círculo"), "dot": ("Point plein", "Dot", "Punkt", "Punto")}.items(): k(f"map.sym.elt.{key}", *v)
@@ -702,7 +743,7 @@ for key, v in {"0": ("aucun", "none", "keiner", "ninguno"), "1": ("ombre", "shad
 for key, v in {
   "hint": ("Du haut au bas de l'ordre d'impression. Encres : « Nom 100 » (pourcentage), plusieurs séparées par des virgules.", "From the top to the bottom of the printing order. Inks: « Name 100 » (percentage), several separated by commas.", "Von oben nach unten in der Druckreihenfolge. Druckfarben: „Name 100“ (Prozent), mehrere durch Kommas getrennt.", "De arriba abajo en el orden de impresión. Tintas: «Nombre 100» (porcentaje), varias separadas por comas."),
   "name": ("Nom", "Name", "Name", "Nombre"), "op": ("Surimp.", "Overpr.", "Überdr.", "Sobreimp."), "overprint": ("Surimpression", "Overprint", "Überdrucken", "Sobreimpresión"),
-  "spots": ("Encres d'accompagnement", "Spot inks", "Schmuckfarben", "Tintas planas"), "spotPh": ("PMS361_Green 60", "PMS361_Green 60", "PMS361_Green 60", "PMS361_Green 60"),
+  "spots": ("Encres d'accompagnement", "Spot inks", "Schmuckfarben", "Tintas planas"), "cmyk": ("CMJN", "CMYK", "CMYK", "CMYK"),
   "up": ("Monter", "Move up", "Nach oben", "Subir"), "down": ("Descendre", "Move down", "Nach unten", "Bajar"), "delete": ("Supprimer", "Delete", "Löschen", "Eliminar"),
   "add": ("Nouvelle couleur", "New colour", "Neue Farbe", "Color nuevo"), "new": ("Nouvelle couleur", "New colour", "Neue Farbe", "Color nuevo"),
   "inks": ("Encres d'accompagnement", "Spot inks", "Schmuckfarben", "Tintas planas"), "inksHint": ("Les encres de l'imprimeur (Pantone…) : leur CMJN pour l'écran, la linéature et l'angle de trame.", "The printer's inks (Pantone…): their CMYK for the screen, screen frequency and angle.", "Die Druckfarben der Druckerei (Pantone…): ihr CMYK für den Bildschirm, Rasterweite und -winkel.", "Las tintas de la imprenta (Pantone…): su CMYK para la pantalla, lineatura y ángulo de trama."),

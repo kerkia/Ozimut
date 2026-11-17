@@ -633,12 +633,20 @@ export function build(X) {
           ])}`)}`,
       terrain: () => html`
         ${slide("Carto", "Sur le terrain, avec le téléphone", html`
-          <p>Le mode terrain (onglet « Terrain ») est fait pour le téléphone :</p>
+          <p>Sur un téléphone ou une tablette, Carto s'ouvre sur l'onglet « Terrain », avec des boutons à la taille du doigt :</p>
           ${list([
-            html`votre position GPS sur la carte, avec sa précision, que la carte peut suivre ; la boussole tourne la carte vers le nord ;`,
-            html`la trace de votre passage, gardée comme fond GPX ;`,
-            html`des photos et des notes épinglées sur la carte, là où vous êtes ;`,
-            html`une copie hors ligne de la carte : sans réseau, on continue de dessiner, et les enregistrements partent dès que le réseau revient.`,
+            html`<b>« Ma position »</b>, au-dessus des boutons de zoom : votre position GPS sur la carte et sa précision (en bas, « GPS ± 6 m »). La
+              carte la suit jusqu'à ce que vous la déplaciez, et y revient d'un toucher sur le bouton ; l'écran reste allumé tant qu'elle est
+              affichée. La boussole tourne la carte comme le terrain devant vous ;`,
+            html`<b>la trace</b> de votre passage (« Enregistrer la trace »), sa longueur affichée pendant l'enregistrement, gardée comme fond GPX ;`,
+            html`<b>des photos et des notes</b> épinglées sur la carte, là où vous êtes ; un toucher sur une épingle rouvre la note, pour la marquer
+              « Traité » ou la supprimer ;`,
+            html`<b>dessiner du doigt</b> : un toucher choisit un objet, un doigt déplace la carte, deux doigts zooment. Pendant un tracé, une barre
+              au bas de la carte propose « Annuler le point », « Abandonner » et « Terminer » — ce que font Retour arrière, Échap et Entrée au
+              clavier ; avec l'outil « Sommets », un point touché se retire ou change d'angle de la même façon. Le symbole en main s'affiche sur le
+              bouton de la liste des symboles, qui se referme dès qu'un symbole est choisi ;`,
+            html`<b>une copie hors ligne</b> de la carte : sans réseau, on continue de dessiner, et les enregistrements partent dès que le réseau
+              revient.`,
           ])}`)}`,
       imprimer: () => html`
         ${slide("Carto", "Imprimer et partager", html`

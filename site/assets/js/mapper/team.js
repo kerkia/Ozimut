@@ -73,6 +73,24 @@ async function comments(E) {
       const d = ev.target.closest("[data-done]"); if (d) { const c = list[d.dataset.done]; c.done = !c.done; await S.saveComments(E.id, list); d.closest("li").classList.toggle("done", c.done); d.textContent = t(c.done ? "map.comment.reopen" : "map.comment.done"); E.view.overlay(); }
     }) });
 }
+/** One note, opened from its pin on the map (editor.js): who, when, its text and photo; ticked off, taken up again or deleted. */
+export async function openComment(E, c) {
+  const can = E.role !== "viewer" && !!E.id;
+  let del = false;
+  const v = await modal(E, { title: t("map.comment.title"), cancel: t("map.dlg.close"), ok: can ? t(c.done ? "map.comment.reopen" : "map.comment.done") : "",
+    extra: can ? `<button type="button" class="btn mp-del" data-del>${esc(t("map.comment.delete"))}</button>` : "",
+    body: `<div class="mp-note"><div class="mp-hint"><b>${esc(c.by || "")}</b>${c.by ? " · " : ""}${esc(when(c.at))}</div>${c.text ? `<p>${esc(c.text)}</p>` : ""}
+      ${c.photo ? `<a href="${S.photoUrl(E.id, c.photo)}" target="_blank" rel="noopener"><img src="${S.photoUrl(E.id, c.photo)}" alt="" class="mp-photo"></a>` : ""}</div>`,
+    onOpen: (form) => form.querySelector("[data-del]")?.addEventListener("click", () => { del = true; form.querySelector("[data-x=cancel]").click(); }) });
+  if (!can || (!v && !del)) return;
+  const list = await S.comments(E.id).catch(() => E.comments || []);
+  const i = list.findIndex((x) => x.id === c.id);
+  if (i < 0) return;
+  if (del) list.splice(i, 1); else list[i].done = !list[i].done;
+  E.comments = list;
+  await S.saveComments(E.id, list).catch(() => E.say(t("map.comment.later"), "bad"));
+  E.view.overlay();
+}
 /** The comments' pins on the overlay (a flag, grey once done). */
 export function drawPins(E, g) {
   const m = E.view.matrix(), dpr = E.view.dpr;

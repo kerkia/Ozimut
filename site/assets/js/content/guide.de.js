@@ -638,12 +638,19 @@ export function build(X) {
           ])}`)}`,
       terrain: () => html`
         ${slide("Carto", "Im Gelände, mit dem Handy", html`
-          <p>Der Geländemodus (Reiter „Gelände“) ist für das Handy gemacht:</p>
+          <p>Auf einem Handy oder Tablet öffnet sich Carto im Reiter „Gelände“, mit fingergroßen Knöpfen:</p>
           ${list([
-            html`deine GPS-Position auf der Karte, mit ihrer Genauigkeit, der die Karte folgen kann; der Kompass dreht die Karte nach Norden;`,
-            html`der Track deines Weges, als GPX-Hintergrund gespeichert;`,
-            html`Fotos und Notizen, auf der Karte dort angeheftet, wo du stehst;`,
-            html`eine Offline-Kopie der Karte: Ohne Netz zeichnest du weiter, und die Speicherungen gehen los, sobald das Netz zurück ist.`,
+            html`<b>„Meine Position“</b>, über den Zoom-Knöpfen: deine GPS-Position auf der Karte und ihre Genauigkeit (unten, „GPS ± 6 m“). Die
+              Karte folgt ihr, bis du die Karte verschiebst, und kehrt mit einem Tipp auf den Knopf zu ihr zurück; der Bildschirm bleibt an,
+              solange sie angezeigt wird. Der Kompass dreht die Karte so, wie das Gelände vor dir liegt;`,
+            html`<b>die Spur</b> deines Weges („Spur aufzeichnen“), ihre Länge während der Aufzeichnung angezeigt, als GPX-Hintergrund gespeichert;`,
+            html`<b>Fotos und Notizen</b>, auf der Karte dort angeheftet, wo du stehst; ein Tipp auf eine Nadel öffnet die Notiz wieder, um sie als
+              „Erledigt“ zu markieren oder zu löschen;`,
+            html`<b>mit dem Finger zeichnen</b>: Ein Tipp wählt ein Objekt, ein Finger verschiebt die Karte, zwei Finger zoomen. Während des
+              Zeichnens bietet eine Leiste am unteren Kartenrand „Punkt zurück“, „Verwerfen“ und „Fertig“ — was Rücktaste, Escape und Eingabe
+              auf der Tastatur tun; mit dem Werkzeug „Stützpunkte“ wird ein angetippter Punkt ebenso entfernt oder von Ecke zu rund gewechselt.
+              Die Signatur in der Hand steht auf dem Knopf der Signaturenliste, die sich schließt, sobald eine Signatur gewählt ist;`,
+            html`<b>eine Offline-Kopie</b> der Karte: Ohne Netz zeichnest du weiter, und die Speicherungen gehen los, sobald das Netz zurück ist.`,
           ])}`)}`,
       imprimer: () => html`
         ${slide("Carto", "Drucken und teilen", html`

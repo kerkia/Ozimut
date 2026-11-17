@@ -36,8 +36,13 @@ export async function openEditor(opts) {
     files: opts.files || {}, sel: new Set(), snapping: pref("snap", true), drawMode: pref("mode", "straight"), part: "p1", toolName: "select",
     readOnly: opts.role === "viewer" || !!opts.blank, blank: !!opts.blank, dirty: false, saving: false, gps: null, onStart: opts.onStart || (() => {}) };
   window.__mapper = E;
+  // a finger instead of a mouse (a phone, a tablet): larger targets, « Terrain » first, no key needed (owner, 2026-11-17)
+  E.touch = matchMedia("(pointer: coarse)").matches;
+  E.ribbonDisplay = E.touch ? "touch" : "full";
+  /** A finger is at work: the device's pointer is one, or the last press on the map was a touch. */
+  const touchy = () => E.touch || E.fingers;
   const root = document.createElement("div");
-  root.className = `tr-app mp-app${E.blank ? " mp-blank" : ""}`;
+  root.className = `tr-app mp-app${E.blank ? " mp-blank" : ""}${E.touch ? " mp-touch" : ""}`;
   root.innerHTML = `
     <div class="tr-top">
       <button type="button" class="tr-icon" data-top="maps" title="${esc(t("map.top.maps"))}">${svg("folder", 18)}</button>
@@ -58,11 +63,13 @@ export async function openEditor(opts) {
         <div class="mp-toast" id="mp-toast" hidden></div>
         <div class="mp-starthint" id="mp-starthint" hidden><b>${esc(t("map.empty.title"))}</b><p>${esc(t("map.empty.hint"))}</p>
           <div><button type="button" class="btn btn-sm" data-act="tab:data">${esc(t("map.tab.data"))}</button><button type="button" class="btn btn-sm" data-act="tab:backgrounds">${esc(t("map.tab.backgrounds"))}</button></div></div>
-        <div class="mp-zoom"><button type="button" data-act="zoom-in" title="${esc(t("map.view.zoomIn"))}">${svg("plus", 16)}</button><button type="button" data-act="zoom-out" title="${esc(t("map.view.zoomOut"))}">${svg("minus", 16)}</button><button type="button" data-act="zoom-fit" title="${esc(t("map.view.fit"))}">${svg("fit", 16)}</button></div>
+        <div class="mp-touchbar" id="mp-touchbar" hidden></div>
+        <div class="mp-zoom"><button type="button" class="mp-locate" id="mp-locate" data-act="locate" title="${esc(t("map.rib.gps"))}" aria-label="${esc(t("map.rib.gps"))}" aria-pressed="false" hidden>${svg("target", 18)}</button><button type="button" data-act="zoom-in" title="${esc(t("map.view.zoomIn"))}">${svg("plus", 16)}</button><button type="button" data-act="zoom-out" title="${esc(t("map.view.zoomOut"))}">${svg("minus", 16)}</button><button type="button" data-act="zoom-fit" title="${esc(t("map.view.fit"))}">${svg("fit", 16)}</button></div>
       </div>
       <aside class="mp-right" id="mp-right"></aside>
+      <div class="mp-scrim" id="mp-scrim"></div>
     </div>
-    <div class="mp-status" id="mp-status"><span id="mp-pos"></span><span id="mp-scale"></span><span id="mp-hint"></span><span id="mp-warn" class="mp-warn"></span><span id="mp-team" class="mp-team"></span></div>`;
+    <div class="mp-status" id="mp-status"><span id="mp-gps" class="mp-gps" hidden></span><span id="mp-pos"></span><span id="mp-scale"></span><span id="mp-hint"></span><span id="mp-warn" class="mp-warn"></span><span id="mp-team" class="mp-team"></span></div>`;
   container.innerHTML = "";
   container.appendChild(root);
   document.body.classList.add("tr-open", "mp-open");
@@ -219,6 +226,7 @@ export async function openEditor(opts) {
   };
   E.showMeasure = (m) => {
     const el = E.$("#mp-hint");
+    E._measuring = !!m;
     if (!m) { el.textContent = ""; return; }
     const ground = (m.mm * E.doc.scale) / 1000;
     el.textContent = t("map.status.measure", { mm: nf(m.mm, 1), m: nf(ground, 0), area: m.area ? nf((m.area * E.doc.scale * E.doc.scale) / 1e6, 0) : "—" });
@@ -249,6 +257,7 @@ export async function openEditor(opts) {
     if (act === "gps") return !!E.field?.on;
     if (act === "gps-follow") return !!E.field?.follow;
     if (act === "gps-track") return !!E.field?.recording;
+    if (act === "gps-north") return !!E.field?.onOrient;
     if (act === "bg-toggle") return E.view.backgrounds.some((b) => b.visible);
     return null;
   };
@@ -387,7 +396,7 @@ export async function openEditor(opts) {
     const mod = await import(MODULES[act.split("-")[0]] || MODULES[act] || "./io.js");
     if (mod.act) await mod.act(E, act, arg);
   }
-  const MODULES = { bg: "./backgrounds.js", "map-fade": "./backgrounds.js", data: "./dataui.js", draft: "./dataui.js", gps: "./field.js", photo: "./field.js", comment: "./field.js",
+  const MODULES = { bg: "./backgrounds.js", "map-fade": "./backgrounds.js", data: "./dataui.js", draft: "./dataui.js", gps: "./field.js", locate: "./field.js", photo: "./field.js", comment: "./field.js",
     offline: "./field.js", check: "./checks.js", stats: "./checks.js", "print-area": "./layout.js", "north-lines": "./layout.js", "scale-bar": "./layout.js", legend: "./layout.js",
     logo: "./layout.js", credits: "./layout.js", qr: "./layout.js", "symbol-set": "./layout.js", colors: "./layout.js", export: "./io.js", to: "./io.js",
     invite: "./team.js", members: "./team.js", generalise: "./generalise.js", sector: "./collab.js", "symbol-edit": "./symedit.js", "symbol-new": "./symedit.js", "symbol-delete": "./symedit.js", version: "./team.js", versions: "./team.js", comments: "./team.js" };
@@ -468,21 +477,40 @@ export async function openEditor(opts) {
   const pointers = new Map();
   let pan = null, pinch = null, spaceDown = false, last = 0, lastAt = null;
   mapEl.addEventListener("contextmenu", (ev) => { ev.preventDefault(); P.contextMenu(E, ev, E.view.toMap(ev.clientX, ev.clientY)); });
+  /** The note whose pin is under the pointer (its flag: 11 × 18 px up and right of its point). */
+  const pinAt = (ev) => {
+    if (!E.comments?.length) return null;
+    const r = mapEl.getBoundingClientRect(), px = ev.clientX - r.left, py = ev.clientY - r.top;
+    let best = null, bd = ev.pointerType === "touch" ? 24 : 13;
+    for (const c of E.comments) { const [x, y] = E.view.toScreen(c.x, c.y), d = Math.hypot(px - x - 5, py - y + 10); if (d < bd) { bd = d; best = c; } }
+    return best;
+  };
+  /** The view moved by hand: it no longer follows the GPS (« Ma position » takes it back). */
+  const handMoved = () => { if (E.field?.follow) { E.field.follow = false; E.field.sync?.(); } };
   mapEl.addEventListener("pointerdown", (ev) => {
     mapEl.focus({ preventScroll: true });
     pointers.set(ev.pointerId, [ev.clientX, ev.clientY]);
     mapEl.setPointerCapture(ev.pointerId);
+    const finger = ev.pointerType === "touch";
+    if (finger !== !!E.fingers) { E.fingers = finger; status(); }
+    E.reachPx = finger ? 18 : 8;
     if (pointers.size === 2) { E.tool?.cancelDrag?.(); const [a, b] = [...pointers.values()]; pinch = { d: Math.hypot(a[0] - b[0], a[1] - b[1]), c: [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2] }; pan = null; return; }
-    if (ev.button === 1 || ev.button === 2 || spaceDown || (ev.pointerType === "touch" && E.toolName === "select" && !E.live.pick(...E.view.toMap(ev.clientX, ev.clientY), 10 * E.view.mmPerPx))) {
+    // a note's pin: the note opens (with the tools that choose or move; a drawing tool draws there)
+    if (ev.button === 0 && !spaceDown && ["select", "pan"].includes(E.tool?.name)) { const c = pinAt(ev); if (c) { import("./team.js").then((m) => m.openComment(E, c)); return; } }
+    // a finger with the tool that chooses: its drag moves the map, its tap chooses; only an object already chosen is dragged
+    // (owner, 2026-11-17: on a map full of objects there is always one under the finger, and moving the map moved it)
+    const choosing = finger && ev.button === 0 && !spaceDown && E.tool?.name === "select";
+    const grab = choosing && E.sel.size ? E.live.pick(...E.view.toMap(ev.clientX, ev.clientY), E.reachPx * E.view.mmPerPx) : null;
+    if (ev.button === 1 || ev.button === 2 || spaceDown || (choosing && !(grab && E.sel.has(grab.id)))) {
       if (ev.button === 2) return;
-      pan = { x: ev.clientX, y: ev.clientY }; mapEl.style.cursor = "grabbing"; return;
+      pan = { x: ev.clientX, y: ev.clientY, tap: choosing ? [ev.clientX, ev.clientY] : null }; mapEl.style.cursor = "grabbing"; return;
     }
     if (ev.button !== 0) return;
     const p = E.view.toMap(ev.clientX, ev.clientY);
     if (E.pipette) { E.pipette = false; const o = E.live.pick(p[0], p[1], 8 * E.view.mmPerPx); if (o) { E.symbol = o.sym; P.drawLeft(E); E.say(symLabel(o.sym)); } return; }
     // a double-click: a second press soon after, at the same spot
     const now = performance.now();
-    if (now - last < 350 && lastAt && Math.hypot(ev.clientX - lastAt[0], ev.clientY - lastAt[1]) < 6 && E.tool?.dbl) { E.tool.dbl(ev, p); last = 0; return; }
+    if (now - last < (finger ? 420 : 350) && lastAt && Math.hypot(ev.clientX - lastAt[0], ev.clientY - lastAt[1]) < (finger ? 26 : 6) && E.tool?.dbl) { E.tool.dbl(ev, p); last = 0; return; }
     last = now; lastAt = [ev.clientX, ev.clientY];
     E.tool?.down?.(ev, p);
   });
@@ -490,9 +518,13 @@ export async function openEditor(opts) {
     if (pointers.has(ev.pointerId)) pointers.set(ev.pointerId, [ev.clientX, ev.clientY]);
     if (pinch && pointers.size === 2) {
       const [a, b] = [...pointers.values()], d = Math.hypot(a[0] - b[0], a[1] - b[1]), c = [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2];
-      E.view.panPx(c[0] - pinch.c[0], c[1] - pinch.c[1]); E.view.zoomAt(d / pinch.d, c[0], c[1]); pinch = { d, c }; return;
+      E.view.panPx(c[0] - pinch.c[0], c[1] - pinch.c[1]); E.view.zoomAt(d / pinch.d, c[0], c[1]); pinch = { d, c }; handMoved(); return;
     }
-    if (pan) { E.view.panPx(ev.clientX - pan.x, ev.clientY - pan.y); pan = { x: ev.clientX, y: ev.clientY }; return; }
+    if (pan) {
+      if (pan.tap) { if (Math.hypot(ev.clientX - pan.tap[0], ev.clientY - pan.tap[1]) < 9) return; pan.tap = null; }      // still a tap
+      E.view.panPx(ev.clientX - pan.x, ev.clientY - pan.y); pan.x = ev.clientX; pan.y = ev.clientY; handMoved(); return;
+    }
+    if (E.tool?.name === "pan" && pointers.size) handMoved();
     const p = E.view.toMap(ev.clientX, ev.clientY);
     E.cursor = p; position(p);
     E.tool?.move?.(ev, p);
@@ -500,7 +532,12 @@ export async function openEditor(opts) {
   const end = (ev) => {
     pointers.delete(ev.pointerId);
     if (pinch) { if (pointers.size < 2) pinch = null; return; }
-    if (pan) { pan = null; mapEl.style.cursor = E.tool?.cursor || "default"; return; }
+    if (pan) {
+      const tap = ev.type === "pointerup" ? pan.tap : null;
+      pan = null; mapEl.style.cursor = E.tool?.cursor || "default";
+      if (tap) { const p = E.view.toMap(tap[0], tap[1]); E.tool?.down?.(ev, p); E.tool?.up?.(ev, p); }
+      return;
+    }
     if (ev.type === "pointerup") E.tool?.up?.(ev, E.view.toMap(ev.clientX, ev.clientY));
   };
   mapEl.addEventListener("pointerup", end);
@@ -539,6 +576,9 @@ export async function openEditor(opts) {
     const dr = ev.target.closest("[data-top=left],[data-top=right]");
     if (dr) { const k = `${dr.dataset.top}-open`; root.classList.toggle(k); root.classList.remove(k === "left-open" ? "right-open" : "left-open"); }
   });
+  E.closeDrawers = () => root.classList.remove("left-open", "right-open");
+  root.querySelector("#mp-scrim").addEventListener("click", E.closeDrawers);
+  root.querySelector("#mp-touchbar").addEventListener("click", (ev) => { const b = ev.target.closest("[data-k]"); if (b && !b.disabled) { E.tool?.touchDo?.(b.dataset.k); status(); } });
   root.querySelector(".mp-zoom").addEventListener("click", (ev) => { const b = ev.target.closest("[data-act]"); if (b) E.act(b.dataset.act); });
   root.querySelector("#mp-starthint").addEventListener("click", (ev) => { const b = ev.target.closest("[data-act]"); if (b) E.act(b.dataset.act); });
   // files dropped on the map: backgrounds, or another map to open
@@ -564,8 +604,20 @@ export async function openEditor(opts) {
   function status() {
     E.$("#mp-title").textContent = E.blank ? t("map.ed.noMap") : E.doc.title || t("map.untitled");
     E.$("#mp-scale").textContent = t("map.status.scale", { scale: nf(E.doc.scale), view: nf(E.view.k / E.view.dpr * 25.4 / 96 * 100, 0) });
-    const hint = E.toolName === "draw" ? t(`map.hint.draw.${E.drawMode}`) : t(`map.hint.${E.toolName}`);
+    const cs = E.currentSymbol?.() || null, pre = touchy() ? "map.hint.touch" : "map.hint";      // (the view's first fit comes before the helpers)
+    const drawKind = !cs ? null : cs.otp === 1 ? "point" : cs.otp === 4 || cs.otp === 6 || (cs.otp === 2 && cs.symTp === 1) ? "text" : E.drawMode;
+    const hint = E.toolName === "draw" ? (drawKind ? t(`${pre}.draw.${drawKind}`) : t("map.tool.pickSymbol")) : t(`${pre}.${E.toolName}`);
     if (!E._measuring) { const h = E.$("#mp-hint"); h.textContent = (E.sel.size ? tn("map.status.sel", E.sel.size) + " · " : "") + hint; h.title = h.textContent; }
+    // what a finger cannot ask with a key (finish, take the last point back, give up…): a bar over the map's bottom
+    const bar = E.$("#mp-touchbar"), acts = touchy() ? E.tool?.touch?.() || [] : [], sig = acts.map((b) => `${b.k}${b.off ? "-" : "+"}${b.label}`).join(" ");
+    if (bar.dataset.sig !== sig) {
+      bar.dataset.sig = sig; bar.hidden = !acts.length;
+      bar.innerHTML = acts.map((b) => `<button type="button" data-k="${esc(b.k)}"${b.primary ? ' class="primary"' : ""}${b.off ? " disabled" : ""}>${svg(b.icon, 18)}<span>${esc(b.label)}</span></button>`).join("");
+    }
+    // the symbol in hand, on the button of its drawer (a narrow screen hides the list)
+    const lb = E.$("[data-top=left]"), key = cs ? String(cs.sym) : "";
+    if (lb && lb.dataset.sym !== key) { lb.dataset.sym = key; lb.innerHTML = cs ? `<img alt="" src="${P.swatch(E, cs)}" width="24" height="24">` : svg("palette", 18); lb.title = cs ? `${t("map.left.title")} — ${symLabel(cs.sym)}` : t("map.left.title"); }
+    E.$("#mp-locate").hidden = E.blank || !(E.touch || E.field?.on);
     // a map with nothing on it yet: where to start (it goes with the first object, background or drawing in hand)
     E.$("#mp-starthint").hidden = E.blank || E.readOnly || E.doc.objects.length > 0 || (E.doc.backgrounds || []).length > 0 || E.toolName !== "select";
     E.$("[data-act=undo]").disabled = !E.live.canUndo; E.$("[data-act=redo]").disabled = !E.live.canRedo;
@@ -585,7 +637,7 @@ export async function openEditor(opts) {
   function saveState(k) {
     const el = E.$("#mp-save");
     el.dataset.state = k;
-    el.textContent = { dirty: t("map.save.dirty"), saving: t("map.save.saving"), saved: t("map.save.saved"), local: t("map.save.local"), error: t("map.save.error"), conflict: t("map.save.conflict") }[k] || "";
+    el.title = el.textContent = { dirty: t("map.save.dirty"), saving: t("map.save.saving"), saved: t("map.save.saved"), local: t("map.save.local"), error: t("map.save.error"), conflict: t("map.save.conflict") }[k] || "";
   }
   async function save(force = false) {
     clearTimeout(E._save);
@@ -626,7 +678,7 @@ export async function openEditor(opts) {
     E.closed = true;                                          // a wait for data (dataui.waitTown) stops
     await save(true);
     C.stop(E);
-    E.field?.stop?.();
+    await E.field?.close?.();
     document.removeEventListener("keydown", onKey); document.removeEventListener("keyup", onKey);
     window.removeEventListener("beforeunload", beforeUnload);
     E.view.destroy();

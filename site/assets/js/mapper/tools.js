@@ -10,7 +10,8 @@ import * as B from "./boolean.js";
 import { t } from "./lang.js";
 
 const F = G.F;
-const PX = 8;                                              // pick and snap reach, CSS pixels
+const PX = 8;                                              // pick and snap reach, CSS pixels (a mouse; a finger: E.reachPx)
+const reach = (E) => (E.reachPx || PX) * E.view.mmPerPx;
 const ACCENT = "#a7179b", HANDLE = "#1565c0", SNAP = "#e65100";
 
 // ---- shared helpers -------------------------------------------------------------------------------------------------------
@@ -23,7 +24,7 @@ export function snap(E, p, { prev = null, shift = false, exclude = null } = {}) 
     return { p: [prev[0] + d * Math.cos(a), prev[1] + d * Math.sin(a)], how: "angle" };
   }
   if (!E.snapping) return { p: [x, y], how };
-  const r = PX * E.view.mmPerPx;
+  const r = reach(E);
   let best = r * 1.2, bp = null;
   for (const o of E.live.near([x - r, y - r, x + r, y + r])) {
     if (exclude?.has(o.id) || o.inst?.visible === false) continue;
@@ -94,7 +95,7 @@ export function selectTool(E) {
   return {
     name: "select", cursor: "default",
     down(ev, p) {
-      const tol = PX * E.view.mmPerPx;
+      const tol = reach(E);
       const hit = E.live.pick(p[0], p[1], tol);
       if (hit && E.sel.has(hit.id) && !ev.shiftKey) { drag = { kind: "move", from: p, to: p }; return; }
       if (hit) {
@@ -108,7 +109,7 @@ export function selectTool(E) {
       drag = { kind: "box", from: p, to: p };
     },
     move(ev, p) {
-      if (!drag) { E.hover(E.live.pick(p[0], p[1], PX * E.view.mmPerPx)); return; }
+      if (!drag) { E.hover(E.live.pick(p[0], p[1], reach(E))); return; }
       drag.to = drag.kind === "move" ? snap(E, p, { exclude: E.sel }).p : p;
       if (drag.kind === "move" && drag.anchor == null) {
         // snap the moved objects by the point nearest the press
@@ -131,6 +132,7 @@ export function selectTool(E) {
       }
       E.view.overlay();
     },
+    cancelDrag() { drag = null; E.view.overlay(); },
     key(ev) {
       const step = (ev.shiftKey ? 10 : 1) * E.view.mmPerPx;
       const arrows = { ArrowLeft: [-step, 0], ArrowRight: [step, 0], ArrowUp: [0, step], ArrowDown: [0, -step] };
@@ -158,7 +160,8 @@ export function selectTool(E) {
 
 // ---- vertices -----------------------------------------------------------------------------------------------------------------
 export function vertexTool(E) {
-  let drag = null, hover = null;
+  let drag = null, hover = null, picked = null;
+  const pick = (h) => { picked = h; E.drawingChanged?.(); E.view.overlay(); };
   const handles = () => {
     const out = [];
     for (const id of E.sel) {
@@ -169,7 +172,7 @@ export function vertexTool(E) {
     return out;
   };
   const near = (p) => {
-    const r = PX * E.view.mmPerPx;
+    const r = reach(E);
     let best = null, bd = r;
     for (const h of handles()) { const d = Math.hypot(h.x - p[0], h.y - p[1]); if (d < bd || (best?.ctrl && !h.ctrl && d <= bd * 1.2)) { bd = d; best = h; } }
     return best;
@@ -178,10 +181,11 @@ export function vertexTool(E) {
     name: "vertex", cursor: "crosshair",
     down(ev, p) {
       const h = near(p);
-      if (h && (ev.altKey || ev.ctrlKey) && !h.ctrl) { E.deleteVertex(h.o.id, h.i); return; }
+      if (h && (ev.altKey || ev.ctrlKey) && !h.ctrl) { pick(null); E.deleteVertex(h.o.id, h.i); return; }
       if (h) { drag = { h, from: p, to: p }; return; }
+      if (picked) pick(null);
       // a click on a selected line adds a point there
-      const r = PX * E.view.mmPerPx;
+      const r = reach(E);
       for (const id of E.sel) {
         const o = E.live.object(id);
         if (!o || o.otp === 1 || o.otp === 4 || o.otp === 5) continue;
@@ -198,8 +202,14 @@ export function vertexTool(E) {
       if (!drag) return;
       const d = drag; drag = null;
       const dx = d.to[0] - d.from[0], dy = d.to[1] - d.from[1];
-      if (Math.hypot(dx, dy) > 0.3 * E.view.mmPerPx) E.moveVertex(d.h.o.id, d.h.i, d.to, { dx, dy });
+      if (Math.hypot(dx, dy) > 0.3 * E.view.mmPerPx) { pick(null); E.moveVertex(d.h.o.id, d.h.i, d.to, { dx, dy }); }
+      else pick(d.h.ctrl ? null : { id: d.h.o.id, i: d.h.i });
     },
+    cancelDrag() { drag = null; E.view.overlay(); },
+    cancel() { picked = null; },
+    /** What the touch bar offers (editor.js): the point in hand removed, or turned from a corner to a smooth point and back. */
+    touch() { return picked && E.sel.has(picked.id) && E.live.object(picked.id)?.coords[picked.i] != null ? [{ k: "del", icon: "trash", label: t("map.touch.delPoint") }, { k: "corner", icon: "bend", label: t("map.touch.corner") }] : []; },
+    touchDo(k) { const h = picked; if (!h || E.live.object(h.id)?.coords[h.i] == null) { pick(null); return; } if (k === "del") { pick(null); E.deleteVertex(h.id, h.i); } else E.toggleCorner(h.id, h.i); E.view.overlay(); },
     dbl(ev, p) {
       const h = near(p);
       if (h && !h.ctrl) E.toggleCorner(h.o.id, h.i);
@@ -214,7 +224,8 @@ export function vertexTool(E) {
         const c = h.o.coords, nb = (G.flags(c[h.i]) & F.CTRL1) ? h.i - 1 : h.i + 1;
         if (c[nb]) { g.beginPath(); g.moveTo(m.x(h.x, h.y), m.y(h.x, h.y)); g.lineTo(m.x(G.mmX(c[nb]), G.mmY(c[nb])), m.y(G.mmX(c[nb]), G.mmY(c[nb]))); g.stroke(); }
       }
-      for (const h of hs) dot(g, E.view, h.x, h.y, { r: h.ctrl ? 3 : 4, square: !h.ctrl && h.corner, fill: h === hover ? HANDLE : "#fff" });
+      const big = E.reachPx > PX ? 1.5 : 1;                 // handles a finger can aim at
+      for (const h of hs) dot(g, E.view, h.x, h.y, { r: (h.ctrl ? 3 : 4) * big, square: !h.ctrl && h.corner, fill: h === hover || (picked && h.o.id === picked.id && h.i === picked.i) ? HANDLE : "#fff" });
       if (drag) dot(g, E.view, drag.to[0], drag.to[1], { r: 5, fill: SNAP, stroke: "#fff" });
     },
   };
@@ -223,10 +234,11 @@ export function vertexTool(E) {
 // ---- draw ---------------------------------------------------------------------------------------------------------------------
 /** Draw with the current symbol: its kind (point, line, area, text) decides; `mode` straight | curve | free | rect | circle. */
 export function drawTool(E) {
-  let pts = [], dragging = null, free = null, cursor = null, snapHow = null;
+  let pts = [], dragging = null, free = null, cursor = null, snapHow = null, press = null;
   const sym = () => E.currentSymbol();
   const kind = () => { const s = sym(); return !s ? null : s.otp === 1 ? "point" : s.otp === 3 ? "area" : s.otp === 4 || s.otp === 6 ? "text" : s.otp === 2 && s.symTp === 1 ? "text" : "line"; };
-  const reset = () => { pts = []; dragging = null; free = null; E.view.overlay(); E.drawingChanged?.(false); };
+  const reset = () => { pts = []; dragging = null; free = null; press = null; E.view.overlay(); E.drawingChanged?.(false); };
+  const enough = () => pts.length >= (kind() === "area" ? 3 : 2);
   const finish = () => {
     const k = kind();
     if (k === "area" && pts.length >= 3) E.addShape(sym(), pts, true);
@@ -241,8 +253,10 @@ export function drawTool(E) {
       const k = kind();
       if (!k) { E.say(t("map.tool.pickSymbol")); return; }
       const s = snap(E, p, { prev: pts.length ? pts[pts.length - 1] : null, shift: ev.shiftKey });
+      press = { n: pts.length };
+      cursor = s.p;
       if (k === "point") { dragging = { at: s.p, angle: 0 }; return; }
-      if (k === "text") { E.addText(sym(), s.p); return; }
+      if (k === "text") { dragging = { text: s.p }; return; }
       const m = mode();
       if (m === "free") { free = [[s.p[0], s.p[1], 0]]; return; }
       if (m === "circle") { dragging = { centre: s.p, r: 0 }; return; }
@@ -251,11 +265,11 @@ export function drawTool(E) {
         const a = pts[pts.length - 2], b = pts[pts.length - 1], dx = b[0] - a[0], dy = b[1] - a[1], n = Math.hypot(dx, dy) || 1;
         const nx = -dy / n, ny = dx / n, d = (s.p[0] - b[0]) * nx + (s.p[1] - b[1]) * ny;
         pts.push([b[0] + nx * d, b[1] + ny * d, F.CORNER]);
-        if (pts.length >= 4 && Math.hypot(pts[pts.length - 1][0] - pts[0][0], pts[pts.length - 1][1] - pts[0][1]) < PX * E.view.mmPerPx) { pts.pop(); finish(); }
+        if (pts.length >= 4 && Math.hypot(pts[pts.length - 1][0] - pts[0][0], pts[pts.length - 1][1] - pts[0][1]) < reach(E)) { pts.pop(); finish(); }
         E.view.overlay(); return;
       }
       // closing an area on its first point
-      if (pts.length >= 3 && Math.hypot(s.p[0] - pts[0][0], s.p[1] - pts[0][1]) < PX * E.view.mmPerPx && kind() === "area") { finish(); return; }
+      if (pts.length >= 3 && Math.hypot(s.p[0] - pts[0][0], s.p[1] - pts[0][1]) < reach(E) && kind() === "area") { finish(); return; }
       if (m === "curve") { dragging = { at: s.p }; pts.push([s.p[0], s.p[1], 0]); }
       else pts.push([s.p[0], s.p[1], m === "rect" ? F.CORNER : 0]);
       E.drawingChanged?.(true);
@@ -277,6 +291,8 @@ export function drawTool(E) {
     },
     up(ev, p) {
       const k = kind();
+      press = null;
+      if (dragging?.text) { const at = dragging.text; dragging = null; E.addText(sym(), at); return; }
       if (k === "point" && dragging) {
         const s = sym(), rot = (s.flags & 1) !== 0, moved = Math.hypot(p[0] - dragging.at[0], p[1] - dragging.at[1]) > 3 * E.view.mmPerPx;
         E.addPoint(s, dragging.at, rot && moved ? (dragging.angle * 180) / Math.PI : 0);
@@ -298,9 +314,22 @@ export function drawTool(E) {
     key(ev) {
       if (ev.key === "Enter") { finish(); return true; }
       if (ev.key === "Escape" && (pts.length || free)) { reset(); return true; }
-      if (ev.key === "Backspace" && pts.length) { pts.pop(); E.view.overlay(); return true; }
+      if (ev.key === "Backspace" && pts.length) { pts.pop(); cursor = null; E.view.overlay(); E.drawingChanged?.(pts.length > 0); return true; }
       return false;
     },
+    /** A second finger came down (a pinch, a two-finger move): what the first one started is given up. */
+    cancelDrag() {
+      if (!press) return;
+      pts.length = Math.min(pts.length, press.n); press = null; dragging = null; free = null; cursor = null;
+      E.view.overlay(); E.drawingChanged?.(pts.length > 0);
+    },
+    /** What the touch bar offers while a line or an area is being drawn (a finger has no Enter, Escape or Backspace). */
+    touch() {
+      if (!pts.length) return [];
+      return [{ k: "undo", icon: "undo", label: t("map.touch.undoPoint") }, { k: "cancel", icon: "close", label: t("map.touch.cancel") },
+        { k: "finish", icon: "check", label: t("map.touch.finish"), primary: true, off: !enough() }];
+    },
+    touchDo(k) { if (k === "undo") this.key({ key: "Backspace" }); else if (k === "cancel") reset(); else if (enough()) finish(); },
     cancel: reset,
     finish,
     /** The points drawn, with curves made from their tangents: [x, y, flags] with CTRL1/CTRL2 controls. */
@@ -414,24 +443,29 @@ export function cutTool(E) {
   return {
     name: "cut", cursor: "crosshair",
     down(ev, p) {
-      const r = PX * E.view.mmPerPx;
+      const r = reach(E);
       // a line under the click: cut there
       const lineHit = E.live.pick(p[0], p[1], r, { filter: (o) => o.otp === 2 });
       if (lineHit && !line) { E.splitLine(lineHit.id, p); return; }
       // else draw a line across an area; Enter or a double-click cuts
       if (!line) line = [];
       line.push(snap(E, p).p.concat(0));
-      E.view.overlay();
+      this.cursor_ = null;
+      E.view.overlay(); E.drawingChanged?.(true);
     },
     move(ev, p) { this.cursor_ = p; E.view.overlay(); },
     dbl() { this.apply(); },
-    key(ev) { if (ev.key === "Enter") { this.apply(); return true; } if (ev.key === "Escape" && line) { line = null; E.view.overlay(); return true; } return false; },
+    key(ev) { if (ev.key === "Enter") { this.apply(); return true; } if (ev.key === "Escape" && line) { this.drop(); return true; } return false; },
+    drop() { line = null; E.view.overlay(); E.drawingChanged?.(false); },
     async apply() {
-      if (!line || line.length < 2) { line = null; return; }
-      const l = line; line = null;
+      if (!line || line.length < 2) { this.drop(); return; }
+      const l = line; line = null; E.drawingChanged?.(false);
       await E.cutAreas(l);
       E.view.overlay();
     },
+    cancelDrag() { if (line?.length) { line.pop(); if (!line.length) line = null; E.view.overlay(); E.drawingChanged?.(!!line); } },
+    touch() { return line ? [{ k: "cancel", icon: "close", label: t("map.touch.cancel") }, { k: "apply", icon: "scan", label: t("map.touch.cut"), primary: true, off: line.length < 2 }] : []; },
+    touchDo(k) { if (k === "cancel") this.drop(); else this.apply(); },
     overlay(g) { drawSelection(g, E); if (line) strokePath(g, E.view, this.cursor_ ? [...line, [...this.cursor_, 0]] : line, { color: "#d32f2f", dash: [4, 3] }); void d; },
   };
 }
@@ -442,16 +476,20 @@ export function holeTool(E) {
     down(ev, p) {
       if (!pts.length) {
         const hit = [...E.sel].map((id) => E.live.object(id)).find((o) => o?.otp === 3);
-        if (!hit) { const a = E.live.pick(p[0], p[1], PX * E.view.mmPerPx, { filter: (o) => o.otp === 3 }); if (!a) { E.say(t("map.tool.pickAreaFirst")); return; } E.sel.clear(); E.sel.add(a.id); E.selChanged(); }
+        if (!hit) { const a = E.live.pick(p[0], p[1], reach(E), { filter: (o) => o.otp === 3 }); if (!a) { E.say(t("map.tool.pickAreaFirst")); return; } E.sel.clear(); E.sel.add(a.id); E.selChanged(); }
       }
       const s = snap(E, p).p;
-      if (pts.length >= 3 && Math.hypot(s[0] - pts[0][0], s[1] - pts[0][1]) < PX * E.view.mmPerPx) { this.finish(); return; }
-      pts.push([s[0], s[1], 0]); E.view.overlay();
+      if (pts.length >= 3 && Math.hypot(s[0] - pts[0][0], s[1] - pts[0][1]) < reach(E)) { this.finish(); return; }
+      pts.push([s[0], s[1], 0]); this.cur = null; E.view.overlay(); E.drawingChanged?.(true);
     },
     move(ev, p) { this.cur = p; E.view.overlay(); },
     dbl() { this.finish(); },
-    key(ev) { if (ev.key === "Enter") { this.finish(); return true; } if (ev.key === "Escape" && pts.length) { pts = []; E.view.overlay(); return true; } return false; },
-    finish() { const area = [...E.sel].map((id) => E.live.object(id)).find((o) => o?.otp === 3); if (area && pts.length >= 3) E.addHole(area.id, pts); pts = []; E.view.overlay(); },
+    key(ev) { if (ev.key === "Enter") { this.finish(); return true; } if (ev.key === "Escape" && pts.length) { this.drop(); return true; } return false; },
+    drop() { pts = []; E.view.overlay(); E.drawingChanged?.(false); },
+    finish() { const area = [...E.sel].map((id) => E.live.object(id)).find((o) => o?.otp === 3); if (area && pts.length >= 3) E.addHole(area.id, pts); this.drop(); },
+    cancelDrag() { if (pts.length) { pts.pop(); E.view.overlay(); E.drawingChanged?.(pts.length > 0); } },
+    touch() { return pts.length ? [{ k: "cancel", icon: "close", label: t("map.touch.cancel") }, { k: "finish", icon: "check", label: t("map.touch.finish"), primary: true, off: pts.length < 3 }] : []; },
+    touchDo(k) { if (k === "cancel") this.drop(); else this.finish(); },
     overlay(g) { drawSelection(g, E); if (pts.length) strokePath(g, E.view, this.cur ? [...pts, [...this.cur, 0]] : pts, { closed: true, dash: [4, 3], color: "#d32f2f" }); },
   };
 }
@@ -471,10 +509,19 @@ export function measureTool(E) {
   let pts = [], cur = null;
   return {
     name: "measure", cursor: "crosshair",
-    down(ev, p) { if (pts.length >= 2 && ev.detail === 1 && !ev.shiftKey && this.done) { pts = []; this.done = false; } pts.push(snap(E, p).p.concat(0)); E.view.overlay(); },
+    down(ev, p) {
+      if (pts.length >= 2 && ev.detail === 1 && !ev.shiftKey && this.done) { pts = []; this.done = false; }
+      pts.push(snap(E, p).p.concat(0)); cur = null;
+      E.view.overlay(); E.showMeasure(this.lengths()); E.drawingChanged?.(true);      // a finger does not hover: the length at each point
+    },
     move(ev, p) { cur = p; E.view.overlay(); E.showMeasure(this.lengths()); },
     dbl() { this.done = true; },
-    key(ev) { if (ev.key === "Escape") { pts = []; E.view.overlay(); E.showMeasure(null); return true; } return false; },
+    key(ev) { if (ev.key === "Escape") { this.drop(); return true; } return false; },
+    drop() { pts = []; cur = null; this.done = false; E.view.overlay(); E.showMeasure(null); E.drawingChanged?.(false); },
+    cancel() { E.showMeasure(null); },
+    cancelDrag() { if (pts.length) { pts.pop(); E.view.overlay(); E.showMeasure(this.lengths()); } },
+    touch() { return pts.length ? [{ k: "clear", icon: "close", label: t("map.touch.clear") }] : []; },
+    touchDo() { this.drop(); },
     lengths() { const l = cur && !this.done ? [...pts, [...cur, 0]] : pts; return l.length >= 2 ? { mm: G.polyLength(l), area: l.length >= 3 ? Math.abs(G.ringArea(l)) : 0 } : null; },
     overlay(g) { if (pts.length) strokePath(g, E.view, cur && !this.done ? [...pts, [...cur, 0]] : pts, { color: "#0d47a1", dash: [6, 3] }); for (const q of pts) dot(g, E.view, q[0], q[1], { r: 3 }); },
   };

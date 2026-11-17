@@ -75,7 +75,9 @@ export const CONTEXT = {
 export const FILE = ["new", "open", "import", "save-now", "version-save", "versions", "export", "props", "close"];
 
 export function mountRibbon(E, host) {
-  const R = { tab: "draw" };
+  // on a phone or a tablet « Terrain » comes first and opens: what one does out there (owner, 2026-11-17)
+  const R = { tab: E.touch ? "field" : "draw" };
+  const tabList = () => (E.touch ? [TABS.find((x) => x.id === "field"), ...TABS.filter((x) => x.id !== "field")] : TABS);
   const label = (act) => t(`map.rib.${act.replace(/[:]/g, "_")}`);
   const tip = (it) => { const why = E.why?.(it.act); return label(it.act) + (E.keyOf?.(it.act) ? ` (${E.keyOf(it.act)})` : "") + (why ? ` — ${why}` : ""); };
   const btn = (it, small) => {
@@ -87,12 +89,22 @@ export function mountRibbon(E, host) {
     const kind = E.selKind?.();
     const ctxGroups = kind ? CONTEXT[kind] : null;
     if (R.tab === "ctx" && !ctxGroups) R.tab = R.prev || "draw";
-    const tabs = TABS.map((x) => `<button type="button" class="tr-rtab" role="tab" data-tab="${x.id}" aria-selected="${R.tab === x.id}">${esc(t(`map.tab.${x.id}`))}</button>`).join("");
+    const tabs = tabList().map((x) => `<button type="button" class="tr-rtab" role="tab" data-tab="${x.id}" aria-selected="${R.tab === x.id}">${esc(t(`map.tab.${x.id}`))}</button>`).join("");
     const ctx = ctxGroups ? `<div class="tr-rctx${R.pulse ? " new" : ""}"><span class="tr-rctx-h">${esc(t(`map.ctx.${kind}`))}</span><button type="button" class="tr-rtab" role="tab" data-tab="ctx" aria-selected="${R.tab === "ctx"}">${esc(t("map.ctx.tab"))}</button></div>` : "";
     const groups = R.tab === "ctx" ? ctxGroups : TABS.find((x) => x.id === R.tab)?.groups || [];
+    // a row that scrolls sideways (a phone) stays where it was when its tab is drawn again, and the tab opened stays in sight
+    const wasTab = host.dataset.open, keepBody = host.querySelector(".tr-rbody")?.scrollLeft || 0, keepTabs = host.querySelector(".tr-rtabs")?.scrollLeft || 0;
     host.innerHTML = `<div class="tr-rtabs" role="tablist"><button type="button" class="tr-rtab file" data-file>${esc(t("map.tab.file"))}</button>${tabs}${ctx}</div>
       <div class="tr-rbody">${groups.map(groupHtml).join("")}</div>`;
     host.dataset.display = E.ribbonDisplay || "full";
+    host.dataset.open = R.tab;      // (not « data-tab »: a click looks for its tab's)
+    const tabsEl = host.querySelector(".tr-rtabs"), cur = tabsEl.querySelector('[aria-selected="true"]');
+    tabsEl.scrollLeft = keepTabs;
+    if (wasTab === R.tab) host.querySelector(".tr-rbody").scrollLeft = keepBody;
+    if (cur && tabsEl.scrollWidth > tabsEl.clientWidth) {
+      const box = tabsEl.getBoundingClientRect(), b = cur.getBoundingClientRect();
+      if (b.left < box.left) tabsEl.scrollLeft += b.left - box.left - 8; else if (b.right > box.right) tabsEl.scrollLeft += b.right - box.right + 8;
+    }
   }
   host.addEventListener("click", (ev) => {
     const tb = ev.target.closest("[data-tab]");

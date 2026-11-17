@@ -37,23 +37,23 @@ export async function editColors(E) {
     <td><input name="n${i}" value="${esc(c.name)}" maxlength="60" aria-label="${esc(t("map.col.name"))}"></td>
     ${[0, 1, 2, 3].map((k) => `<td><input name="c${i}_${k}" type="number" min="0" max="100" step="0.5" value="${pct(c.cmyk[k])}" class="mp-num" aria-label="${"CMYK"[k]}"></td>`).join("")}
     <td><input type="checkbox" name="o${i}" ${c.overprint ? "checked" : ""} aria-label="${esc(t("map.col.overprint"))}"></td>
-    <td><input name="s${i}" value="${esc((c.spot || []).map((s) => `${s.name} ${pct(s.pct)}`).join(", "))}" placeholder="${esc(t("map.col.spotPh"))}" aria-label="${esc(t("map.col.spots"))}"></td>
-    <td class="mp-nowrap"><button type="button" class="tr-icon" data-up="${i}" title="${esc(t("map.col.up"))}">▲</button><button type="button" class="tr-icon" data-down="${i}" title="${esc(t("map.col.down"))}">▼</button>
+    <td><input name="s${i}" value="${esc((c.spot || []).map((s) => `${s.name} ${pct(s.pct)}`).join(", "))}" aria-label="${esc(t("map.col.spots"))}"></td>
+    <td class="mp-nowrap c"><button type="button" class="tr-icon" data-up="${i}" title="${esc(t("map.col.up"))}">▲</button><button type="button" class="tr-icon" data-down="${i}" title="${esc(t("map.col.down"))}">▼</button>
     <button type="button" class="tr-icon" data-del="${i}" title="${esc(t("map.col.delete"))}">${svg("trash", 14)}</button></td></tr>`;
   const spotRow = (s, i) => `<tr><td><i class="mp-sw" style="background:${css(s.cmyk)}"></i></td><td><input name="sn${i}" value="${esc(s.name)}" maxlength="40"></td>
     ${[0, 1, 2, 3].map((k) => `<td><input name="sc${i}_${k}" type="number" min="0" max="100" step="0.5" value="${pct(s.cmyk[k])}" class="mp-num"></td>`).join("")}
     <td><input name="sf${i}" type="number" min="0" step="1" value="${s.freq || ""}" class="mp-num"></td><td><input name="sa${i}" type="number" step="0.5" value="${s.angle || 0}" class="mp-num"></td>
     <td><button type="button" class="tr-icon" data-sdel="${i}" title="${esc(t("map.col.delete"))}">${svg("trash", 14)}</button></td></tr>`;
+  // the four inks' letters in the reader's language (« CMJN » in French, « CMYK » elsewhere)
+  const cmykHead = [...t("map.col.cmyk")].map((c) => `<th>${esc(c)}</th>`).join("");
   // the table is shown from the top of the printing order down; `cols` is bottom → top
   const body = () => `<p class="mp-hint">${esc(t("map.col.hint"))}</p>
-    <div class="table-wrap"><table class="data mp-coltable"><thead><tr><th></th><th>${esc(t("map.col.name"))}</th><th>C</th><th>M</th><th>J</th><th>N</th><th>${esc(t("map.col.op"))}</th><th>${esc(t("map.col.spots"))}</th><th></th></tr></thead>
+    <div class="table-wrap"><table class="data mp-coltable"><thead><tr><th></th><th>${esc(t("map.col.name"))}</th>${cmykHead}<th>${esc(t("map.col.op"))}</th><th>${esc(t("map.col.spots"))}</th><th></th></tr></thead>
     <tbody>${cols.map((c, i) => [c, i]).reverse().map(([c, i]) => row(c, i)).join("")}</tbody></table></div>
     <button type="button" class="btn btn-sm" data-add>${esc(t("map.col.add"))}</button>
     <h3>${esc(t("map.col.inks"))}</h3><p class="mp-hint">${esc(t("map.col.inksHint"))}</p>
-    <div class="table-wrap"><table class="data mp-coltable"><thead><tr><th></th><th>${esc(t("map.col.name"))}</th><th>C</th><th>M</th><th>J</th><th>N</th><th>${esc(t("map.col.freq"))}</th><th>${esc(t("map.col.angle"))}</th><th></th></tr></thead>
+    <div class="table-wrap"><table class="data mp-coltable"><thead><tr><th></th><th>${esc(t("map.col.name"))}</th>${cmykHead}<th>${esc(t("map.col.freq"))}</th><th>${esc(t("map.col.angle"))}</th><th></th></tr></thead>
     <tbody>${spots.map(spotRow).join("")}</tbody></table></div><button type="button" class="btn btn-sm" data-sadd>${esc(t("map.col.addInk"))}</button>`;
-  const used = new Set();
-  for (const s of E.doc.symbols) for (const v of Object.values(JSON.parse(JSON.stringify(s)))) void v;
   const read = (form) => {
     cols = cols.map((c, i) => {
       if (!form.elements[`n${i}`]) return c;
@@ -64,9 +64,16 @@ export async function editColors(E) {
     spots = spots.map((s, i) => (!form.elements[`sn${i}`] ? s : { ...s, name: form.elements[`sn${i}`].value.trim() || s.name, cmyk: [0, 1, 2, 3].map((k) => Math.min(1, Math.max(0, (num(form.elements[`sc${i}_${k}`].value) || 0) / 100))),
       freq: num(form.elements[`sf${i}`].value) || 0, angle: num(form.elements[`sa${i}`].value) || 0 }));
   };
-  void used;
   const v = await modal(E, { title: t("map.rib.colors"), wide: true, ok: t("map.dlg.save"), body: `<div id="mp-colbody">${body()}</div>`,
-    onOpen: (form) => form.addEventListener("click", (ev) => {
+    onOpen: (form) => {
+     // a colour's or an ink's swatch follows its four numbers as they are typed
+     form.addEventListener("input", (ev) => {
+      const tr = ev.target.closest(".mp-coltable tr"), sw = tr?.querySelector(".mp-sw");
+      if (!sw || ev.target.type !== "number") return;
+      const v = [...tr.querySelectorAll('input[type="number"]')].slice(0, 4).map((i) => Math.min(1, Math.max(0, (num(i.value) || 0) / 100)));
+      if (v.length === 4) sw.style.background = css(v);
+     });
+     form.addEventListener("click", (ev) => {
       const b = ev.target.closest("button"); if (!b) return;
       read(form);
       const i = Number(b.dataset.up ?? b.dataset.down ?? b.dataset.del ?? b.dataset.sdel);
@@ -81,7 +88,8 @@ export async function editColors(E) {
       else if (b.dataset.sadd != null) spots.push({ num: Math.max(-1, ...spots.map((s) => s.num)) + 1, name: t("map.col.newInk"), cmyk: [0, 0, 0, 1], freq: 0, angle: 45, visible: true });
       else return;
       form.querySelector("#mp-colbody").innerHTML = body();
-    }),
+     });
+    },
     validate: (x, form) => { read(form); return null; } });
   if (!v) return;
   E.live.transact(t("map.undo.colors"), () => {

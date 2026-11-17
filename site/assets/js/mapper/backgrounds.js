@@ -212,8 +212,11 @@ function calage(E, entry) {
     down(ev, p) {
       if (!first) { first = p; E.say(t("map.bg.calageTo")); }
       else { pairs.push([first, p]); first = null; E.say(tn("map.bg.calagePairs", pairs.length)); }
-      E.view.overlay();
+      E.view.overlay(); E.drawingChanged?.();
     },
+    // by touch (no Enter, no Escape): the same two from the bar over the map
+    touch() { return [{ k: "cancel", icon: "close", label: t("map.touch.cancel") }, { k: "apply", icon: "check", label: t("map.touch.apply"), primary: true, off: pairs.length < 2 }]; },
+    touchDo(k) { this.key({ key: k === "apply" ? "Enter" : "Escape" }); },
     key(ev) {
       if (ev.key === "Enter" && pairs.length >= 2) { const m = fitPairs(pairs.map((x) => x[0]), pairs.map((x) => x[1])); entry.toMap = compose(m, entry.toMap); persist(E); done(); return true; }
       if (ev.key === "Escape") { done(); return true; }
@@ -225,7 +228,8 @@ function calage(E, entry) {
       if (first) { g.fillStyle = "#e65100"; g.beginPath(); g.arc(m.x(...first), m.y(...first), 5 * E.view.dpr, 0, 7); g.fill(); }
     },
   };
-  const done = () => { E.tool = prev.tool; E.toolName = prev.name; E.say(""); E.view.request(); };
+  const done = () => { E.tool = prev.tool; E.toolName = prev.name; E.say(""); E.view.request(); E.drawingChanged?.(); };
+  E.drawingChanged?.();
 }
 
 export async function paneAct(E, a, id, value) {

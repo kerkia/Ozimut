@@ -629,12 +629,19 @@ export function build(X) {
           ])}`)}`,
       terrain: () => html`
         ${slide("Carto", "Sobre el terreno, con el móvil", html`
-          <p>El modo terreno (pestaña «Terreno») está hecho para el móvil:</p>
+          <p>En un móvil o una tableta, Carto se abre en la pestaña «Terreno», con botones del tamaño del dedo:</p>
           ${list([
-            html`tu posición GPS en el mapa, con su precisión, que el mapa puede seguir; la brújula orienta el mapa al norte;`,
-            html`el track de tu recorrido, guardado como fondo GPX;`,
-            html`fotos y notas fijadas en el mapa, donde estás;`,
-            html`una copia sin conexión del mapa: sin red sigues dibujando, y lo guardado se envía en cuanto vuelve la red.`,
+            html`<b>«Mi posición»</b>, encima de los botones de zoom: tu posición GPS en el mapa y su precisión (abajo, «GPS ± 6 m»). El mapa la
+              sigue hasta que lo mueves, y vuelve a ella con un toque en el botón; la pantalla sigue encendida mientras se muestra. La brújula
+              gira el mapa como el terreno que tienes delante;`,
+            html`<b>el track</b> de tu recorrido («Grabar el track»), con su longitud a la vista mientras se graba, guardado como fondo GPX;`,
+            html`<b>fotos y notas</b> fijadas en el mapa, donde estás; un toque en una chincheta vuelve a abrir la nota, para marcarla «Hecho» o
+              eliminarla;`,
+            html`<b>dibujar con el dedo</b>: un toque elige un objeto, un dedo mueve el mapa, dos dedos hacen zoom. Mientras dibujas, una barra al
+              pie del mapa ofrece «Deshacer punto», «Descartar» y «Terminar» — lo que hacen Retroceso, Escape e Intro en un teclado; con la
+              herramienta de vértices, un punto tocado se quita o cambia de esquina a curva del mismo modo. El símbolo en mano aparece en el
+              botón de la lista de símbolos, que se cierra en cuanto se elige un símbolo;`,
+            html`<b>una copia sin conexión</b> del mapa: sin red sigues dibujando, y lo guardado se envía en cuanto vuelve la red.`,
           ])}`)}`,
       imprimer: () => html`
         ${slide("Carto", "Imprimir y compartir", html`

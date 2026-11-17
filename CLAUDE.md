@@ -3401,6 +3401,50 @@ Every multiple-choice game was played through to its score page at phone size, w
   last; the dialogs' confirming buttons say what they do (`map.ok.*`: « Ajouter à la carte », « Créer le PDF », « Créer le lien »…).
   Looked at and left as they are: both start screens, the ribbons' tabs and groups, the Fichier menus, the export chooser, the
   one-line ribbon at 1100 px, Cartographier's start screen on a phone.
+- **Cartographier by touch — a phone, a tablet in the field** (owner, 2026-11-17: « the smartphone Carto app, which is quite
+  important »; walked in headless Edge at 390 × 844 with touch and a simulated GPS on the Desquinemarre map — `tour_phone2.mjs`,
+  kept with the session's scratch — **not on a real phone**). `E.touch` (the device's pointer is coarse, read once at the opening;
+  `.mp-touch`) decides the layout, `E.fingers` (the last press on the map was a touch) what a mixed device shows. **The screen**: the
+  ribbon in one row of finger-sized buttons under its tabs (`E.ribbonDisplay "touch"`, `.tr-ribbon[data-display="touch"]`: 66 × 56,
+  icon over name, groups' names dropped, it scrolls sideways), « Terrain » the first tab and the one opened; under 900 px the top
+  line on one line (the « bêta » tag dropped, the save's state a dot — green saved, amber to save, blue kept on the device, red
+  failed —, its words in its tooltip): the map has 70 % of a phone's height (64 % before, the top line on two lines). The drawers
+  (symbols, selection) close at a tap beside them (`#mp-scrim`) and once a symbol is picked, which also opens « Dessiner »; the
+  symbol in hand is drawn on the symbols' button; `.mp-main` is `overflow: clip` (a drawer parked beside it could be scrolled into
+  view). **Fingers** (`editor.js` pointer handlers): with the tool that chooses, a finger's drag moves the map and its tap chooses —
+  only an object already chosen is dragged (on a map full of objects there is always one under the finger: moving the map moved
+  it; `pan.tap`); a pick or a snap reaches 18 px for a finger, 8 for a mouse (`E.reachPx`, tools.js `reach`); a double tap within
+  26 px; a second finger takes back what the first one started (`cancelDrag` on the draw, select, vertex, cut, hole and measure
+  tools: a pinch added a point). **The touch bar** (`#mp-touchbar`, over the map's bottom; `tool.touch()` → [{ k, icon, label,
+  primary, off }], `tool.touchDo(k)`, drawn by `status()`): what a key does with a mouse — a line or area being drawn « Annuler le
+  point », « Abandonner », « Terminer »; a cut « Couper »; a hole; a measure « Effacer la mesure »; a background's adjustment
+  « Appliquer »; a note's place given up; with « Sommets » a point touched without moving is in hand, « Retirer le point » or « Angle
+  ou arrondi » (a finger has no Alt key). The status bar's help is the pointer's (`map.hint.touch.*`), and by the symbol's kind (a
+  point symbol: « où poser le symbole ; glissez pour l'orienter », a text). A text is placed at the press's release. **The field
+  mode** (`field.js`): « Ma position » over the zoom buttons (`#mp-locate`, shown by touch or while the GPS is on; act `locate`):
+  off → shown and followed; a view moved by hand lets it go (`handMoved`) and a tap takes it back; followed → off, unless a track
+  records. The accuracy and the length recorded in the status bar (`#mp-gps`, « GPS ± 6 m · ● 151 m »), **no message at each
+  position**; a position over 30 m off what the map draws is said once and not followed; the screen kept on while the position
+  shows (Wake Lock, taken again when the page comes back); a refusal stops the GPS, a fix lost (trees, indoors) does not; a track's
+  point only once 2 m away (not within the position's own uncertainty), started at the current position, kept as a GPX background
+  with its length said — also when the GPS is switched off or the editor closes (`F.close`); the compass listens to
+  `deviceorientationabsolute` where there is one (Android gave no heading on `deviceorientation`), shows pressed, and gives up
+  after 4 s without a heading. A photo's note shows the photo; **a note's pin opens the note** (`team.openComment`, with the tools
+  that choose or move: who, when, text, photo, « Traité » / « À reprendre », « Supprimer la note »), on a computer too.
+  **The symbol editor and the colour table** (the same review): a line's and an area's fields under headings (`symedit.js`
+  `GROUPS`: Trait, Tirets, Ligne double, Contour; Fond, Hachures, Motif, Bordure; the two « symbols along » fields with their
+  element list), an element's points labelled; the colour table's ink letters by language (`map.col.cmyk`: « CMJN » in French,
+  « CMYK » elsewhere — the heads said C M J N to everyone), a swatch that follows its numbers as typed, no example in every empty
+  ink field; on a narrow screen the preview on top and one column, the colour rows' three buttons on one line. **Every dialog of
+  both tools keeps its buttons in reach** (`.tr-form > .tr-dlg-btns` sticky at the dialog's bottom: the two editors' « Enregistrer »
+  were a long scroll away). **Read in English, German and Spanish** (`langshots.mjs`: every ribbon tab, the panes and some
+  thirty dialogs a tool, the texts cut by their box listed; the phone walk in each): nothing cut but the long check messages and
+  a map file's own symbol names (both shortened on purpose, whole in their tooltip); a ribbon's big button is now as wide as its
+  longest word (`.tr-rbig { width: min-content; min-width: 70px }`: « Veranstaltungsprüfung », « Postenbeschreibungen »,
+  « Hintergrunddatei » ran over their neighbours in German), a split button's name stays on one line; « Karteneigenschaften… »
+  lost its dots as a dialog's title, and the German « Ereignis » became « Veranstaltung ». Not done: a real phone and a real GPS
+  (iOS's compass permission, the camera, a walk under trees), Cartographier's field mode with several fingers on a tablet's wide
+  layout beyond what the phone walk covers.
 - **Printing for a print shop: one engine for both tools** (owner, 2026-11-12: « Cartographier has separations, yet maps are printed
   with their courses from the Tracer »): `tracer/vmap/inks.js` — OCAD's spot inks read (`readInks`, `attachInks`: `map.spots` and each
   colour's `spot` on every OCAD 9+ map the Tracer opens; Cartographier's `spotsFromParams` calls it; Mapper files' spot colours are read

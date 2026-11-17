@@ -605,12 +605,18 @@ export function build(X) {
           ])}`)}`,
       terrain: () => html`
         ${slide("Carto", "In the field, with your phone", html`
-          <p>The field mode (the “Field” tab) is made for the phone:</p>
+          <p>On a phone or a tablet, Carto opens on the “Field” tab, with finger-sized buttons:</p>
           ${list([
-            html`your GPS position on the map, with its accuracy, which the map can follow; the compass turns the map to the north;`,
-            html`the track of where you went, kept as a GPX background;`,
-            html`photos and notes pinned on the map, where you stand;`,
-            html`an offline copy of the map: without a network you keep drawing, and the saves go as soon as the network is back.`,
+            html`<b>“My position”</b>, above the zoom buttons: your GPS position on the map and its accuracy (at the bottom, “GPS ± 6 m”). The map
+              follows it until you move the map, and comes back to it at a tap on the button; the screen stays on while it is shown. The compass
+              turns the map like the ground in front of you;`,
+            html`<b>the track</b> of where you went (“Record track”), its length shown while it records, kept as a GPX background;`,
+            html`<b>photos and notes</b> pinned on the map, where you stand; a tap on a pin opens the note again, to mark it “Done” or delete it;`,
+            html`<b>drawing with a finger</b>: a tap selects an object, one finger moves the map, two fingers zoom. While you draw, a bar at the
+              bottom of the map offers “Undo point”, “Discard” and “Finish” — what Backspace, Escape and Enter do on a keyboard; with the
+              “Points” tool, a point tapped is removed or turned from a corner to a smooth point the same way. The symbol in hand shows on the
+              button of the symbol list, which closes as soon as a symbol is chosen;`,
+            html`<b>an offline copy</b> of the map: without a network you keep drawing, and the saves go as soon as the network is back.`,
           ])}`)}`,
       imprimer: () => html`
         ${slide("Carto", "Printing and sharing", html`

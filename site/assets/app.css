@@ -2911,6 +2911,9 @@ body.full-win .tr-app { border: 0; }
   border: 1px solid var(--border); border-radius: 4px; padding: 6px 8px; }
 .tr-err { color: var(--bad); font-size: 13px; }
 .tr-dlg-btns { display: flex; justify-content: flex-end; gap: 8px; margin-top: 4px; flex-wrap: wrap; }
+/* a dialog taller than the window: its buttons stay in reach at its bottom, the fields scroll under them (owner, 2026-11-17: the
+   symbol editor's and the colour table's « Enregistrer » were a long scroll away) */
+.tr-form > .tr-dlg-btns { position: sticky; bottom: -18px; z-index: 2; background: var(--surface); padding: 10px 0 18px; margin: -6px 0 -18px; }   /* 18px: the dialog's own padding, covered */
 .tr-table { border-collapse: collapse; width: 100%; font-size: 12.5px; }
 .tr-table th, .tr-table td { text-align: left; padding: 4px 6px; border-bottom: 1px solid var(--border); vertical-align: top; }
 .tr-table td.r, .tr-table th.r { text-align: right; font-variant-numeric: tabular-nums; }
@@ -3070,6 +3073,8 @@ div.tr-field { position: absolute; left: 50%; bottom: 34px; transform: translate
 .tr-rlaunch:hover { background: var(--surface-2); color: var(--ink); }
 .tr-rbig { position: relative; display: flex; flex-direction: column; align-items: center; gap: 3px; width: 70px; min-height: 68px; padding: 5px 3px 3px; border: 1px solid transparent;
   border-radius: 7px; background: transparent; color: var(--ink); font: inherit; font-size: 11.8px; line-height: 1.15; text-align: center; cursor: pointer; }
+/* as wide as its longest word (German: « Veranstaltungsprüfung », « Postenbeschreibungen » ran over their neighbours), never under 70 px */
+.tr-rbig { width: min-content; min-width: 70px; }
 .tr-rbig svg { color: #a7179b; flex: none; }
 .tr-rbig .tr-rl { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
 .tr-rsmall { display: flex; align-items: center; gap: 6px; height: 22px; padding: 0 7px 0 5px; border: 1px solid transparent; border-radius: 5px; background: transparent;
@@ -3085,7 +3090,7 @@ div.tr-field { position: absolute; left: 50%; bottom: 34px; transform: translate
 .tr-rbig .tr-rbadge { position: absolute; top: 2px; right: 6px; }
 .tr-rsmall .tr-rbadge { margin-left: 2px; }
 .tr-rkey { font: 10px ui-monospace, "Cascadia Code", Consolas, monospace; color: var(--ink-3); margin-left: 1px; border: 0; padding: 0; background: none; }
-.tr-rbig.has-split { padding-bottom: 15px; }
+.tr-rbig.has-split { padding: 4px 4px 14px; gap: 2px; width: max-content; max-width: 150px; }      /* its name on one line where it can: two lines and the arrow pushed the group's name out */
 .tr-rsplit { position: absolute; left: 0; right: 0; bottom: 0; height: 13px; line-height: 12px; font-size: 9px; color: var(--ink-3); border-top: 1px solid transparent; border-radius: 0 0 6px 6px; }
 .tr-rbig.has-split:hover .tr-rsplit { border-top-color: var(--border); }
 .tr-rsplit:hover { background: color-mix(in srgb, var(--ink) 8%, transparent); color: var(--ink); }
@@ -4320,7 +4325,7 @@ tr.bk-blocked td { color: var(--ink-3); font-style: italic; }
   .mp-left { left: 0; transform: translateX(-105%); }
   .mp-right { right: 0; transform: translateX(105%); }
   .mp-app.left-open .mp-left, .mp-app.right-open .mp-right { visibility: visible; }
-  .mp-main { overflow: hidden; }
+  .mp-main { overflow: hidden; overflow: clip; }      /* clip: the drawers parked beside it can never be scrolled into view */
   .mp-app .tr-ribbon .tr-rbody { height: auto; }
   .mp-app.left-open .mp-left, .mp-app.right-open .mp-right { transform: none; }
   .mp-main { position: relative; grid-template-columns: 1fr; }
@@ -4328,12 +4333,82 @@ tr.bk-blocked td { color: var(--ink-3); font-style: italic; }
 }
 .mp-drawer { display: none; }
 @media (max-width: 900px) { .mp-drawer { display: inline-flex; } }
+/* Cartographier by touch (a phone, a tablet; owner, 2026-11-17): « Ma position » over the zoom buttons, the bar of what a key does
+   with a mouse (finish, take a point back, give up), the GPS's line in the status bar, a ribbon of one row of finger-sized
+   buttons; on a narrow screen the top line on one line, a scrim behind the open drawer (a tap on it closes the drawer) */
+.mp-scrim { display: none; }
+.mp-touchbar { position: absolute; left: 8px; right: 60px; bottom: 12px; z-index: 6; display: flex; gap: 6px; justify-content: center; pointer-events: none; }
+.mp-touchbar[hidden] { display: none; }
+.mp-touchbar button { pointer-events: auto; flex: 0 1 150px; min-width: 0; min-height: 44px; display: flex; align-items: center; justify-content: center; gap: 6px; padding: 4px 8px;
+  border: 1px solid var(--border-strong); border-radius: 10px; background: var(--surface); color: var(--ink); font: inherit; font-size: 13px; font-weight: 600; line-height: 1.15;
+  box-shadow: var(--shadow-pop); cursor: pointer; }
+.mp-touchbar button.primary { background: var(--flag); border-color: transparent; color: var(--flag-ink); }
+.mp-touchbar button:disabled { opacity: .5; cursor: default; }
+.mp-touchbar svg { flex: none; }
+.mp-zoom .mp-locate { margin-bottom: 6px; color: var(--ink-2); }
+.mp-zoom .mp-locate[hidden] { display: none; }
+.mp-zoom .mp-locate[aria-pressed="true"] { color: #1565c0; border-color: #1565c0; }
+.mp-zoom .mp-locate.follow { background: #1565c0; border-color: #1565c0; color: #fff; }
+.mp-status .mp-gps { flex: none; font-variant-numeric: tabular-nums; color: #1565c0; font-weight: 650; }
+.mp-status .mp-gps[hidden] { display: none; }
+.mp-status .mp-gps.rec { color: #c2185b; }
+.mp-note p { margin: 6px 0; white-space: pre-wrap; overflow-wrap: anywhere; }
+.mp-note .mp-photo { max-width: 100%; max-height: 46vh; }
+.tr-dlg-btns .mp-del { margin-right: auto; color: var(--bad); }
+.tr-top [data-top="left"] img { border-radius: 4px; background: #fff; border: 1px solid var(--border); display: block; }
+.mp-touch .mp-zoom button { width: 42px; height: 42px; border-radius: 9px; }
+.mp-touch .mp-status #mp-pos { display: none; }
+.mp-touch .mp-sym { min-height: 40px; }
+.mp-touch .mp-rtab { padding: 9px 10px; }
+.tr-ribbon[data-display="touch"] .tr-rtabs { height: 40px; }
+.tr-ribbon[data-display="touch"] .tr-rtab { font-size: 14px; padding: 9px 12px 8px; white-space: nowrap; flex: none; }
+.tr-ribbon[data-display="touch"] .tr-rtab.file { padding: 6px 12px; }
+.mp-app .tr-ribbon[data-display="touch"] .tr-rbody { height: 62px; padding: 3px 2px; overflow-x: auto; overflow-y: hidden; scrollbar-width: none; }
+.tr-ribbon[data-display="touch"] .tr-rbody::-webkit-scrollbar { display: none; }
+.tr-ribbon[data-display="touch"] .tr-rgrp { padding: 0 3px; }
+.tr-ribbon[data-display="touch"] .tr-rgrp-t { display: none; }
+.tr-ribbon[data-display="touch"] .tr-rgrp-body { gap: 2px; align-items: stretch; }
+.tr-ribbon[data-display="touch"] .tr-rstack { flex-direction: row; gap: 2px; }
+.tr-ribbon[data-display="touch"] .tr-rbig, .tr-ribbon[data-display="touch"] .tr-rsmall { flex-direction: column; align-items: center; justify-content: flex-start; gap: 2px;
+  width: min-content; min-width: 62px; max-width: 108px; height: 56px; min-height: 0; padding: 5px 4px 2px; font-size: 10.8px; line-height: 1.12; text-align: center; white-space: normal; }
+.tr-ribbon[data-display="touch"] .tr-rbig svg, .tr-ribbon[data-display="touch"] .tr-rsmall svg { width: 22px; height: 22px; color: #a7179b; }
+.tr-ribbon[data-display="touch"] .tr-rl { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; overflow-wrap: break-word; }
+@media (max-width: 900px) {
+  .mp-app .tr-top { flex-wrap: nowrap; gap: 2px; padding: 3px 6px; }
+  .mp-app .tr-top .beta-tag, .mp-app .tr-top .mp-sp { display: none; }
+  .mp-app .tr-top .tr-title { flex: 1 1 0; min-width: 0; max-width: none; margin: 0 4px; }
+  .mp-app .tr-top .tr-icon { width: 38px; height: 38px; flex: none; }
+  .mp-app .tr-top .fw-btns { flex: none; margin-left: 0; }
+  /* the save's state as a dot (its words in its tooltip): green saved, amber to save, blue kept on the device, red failed */
+  .mp-app .tr-top .mp-save { font-size: 0; flex: none; padding: 0 5px; }
+  .mp-app .tr-top .mp-save::before { content: ""; display: inline-block; width: 9px; height: 9px; border-radius: 50%; background: #2e7d32; }
+  .mp-app .tr-top .mp-save[data-state="dirty"]::before, .mp-app .tr-top .mp-save[data-state="saving"]::before { background: var(--amber); }
+  .mp-app .tr-top .mp-save[data-state="local"]::before { background: #1565c0; }
+  .mp-app .tr-top .mp-save[data-state="error"]::before, .mp-app .tr-top .mp-save[data-state="conflict"]::before { background: var(--bad); }
+  .mp-app .tr-top .mp-save[data-state=""]::before, .mp-app .tr-top .mp-save:not([data-state])::before { display: none; }
+  .mp-symed { grid-template-columns: minmax(0, 1fr); }
+  .tr-dialog:has(.mp-symed), .tr-dialog:has(.mp-coltable) { width: 100%; max-width: 100%; }
+  .mp-symed-r { position: static; order: -1; }
+  .mp-symed-r canvas { width: 100%; height: auto; aspect-ratio: 8 / 5; }
+  .mp-symfields { grid-template-columns: minmax(0, 1fr); }
+  .mp-symf select { max-width: 46vw; }
+  .tr-dialog:has(.mp-coltable) .table-wrap { overflow-x: auto; }
+  .mp-coltable input:not(.mp-num):not([type=checkbox]) { min-width: 130px; }
+  .mp-app.left-open .mp-scrim, .mp-app.right-open .mp-scrim { display: block; position: absolute; inset: 0; z-index: 7; background: rgba(0, 0, 0, .3); }
+  .mp-status { gap: 10px; }
+}
 /* Cartographier's symbol editor (mapper/symedit.js), colour table (colors.js), shared editing (collab.js) */
 .tr-dialog:has(.mp-symed), .tr-dialog:has(.mp-coltable) { width: min(1100px, 96vw); max-width: 96vw; }
 .mp-symed { display: grid; grid-template-columns: minmax(0, 1fr) 340px; gap: 16px; align-items: start; }
 .mp-symed-r { position: sticky; top: 0; }
 .mp-symed-r canvas { width: 320px; height: 200px; border: 1px solid var(--border); border-radius: 8px; background: #fff; display: block; }
 .mp-symfields { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 4px 14px; margin: 8px 0; }
+.mp-symgrp { border: 1px solid var(--border); border-radius: 8px; padding: 2px 10px 6px; margin: 8px 0; min-width: 0; }
+.mp-symgrp legend { font-size: 12.5px; font-weight: 650; color: var(--ink-2); padding: 0 4px; }
+.mp-symgrp .mp-symfields { margin: 4px 0; }
+.mp-elts .mp-symfields { margin: 2px 0 6px; }
+.mp-ptsl { flex: 1 1 260px; display: flex; align-items: center; gap: 6px; min-width: 0; color: var(--ink-2); white-space: nowrap; }
+.mp-ptsl .mp-pts { flex: 1 1 auto; min-width: 120px; }
 .mp-symf { display: grid; grid-template-columns: 1fr auto; align-items: center; gap: 8px; font-size: 12.5px; }
 .mp-symf > span:first-child { color: var(--ink-2); }
 .mp-symf > span:last-child { display: flex; align-items: center; gap: 4px; white-space: nowrap; }

@@ -11,6 +11,7 @@ import * as S from "../mapper/store.js";
 import { bindFull, leaveFull, inOwnTab, setFull } from "../fullwin.js";
 import { betaNotice } from "../beta.js";
 import { t, tn, locale } from "../mapper/lang.js";
+import { alertBox } from "../askbox.js";
 
 let pageMain = null, leaving = false, reopening = false, switching = false;
 const when = (s) => (s ? new Date(s).toLocaleDateString(locale(), { dateStyle: "medium" }) : "");
@@ -218,7 +219,8 @@ async function newMap() {
   const doc = D.blank({ title: v.title, scale, standard, colors: set.colors, symbols: L.scaled(set, scale).map((s) => ({ ...s, set: sprint ? "issprom2019-2" : "isom2017-2" })) });
   const place = parsePlace(v.place);
   if (place) doc.realWorld = await realWorldAt(place, scale);
-  const { id } = await S.create({ title: v.title, scale, standard, place: place ? { lat: place[0], lon: place[1] } : null });
+  const id = await createMap({ title: v.title, scale, standard, place: place ? { lat: place[0], lon: place[1] } : null });
+  if (!id) return;
   history.pushState(null, "", `#/orga-carto?id=${id}`);
   const E = await openEditor(id, { doc, version: 0, isNew: true });
   if (place && E) {
@@ -263,6 +265,18 @@ async function realWorldAt([lat, lon], scale) {
   return { x, y, angle: 0, grid: 0, paperGrid: 0, on: true, zone: 0, epsg, gridScale: 1 };
 }
 
+/** A map made on the server: its id, or null once the refusal is said (owner, 2026-11-17: a refused creation — the day's limit, the
+ *  40 maps, no network — left an empty editor and not a word). */
+async function createMap(card) {
+  try { return (await S.create(card)).id; }
+  catch (e) {
+    await alertBox(e.status === 429 ? t("map.start.err.tooMany") : e.code === "quota" ? t("map.start.err.quota", { max: e.data?.max || 40 })
+      : t("map.start.err.other", { error: e.status ? `${e.status} ${e.message || ""}`.trim() : e.message || String(e) }));
+    backToStart();
+    return null;
+  }
+}
+
 // ---- a file imported -------------------------------------------------------------------------------------------------------------
 async function importFile(file) {
   const IO = await import("../mapper/io.js");
@@ -271,7 +285,8 @@ async function importFile(file) {
   catch (e) { toastErr(e); backToStart(); return; }
   const { doc, source, files } = got;
   if (!doc.title) doc.title = file.name.replace(/\.[^.]+$/, "");
-  const { id } = await S.create({ title: doc.title, scale: doc.scale, standard: doc.standard || "" });
+  const id = await createMap({ title: doc.title, scale: doc.scale, standard: doc.standard || "" });
+  if (!id) return;
   if (source) { await S.saveSource(id, source); await S.setCard(id, { source: { name: file.name, kind: "ocad", version: doc.ocad?.version || 0 } }); }
   for (const [sha, f] of Object.entries(files || {})) await S.saveFile(id, f.bytes, f.type || "application/octet-stream").catch(() => {});
   history.pushState(null, "", `#/orga-carto?id=${id}`);

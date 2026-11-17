@@ -90,7 +90,10 @@ export function drawLeft(E) {
     E.symbol = Number(b.dataset.sym);
     E.recent = [E.symbol, ...(E.recent || []).filter((n) => n !== E.symbol)].slice(0, 8);
     if (E.toolName !== "draw" && E.toolName !== "fill") E.setTool("draw");
-    drawLeft(E);
+    // by touch: the drawing modes at hand, and the drawer out of the map's way
+    if (E.touch && E.ribbon && E.ribbon.tab !== "draw") { E.ribbon.tab = "draw"; E.ribbon.draw(); }
+    E.closeDrawers?.();
+    drawLeft(E); E.status?.();
   };
   el.querySelector(".mp-sym-q").oninput = (ev) => { E._symQ = ev.target.value; const pos = ev.target.selectionStart; drawLeft(E); const i = E.$(".mp-sym-q"); i.focus(); i.setSelectionRange(pos, pos); };
   for (const d of el.querySelectorAll("details[data-g]")) d.ontoggle = () => { const s = new Set(E._open || ["vegetation", "relief"]); if (d.open) s.add(d.dataset.g); else s.delete(d.dataset.g); E._open = [...s]; };
@@ -264,7 +267,7 @@ export function contextMenu(E, ev, p) {
 // ---- properties, conflicts, coordinates ----------------------------------------------------------------------------------------------
 export async function propsDialog(E) {
   const d = E.doc, rw = d.realWorld || {};
-  const v = await modal(E, { title: t("map.file.props"), wide: true, body: `
+  const v = await modal(E, { title: t("map.file.props").replace(/\s*(…|\.\.\.)$/, ""), wide: true, ok: t("map.dlg.save"), body: `
     ${field(t("map.props.title"), `<input name="title" required maxlength="140" value="${esc(d.title)}">`)}
     ${field(t("map.props.scale"), `<input name="scale" type="number" min="500" max="100000" step="1" value="${d.scale}">`, t("map.props.scaleHint"))}
     ${field(t("map.props.crs"), `<input name="epsg" type="number" min="0" step="1" value="${rw.epsg || ""}" placeholder="2154">`, t("map.props.crsHint"))}

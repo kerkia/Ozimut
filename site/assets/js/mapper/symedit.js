@@ -41,6 +41,20 @@ const FIELDS = {
   rect: [["lineColor", "map.sym.color", "color"], ["lineWidth", "map.sym.width", "mm"], ["radius", "map.sym.radius", "mm"]],
   point: [],
 };
+/** The fields under headings, where a kind has many (owner, 2026-11-17: a line's twenty-five were one flat grid, a double line's
+ *  « Remplir » beside the dashes): [heading (`map.sym.grp.<id>`), field keys]. `WITH_LIST`: the fields shown with an element list. */
+const GROUPS = {
+  line: [["stroke", ["lineColor", "lineWidth", "lineEnds"]], ["dashes", ["mainLength", "mainGap", "endLength", "endGap", "secGap", "minSym", "distFromStart", "distToEnd"]],
+    ["double", ["dblMode", "dblWidth", "dblFillColor", "dblFlags", "dblLeftColor", "dblLeftWidth", "dblRightColor", "dblRightWidth", "dblLength", "dblGap"]], ["frame", ["frColor", "frWidth"]]],
+  area: [["fill", ["fillOn", "fillColor"]], ["hatch", ["hatchMode", "hatchColor", "hatchLineWidth", "hatchDist", "hatchAngle1", "hatchAngle2"]],
+    ["pattern", ["structMode", "structWidth", "structHeight", "structAngle"]], ["border", ["borderOn", "borderSym"]]],
+};
+const WITH_LIST = { line: { prim: ["nPrimSym", "primSymDist"] } };
+function fieldsHtml(E, s, k, fields) {
+  const cell = (f) => input(E, s, f), by = new Map(fields.map((f) => [f[0], f]));
+  if (!GROUPS[k]) return fields.length ? `<div class="mp-symfields">${fields.map(cell).join("")}</div>` : "";
+  return GROUPS[k].map(([g, keys]) => `<fieldset class="mp-symgrp"><legend>${esc(t(`map.sym.grp.${g}`))}</legend><div class="mp-symfields">${keys.map((x) => cell(by.get(x))).join("")}</div></fieldset>`).join("");
+}
 /** The element lists a kind has: point `elts`; line prim/sec/corner/start/end; area `elts` (its pattern's glyph). */
 const ELISTS = { point: ["elts"], line: ["prim", "sec", "corner", "start", "end"], area: ["elts"] };
 const FONTS = ["Arial", "Arial Narrow", "Roboto", "Roboto Condensed", "Helvetica", "Times New Roman", "Courier New", "Verdana"];
@@ -84,14 +98,14 @@ function readField(form, s, [key, , unit]) {
   }
 }
 /** An element list as text: one element a line — kind, colour, width, diameter, then its points « x y; x y » in mm. */
-function eltsHtml(E, s, list) {
+function eltsHtml(E, s, list, head = "") {
   const els = s[list] || [];
   const cols = E.doc.colors.slice().reverse().map((c) => [c.num, c.name]);
-  return `<fieldset class="mp-elts" data-list="${list}"><legend>${esc(t(`map.sym.list.${list}`))}</legend>
+  return `<fieldset class="mp-elts" data-list="${list}"><legend>${esc(t(`map.sym.list.${list}`))}</legend>${head}
     ${els.map((e, i) => `<div class="mp-elt" data-i="${i}">${selHtml(`${list}_t${i}`, ELT.map(([n, k]) => [n, t(k)]), e.type)}${selHtml(`${list}_c${i}`, cols, e.color)}
       <label>${esc(t("map.sym.width"))} <input name="${list}_w${i}" type="number" step="0.01" value="${MM(e.lineWidth)}" class="mp-num"></label>
       <label>${esc(t("map.sym.diameter"))} <input name="${list}_d${i}" type="number" step="0.01" value="${MM(e.diameter)}" class="mp-num"></label>
-      <input name="${list}_p${i}" value="${esc((e.coords || []).map((c) => `${G.mmX(c)} ${G.mmY(c)}${G.flags(c) & 3 ? `*${G.flags(c) & 3}` : ""}`).join("; "))}" class="mp-pts" aria-label="${esc(t("map.sym.points"))}" title="${esc(t("map.sym.pointsHint"))}">
+      <label class="mp-ptsl">${esc(t("map.sym.points"))} <input name="${list}_p${i}" value="${esc((e.coords || []).map((c) => `${G.mmX(c)} ${G.mmY(c)}${G.flags(c) & 3 ? `*${G.flags(c) & 3}` : ""}`).join("; "))}" class="mp-pts" aria-label="${esc(t("map.sym.points"))}" title="${esc(t("map.sym.pointsHint"))}"></label>
       <button type="button" class="tr-icon" data-edel="${list}:${i}" title="${esc(t("map.col.delete"))}">✕</button></div>`).join("")}
     <button type="button" class="btn btn-sm" data-eadd="${list}">${esc(t("map.sym.addElt"))}</button></fieldset>`;
 }
@@ -148,8 +162,8 @@ export async function editSymbol(E, sym = null, { from = null, kind = null } = {
         <label class="mp-symf"><span>${esc(t("map.sym.name"))}</span><span><input name="description" value="${esc(s.description || "")}" maxlength="60"></span></label></div>
         <div class="mp-row">${k === "point" ? `<label><input type="checkbox" name="rotatable" ${s.flags & 1 ? "checked" : ""}> ${esc(t("map.sym.rotatable"))}</label>` : ""}
           <label><input type="checkbox" name="hidden" ${s.status & 2 ? "checked" : ""}> ${esc(t("map.sym.hidden"))}</label></div>
-        <div class="mp-symfields">${fields.map((f) => input(E, s, f)).join("")}</div>
-        ${lists.map((l) => eltsHtml(E, s, l)).join("")}
+        ${fieldsHtml(E, s, k, fields)}
+        ${lists.map((l) => eltsHtml(E, s, l, WITH_LIST[k]?.[l] ? `<div class="mp-symfields">${WITH_LIST[k][l].map((x) => input(E, s, fields.find((f) => f[0] === x))).join("")}</div>` : "")).join("")}
       </div>
       <div class="mp-symed-r"><canvas id="mp-symprev" width="320" height="200" aria-label="${esc(t("map.sym.preview"))}"></canvas><p class="mp-hint" id="mp-symerr"></p>
         <p class="mp-hint">${esc(t(`map.sym.kind.${k}`))}</p></div></div>`;
