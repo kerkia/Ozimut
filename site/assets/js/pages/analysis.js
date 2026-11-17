@@ -278,7 +278,7 @@ export async function render(main, { query = {}, route } = {}) {
   let future = prefs.future === "faint" ? "faint" : "hide";            // the trace still to run: hidden, or faded
   // the map turned so that the leg being run points up (owner, 2026-11-02, after RouteGadget), else north up; `rot` the angle
   // (radians, clockwise on the screen) about the canvas's centre, after the view — the view itself stays north up
-  let orient = prefs.orient === "leg" ? "leg" : "north", rot = 0;
+  let orient = prefs.orient === "leg" ? "leg" : "north", rot = 0, shownUp = 0;
   let traceColour = /^#[0-9a-f]{6}$/i.test(prefs.traceColour || "") ? prefs.traceColour : TRACE;
   // the curves: all of the file's by default — there is room for them (owner, 2026-10-15); the former default (pace and
   // heart rate) counts as no choice made
@@ -966,7 +966,16 @@ export async function render(main, { query = {}, route } = {}) {
     $("#an-pick").hidden = (perso && !orgaMode) || !on; $("#an-rf").hidden = perso || !on; $("#an-files").hidden = !on;
     $("#an-brief").hidden = true;
   }
-  const setStatus = (s) => { status = s; side(); };
+  // a computation under way is shown with a bar (owner, 2026-11-17: the page showed nothing while the map was read):
+  // `busy` false = none, null = of unknown length, a number = the share done (course.js says it step by step)
+  let busy = false;
+  const setStatus = (s, wait = false) => { status = s; busy = wait; side(); };
+  const readingProgress = (redraw) => (f, pass) => {
+    const text = t(pass === 2 ? "an.st.reading2" : "an.st.reading"), el = document.querySelector(".an-prog");
+    busy = f;
+    if (text !== status || !el) { status = text; redraw(); } else setBar(el, f);
+  };
+  const busyBlock = () => (busy !== false && status ? html`<div class="an-busy"><div>${status}</div>${raw(bar(busy, "an-prog"))}</div>` : "");
   const calKey = () => `${CAL_KEY}.${key}.${di}.${ci}.${runner()?.name}.${map?.width}x${map?.height}`;
   // the trace a calibration was made with: its geometry is in that trace's own metres, and another trace (the complete
   // file after a cut one, 2026-10-15) has other passes — it starts afresh
@@ -1038,11 +1047,12 @@ export async function render(main, { query = {}, route } = {}) {
     mapOrdered = false;
     olderReading = false;
     if (fresh) { try { localStorage.removeItem(calKey()); } catch (e) { /* nothing kept */ } }
-    setStatus(t("an.st.reading"));
+    setStatus(t("an.st.reading"), 0);
     await tick();
     if (!files.orga && (!courseCache || courseCache.image !== map)) {
       let c = null;
-      try { c = await detectCourse(map); } catch (e) { console.error(e); }
+      try { c = await detectCourse(map, { progress: readingProgress(side) }); } catch (e) { console.error(e); }
+      busy = false;
       courseCache = { image: map, course: c };
     }
     if (my !== prepToken) return;
@@ -1129,11 +1139,12 @@ export async function render(main, { query = {}, route } = {}) {
     let geometry = geoFit;
     auto = null;
     if (!geometry && located.length >= 3) {
-      setStatus(t("an.st.aligning"));
+      setStatus(t("an.st.aligning"), null);
       await tick();
       if (my !== prepToken) return;
       auto = alignTrack(track, ptsOf(located), { rStar: r, tol: TOL });
       geometry = auto?.fit || null;
+      busy = false;
       if (!auto) notes.push(t("an.st.noAlign"));
     } else if (!geometry) notes.push(t("an.st.fewPoints", { n: located.length }));
     // the rings the first pass missed: where the trace turns sharply and no control is placed, look again
@@ -1174,8 +1185,26 @@ export async function render(main, { query = {}, route } = {}) {
     const mapOrder = !iofCourse ? courseOrder(geometry, located) : null;
     mapOrdered = !!mapOrder;
     if (mapOrder) located = mapOrder;
-    const vo = mapOrder || orgaPts ? passesInOrder(track, geometry, ptsOf(located), TOL) : visitOrder(track, geometry, ptsOf(located), TOL, { leg: course?.leg });
+    const passes = () => (mapOrder || orgaPts ? passesInOrder(track, geometry, ptsOf(located), TOL) : visitOrder(track, geometry, ptsOf(located), TOL, { leg: course?.leg }));
+    let vo = passes();
     const passOf = (p) => { const i = located.indexOf(p); return i >= 0 && vo.pass.has(i) ? vo.pass.get(i) : null; };
+    // a start the map's reading did not give (a photo without its colours: the triangle is not told from the town's
+    // lines): looked for where the runner waited on the leg printed into the first control (course.js `probeStart`)
+    if (!iofCourse && !orgaPts && course?.probeStart && !pts.some((q) => q.kind === "start" && q.pos)) {
+      const timed = located.filter((q) => q.kind === "control" && passOf(q) != null);
+      const first = mapOrder ? timed[0] : timed.sort((a, b) => passOf(a) - passOf(b))[0];
+      const t1 = first ? passOf(first) : null, before = [];
+      for (let i = 0; t1 != null && i < track.n && track.t[i] < t1; i++) before.push([...toPx(geometry, track.x[i], track.y[i]), track.t[i]]);
+      const st = first ? course.probeStart(first.pos, before) : null;
+      if (st) {
+        const sp = { kind: "start", code: "", pos: [st.x, st.y], probed: true };
+        for (let i = pts.length - 1; i >= 0; i--) if (pts[i].kind === "start") pts.splice(i, 1);
+        pts.unshift(sp);
+        located = [sp, ...located.filter((q) => q.kind !== "start")];
+        vo = passes();
+        notes.push(t("an.st.startFound"));
+      }
+    }
     // two circles passed within 15 s are not two controls (a leg takes longer): the second is a phantom
     let prevT = -Infinity;
     const visited = vo.order.map((i) => located[i]).map((p) => { const tp = passOf(p); const ok = tp == null || tp - prevT >= 15; if (ok && tp != null) prevT = tp; return ok ? p : { ...p, missed: true }; });
@@ -1425,7 +1454,7 @@ export async function render(main, { query = {}, route } = {}) {
     const taus = officialTaus(), r = runner();
     const placed = targets.filter((g) => g.pos && !g.missed).length, want = targets.filter((g) => !g.missed).length;
     const summary = [];
-    if (status && !targets.length) summary.push(status);
+    if (status && !targets.length && busy === false) summary.push(status);
     if (course) summary.push(t("an.st.found", { n: course.controls.length, s: course.start ? "✓" : "—", f: course.finish ? "✓" : "—" }));
     if (geoHow) summary.push(`${t("an.st.geo")} ${geoHow}`);
     else if (auto) summary.push(t("an.st.aligned", { m: targets.filter((g) => g.pos && !g.missed && g.tEst != null).length, n: placed, r: fmt(auto.rotationDeg, 1) }));
@@ -1444,6 +1473,7 @@ export async function render(main, { query = {}, route } = {}) {
     // « Voir la course » was out of sight at the bottom of the panel's text) — on a phone, fixed at the window's bottom
     $("#an-side").classList.add("an-cal");
     $("#an-side").innerHTML = html`<div class="an-side-body"><div class="an-side-title">${t(mode === "manual" ? "an.cal.title" : "an.cal.auto")}</div>
+      ${busyBlock()}
       ${summary.length ? html`<ul class="an-summary">${summary.map((s) => html`<li>${s}</li>`)}</ul>` : ""}
       ${whoseNote}${notes.map((n) => html`<div class="notice" style="margin-bottom:6px">${n}</div>`)}
       ${mode === "manual" ? html`<p class="hint">${t("an.cal.help")}</p>${taus ? "" : html`<p class="hint">${t("an.cal.noSplits")}</p>`}` : ""}
@@ -1453,7 +1483,7 @@ export async function render(main, { query = {}, route } = {}) {
       <div class="an-fitbox">${fit ? html`${rmsM != null ? html`<div><span class="muted">${t("an.cal.fit")}</span> <b>${fmt(rmsM)} m</b> <span class="muted" title="${t("an.cal.fit.hint")}">ⓘ</span></div>` : ""}
           ${offset != null && guessOffset() != null ? html`<div><span class="muted">${t("an.cal.offset")}</span> <b>${signed(offset - guessOffset())}</b> <span class="muted" title="${t("an.cal.offset.hint")}">ⓘ</span></div>` : ""}
           ${offset == null ? html`<div class="notice">${t("an.cal.noStart")}</div>` : ""}`
-        : html`<div class="muted">${mode === "manual" ? t("an.cal.need", { n: need }) : status}</div>`}</div>
+        : html`<div class="muted">${mode === "manual" ? t("an.cal.need", { n: need }) : busy === false ? status : ""}</div>`}</div>
       </div>
       <div class="an-actions">
         <button type="button" class="btn btn-primary" id="an-done" ${raw(fit && offset != null ? "" : "disabled")}>${t("an.cal.done")}</button>${keepBox()}
@@ -1541,9 +1571,10 @@ export async function render(main, { query = {}, route } = {}) {
     $("#an-work").hidden = false;
     steps(3); size(); fitView();
     if (!files.orga && (!courseCache || courseCache.image !== map)) {
-      status = t("an.st.reading"); drawSide(); draw();
+      status = t("an.st.reading"); busy = 0; drawSide(); draw(); await tick();
       let c = null;
-      try { c = await detectCourse(map); } catch (e) { console.error(e); }
+      try { c = await detectCourse(map, { progress: readingProgress(drawSide) }); } catch (e) { console.error(e); }
+      busy = false;
       courseCache = { image: map, course: c };
     }
     course = files.orga ? null : courseCache?.course || null;
@@ -1596,7 +1627,7 @@ export async function render(main, { query = {}, route } = {}) {
     const labelOf = (a) => (a.k === "start" ? t("an.start") : a.k === "finish" ? t("an.finish") : String(A.filter((b) => b.k === "control" && b.i <= a.i).length));
     if (drawing.step === "draw") {
       side.innerHTML = html`<div class="an-side-body"><div class="an-side-title">✎ ${t("an.draw.title")}</div>
-        ${status ? html`<p class="muted">${status}</p>` : ""}
+        ${busy !== false ? busyBlock() : status ? html`<p class="muted">${status}</p>` : ""}
         <p class="hint">${t(d.pts.length ? "an.draw.help" : "an.draw.help0")}</p>
         <p class="muted">${t("an.draw.count", { n: d.pts.length, c: ctl })}${course || files.orga || status ? "" : html` · ${t("an.draw.noCircles")}`}</p>
         ${drawing.err ? html`<div class="notice">${drawing.err}</div>` : ""}${snapBox()}</div>
@@ -1944,15 +1975,17 @@ export async function render(main, { query = {}, route } = {}) {
   function fitTrace() {
     if (!fit || offset == null || !pxs) return;
     const a = indexAt(track, offset), b = indexAt(track, offset + total);
+    // measured as the map is shown (a sideways photo is turned upright), its centre turned back
+    const r = upTurn(), rc = Math.cos(r), rs = Math.sin(r);
     let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
-    for (let i = a; i <= b; i++) { x0 = Math.min(x0, pxs[i]); y0 = Math.min(y0, pys[i]); x1 = Math.max(x1, pxs[i]); y1 = Math.max(y1, pys[i]); }
+    for (let i = a; i <= b; i++) { const u = rc * pxs[i] - rs * pys[i], v = rs * pxs[i] + rc * pys[i]; x0 = Math.min(x0, u); y0 = Math.min(y0, v); x1 = Math.max(x1, u); y1 = Math.max(y1, v); }
     const { w, h } = box();
     if (!w || !h) { pendingFit = fitTrace; return; }
     if (x1 <= x0) return;
     pendingFit = null;
     const top = topReserved(), hh = Math.max(60, h - top);
-    const k = Math.min(w / (x1 - x0 + 60), hh / (y1 - y0 + 60), 8);
-    view = { k, ox: w / 2 - ((x0 + x1) / 2) * k, oy: top + hh / 2 - ((y0 + y1) / 2) * k };
+    const k = Math.min(w / (x1 - x0 + 60), hh / (y1 - y0 + 60), 8), uc = (x0 + x1) / 2, vc = (y0 + y1) / 2;
+    view = viewAt(rc * uc + rs * vc, -rs * uc + rc * vc, k, r);
     lastBox = { w, h };
   }
   function setFollow(on) {
@@ -2081,8 +2114,21 @@ export async function render(main, { query = {}, route } = {}) {
     const a = targets[j]?.pos, b = targets[j + 1]?.pos;
     return a && b && Math.hypot(b[0] - a[0], b[1] - a[1]) > 1 ? -Math.PI / 2 - Math.atan2(b[1] - a[1], b[0] - a[0]) : null;
   }
+  /** A map photographed sideways or upside down, shown upright (owner, 2026-11-17): the quarter turns that bring the north
+   *  the calibration found nearest the top; none for a map within 45° of north up, nor before the trace is laid. */
+  function upTurn() {
+    const f = fit || auto?.fit || geoFit;
+    if (!f || drawing) return 0;
+    const q = Math.round((-Math.PI / 2 - Math.atan2(-f.m22, -f.m12)) / (Math.PI / 2));
+    return (((q % 4) + 6) % 4 - 2) * (Math.PI / 2) || 0;
+  }
+  /** The view that puts the map's point (cx, cy) at the middle of the map's area (below the bar) at zoom k, the map turned by r. */
+  function viewAt(cx, cy, k, r) {
+    const { w, h } = box(), d = topReserved() / 2;
+    return { k, ox: w / 2 + d * Math.sin(r) - cx * k, oy: h / 2 + d * Math.cos(r) - cy * k };
+  }
   function mapTurn() {
-    if (orient !== "leg" || !calibrated || drawing) return 0;
+    if (orient !== "leg" || !calibrated || drawing) return upTurn();
     lastTurn = turnOf(Math.max(0, legAt(tNow))) ?? lastTurn;
     return lastTurn;
   }
@@ -2238,7 +2284,7 @@ export async function render(main, { query = {}, route } = {}) {
     if (!fit || l.t0 == null || end == null) return;
     const a = indexAt(track, offset + l.t0), b = indexAt(track, offset + end);
     // the map turned to this leg: its extent measured as it will be on the screen, its centre turned back
-    const r = orient === "leg" ? turnOf(legs.indexOf(l)) ?? lastTurn : 0, rc = Math.cos(r), rs = Math.sin(r);
+    const r = orient === "leg" ? turnOf(legs.indexOf(l)) ?? lastTurn : upTurn(), rc = Math.cos(r), rs = Math.sin(r);
     let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
     const add = (x, y) => { const u = rc * x - rs * y, v = rs * x + rc * y; x0 = Math.min(x0, u); y0 = Math.min(y0, v); x1 = Math.max(x1, u); y1 = Math.max(y1, v); };
     for (let i = a; i <= b; i++) add(pxs[i], pys[i]);
@@ -2271,8 +2317,11 @@ export async function render(main, { query = {}, route } = {}) {
   function fitView() {
     const { w, h } = box();
     const top = topReserved(), hh = Math.max(60, h - top);
-    const k = w && h ? Math.min(w / map.width, hh / map.height) : 1;      // a hidden box has no size
-    view = { k, ox: (w - map.width * k) / 2, oy: top + (hh - map.height * k) / 2 };
+    // the map as it is shown: a sideways photo turned upright takes its height across
+    const r = upTurn(), c = Math.abs(Math.cos(r)), s = Math.abs(Math.sin(r)), mw = c * map.width + s * map.height, mh = s * map.width + c * map.height;
+    const k = w && h ? Math.min(w / mw, hh / mh) : 1;                      // a hidden box has no size
+    view = viewAt(map.width / 2, map.height / 2, k, r);
+    shownUp = r;
     lastBox = { w, h };
   }
   function zoomBy(f, cx, cy) {
@@ -2490,9 +2539,12 @@ export async function render(main, { query = {}, route } = {}) {
     }
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     ctx.fillStyle = "#e9e6dc"; ctx.fillRect(0, 0, w, h);
+    // the photo found sideways once the trace is laid: the whole map shown again, upright
+    const up = upTurn();
+    if (up !== shownUp) { shownUp = up; if (!calibrated) fitView(); }
     rot = mapTurn();
     const na = $("#an-northarrow");
-    if (na) { na.hidden = !rot; na.style.transform = `rotate(${rot}rad)`; }
+    if (na) { na.hidden = Math.abs(rot - up) < 1e-6; na.style.transform = `rotate(${rot - up}rad)`; }
     const rc = Math.cos(rot), rs = Math.sin(rot), RX = view.ox - w / 2, RY = view.oy - h / 2;
     ctx.setTransform(dpr * view.k * rc, dpr * view.k * rs, -dpr * view.k * rs, dpr * view.k * rc, dpr * (rc * RX - rs * RY + w / 2), dpr * (rs * RX + rc * RY + h / 2));
     ctx.imageSmoothingEnabled = view.k < 1;

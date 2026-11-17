@@ -2217,6 +2217,25 @@ Every multiple-choice game was played through to its score page at phone size, w
   94.5° and 3.9° found, numbered in the printed order but for 10 and 11 of the first (44 m apart, taken in the trace's order);
   the earlier cases unchanged (Fougères 15/16, the synthetic and « hard » photos, none on the two maps without a course).
   The calibration of such a photo takes ~30 s (two readings). Test copies in the git-ignored `site/data/_trtest/q/`.
+  **The same evening** (owner: « add turning the photo upright », « why can't the start be read? », « the page stops responding
+  while the computation happens »). **Progress**: `detectCourse(image, { progress(share, pass) })` — `readCourse` says each step
+  done (the ink, the thin lines, each radius of the vote, the legs) and lets the page draw (`breathe`: after its next frame, a
+  message in a background tab — a timer there fires once a second); `analysis.js` `busy` (false, null = unknown length, a
+  share) and `busyBlock` draw the status with a bar (`waitbar.js`, `.an-busy`) at the top of the calibration panel and in the
+  drawing panel, « Le tracé a perdu sa couleur sur cette image… » (`an.st.reading2`) for the second reading, an hourglass while
+  the trace is laid. **Upright**: `upTurn()` — the quarter turns bringing the north the calibration found (`fit`, else
+  `auto.fit`, `geoFit`: the image vector (−m12, −m22)) nearest the top, 0 within 45° — is the view's turn in « Nord en haut »
+  (`mapTurn`), the leg's turn still its own; `fitView`, `fitTrace` and `zoomTo` measure the map as turned (`viewAt`), the
+  whole map shown again when the turn is found (`shownUp`), the north arrow only for a leg's turn. The map image itself, its
+  export and the kept analysis are not turned. **The start without colour** (`course.probeStart(first, before)`, the page
+  after the passes are known, note `an.st.startFound`): the triangle cannot be told by its shape there — 17 px across, three
+  one-pixel dark lines among a town's dark lines, joined to them: triangles of dark lines score as well all over the map
+  (measured) — so it is placed from the printed leg into the first control and the trace: every straight inked run leaving
+  that control's circle (80 % inked, two radii at least, leading to no symbol read), the stretches of one radius along it
+  where the runner stood 8 s or more before the first control, the run with the most waiting (its neighbours within 3°
+  pooled), **its last wait**. That is the start line, where the clock starts: on the second photo the triangle itself (2 px),
+  on the third 12 m before it (a minute in the call-up box 40 m back, then 9 s), on the first 63 m before it along the
+  marked route. The race clock then starts there (26:22, 28:05 and 25:49 instead of the whole trace).
 - **The analyses' playback layout** (owner, 2026-11-01: « the map is the key and should always be fully visible », « never need to
   scroll down on a large screen »; supersedes the layout notes above for « Analyse solo » and « Analyse multi »): the controls above
   the map (`.an-bar`: the race's line, play, speed, follow, the time slider, ⤢ ↗; Solo's figures of the moment on a second line —

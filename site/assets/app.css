@@ -1712,6 +1712,8 @@ body.an-theatre .an-right { grid-area: side; }
 /* a wait (waitbar.js): the share done, or an hourglass when unknown (no value: the browsers animate it) */
 .wait-bar { width: 110px; height: 7px; vertical-align: middle; margin-right: 6px; accent-color: var(--flag); flex: none; }
 .wait-bar[hidden] { display: none; }
+.an-busy { margin: 4px 0 10px; padding: 8px 10px; border: 1px solid var(--line); border-radius: 8px; background: var(--flag-wash, transparent); }
+.an-busy .wait-bar { display: block; width: 100%; height: 8px; margin: 8px 0 0; }
 .an-gen-state.busy { display: inline-flex; align-items: center; gap: 4px; flex-wrap: wrap; }
 .tr-status .wait-bar { width: 80px; height: 6px; }
 .an-gen-style { margin-left: 8px; font-size: 13px; }

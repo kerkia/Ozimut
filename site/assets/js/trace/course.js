@@ -43,22 +43,38 @@ export const READER = 3;
 const ANGLES = 24, STRIDE = 4;
 const DARK_T = 0.4, IN_DARK = 0.45, LEG = 0.75;
 
+/** The page given the time to draw: after its next frame when it is in view (a timer would be slowed to one a second
+ *  in a tab left in the background, where nothing is drawn anyway: a message then). */
+function breathe() {
+  return new Promise((done) => {
+    const next = () => { const c = new MessageChannel(); c.port1.onmessage = () => { c.port1.close(); done(); }; c.port2.postMessage(0); };
+    if (typeof document !== "undefined" && document.visibilityState === "visible" && typeof requestAnimationFrame === "function") requestAnimationFrame(next);
+    else next();
+  });
+}
+
 /**
  * The course printed on the map. Read by the overprint's colour first; when that finds no course whose circles the
  * leg lines join — fewer than three circles, or under 60 % of them joined to another — the map is read again without
  * colour (`dark`: dark thin rings of one size), and that reading is taken when it finds five circles or more, at least
  * 80 % of them joined by legs (a map without a course makes rings here and there, which no straight line joins). A
  * colour reading none of whose circles a leg reaches is letters or a logo: nothing is returned for it.
+ * `progress(share, pass)`: called as the reading goes (share 0 to 1, pass 1 the colour reading, 2 the one without),
+ * the page left to draw between two steps — the reading takes seconds, and half a minute when both are needed.
  */
 export async function detectCourse(image, opts = {}) {
-  const a = await readCourse(image, opts);
+  const say = opts.progress || null;
+  const a = await readCourse(image, { ...opts, progress: say && ((f) => say(0.5 * f, 1)) });
   const n = a.controls.length;
-  if (n >= 3 && a.legged >= Math.max(3, 0.6 * n)) return a;
-  const b = await readCourse(image, { ...opts, dark: true });
+  if (n >= 3 && a.legged >= Math.max(3, 0.6 * n)) { say?.(1, 1); return a; }
+  const b = await readCourse(image, { ...opts, dark: true, progress: say && ((f) => say(0.5 + 0.5 * f, 2)) });
+  say?.(1, 2);
   if (b.controls.length >= 5 && b.legged >= 0.8 * b.controls.length) return b;
   return n >= 3 && !a.legged ? { ...a, controls: [], start: null, finish: null, sequence: null, order: () => null } : a;
 }
-async function readCourse(image, { maxSide = 1800, debug = false, dark = false } = {}) {
+async function readCourse(image, { maxSide = 1800, debug = false, dark = false, progress = null } = {}) {
+  // a step done: said, and the page given a moment to draw it (nothing waits when nobody listens)
+  const step = progress ? (f) => { progress(f); return breathe(); } : () => null;
   const W = image.width, H = image.height;
   let s = Math.min(1, maxSide / Math.max(W, H)), w, h, full, lw, lum, ink, tInk, dens;
   const read = () => {
@@ -72,19 +88,22 @@ async function readCourse(image, { maxSide = 1800, debug = false, dark = false }
     lum = new Uint8Array(w * h);                                          // the lightness, for the finish's rings
     for (let i = 0, p = 0; i < lum.length; i++, p += 4) lum[i] = (299 * data[p] + 587 * data[p + 1] + 114 * data[p + 2]) / 1000;
   };
+  await step(0.02);
   read();
+  await step(0.22);
   // the reading is made for an overprint line about 3 px wide (its tolerances are in pixels): a sharper image — a
   // phone's photo of the whole map, 4000 px — is read smaller, else the title's letters come out as rings (2026-10-14)
-  if (lw > 3) { s *= 3 / lw; read(); }
+  if (lw > 3) { s *= 3 / lw; read(); await step(0.3); }
   // thick purple — a title, the class names, a logo — is not the course: keep what is thinner than three line widths
   const mask = thinOnly(full, w, h, Math.max(1, Math.round(1.5 * lw)));
   const dil = dilate(mask, w, h);
+  await step(0.34);
   // a ring of the course is the overprint's colour and empty inside (a hatching's grid of lines makes rings too)
   // (the colour-blind reading: any dark ring, and a town's map leaves more inside a circle)
   const coloured = dark ? () => true : (c) => purpleRing(c.cr !== undefined ? c : ringColour(ink, dens, w, h, c.x, c.y, c.r));
   const IN = dark ? IN_DARK : 0.3;
   const genuine = dark ? () => true : (c) => coloured(c) && inkInside(ink, w, h, c.x, c.y, c.r, tInk) <= IN;
-  const { circles, rStar, found } = findCircles(mask, dil, w, h, lw, genuine, dark);
+  const { circles, rStar, found } = await findCircles(mask, dil, w, h, lw, genuine, dark, (f) => step(0.34 + 0.4 * f));
   let controls = [], finish = null, start = null, startCands = null, added = null;
   if (rStar) {
     controls = circles.filter((c) => c.r >= (dark ? 0.85 : 0.75) * rStar && c.r <= (dark ? 1.18 : 1.25) * rStar);
@@ -109,8 +128,11 @@ async function readCourse(image, { maxSide = 1800, debug = false, dark = false }
         break;
       }
     }
+    await step(0.76);
     const lines = markLines(mask, dil, w, h, rStar, 2.2);
+    await step(0.82);
     const longLines = markLines(mask, dil, w, h, rStar, 2.9);              // a triangle's side (2.1 r*) must survive
+    await step(0.88);
     // a control circle never overlaps the finish's circles or the start triangle: what is found there is their own
     const nearSymbol = (c) => (finish && Math.hypot(c.x - finish.x, c.y - finish.y) < 1.2 * rStar);
     controls = controls.filter((c) => !nearSymbol(c));
@@ -251,6 +273,59 @@ async function readCourse(image, { maxSide = 1800, debug = false, dark = false }
     }
     return best.score >= 0.5 ? { x: best.x / s, y: best.y / s, r1: best.r1 / s, r2: best.r2 / s, score: best.score } : null;
   };
+  /**
+   * The start, when its triangle was not read (the colour-blind reading): on the leg printed into the first control,
+   * where the runner waited. `first` [x, y] the first control, `before` the trace before it, [x, y, t] in image pixels
+   * and seconds (the page's, once the trace is laid). From the control's circle, every straight inked run leaving it
+   * (80 % inked, two radii long at least) that leads to no symbol read is a leg the start may be at the end of — the
+   * run itself often goes on past the triangle, along a town's other lines —; on each, the stretches of one radius
+   * where the runner stood eight seconds or more within a radius of the line (a runner waits at the start; elsewhere
+   * they pass in three or four). The run with the most time waited wins, and on it the last wait: a runner called up
+   * a minute early waits further back first (the third photo: a minute 40 m behind the triangle, then nine seconds
+   * at it). Returns { x, y, wait } or null; `all` lists the runs.
+   */
+  const probeStart = (first, before, all = null) => {
+    if (!rStar || !before || before.length < 2) return null;
+    const from = { x: first[0] * s, y: first[1] * s }, P = before.map((q) => [q[0] * s, q[1] * s, q[2]]);
+    const syms = [...controls.map((c) => ({ x: c.x, y: c.y, r: rStar })), ...(finish ? [{ x: finish.x, y: finish.y, r: finish.r2 }] : [])]
+      .filter((q) => Math.hypot(q.x - from.x, q.y - from.y) > 0.5 * rStar);
+    const r0 = 1.25 * rStar;
+    const runs = [];
+    for (let deg = 0; deg < 360; deg += 1) {
+      const ux = Math.cos((deg * Math.PI) / 180), uy = Math.sin((deg * Math.PI) / 180);
+      let f0 = -1, last = -1, on = 0;
+      for (let d = r0; d <= 80 * rStar; d += 1) {
+        if (inkNear(from.x + d * ux, from.y + d * uy, ux, uy)) { if (f0 < 0) f0 = d; last = d; on++; }
+        else if (f0 >= 0 && d - last > 0.6 * rStar) break;
+        else if (f0 < 0 && d - r0 > 0.5 * rStar) break;
+      }
+      if (f0 < 0 || last - f0 < 2 * rStar || on < 0.8 * (last - f0 + 1)) continue;
+      if (syms.some((q) => { const vx = q.x - from.x, vy = q.y - from.y, a = vx * ux + vy * uy; return a > 0 && a < last + 2.5 * rStar && Math.abs(vx * uy - vy * ux) < 1.1 * Math.max(rStar, q.r); })) continue;
+      // the time spent beside the line, by stretches of half a radius; the best pair of neighbours
+      const far = last + 1.5 * rStar, n = Math.ceil(far / (0.5 * rStar)) + 1, wait = new Float32Array(n), sum = new Float32Array(n), when = new Float64Array(n);
+      for (let k = 0; k + 1 < P.length; k++) {
+        const vx = P[k][0] - from.x, vy = P[k][1] - from.y, a = vx * ux + vy * uy;
+        if (a < 3 * rStar || a > far || Math.abs(vx * uy - vy * ux) > rStar) continue;
+        const dt = Math.min(5, Math.max(0, P[k + 1][2] - P[k][2])), b = Math.floor(a / (0.5 * rStar));
+        wait[b] += dt; sum[b] += dt * a; when[b] += dt * P[k][2];
+      }
+      const waits = [];
+      for (let b = 0; b + 1 < n; b++) {
+        const v = wait[b] + wait[b + 1];
+        if (v >= 8) { const a = (sum[b] + sum[b + 1]) / v; waits.push({ x: from.x + a * ux, y: from.y + a * uy, wait: v, t: (when[b] + when[b + 1]) / v }); }
+      }
+      if (!waits.length) continue;
+      const c = { deg, len: last - f0, total: Math.max(...waits.map((q) => q.wait)), waits };
+      runs.push(c);
+      if (all) all.push({ deg, len: c.len / s, total: c.total, waits: waits.map((q) => ({ ...q, x: q.x / s, y: q.y / s })) });
+    }
+    if (!runs.length) return null;
+    // the run that saw the most waiting, with the runs a degree or three from it (one printed line): its last wait
+    const top = runs.reduce((p, q) => (q.total > p.total ? q : p));
+    const pool = runs.filter((q) => Math.min(Math.abs(q.deg - top.deg), 360 - Math.abs(q.deg - top.deg)) <= 3).flatMap((q) => q.waits);
+    const best = pool.reduce((p, q) => (q.t > p.t + 1 || (q.t > p.t - 1 && q.wait > p.wait) ? q : p));
+    return { x: best.x / s, y: best.y / s, wait: best.wait };
+  };
   /** The share of the straight way between two symbols (image points, each left at 1.3 r*) inked with the
    *  overprint, within a pixel and a half of the line: a leg printed from one to the other comes near 1 (ISOM cuts it
    *  here and there), two symbols no leg joins near 0. For the page: the legs say which controls follow each other. */
@@ -274,6 +349,7 @@ async function readCourse(image, { maxSide = 1800, debug = false, dark = false }
   // the course in its order, read as a runner reads the map — not from the trace (owner, 2026-11-01: the trace had
   // numbered 8 before 5, 6, 7): from the start triangle along the legs, and back from the finish along them; where a
   // leg leads to no circle found, the circle is looked for at its end (the photo's 15 and 16, 2026-11-01)
+  await step(0.95);
   const sequence = rStar && controls.length >= 2 ? (start ? followCourse(finish) : dark ? chainBack(finish) : null) : null;
   // the controls a printed leg joins to another one (or to the finish): a course's circles are, a texture's rings are not
   const legged = !rStar ? 0 : controls.filter((a) => controls.some((b) => b !== a && legIn(a.x, a.y, b.x, b.y, 1.3 * rStar, 1.3 * rStar) >= LEG)
@@ -440,7 +516,7 @@ async function readCourse(image, { maxSide = 1800, debug = false, dark = false }
       || placed.concat(controls).some((p) => Math.hypot(p.x - c.x, p.y - c.y) < 1.2 * rStar)) return null;
     return { x: c.x, y: c.y, r: c.r, score: c.score, raw: c.arcs, alongLeg: true };
   }
-  return { W, H, s, r: rStar ? rStar / s : null, controls: controls.map(back), probe, probeFinish, leg,
+  return { W, H, s, r: rStar ? rStar / s : null, controls: controls.map(back), probe, probeFinish, probeStart, leg,
     sequence: sequence && { ...sequence, points: sequence.points.map(back) }, order,
     finish: finish && { ...back(finish), r1: finish.r1 == null ? null : finish.r1 / s, r2: finish.r2 / s },
     start: start && { ...back(start), R: start.R / s }, nCircles: circles.length, lw, dark, legged,
@@ -522,14 +598,15 @@ function thinOnly(m, w, h, k) {
   }
   return out;
 }
-function findCircles(mask, dil, w, h, lw, genuine, dark = false) {
+async function findCircles(mask, dil, w, h, lw, genuine, dark = false, said = () => null) {
   const px = [];
   for (let i = 0; i < mask.length; i++) if (mask[i]) px.push(i);
   if (!px.length) return { circles: [], rStar: null, found: [] };
   const step = Math.max(1, Math.ceil(px.length / 250000));            // a purple-tinted photo: a sample of its pixels
   const cw = Math.ceil(w / STRIDE), ch = Math.ceil(h / STRIDE), acc = new Uint16Array(cw * ch);
   const found = [];
-  for (const r of RADII) {
+  for (const [ri, r] of RADII.entries()) {
+    await said(ri / RADII.length);
     if (r * 2 > Math.min(w, h)) break;
     if (r < 2.5 * lw || (dark && r < 8)) continue;                   // a circle this small lies within a line
     acc.fill(0);
