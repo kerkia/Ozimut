@@ -14,7 +14,7 @@ import {
   chartCard, bindChartCard, legend, tile, filterFold, pageTabs, tabFrom, bindPageTabs, cnLabel, scoreLabel,
 } from "../ui.js";
 import * as auth from "../auth.js";
-import { link, replaceQuery, terrainSeg } from "../app.js";
+import { link, replaceQuery, terrainSeg, terrainChoice } from "../app.js";
 
 const MODES = ["all", "runner", "club"];
 const LEVELS = ["A", "B1", "B2", "C1", "C2", "D"];
@@ -34,7 +34,9 @@ export async function render(main, { arg, query }) {
   // a race asked for by id (the e-mail digest's link, a runner's race) brings its own discipline, so that the list beside it is
   // that discipline's and holds it (owner, 2026-10-17: a sprint's link opened beside the forest list, the race not in it)
   const asked = query.id ? data.comp(query.id) : null;
-  if (asked && store.TERRAINS.includes(asked.terrain) && asked.terrain !== store.get().terrain) store.set({ terrain: asked.terrain });
+  // (« Toutes » chosen: every discipline is listed, the race is in it)
+  const all = terrainChoice() === "all";
+  if (!all && asked && store.TERRAINS.includes(asked.terrain) && asked.terrain !== store.get().terrain) store.set({ terrain: asked.terrain });
   const terrain = store.get().terrain;
   const meta = data.meta();
   const seasons = [...meta.seasons].map(String).reverse();
@@ -123,7 +125,7 @@ export async function render(main, { arg, query }) {
     const qn = normalise(st.q);
     const out = [];
     for (const c of data.comps().values()) {
-      if (c.terrain !== terrain || !c.nCircuits) continue;
+      if ((!all && c.terrain !== terrain) || !c.nCircuits) continue;
       if (st.season && String(c.season) !== st.season) continue;
       if (st.level && c.groupe !== st.level) continue;
       if (st.mode === "runner" && !runnerRaces.has(c.id)) continue;
@@ -149,7 +151,7 @@ export async function render(main, { arg, query }) {
           <span class="caret" aria-hidden="true">${isOpen ? "▾" : "▸"}</span>
           <span class="tree-date num">${fmtDate(c.date, "short")}</span>
           <span class="tree-title"><b>${c.title}</b><span class="dim"> · ${c.location || ""}</span></span>
-          <span class="tree-meta">${c.groupe ? html`<span class="tag">${c.groupe}</span>` : ""}
+          <span class="tree-meta">${all ? terrainTag(c.terrain) : ""}${c.groupe ? html`<span class="tag">${c.groupe}</span>` : ""}
             <span class="tag">${fmtFormat(c.epreuve)}</span>
             ${mine.length ? html`<span class="tag tag-in">${mine.map((r) => (r[R.place] ? ord(r[R.place]) : t(`status.${r[R.status]}`) || "—")).join(" · ")}</span>` : ""}
             <span class="dim num">${fmt(c.n)}</span></span>

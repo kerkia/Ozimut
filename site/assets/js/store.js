@@ -22,6 +22,7 @@ const defaults = {
   methods: ["official"],
   arenaMethod: "official", // Arena's own (owner, 2026-10-31: chosen in Réglages; Stats keeps its switch)
   terrain: "For",
+  allTerrains: false,     // « Toutes » chosen on a page listing races (app.terrainChoice); the others keep `terrain`
   compare: [],            // [{lic, slot}] — slot is a fixed colour index 0..7
   clubs: [],              // [{code, slot}] — clubs being compared, same slot rule
   pageSize: 50,           // ranking list: 25 | 50 | 100 | "all"

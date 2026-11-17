@@ -506,6 +506,7 @@ export default {
   "nw.clubNo": "N.º club",
   "rn.scoreCn": "puntuación · {cnS} después",
   "rn.noRacesIn": "Ninguna carrera en",
+  "rn.oneTerrain": "Esta pestaña muestra una disciplina a la vez: elige una.",
   "rn.ev.delta": "Variación",
   "rn.cnHistory.hint": "Cada entrada o salida de una carrera en la ventana de cálculo (un reescalado nunca mueve {cnThe})",
   "rn.cnHistory": "Historial {cnOf}",

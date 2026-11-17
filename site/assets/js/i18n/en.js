@@ -507,6 +507,7 @@ export default {
   "nw.clubNo": "Club no.",
   "rn.scoreCn": "score · {cnS} after",
   "rn.noRacesIn": "No races in",
+  "rn.oneTerrain": "This tab shows one discipline at a time: choose one.",
   "rn.ev.delta": "Change",
   "rn.cnHistory.hint": "Each race entering or leaving the calculation window (rescaling never moves {cnThe})",
   "rn.cnHistory": "{cnOf} history",

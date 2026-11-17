@@ -446,6 +446,7 @@ export default {
   "nw.clubNo": "N° club",
   "rn.scoreCn": "score · {cnS} après",
   "rn.noRacesIn": "Aucune course en",
+  "rn.oneTerrain": "Cet onglet se lit une spécialité à la fois : choisissez-en une.",
   "rn.ev.delta": "Variation",
   "rn.cnHistory.hint": "Chaque entrée ou sortie d'une course dans la fenêtre de calcul (un recalage ne fait jamais bouger {cnThe})",
   "rn.cnHistory": "Historique {cnOf}",

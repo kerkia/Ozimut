@@ -24,7 +24,7 @@ const TABS = [["courses", "rn.tab.races"], ["calcul", "rn.tab.calc"], ["historiq
 const OLD_TABS = { evolution: "progression" };
 import { loadRanking, AGES } from "./ranking.js";
 import { monthlyProgress, seasonEnds, curveKey } from "../progress.js";
-import { link, replaceQuery, terrainField, goInPlace } from "../app.js";
+import { link, replaceQuery, terrainField, terrainChoice, goInPlace } from "../app.js";
 import * as auth from "../auth.js";
 import * as country from "../country.js";
 
@@ -43,6 +43,10 @@ export async function render(main, { arg, query }) {
   const meta = data.meta();
   const terrain = store.get().terrain;
   const mineT = races.filter((r) => r[R.terrain] === terrain);
+  // « Toutes » in the filter (owner, 2026-11-17): the races and the map list every discipline; the tabs about an index
+  // (tiles, calculation, history, progression, seasons, network) need one, and say so with a choice of the runner's
+  const all = terrainChoice() === "all";
+  const shown = all ? races : mineT;
   let showScores = query.scores !== "0";
   let range = query.range || "all";
   let calcDate = query.d || null;
@@ -63,6 +67,13 @@ export async function render(main, { arg, query }) {
   const club = last?.[R.club] || person.club;
   const cp = data.clubParts(club);
 
+  const ownTerrains = store.TERRAINS.filter((x) => person.nBy[x]);
+  const pickNote = html`<div class="notice info" style="margin-bottom:16px;display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+    <span style="flex:1 1 280px">${t("rn.oneTerrain")}</span>
+    <div class="seg" role="group" aria-label="${t("f.terrain")}">${(ownTerrains.length ? ownTerrains : store.TERRAINS).map((x) =>
+      html`<button type="button" data-terrain-pick="${x}">${t(`terrain.${x}`)}</button>`)}</div></div>`;
+  const onePart = (content) => (all ? html`${pickNote}<div hidden>${content}</div>` : content);
+
   main.innerHTML = html`
     <div class="page-head">
       <div>
@@ -79,7 +90,7 @@ export async function render(main, { arg, query }) {
       <div class="row"><button class="btn" type="button" id="cmp-btn"></button></div>
     </div>
     ${pageTabs(tabs, tab)}
-    ${mineT.length ? "" : html`<div class="notice info">${t("rn.noRacesIn")} ${inSentence(t(`terrain.${terrain}`))}.</div>`}
+    ${all || mineT.length ? "" : html`<div class="notice info">${t("rn.noRacesIn")} ${inSentence(t(`terrain.${terrain}`))}.</div>`}
     ${filterFold(html`<div class="filters" id="filters"></div>`)}
     <div class="tiles" id="tiles" style="margin-bottom:16px"></div>
     <div data-panel="courses">
@@ -88,7 +99,7 @@ export async function render(main, { arg, query }) {
         <select id="season"></select></label></div></div>
       <div id="history" class="scroll-box"></div></section>
     </div>
-    <div data-panel="calcul">
+    <div data-panel="calcul">${onePart(html`
     <section class="card" style="margin-bottom:16px">
       <div class="card-head">
         <h2>${t("rn.calc", cnWords(store.get().method))}</h2>
@@ -97,15 +108,15 @@ export async function render(main, { arg, query }) {
       </div>
       <div class="card-body"><div class="calc" id="calc"></div></div>
     </section>
-    </div>
-    <div data-panel="historique">
+    `)}</div>
+    <div data-panel="historique">${onePart(html`
     <section class="card" style="margin-bottom:16px">
       <div class="card-head"><div><h2>${t("rn.cnHistory", cnWords(store.get().method))}</h2><div class="hint" id="cnhist-hint">${t("rn.cnHistory.hint")}</div></div>
         <span id="hist-seg"></span></div>
       <div id="cnhist"></div>
     </section>
-    </div>
-    <div data-panel="progression">
+    `)}</div>
+    <div data-panel="progression">${onePart(html`
     ${store.get().method === "official" ? html`<div class="notice warn" style="margin-bottom:16px;display:flex;align-items:center;gap:12px;flex-wrap:wrap">
       <span style="flex:1 1 320px">${t("rn.pg.offWarn")}</span>
       <button type="button" class="btn btn-sm" id="pg-to-top">${t("rn.pg.toTop")}</button></div>` : ""}
@@ -125,9 +136,9 @@ export async function render(main, { arg, query }) {
         <div style="margin-top:16px">${chartCard({ id: "curve", title: t("pg.curve"), hint: t("pg.curve.hint") })}</div>
       </div>
     </section>
-    </div>
+    `)}</div>
     <div data-panel="saisons">
-    <section class="card"><div class="card-head"><h2>${t("rn.seasons")}</h2></div><div id="seasons"></div></section>
+    ${onePart(html`<section class="card"><div class="card-head"><h2>${t("rn.seasons")}</h2></div><div id="seasons"></div></section>`)}
     <section class="card" id="fed-card" hidden style="margin-top:16px"><div class="card-head"><div><h2 id="fed-head"></h2>
       <div class="hint" id="fed-hint"></div></div></div><div id="fed-seasons"></div></section>
     </div>
@@ -135,7 +146,7 @@ export async function render(main, { arg, query }) {
     ${chartCard({ id: "rmap", title: t("rn.map"), hint: t("rn.map.hint"), tall: true, tools: html`<span id="rmap-tools"></span>` })}
     <p class="muted" id="rmap-note" style="font-size:12.5px;margin:8px 2px 0"></p>
     </div>
-    <div data-panel="reseau"><div id="rn-net"></div></div>`;
+    <div data-panel="reseau">${onePart(html`<div id="rn-net"></div>`)}</div>`;
   ["evo", "path", "pct", "curve", "rmap"].forEach((id) => bindChartCard(main, id));
   // the official CN over several seasons (owner, 2026-10-15): the warning's button picks Ozimut as the header's switch does
   $("#pg-to-top")?.addEventListener("click", () => {
@@ -155,6 +166,7 @@ export async function render(main, { arg, query }) {
   drawCmp();
 
   function drawFilters() {
+    if (all) { $("#filters").innerHTML = terrainField(); return; }
     $("#filters").innerHTML = html`${terrainField()}
       <div class="field"><span>${t("f.range")}</span>${seg("range",
         [["1", t("chart.12m")], ["3", t("chart.3y")], ["5", t("chart.5y")], ["all", t("chart.all")]], range)}</div>
@@ -631,7 +643,7 @@ export async function render(main, { arg, query }) {
   // its own « Tous / Forêt / … » buttons, which ignored it, are gone) — a race is a race, even a PM
   function drawHistory() {
     const methods = store.get().methods;
-    const pool = mineT;
+    const pool = shown;
     const seasonsR = [...new Set(pool.map((r) => r[R.date].slice(0, 4)))].sort().reverse();
     const sel = $("#season");
     const prevSel = sel.value;
@@ -725,15 +737,14 @@ export async function render(main, { arg, query }) {
 
   // ---- the map: the races run in each département, whatever the discipline unless one is chosen ---------------
   // (a race is placed by its organiser: a club or a département committee gives the département; a ligue, none)
-  let mapTerrain = "", mapSeason = "", mapDrawn = false;
+  let mapSeason = "", mapDrawn = false;
   async function drawMap() {
     mapDrawn = true;
-    const pool = races.filter((r) => (!mapTerrain || r[R.terrain] === mapTerrain) && (!mapSeason || r[R.date].startsWith(mapSeason)));
-    const seasonsR = [...new Set(races.filter((r) => !mapTerrain || r[R.terrain] === mapTerrain).map((r) => r[R.date].slice(0, 4)))].sort().reverse();
-    $("#rmap-tools").innerHTML = html`<span class="row" style="gap:10px">${seg("mt", [["", t("f.all")], ...store.TERRAINS.map((x) => [x, t(`terrain.${x}`)])], mapTerrain)}
+    const pool = shown.filter((r) => !mapSeason || r[R.date].startsWith(mapSeason));
+    const seasonsR = [...new Set(shown.map((r) => r[R.date].slice(0, 4)))].sort().reverse();
+    $("#rmap-tools").innerHTML = html`<span class="row" style="gap:10px">
       <select id="rmap-season" aria-label="${t("f.season")}"><option value="">${t("nw.allSeasons")}</option>
         ${seasonsR.map((s) => html`<option value="${s}" ${raw(s === mapSeason ? "selected" : "")}>${s}</option>`)}</select></span>`;
-    $$('[data-seg="mt"]').forEach((b) => b.addEventListener("click", () => { mapTerrain = b.dataset.value; drawMap(); }));
     $("#rmap-season").addEventListener("change", (e) => { mapSeason = e.target.value; drawMap(); });
     // one race = one competition (two circuits the same day count once)
     const by = new Map();
@@ -772,14 +783,16 @@ export async function render(main, { arg, query }) {
 
   function drawAll() {
     if (mapDrawn) drawMap();
+    drawHistory();
+    drawFedSeasons();
+    $("#tiles").hidden = all;
+    if (all) return;
     drawTiles();
     drawChart();
     drawCnHistory();
     drawCalc();
     drawProgress();
-    drawHistory();
     drawSeasons();
-    drawFedSeasons();
   }
   drawFilters();
   drawAll();
@@ -805,7 +818,7 @@ export async function render(main, { arg, query }) {
   let netDrawn = false;
   const showTab = bindPageTabs(main, tabs, tab, async (k) => {
     if (k === "carte" && !mapDrawn) drawMap();
-    if (k === "reseau" && !netDrawn) { netDrawn = true; (await import("./network.js")).ego($("#rn-net"), lic, query); }
+    if (k === "reseau" && !netDrawn && !all) { netDrawn = true; (await import("./network.js")).ego($("#rn-net"), lic, query); }
   });
   return { title: name, onRunnerPick: (other) => { if (other !== lic) goInPlace(sameView(other)); return true; },
     cleanup: () => main.removeEventListener("click", onLink) };

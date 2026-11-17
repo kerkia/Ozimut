@@ -124,7 +124,17 @@ const isLean = (r) => ["ranking", "categories", "relayHistory", "courses", "comp
 // ranked by a CN): there the switch also offers "Toutes", and its choice lives in the address
 // (?t=For|Spr|VTT|Ski, none = all). Around one runner = a runner in the address, or the last one seen.
 const ALL_TERRAIN_VIEWS = new Set(["stats", "territoires", "ages", "activite"]);     // ages, activite: old links to stats
-const allowsAllTerrains = (r) => r.route === "network" && ALL_TERRAIN_VIEWS.has(r.query.vue);
+const allTerrainView = (r) => r.route === "network" && ALL_TERRAIN_VIEWS.has(r.query.vue);
+// Pages listing races (owner, 2026-11-17): the runner's races and map, Stats' « Courses ». They too offer « Toutes », a choice
+// kept with the site's discipline (store `allTerrains`), which the other pages ignore: an index is one discipline's.
+const RACE_LIST_ROUTES = new Set(["runner", "courses"]);
+const allowsAllTerrains = (r) => allTerrainView(r) || RACE_LIST_ROUTES.has(r.route);
+/** The discipline the filter shows on the page `r`: "For", "Spr", "VTT", "Ski", or "all". */
+export function terrainChoice(r = parseHash()) {
+  if (allTerrainView(r)) return viewTerrain(r.query) || "all";
+  if (RACE_LIST_ROUTES.has(r.route) && store.get().allTerrains) return "all";
+  return store.get().terrain;
+}
 /** The discipline of such a view: "For", "Spr", "VTT", "Ski", or "" for all of them. */
 export const viewTerrain = (query) => (store.TERRAINS.includes(query.t) ? query.t : "");
 
@@ -238,7 +248,7 @@ export function replaceQuery(q) {
  */
 export function terrainField() {
   const r = parseHash(), all = allowsAllTerrains(r);
-  const v = all ? viewTerrain(r.query) || "all" : store.get().terrain;
+  const v = terrainChoice(r);
   return html`<label class="field"><span>${t("f.terrain")}</span>
     <select id="terrain-select" class="terrain-select" aria-label="${t("f.terrain")}">
       ${all ? html`<option value="all" ${raw(v === "all" ? "selected" : "")}>${t("f.all")}</option>` : ""}
@@ -248,7 +258,7 @@ export function terrainField() {
 /** The same choice as buttons, for a section's head (at its right, as the runner's « Historique des courses »). */
 export function terrainSeg() {
   const r = parseHash(), all = allowsAllTerrains(r);
-  const v = all ? viewTerrain(r.query) || "all" : store.get().terrain;
+  const v = terrainChoice(r);
   return html`<div class="seg" role="group" aria-label="${t("f.terrain")}">${[...(all ? [["all", t("f.all")]] : []),
     ...store.TERRAINS.map((x) => [x, t(`terrain.${x}`)])].map(([x, label]) => html`<button type="button" data-terrain-pick="${x}"
       aria-pressed="${x === v}">${label}</button>`)}</div>`;
@@ -263,8 +273,9 @@ document.addEventListener("change", (e) => {
 });
 function pickTerrain(v) {
   const now = parseHash(), { query } = now;
-  if (store.TERRAINS.includes(v)) store.set({ terrain: v });
-  if (allowsAllTerrains(now)) replaceQuery({ ...query, t: v === "all" ? null : v });
+  if (store.TERRAINS.includes(v)) store.set({ terrain: v, allTerrains: false });
+  else if (v === "all" && RACE_LIST_ROUTES.has(now.route)) store.set({ allTerrains: true });
+  if (allTerrainView(now)) replaceQuery({ ...query, t: v === "all" ? null : v });
   else if (query.t) { delete query.t; replaceQuery(query); }
   route_();
 }

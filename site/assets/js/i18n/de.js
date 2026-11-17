@@ -506,6 +506,7 @@ export default {
   "nw.clubNo": "Vereins-Nr.",
   "rn.scoreCn": "Score · {cnS} danach",
   "rn.noRacesIn": "Keine Läufe in",
+  "rn.oneTerrain": "Dieser Reiter zeigt jeweils eine Disziplin: wähle eine.",
   "rn.ev.delta": "Veränderung",
   "rn.cnHistory.hint": "Jeder Eintritt und Austritt eines Laufs im Berechnungszeitfenster (eine Neuskalierung verändert {cnThe} nie)",
   "rn.cnHistory": "Verlauf {cnOf}",

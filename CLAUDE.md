@@ -1851,6 +1851,7 @@ Every multiple-choice game was played through to its score page at phone size, w
   The runner's « Historique du CN » tab is the selected method's (owner, 2026-10-14; one history, not two): FFCO's
   published history read live for the official CN (`runner.drawFfHistory`), the computed window's entries and exits for
   a Top or Fit (`cn.cnHistory`), exits struck through in both.
+- **The Spécialité filter is the one discipline choice of a page** (owner, 2026-11-17): no section has buttons of its own beside it (the runner's races table and map had « Tous / Forêt / … » that ignored it). Pages listing races offer « Toutes » too — the runner's Courses and Carte, Stats' « Courses » (`app.RACE_LIST_ROUTES`; the choice kept as store `allTerrains`, beside `terrain`, read by `app.terrainChoice()`), as Statistiques' views do by `?t=`; the pages about an index (rankings, categories, compare, clubs, the runner's tiles, calculation, history, progression, seasons, network) stay one discipline: the runner's tabs say so under « Toutes » with a button per discipline the runner has run.
 - **Nothing moves on a change of selection** (owner, 2026-10-12/13): a switch of method, or another runner picked on the
   Coureur page (the search, a name or a node in its « Réseau »), redraws the page in place (`app.redraw`, `goInPlace`):
   same tab and settings, no loading screen, the scroll positions kept; the back button returns to the previous runner.
