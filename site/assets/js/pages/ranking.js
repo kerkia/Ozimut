@@ -14,6 +14,7 @@ import {
 import { link, replaceQuery, terrainField } from "../app.js";
 import * as auth from "../auth.js";
 import * as country from "../country.js";
+import * as cfqual from "../cfqual.js";
 // the country's own word for its regions when the catalogues have one (Canada: its provinces), else « regional federation »
 const regionWord = () => { const k = `f.region.${data.loadedCountry()}`; return t(k) !== k ? t(k) : t("f.region"); };
 
@@ -193,7 +194,7 @@ export async function render(main, { query }) {
   const f = {
     month: query.date ? data.monthFor(query.date) : data.latestMonth(),
     sexe: query.sexe || "", cat: query.cat || "", club: query.club || "", dept: query.dept || "",
-    ligue: query.ligue || "", q: query.q || "", podium: query.podium === "1",
+    ligue: query.ligue || "", q: query.q || "", podium: query.podium === "1", cf: query.cf === "1",
   };
   const terrain = st.terrain;
   const me = auth.myId() ? auth.session() : null;      // one's own row: France's licence, in France's ranking only
@@ -205,9 +206,23 @@ export async function render(main, { query }) {
     replaceQuery({
       date: f.month.slice(0, 7) === data.latestMonth().slice(0, 7) ? null : f.month.slice(0, 7),
       sort: sortMethod === store.get().methods[0] ? null : sortMethod, sexe: f.sexe, cat: f.cat, club: f.club, dept: f.dept,
-      ligue: f.ligue, q: f.q, podium: f.podium ? "1" : null,
+      ligue: f.ligue, q: f.q, podium: f.podium ? "1" : null, cf: f.cf && champs().length ? "1" : null,
     });
   }
+
+  // a qualification's tooltip: the championship, the threshold of the runner's category, their official CN
+  function cfTip(k, season, r) {
+    const s = cfqual.threshold(season, r.cat);
+    const v = { champ: t(`rk.cf.name.${k}`), year: season.year, cat: fmtCat(r.cat), s: fmt(s), cn: fmt(officialCn?.get(r.lic) ?? 0) };
+    return t(s === 0 ? "rk.cf.tipAll" : s === 1 ? "rk.cf.tipAny" : "rk.cf.tip", v);
+  }
+  // France's championships the discipline qualifies for (MD and LD in forest, the sprint's in sprint), judged on the official
+  // CN of the month shown against the thresholds FFCO last published for that month's season (cfqual.js); none before 2026
+  let officialCn = null;                                  // Map(licence -> official CN) of the month, read by reload()
+  const champs = () => (data.loadedCountry() === "FR" ? cfqual.champsOf(terrain) : [])
+    .map((k) => ({ k, season: cfqual.seasonFor(k, f.month) })).filter((c) => c.season);
+  const qualOf = (r) => Object.fromEntries(champs().map(({ k, season }) =>
+    [k, cfqual.qualifies(season, r.cat, officialCn?.get(r.lic) ?? null)]));
 
   // France's licences and FFCO's club numbers; another country's runner numbers and club keys are Ozimut's own: not shown
   const fr = data.loadedCountry() === "FR";
@@ -233,7 +248,7 @@ export async function render(main, { query }) {
     <div data-panel="classement">
       <section class="card" id="list-card">
         <div class="card-head">
-          <div><h2 id="list-title"></h2><div class="hint">${t("rk.sortHint")}</div></div>
+          <div><h2 id="list-title"></h2><div class="hint">${t("rk.sortHint")}</div><div class="hint" id="cf-hint" hidden></div></div>
         </div>
         <div id="list"></div>
       </section>
@@ -274,6 +289,7 @@ export async function render(main, { query }) {
         <select id="f-ligue" style="max-width:170px"><option value="">${t("f.all")}</option>${ligues.map((l) => html`<option value="${l}" ${raw(l === f.ligue ? "selected" : "")}>${l} - ${data.ligueName(l)}</option>`)}</select></label>
       <label class="field"><span>${t("f.name")}</span><input type="search" id="f-q" value="${f.q}" style="width:150px"></label>
       <label class="checkline"><input type="checkbox" id="f-podium" ${raw(f.podium ? "checked" : "")}>${t("f.podiums")}</label>
+      ${champs().length ? html`<label class="checkline" title="${t("rk.cf.filterTip")}"><input type="checkbox" id="f-cf" ${raw(f.cf ? "checked" : "")}>${t("rk.cf.filter")}</label>` : ""}
       <button class="btn btn-ghost" type="button" id="f-reset">${t("f.reset")}</button>`;
     bindDateControls(main, (m) => { f.month = m; reload(); });
     for (const k of ["sexe", "cat", "club", "dept", "ligue"]) {
@@ -281,8 +297,9 @@ export async function render(main, { query }) {
     }
     $("#f-q").addEventListener("input", debounce((e) => { f.q = e.target.value; refresh(); }, 180));
     $("#f-podium").addEventListener("change", (e) => { f.podium = e.target.checked; refresh(); });
+    $("#f-cf")?.addEventListener("change", (e) => { f.cf = e.target.checked; refresh(); });
     $("#f-reset").addEventListener("click", () => {
-      Object.assign(f, { sexe: "", cat: "", club: "", dept: "", ligue: "", q: "", podium: false });
+      Object.assign(f, { sexe: "", cat: "", club: "", dept: "", ligue: "", q: "", podium: false, cf: false });
       drawFilters(loaded.rows);
       refresh();
     });
@@ -291,7 +308,13 @@ export async function render(main, { query }) {
   async function reload() {
     foundLic = null;
     $("#list-card").classList.add("loading-veil");
-    loaded = await loadRanking(store.get().methods, terrain, f.month);
+    const ms = store.get().methods;
+    [loaded, officialCn] = await Promise.all([
+      loadRanking(ms, terrain, f.month),
+      // the qualification is FFCO's: the official CN, whichever method the list shows
+      champs().length ? data.cnAt("official", terrain, f.month) : null,
+    ]);
+    for (const r of loaded.rows) r.cf = qualOf(r);
     $("#list-card").classList.remove("loading-veil");
     drawFilters(loaded.rows);
     refresh();
@@ -299,8 +322,10 @@ export async function render(main, { query }) {
 
   function refresh() {
     const methods = store.get().methods;
+    const cfs = champs();
     const rows = applyFilters(loaded.rows, f, sortMethod)
-      .filter((r) => methods.some((m) => r.cn[m] != null));
+      .filter((r) => methods.some((m) => r.cn[m] != null))
+      .filter((r) => !f.cf || !cfs.length || cfs.some(({ k }) => r.cf?.[k]));
     syncUrl();
     const year = Number(f.month.slice(0, 4));
     const notes = [];
@@ -331,6 +356,12 @@ export async function render(main, { query }) {
     const ranked = [...rows].sort((a, b) => (b.cn[sortMethod] ?? -1) - (a.cn[sortMethod] ?? -1));
     ranked.forEach((r, i) => { r.pos = r.cn[sortMethod] != null ? i + 1 : null; });
     $("#list-title").textContent = `${fmt(ranked.filter((r) => r.pos).length)} ${t("rk.count")} — ${fmtDate(f.month)}`;
+    $("#cf-hint").hidden = !cfs.length;
+    if (cfs.length) {
+      $("#cf-hint").textContent = t("rk.cf.hint", {
+        list: cfs.map(({ k, season }) => t("rk.cf.hintOne", { s: t(`rk.cf.short.${k}`), champ: t(`rk.cf.name.${k}`), year: season.year, day: fmtDate(season.cnDay) })).join(" · "),
+      });
+    }
     const cols = [
       { key: "sel", label: raw('<span class="sr-only">✓</span>'), cls: "c", render: (r) => html`<input type="checkbox" data-sel="${r.lic}" ${raw(store.inCompare(r.lic) ? "checked" : "")} aria-label="${t("rn.addCompare")} ${r.name}">` },
       { key: "pos", label: t("rk.col.rank"), cls: "rank num", sort: (r) => r.pos, defaultDir: 1, render: (r) => r.pos ?? "" },
@@ -349,6 +380,9 @@ export async function render(main, { query }) {
       { key: "pct", label: t("rk.col.pct"), align: "r", cls: "num", sort: (r) => r.pct[sortMethod],
         render: (r) => (r.pct[sortMethod] == null ? html`<span class="dim">—</span>`
           : html`<span title="${t("rk.pct.tip", { p: data.fmtPct(r.pct[sortMethod]), cat: fmtCat(r.cat) })}">${data.fmtPct(r.pct[sortMethod])}</span>`) },
+      ...(cfs.length ? [{ key: "cf", label: html`<span title="${t("rk.cf.colTip")}">${t("rk.col.cf")}</span>`, cls: "nowrap",
+        sort: (r) => cfs.filter(({ k }) => r.cf?.[k]).length,
+        render: (r) => html`${cfs.filter(({ k }) => r.cf?.[k]).map(({ k, season }) => html`<span class="tag tag-cf" title="${cfTip(k, season, r)}">${t(`rk.cf.short.${k}`)}</span> `)}` }] : []),
       fr ? { key: "club", label: t("rk.col.club"), cls: "num", sort: (r) => r.clubCode, defaultDir: 1,
         render: (r) => r.clubCode ? html`<a href="${link.club(r.clubCode)}" title="${data.clubName(r.club)}">${r.clubCode}</a>` : "" }
         : { key: "club", label: t("rk.col.club"), sort: (r) => data.clubName(r.club), defaultDir: 1,
@@ -398,8 +432,10 @@ export async function render(main, { query }) {
     updateCompareBtn();
 
     $("#export").onclick = () => downloadCsv(`cn_${terrain}_${f.month}.csv`,
-      [t("csv.place"), t("csv.name"), ...(fr ? [t("csv.licence")] : []), t("csv.cat"), t("csv.club"), ...methods.map((m) => `cn_${m}`)],
-      table.rows().map((r) => [r.pos ?? "", r.nom, ...(fr ? [r.lic] : []), r.cat, fr ? r.club : data.clubName(r.club), ...methods.map((m) => r.cn[m] ?? "")]));
+      [t("csv.place"), t("csv.name"), ...(fr ? [t("csv.licence")] : []), t("csv.cat"), t("csv.club"), ...methods.map((m) => `cn_${m}`),
+        ...cfs.map(({ k, season }) => `${t(`rk.cf.short.${k}`)} ${season.year}`)],
+      table.rows().map((r) => [r.pos ?? "", r.nom, ...(fr ? [r.lic] : []), r.cat, fr ? r.club : data.clubName(r.club), ...methods.map((m) => r.cn[m] ?? ""),
+        ...cfs.map(({ k }) => (r.cf?.[k] ? "1" : ""))]));
   }
   function updateCompareBtn() {
     const n = store.get().compare.length;

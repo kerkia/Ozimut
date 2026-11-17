@@ -618,6 +618,7 @@ table.compact th, table.compact td { padding: 5px 8px; font-size: 13px; }
 .tag-ski { background: color-mix(in srgb, var(--s1) 16%, transparent); }
 .tag-in { background: var(--accent-wash); color: var(--ink); }
 .tag-warn { background: color-mix(in srgb, var(--flag) 18%, transparent); white-space: nowrap; }
+.tag-cf { background: color-mix(in srgb, var(--forest) 18%, transparent); color: var(--ink); white-space: nowrap; }
 .status { font-size: 12px; color: var(--ink-3); }
 .pager { display: flex; align-items: center; gap: 8px; justify-content: space-between; padding: 12px 18px; flex-wrap: wrap; border-top: 1px solid var(--grid); }
 .pager .pages { display: flex; gap: 4px; align-items: center; flex-wrap: wrap; }

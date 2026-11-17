@@ -2545,6 +2545,19 @@ Every multiple-choice game was played through to its score page at phone size, w
   discipline in the 12 months to the latest data) is the members' « PM 12 mois » column (since 2026-10-23 from the club's own
   file, `pm` {licence: {terrain: [n, pm]}} by `site_extras.member_pm` — it read every member's race file, up to a hundred
   requests a club; a member the file does not list still from their race file — filled in place) and the runner page's « PM sur 12 mois » tile (beside « Courses sur 12 mois »).
+- **Qualification for the championships in « Classement »** (owner, 2026-11-17): the list's « CF » column tags each runner
+  « MD » / « LD » (forest) or « Sprint » whose **official** CN of the month shown — whatever method the list shows — reaches the
+  threshold FFCO last published for their category, and « Qualifiés aux CF » (`?cf=1`) keeps only them; France from 2026 on (the
+  split rankings), not VTT or ski (no qualification by the ranking). FFCO's rule since the RC 2026: the CN in the discipline about
+  three months before the race at or above a threshold per category (none for D/H12 — every one runs the MD and LD —, any CN for
+  D/H75 and older), set again for each championship to qualify roughly 65-80 a category, twice that in D/H21. The thresholds are
+  `site/assets/js/cfqual.js` `CHAMPS`, by championship and season, read from FFCO's lists (archives.ffcorientation.fr › Courses ›
+  Qualifications): LD 2026 (CN of 23 May) and CFS 2026 (24 July, by groups of categories) as printed; MD 2026 (9 February) printed
+  none: each is its list's lowest CN in the category rounded down to the hundred. A month uses its season's table, else the latest
+  before it; **add each new season's block when FFCO publishes it** (the 2027 lists, from about February). The « qualifiés
+  d'office » (high level, the previous CF's first ten, league championships and quotas) are not known and not shown; the
+  category is the season's. Checked locally on 2026-10-19's data: forest 2 332 runners tagged (FFCO's LD list: 2 082 by the CN),
+  sprint 1 128 (FFCO: 1 179).
 - **Catégories** (`#/categories`, `pages/categories.js`, menu « Classement » after « Classement »; owner, 2026-10-18, after a
   mockup on real data): at a month-end (`?date=`), for the site's method and discipline, each class's CN spread on one axis —
   a band from the 10th to the 90th percentile, the middle half darker, the median (white tick) and the mean (◆) —, women and
