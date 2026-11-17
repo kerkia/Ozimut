@@ -4491,7 +4491,10 @@ Every multiple-choice game was played through to its score page at phone size, w
   `/assets/vendor/*` « immutable » for a year: a returning visitor asks the server for no code until the next deploy of code.
   **Never write an absolute `/assets/js/…` path in the code** (it would name the unversioned copy): `new URL("./x.js",
   import.meta.url)`, as `tracer/offline.js` and `mapper/field.js` do for their offline lists. A tab of the build before that asks
-  for a module gone is reloaded (`app.route_`'s catch); a reverted commit gives the same build name again.
+  for a module gone is reloaded (`app.route_`'s catch); its browser then keeps the site's page under that file's name for a
+  year (Pages answers a missing file with index.html, under the folder's cache rule), so the copy's name is the code's
+  fingerprint **and the commit** (`update.deploy`: `sha1(stamp + HEAD)`, written to build.txt; the deploys of one commit — the
+  hourly data runs — keep it): a reverted commit never brings a name back.
   **Texts per page** (`js/i18n/gen/` in the copy; the catalogues stay as they are written, and the local server reads them whole):
   `core.<lang>.js` (what the shared modules name, ~30 KB instead of 400), `p.<page>.<lang>.js` (a page's own: the keys its modules —
   static and dynamic imports, not entering the shared ones — name as strings, « agd.count », or begin, `agd.when.${w}`),

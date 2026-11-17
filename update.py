@@ -228,6 +228,17 @@ def front_build(stamp: str) -> bytes | None:
     return None
 
 
+def _head() -> str:
+    """The commit being published (empty when it cannot be told)."""
+    try:
+        r = subprocess.run(["git", "rev-parse", "HEAD"], cwd=ROOT, capture_output=True, text=True, timeout=20)
+        if r.returncode == 0 and r.stdout.strip():
+            return r.stdout.strip()
+    except Exception:                                       # noqa: BLE001 (no git: the workflow's own variable)
+        pass
+    return os.environ.get("GITHUB_SHA", "")
+
+
 def code_fingerprint() -> str:
     """What a deploy publishes besides the data: site/ without data/ and auth/ (the build stamp) and functions/."""
     h = hashlib.sha1(write_build_stamp().encode())
@@ -261,7 +272,14 @@ def deploy(db: Path | None = None) -> bool:
     write_data_stamp()
     t0 = time.monotonic()
     stamp = (ROOT / "site" / "assets" / "build.txt").read_text(encoding="utf-8").strip()
-    index = front_build(stamp)
+    # The copy's name: the code's fingerprint and the commit it is of. A file asked of a build that no longer has it (a
+    # tab of the build before) is answered with the site's page under the copy's year-long cache rule, and that browser
+    # keeps it under that name: a commit reverted must not bring the same name back. Deploys of the same commit (the
+    # hourly runs that only bring data) keep the name, so the browsers keep the code.
+    name = hashlib.sha1(f"{stamp}{_head()}".encode()).hexdigest()[:16]
+    index = front_build(name)
+    if index is not None:                                    # what the app compares with the build it runs (app.js)
+        (ROOT / "site" / "assets" / "build.txt").write_text(name, encoding="utf-8")
     cmd = [npx, "--yes", "wrangler", "pages", "deploy", "site", "--project-name", PAGES_PROJECT,
            "--branch", "main", "--commit-dirty=true"]
     # run from the project root: wrangler picks up ./functions from the working directory
