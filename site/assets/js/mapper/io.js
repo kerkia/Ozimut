@@ -38,7 +38,7 @@ export async function act(E, act) {
     }
     case "export-ocd": {
       const src = E.source && E.doc.ocad?.version >= 9 ? E.doc.ocad.version : 2018;
-      const v = await modal(E, { title: t("map.rib.export-ocd"), body: field(t("map.io.ocdVersion"), sel("v", [[String(src), t("map.io.ocdSame", { v: src })], ...[2018, 12, 11, 10, 9].filter((x) => x !== src).map((x) => [String(x), `OCAD ${x}`])], String(src)))
+      const v = await modal(E, { title: t("map.rib.export-ocd"), ok: t("map.ok.export"), body: field(t("map.io.ocdVersion"), sel("v", [[String(src), t("map.io.ocdSame", { v: src })], ...[2018, 12, 11, 10, 9].filter((x) => x !== src).map((x) => [String(x), `OCAD ${x}`])], String(src)))
         + `<p class="mp-hint">${t("map.io.ocdHint")}</p>`, remember: "mp-ocd" });
       if (!v) return;
       const { writeOcadDoc } = await import("./ocadout.js");
@@ -74,7 +74,7 @@ export async function act(E, act) {
 const areaOf = (E) => E.doc.printArea || (() => { const b = E.live.bounds(); return [b[0] - 3, b[1] - 3, b[2] + 3, b[3] + 3]; })();
 
 async function pdf(E, base) {
-  const v = await modal(E, { title: t("map.rib.export-pdf"), body: field(t("map.io.color"), sel("c", [["cmyk", t("map.io.cmyk")], ["rgb", t("map.io.rgb")]], "cmyk"))
+  const v = await modal(E, { title: t("map.rib.export-pdf"), ok: t("map.ok.pdf"), body: field(t("map.io.color"), sel("c", [["cmyk", t("map.io.cmyk")], ["rgb", t("map.io.rgb")]], "cmyk"))
     + `<label class="mp-row"><input type="checkbox" name="op" checked> ${t("map.colors.overprint")}</label>`, remember: "mp-pdf" });
   if (!v) return;
   E.say(t("map.io.writing"), "busy");
@@ -95,7 +95,7 @@ async function pdf(E, base) {
 }
 /** A raster of the print area at a resolution, with its world file in the map's grid (or a GeoTIFF-ready PNG + .pgw + .prj). */
 async function png(E, base, geo = false) {
-  const v = await modal(E, { title: t(geo ? "map.rib.export-geotiff" : "map.rib.export-png"), body: field(t("map.io.dpi"), sel("d", [["150", "150 dpi"], ["300", "300 dpi"], ["600", "600 dpi"]], "300")), remember: "mp-png" });
+  const v = await modal(E, { title: t(geo ? "map.rib.export-geotiff" : "map.rib.export-png"), ok: t("map.ok.export"), body: field(t("map.io.dpi"), sel("d", [["150", "150 dpi"], ["300", "300 dpi"], ["600", "600 dpi"]], "300")), remember: "mp-png" });
   if (!v) return;
   const r = areaOf(E), k = Number(v.d) / 25.4, W = Math.round((r[2] - r[0]) * k), H = Math.round((r[3] - r[1]) * k);
   if (W * H > 200e6) { E.say(t("map.io.tooLarge"), "bad"); return; }

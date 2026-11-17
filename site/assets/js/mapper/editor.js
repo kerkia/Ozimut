@@ -56,6 +56,8 @@ export async function openEditor(opts) {
       <aside class="mp-left" id="mp-left"></aside>
       <div class="mp-mapwrap"><div class="mp-map" id="mp-map" tabindex="0" aria-label="${esc(t("map.view.label"))}"></div>
         <div class="mp-toast" id="mp-toast" hidden></div>
+        <div class="mp-starthint" id="mp-starthint" hidden><b>${esc(t("map.empty.title"))}</b><p>${esc(t("map.empty.hint"))}</p>
+          <div><button type="button" class="btn btn-sm" data-act="tab:data">${esc(t("map.tab.data"))}</button><button type="button" class="btn btn-sm" data-act="tab:backgrounds">${esc(t("map.tab.backgrounds"))}</button></div></div>
         <div class="mp-zoom"><button type="button" data-act="zoom-in" title="${esc(t("map.view.zoomIn"))}">${svg("plus", 16)}</button><button type="button" data-act="zoom-out" title="${esc(t("map.view.zoomOut"))}">${svg("minus", 16)}</button><button type="button" data-act="zoom-fit" title="${esc(t("map.view.fit"))}">${svg("fit", 16)}</button></div>
       </div>
       <aside class="mp-right" id="mp-right"></aside>
@@ -257,6 +259,8 @@ export async function openEditor(opts) {
   E.setTool = (name) => {
     E.tool?.cancel?.();
     E.toolName = name; E.tool = TOOLS[name](E);
+    // a drawing tool taken while an object is chosen: its tab gives the ribbon back (the drawing modes are in « Dessiner »)
+    if (E.ribbon && E.ribbon.tab === "ctx" && !["select", "vertex", "pan"].includes(name)) E.ribbon.tab = name === "draw" ? "draw" : E.ribbon.prev || "draw";
     E.$("#mp-map").style.cursor = E.tool.cursor || "default";
     E.ribbon?.draw(); status(); E.view.overlay();
   };
@@ -269,6 +273,7 @@ export async function openEditor(opts) {
   };
   async function run(act, arg) {
     if (E.blank && !/^(zoom|file:(new|open|import))/.test(act)) { E.say(t("map.ed.needMap")); E.onStart(); return; }
+    if (act.startsWith("tab:")) { E.ribbon.tab = act.slice(4); E.ribbon.draw(); return; }      // a tab of the ribbon shown (the empty map's hint)
     if (act.startsWith("tool:")) { E.setTool(act.slice(5)); return; }
     if (act.startsWith("mode:")) { E.drawMode = act.slice(5); setPref("mode", E.drawMode); if (E.toolName !== "draw") E.setTool("draw"); return; }
     if (act.startsWith("file:")) { await fileAct(act.slice(5)); return; }
@@ -535,6 +540,7 @@ export async function openEditor(opts) {
     if (dr) { const k = `${dr.dataset.top}-open`; root.classList.toggle(k); root.classList.remove(k === "left-open" ? "right-open" : "left-open"); }
   });
   root.querySelector(".mp-zoom").addEventListener("click", (ev) => { const b = ev.target.closest("[data-act]"); if (b) E.act(b.dataset.act); });
+  root.querySelector("#mp-starthint").addEventListener("click", (ev) => { const b = ev.target.closest("[data-act]"); if (b) E.act(b.dataset.act); });
   // files dropped on the map: backgrounds, or another map to open
   const wrap = E.$(".mp-mapwrap");
   wrap.addEventListener("dragover", (ev) => { if ([...(ev.dataTransfer?.types || [])].includes("Files")) ev.preventDefault(); });
@@ -559,7 +565,9 @@ export async function openEditor(opts) {
     E.$("#mp-title").textContent = E.blank ? t("map.ed.noMap") : E.doc.title || t("map.untitled");
     E.$("#mp-scale").textContent = t("map.status.scale", { scale: nf(E.doc.scale), view: nf(E.view.k / E.view.dpr * 25.4 / 96 * 100, 0) });
     const hint = E.toolName === "draw" ? t(`map.hint.draw.${E.drawMode}`) : t(`map.hint.${E.toolName}`);
-    if (!E._measuring) E.$("#mp-hint").textContent = (E.sel.size ? tn("map.status.sel", E.sel.size) + " · " : "") + hint;
+    if (!E._measuring) { const h = E.$("#mp-hint"); h.textContent = (E.sel.size ? tn("map.status.sel", E.sel.size) + " · " : "") + hint; h.title = h.textContent; }
+    // a map with nothing on it yet: where to start (it goes with the first object, background or drawing in hand)
+    E.$("#mp-starthint").hidden = E.blank || E.readOnly || E.doc.objects.length > 0 || (E.doc.backgrounds || []).length > 0 || E.toolName !== "select";
     E.$("[data-act=undo]").disabled = !E.live.canUndo; E.$("[data-act=redo]").disabled = !E.live.canRedo;
   }
   E.status = status;

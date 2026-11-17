@@ -109,7 +109,7 @@ export function plates(doc, { process = false } = {}) { return platesOf(doc.spot
 /** The separation dialog and PDF: composite with Separation colour spaces, or plates. */
 export async function separationsPdf(E, area, base) {
   const hasSpots = (E.doc.spots || []).length > 0;
-  const v = await modal(E, { title: t("map.sep.title"), body: `<fieldset class="mp-choice"><legend>${esc(t("map.sep.what"))}</legend>
+  const v = await modal(E, { title: t("map.sep.title"), ok: t("map.ok.pdf"), body: `<fieldset class="mp-choice"><legend>${esc(t("map.sep.what"))}</legend>
       <label><input type="radio" name="m" value="composite" ${hasSpots ? "checked" : "disabled"}> ${esc(t("map.sep.composite"))}</label>
       <label><input type="radio" name="m" value="spot" ${hasSpots ? "" : "disabled"}> ${esc(t("map.sep.spotPlates"))}</label>
       <label><input type="radio" name="m" value="process" ${hasSpots ? "" : "checked"}> ${esc(t("map.sep.processPlates"))}</label></fieldset>

@@ -172,7 +172,7 @@ async function partAct(E, a, id) {
   const parts = E.doc.parts.map((p) => ({ ...p }));
   const p = parts.find((x) => x.id === id);
   if (a === "add") {
-    const v = await modal(E, { title: t("map.parts.add"), body: field(t("map.parts.name"), `<input name="name" required maxlength="60">`) });
+    const v = await modal(E, { title: t("map.parts.add"), ok: t("map.ok.add"), body: field(t("map.parts.name"), `<input name="name" required maxlength="60">`) });
     if (!v?.name) return;
     const nid = `p${Date.now().toString(36)}`;
     parts.push({ id: nid, name: v.name, hidden: false, locked: false });
@@ -247,13 +247,14 @@ export function contextMenu(E, ev, p) {
   const hit = E.live.pick(p[0], p[1], 8 * E.view.mmPerPx);
   if (hit && !E.sel.has(hit.id)) { E.sel.clear(); E.sel.add(hit.id); E.selChanged(); }
   const kind = E.selKind();
-  const items = kind ? [["changeSymbol", t("map.rib.changeSymbol")], ["duplicate", t("map.rib.duplicate")], ["delete", t("map.rib.delete")], "-",
-    ...(kind === "line" ? [["reverse", t("map.rib.reverse")], ["smooth", t("map.rib.smooth")], ["simplify", t("map.rib.simplify")]] : []),
-    ...(kind === "area" ? [["tool:hole", t("map.rib.tool_hole")], ["smooth", t("map.rib.smooth")]] : []),
-    ...(kind === "point" || kind === "text" ? [["rotate", t("map.rib.rotate")]] : []),
-    ...(kind === "draft" ? [["draft-accept", t("map.rib.draft-accept")], ["draft-reject", t("map.rib.draft-reject")]] : []),
-    "-", ["pipette-here", t("map.ctxm.pipette")], ["toFront", t("map.rib.toFront")], ["toBack", t("map.rib.toBack")]]
-    : [["zoom-fit", t("map.view.fit")], ["paste", t("map.ctxm.paste")]];
+  const items = kind ? [["changeSymbol", t("map.rib.changeSymbol"), "symbol"], ["duplicate", t("map.rib.duplicate"), "copy"], "-",
+    ...(kind === "line" ? [["reverse", t("map.rib.reverse"), "swap"], ["smooth", t("map.rib.smooth"), "route"], ["simplify", t("map.rib.simplify"), "line"]] : []),
+    ...(kind === "area" ? [["tool:hole", t("map.rib.tool_hole"), "removecircle"], ["smooth", t("map.rib.smooth"), "route"]] : []),
+    ...(kind === "point" || kind === "text" ? [["rotate", t("map.rib.rotate"), "rotate"]] : []),
+    ...(kind === "draft" ? [["draft-accept", t("map.rib.draft-accept"), "check"], ["draft-reject", t("map.rib.draft-reject"), "close"]] : []),
+    "-", ["pipette-here", t("map.ctxm.pipette"), "target"], ["toFront", t("map.rib.toFront"), "layers"], ["toBack", t("map.rib.toBack"), "layers"],
+    "-", ["delete", t("map.rib.delete"), "trash"]]
+    : [["zoom-fit", t("map.view.fit"), "fit"], ["paste", t("map.ctxm.paste"), "copy"]];
   popupMenu(E, ev.clientX, ev.clientY, items, (a) => {
     if (a === "pipette-here") { if (hit) { E.symbol = hit.sym; drawLeft(E); } return; }
     E.act(a);

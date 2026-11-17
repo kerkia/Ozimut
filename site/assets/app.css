@@ -2862,8 +2862,27 @@ body.full-win .tr-app { border: 0; }
 .tr-field small { color: var(--ink-3); font-size: 11.5px; }
 .tr-field input, .tr-field select, .tr-field textarea, .tr-pop input, .tr-info input, .tr-info select { font: inherit; padding: 5px 7px; border: 1px solid var(--border-strong);
   border-radius: 6px; background: var(--plane); color: var(--ink); }
-.tr-grid2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px 14px; align-items: end; }
-.tr-grid2.top { align-items: start; }                    /* fields with a line of help under them: aligned on their labels */
+/* a dialog's fields in columns, aligned on their labels (owner, 2026-11-17: aligned on their bottoms, a line of help under one
+   field pushed its neighbours' labels down and the dialogs looked uneven); a tick box among them sits at its row's middle */
+.tr-grid2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px 14px; align-items: start; }
+.tr-grid2 > .tr-check { align-self: center; }
+.tr-grid2.top { align-items: start; }
+/* « Premiers pas »: the steps of a first course, in the left pane (tracer/firststeps.js) */
+.tr-steps { margin: 8px 8px 4px; padding: 8px 10px 10px; border: 1px solid var(--border); border-left: 3px solid var(--flag, #e8731a); border-radius: 8px; background: var(--surface-2); font-size: 13px; }
+.tr-steps-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 4px; }
+.tr-steps-head .tr-icon { width: 22px; height: 22px; padding: 0; }
+.tr-steps-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 7px; }
+.tr-steps-list li { display: flex; gap: 8px; align-items: flex-start; color: var(--ink-3); }
+.tr-steps-list li.now { color: var(--ink); }
+.tr-steps-list li.done { color: var(--ink-3); }
+.tr-steps-list li.done > div > span { text-decoration: line-through; text-decoration-color: color-mix(in srgb, currentColor 45%, transparent); }
+.tr-steps-list li > div { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 5px; }
+.tr-steps-list small { color: var(--ink-3); font-size: 11.5px; line-height: 1.35; }
+.tr-step-n { flex: none; width: 18px; height: 18px; margin-top: 1px; border-radius: 50%; border: 1.5px solid var(--border-strong); display: inline-grid; place-items: center; font-size: 11px; line-height: 1; }
+.tr-steps-list li.now .tr-step-n { border-color: var(--flag, #e8731a); }
+.tr-step-n.ok { background: var(--forest, #2f7d3a); border-color: var(--forest, #2f7d3a); color: #fff; }
+.tr-steps-btns { display: flex; flex-wrap: wrap; gap: 5px; }
+.tr-steps-btns .btn { display: inline-flex; align-items: center; gap: 4px; }
 .tr-inline { display: flex; align-items: center; gap: 6px; }
 .tr-field .tr-inline input { width: 5.5em; flex: none; }
 .tr-checkrow { display: flex; flex-wrap: wrap; gap: 6px 22px; margin: 10px 0 4px; }
@@ -4222,6 +4241,16 @@ tr.bk-blocked td { color: var(--ink-3); font-style: italic; }
 .mp-toast progress { width: 140px; }
 .mp-status { display: flex; gap: 16px; padding: 3px 10px; border-top: 1px solid var(--border); background: var(--surface); font-size: 12px; color: var(--ink-2); white-space: nowrap; overflow: hidden; flex: none; }
 .mp-status span { overflow: hidden; text-overflow: ellipsis; }
+/* the position and the scale whole, the tool's help in the room left (its whole text under the mouse), a warning never squeezed out */
+.mp-status #mp-pos, .mp-status #mp-scale { flex: none; }
+.mp-status #mp-hint { flex: 1 1 0; min-width: 0; }
+.mp-status #mp-warn { flex: 0 1 auto; max-width: 48%; }
+.mp-app .tr-top .tr-title { max-width: 34ch; min-width: 10ch; flex: 0 1 auto; }
+.mp-search input { width: clamp(110px, 16vw, 260px); }
+.mp-starthint { position: absolute; left: 50%; top: 42%; transform: translate(-50%, -50%); max-width: min(420px, 80%); padding: 14px 18px; border: 1px dashed var(--border-strong); border-radius: 10px;
+  background: color-mix(in srgb, var(--surface) 92%, transparent); color: var(--ink-2); text-align: center; font-size: 13px; z-index: 2; }
+.mp-starthint p { margin: 6px 0 10px; }
+.mp-starthint div { display: flex; gap: 8px; justify-content: center; }
 .mp-warn { color: var(--amber); font-weight: 600; }
 .mp-save { font-size: 12px; color: var(--ink-3); white-space: nowrap; }
 .mp-save[data-state="error"], .mp-save[data-state="conflict"] { color: var(--bad); }

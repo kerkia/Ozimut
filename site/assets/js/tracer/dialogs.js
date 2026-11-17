@@ -505,31 +505,46 @@ async function moveAll(E) {
   const c = Math.cos(a) * k, sn = Math.sin(a) * k;
   E.change((x) => M.transformAll(x, [c, -sn, sn, c, cx - c * cx + sn * cy + dx, cy - sn * cx - c * cy + dy]), t("trc.dlg.allMoved"));
 }
+const loadMore = () => { try { return localStorage.getItem("ocn.tr.courseMore") === "1"; } catch (e) { return false; } };
 export async function courseProps(E, courseId, focus = null) {
   const c = courseId ? E.ev.courses[courseId] : null;
   const isNew = !c;
   const d = c || { kind: "normal", name: "", printScale: E.ev.map.scale, climb: -1, length: null, secondary: "", descKind: "symbols", labels: "sequence", firstNumber: 1, scoreColumn: 0, hideFromReports: false, load: -1 };
-  const v = await modal(E, { title: isNew ? t("trc.dlg.newCourse") : t("trc.dlg.courseProps", { name: c.name }), wide: true, body: `<div class="tr-grid2">
+  // the essentials first; the rest folded for a new course (open for an existing one, and once opened it stays so), the fields
+  // of a score course shown only for one (owner, 2026-11-17: twelve fields at once for a name)
+  const more = !isNew || !!focus || loadMore();
+  const v = await modal(E, { title: isNew ? t("trc.dlg.newCourse") : t("trc.dlg.courseProps", { name: c.name }), wide: true, ok: isNew ? t("trc.dlg.courseCreate") : "OK", body: `<div class="tr-grid2">
     ${field(t("trc.dlg.name"), `<input name="name" value="${esc(d.name)}" required>`)}
     ${field(t("trc.dlg.type"), sel("kind", [["normal", t("trc.dlg.normalCourse")], ["score", t("trc.dlg.scoreCourse")]], d.kind))}
     ${field(t("trc.dlg.classes"), `<input name="secondary" value="${esc(d.secondary || "")}" placeholder="${esc(t("trc.dlg.classesPlaceholder"))}">`, t("trc.dlg.classesHint"))}
+    ${field(t("trc.dlg.printScale"), `<input name="ps" value="${d.printScale}" inputmode="numeric" required>`)}</div>
+    <details class="tr-details tr-course-more" ${more ? "open" : ""}><summary>${esc(t("trc.dlg.courseMore"))}</summary><div class="tr-grid2">
     ${field(t("trc.dlg.climb"), `<input name="climb" value="${d.climb >= 0 ? d.climb : ""}" inputmode="numeric">`)}
     ${field(t("trc.dlg.length"), `<input name="length" value="${d.length ?? ""}" inputmode="decimal">`)}
-    ${field(t("trc.dlg.printScale"), `<input name="ps" value="${d.printScale}" inputmode="numeric" required>`)}
+    ${field(t("trc.dlg.expected"), `<input name="load" value="${d.load >= 0 ? d.load : ""}" inputmode="numeric">`)}
     ${field(t("trc.dlg.descriptions"), sel("descKind", [["symbols", t("trc.dlg.symbols")], ["text", t("trc.dlg.text")], ["symbols-and-text", t("trc.dlg.symbolsAndText")]], d.descKind))}
     ${field(t("trc.dlg.labels"), sel("labels", [["sequence", t("trc.dlg.lblSequence")], ["code", t("trc.dlg.lblCode")], ["sequence-and-code", t("trc.dlg.lblSeqCode")], ["sequence-and-score", t("trc.dlg.lblSeqScore")], ["code-and-score", t("trc.dlg.lblCodeScore")], ["score", t("trc.dlg.points")]], d.labels))}
     ${field(t("trc.dlg.firstNumber"), `<input name="first" value="${d.firstNumber}" inputmode="numeric">`)}
-    ${field(t("trc.dlg.scoreColumn"), sel("scoreCol", [["0", "A"], ["1", "B"], ["7", "H"], ["-1", t("trc.dlg.scoreColNone")]], d.scoreColumn ?? 0))}
-    ${field(t("trc.dlg.expected"), `<input name="load" value="${d.load >= 0 ? d.load : ""}" inputmode="numeric">`)}
+    <div data-score>${field(t("trc.dlg.scoreColumn"), sel("scoreCol", [["0", "A"], ["1", "B"], ["7", "H"], ["-1", t("trc.dlg.scoreColNone")]], d.scoreColumn ?? 0))}</div>
     <label class="tr-check"><input type="checkbox" name="hide" ${d.hideFromReports ? "checked" : ""}> ${esc(t("trc.dlg.testCourse"))}</label></div>
     ${E.pro ? `<h4 class="tr-pro-h">${esc(t("trc.dlg.advanced"))}</h4><div class="tr-grid2">
       ${field(t("trc.dlg.form"), sel("form", [["", t("trc.dlg.formNormal")], ["string", t("trc.dlg.formString")], ["trail", t("trc.dlg.formTrail")]], d.form || ""))}
-      <label class="tr-check"><input type="checkbox" name="legLines" ${d.legLines !== false ? "checked" : ""}> ${esc(t("trc.dlg.legLines"))}</label>
       ${field(t("trc.dlg.discipline"), sel("discipline", [["", t("trc.dlg.discEvent")], ["foot", t("trc.dlg.discFoot")], ["mtbo", t("trc.dlg.discMtbo")], ["ski", t("trc.dlg.discSki")], ["trail", t("trc.dlg.discTrail")]], d.discipline || ""))}
-      ${field(t("trc.dlg.lengthBy"), sel("lengthBy", [["", t("trc.dlg.lengthByDefault")], ["route", t("trc.dlg.lengthByRoute")], ["straight", t("trc.dlg.lengthByStraight")]], d.lengthBy || ""), t("trc.dlg.lengthByHint"))}
-      <label class="tr-check"><input type="checkbox" name="rogaine" ${d.rogaine ? "checked" : ""}> ${esc(t("trc.dlg.rogaine"))}</label>
-      <label class="tr-check"><input type="checkbox" name="allControls" ${d.allControls ? "checked" : ""}> ${esc(t("trc.dlg.allControlsCourse"))}</label></div>` : ""}`,
-  onOpen: (f) => { if (focus) f.elements[focus]?.focus(); },
+      ${field(t("trc.dlg.lengthBy"), sel("lengthBy", [["", t("trc.dlg.lengthByDefault")], ["main", t("trc.dlg.lengthByMain")], ["route", t("trc.dlg.lengthByRoute")], ["straight", t("trc.dlg.lengthByStraight")]], d.lengthBy || ""), t("trc.dlg.lengthByHint"))}</div>
+      <div class="tr-checkrow"><label class="tr-check"><input type="checkbox" name="legLines" ${d.legLines !== false ? "checked" : ""}> ${esc(t("trc.dlg.legLines"))}</label>
+      <label class="tr-check" data-score><input type="checkbox" name="rogaine" ${d.rogaine ? "checked" : ""}> ${esc(t("trc.dlg.rogaine"))}</label>
+      <label class="tr-check" data-score><input type="checkbox" name="allControls" ${d.allControls ? "checked" : ""}> ${esc(t("trc.dlg.allControlsCourse"))}</label></div>` : ""}</details>`,
+  onOpen: (f) => {
+    // a score course's own fields, and its ways of labelling the controls
+    const sync = () => {
+      const score = f.elements.kind.value === "score";
+      f.querySelectorAll("[data-score]").forEach((el) => { el.hidden = !score; });
+      for (const o of f.elements.labels.options) o.hidden = !score && !["sequence", "code", "sequence-and-code"].includes(o.value);
+    };
+    f.elements.kind.addEventListener("change", sync); sync();
+    f.querySelector(".tr-course-more").addEventListener("toggle", (e) => { try { localStorage.setItem("ocn.tr.courseMore", e.target.open ? "1" : "0"); } catch (err) { /* this visit */ } });
+    if (focus) f.elements[focus]?.focus();
+  },
   validate: (o) => (!o.name.trim() ? t("trc.dlg.needName") : !(num(o.ps) > 100) ? t("trc.dlg.badPrintScale") : o.climb && !(num(o.climb) >= 0) ? t("trc.dlg.badClimb") : o.length && !(num(o.length) > 0) ? t("trc.dlg.badLength") : null) });
   if (!v) return;
   const props = { name: v.name.trim(), kind: v.kind, secondary: v.secondary.trim() || null, climb: v.climb === "" ? -1 : num(v.climb), length: v.length === "" ? null : num(v.length),
@@ -543,6 +558,10 @@ export async function courseProps(E, courseId, focus = null) {
     let id;
     E.change((x) => { id = M.createCourse(x, props); Object.assign(x.courses[id], props); }, t("trc.dlg.newCourse"));
     E.setCourse(id);
+    // what comes next, nine times in ten: its controls, clicked in order — the control tool in hand, its button in sight
+    if (E.ribbon) { E.ribbon.tab = "home"; E.ribbon.prevTab = "home"; }
+    E.setTool("control"); E.ribbon?.update?.();
+    E.toast(t("trc.dlg.courseCreated", { name: props.name }), 7000);
   } else E.change((x) => Object.assign(x.courses[courseId], props), t("trc.dlg.courseProperties"));
 }
 async function courseOrder(E) {

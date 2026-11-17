@@ -756,7 +756,8 @@ export function mountRibbon(E) {
     const words = q.split(/\s+/);
     found = index().filter((c) => { const h = norm(`${c.label} ${c.tip || ""} ${c.where}`); return words.every((w) => h.includes(w)); });
     // the names first, then the descriptions
-    found.sort((a, b) => (norm(b.label).includes(words[0]) ? 1 : 0) - (norm(a.label).includes(words[0]) ? 1 : 0));
+    const rank = (c) => { const l = norm(c.label), w = words[0]; return l.startsWith(w) ? 4 : l.split(/[\s'’«(]+/).some((x) => x.startsWith(w)) ? 3 : l.includes(w) ? 2 : norm(c.where).includes(w) ? 1 : 0; };
+    found = found.map((c, i) => [rank(c), i, c]).sort((a, b) => b[0] - a[0] || a[1] - b[1]).map((x) => x[2]);
     found = found.filter((c, i) => found.findIndex((x) => (x.act || x.tool) === (c.act || c.tool) && x.ctx === c.ctx) === i).slice(0, 9);
     res.hidden = false;
     res.innerHTML = found.length ? found.map((c, i) => `<button type="button" data-fi="${i}" class="${i === 0 ? "on" : ""}">${svg(c.icon || "dots", 16)}<span>${esc(c.label)}</span><small>${esc(c.where)}</small></button>`).join("")

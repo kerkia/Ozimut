@@ -18,7 +18,7 @@ export async function act(E, act) {
   if (act === "comments") return comments(E);
 }
 async function invite(E) {
-  const v = await modal(E, { title: t("map.team.invite"), body: field(t("map.team.role"), sel("role", [["mapper", t("map.team.mapper")], ["viewer", t("map.team.viewer")]], "mapper"))
+  const v = await modal(E, { title: t("map.team.invite"), ok: t("map.ok.link"), body: field(t("map.team.role"), sel("role", [["mapper", t("map.team.mapper")], ["viewer", t("map.team.viewer")]], "mapper"))
     + field(t("map.team.days"), `<input name="days" type="number" min="1" max="30" value="7">`) + `<p class="mp-hint">${esc(t("map.team.inviteHint"))}</p>` });
   if (!v) return;
   const r = await S.invite(E.id, v.role, Number(v.days) || 7);

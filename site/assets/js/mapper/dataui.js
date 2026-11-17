@@ -98,7 +98,7 @@ export async function act(E, act) {
   if (act === "draft-reject") return reject(E);
 }
 async function chooseArea(E) {
-  const v = await modal(E, { title: t("map.rib.data-area"), body: field(t("map.data.area"), sel("a", [["screen", t("map.data.area.screen")], ["print", t("map.data.area.print")], ["map", t("map.data.area.map")]], "screen")) });
+  const v = await modal(E, { title: t("map.rib.data-area"), ok: t("map.ok.apply"), body: field(t("map.data.area"), sel("a", [["screen", t("map.data.area.screen")], ["print", t("map.data.area.print")], ["map", t("map.data.area.map")]], "screen")) });
   if (!v) return;
   E.dataArea = v.a === "print" ? E.doc.printArea : v.a === "map" ? E.live.bounds() : E.view.visibleRect();
   E.say(t("map.data.areaSet"));
@@ -141,7 +141,7 @@ async function contours(E) {
   const f = await frameOrSay(E); if (!f) return;
   const P = await placeOf(E, f).catch(() => null);
   const sprint = styleOf(E) === "sprint";
-  const v = await modal(E, { title: t("map.rib.data-contours"), body: field(t("map.data.interval"), sel("i", [["2.5", "2,5 m"], ["5", "5 m"], ["10", "10 m"]], sprint ? "2.5" : "5")) + `<p class="mp-hint">${esc(t("map.data.contoursHint"))}</p>` + (sprint ? `<p class="mp-hint">${esc(t("map.data.contoursSprint"))}</p>` : "") + (P ? P.SP.noteHtml(P.s, P.lat, P.lon, ["dem"]) : "") });
+  const v = await modal(E, { title: t("map.rib.data-contours"), ok: t("map.ok.add"), body: field(t("map.data.interval"), sel("i", [["2.5", "2,5 m"], ["5", "5 m"], ["10", "10 m"]], sprint ? "2.5" : "5")) + `<p class="mp-hint">${esc(t("map.data.contoursHint"))}</p>` + (sprint ? `<p class="mp-hint">${esc(t("map.data.contoursSprint"))}</p>` : "") + (P ? P.SP.noteHtml(P.s, P.lat, P.lon, ["dem"]) : "") });
   if (!v) return;
   if (!(await oneContourSet(E, "dem"))) return;
   const say = progress(E);
@@ -214,7 +214,7 @@ async function townDialog(E) {
   if ((await nationalSource(E, f)) !== "bdtopo") { E.say(t("map.data.town.notFrance"), "bad"); return; }
   const pending = readTown(E);
   if (pending) return waitTown(E, pending);
-  const v = await modal(E, { title: t("map.rib.data-town"), body: `<p class="mp-hint">${esc(t("map.data.town.hint"))}</p>
+  const v = await modal(E, { title: t("map.rib.data-town"), ok: t("map.ok.add"), body: `<p class="mp-hint">${esc(t("map.data.town.hint"))}</p>
     <p class="mp-hint">${esc(t("map.data.town.time"))}</p>
     <label class="mp-row"><input type="checkbox" name="contours" checked> ${esc(t("map.data.town.src.contours"))}</label>` });
   if (!v) return;
@@ -347,7 +347,7 @@ async function lidar(E) {
     + `<p class="mp-hint">${esc(t("map.data.lidarHint"))}</p>`
     + `<p class="mp-hint">${esc(t("map.data.lidar.credit"))} <a href="https://github.com/karttapullautin/karttapullautin" target="_blank" rel="noopener">github.com/karttapullautin</a></p>`
     + `<details class="mp-kpbox"><summary>${esc(t("map.data.kp.title"))}</summary><p class="mp-hint">${esc(t("map.data.kp.lede"))}</p><div data-kp>${table(+(pref.i ?? def))}</div></details>`;
-  const v = await modal(E, { title: t("map.rib.data-lidar"), body, wide: true, onOpen: (root) => {
+  const v = await modal(E, { title: t("map.rib.data-lidar"), ok: t("map.ok.add"), body, wide: true, onOpen: (root) => {
     const s = root.querySelector('select[name="i"]'), box = root.querySelector("[data-kp]");
     s?.addEventListener("change", () => { box.innerHTML = table(+s.value); });
   } });

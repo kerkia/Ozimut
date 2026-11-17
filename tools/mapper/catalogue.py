@@ -309,6 +309,20 @@ k("map.dlg.close", "Fermer", "Close", "Schließen", "Cerrar")
 k("map.dlg.save", "Enregistrer", "Save", "Speichern", "Guardar")
 k("map.ctxm.pipette", "Prendre ce symbole", "Take this symbol", "Diese Signatur übernehmen", "Tomar este símbolo")
 k("map.ctxm.paste", "Coller", "Paste", "Einfügen", "Pegar")
+# a dialog's confirming button says what it does (2026-11-17)
+k("map.ok.add", "Ajouter à la carte", "Add to the map", "Zur Karte hinzufügen", "Añadir al mapa")
+k("map.ok.apply", "Appliquer", "Apply", "Anwenden", "Aplicar")
+k("map.ok.show", "Afficher le fond", "Show the background", "Hintergrund anzeigen", "Mostrar el fondo")
+k("map.ok.pdf", "Créer le PDF", "Create the PDF", "PDF erstellen", "Crear el PDF")
+k("map.ok.export", "Exporter", "Export", "Exportieren", "Exportar")
+k("map.ok.create", "Créer", "Create", "Erstellen", "Crear")
+k("map.ok.link", "Créer le lien", "Create the link", "Link erstellen", "Crear el enlace")
+# an empty map (the review of the workflows, 2026-11-17)
+k("map.empty.title", "Carte vide", "Empty map", "Leere Karte", "Mapa vacío")
+k("map.empty.hint", "Choisissez un symbole à gauche, puis dessinez. Ou partez de données ouvertes (courbes, LiDAR, OpenStreetMap) ou d'un fond à décalquer.",
+  "Choose a symbol on the left, then draw. Or start from open data (contours, LiDAR, OpenStreetMap) or from a background to trace over.",
+  "Wähle links ein Symbol und zeichne. Oder beginne mit offenen Daten (Höhenlinien, LiDAR, OpenStreetMap) oder einer Vorlage zum Abzeichnen.",
+  "Elige un símbolo a la izquierda y dibuja. O parte de datos abiertos (curvas, LiDAR, OpenStreetMap) o de un fondo para calcar.")
 k("map.search.none", "Rien trouvé", "Nothing found", "Nichts gefunden", "No se encontró nada")
 
 # ---- undo labels ----------------------------------------------------------------------------------------------------------------

@@ -36,7 +36,7 @@ export async function act(E, act) {
 
 // ---- print area: two clicks, or the map's extent with a margin -----------------------------------------------------------
 async function printArea(E) {
-  const v = await modal(E, { title: t("map.rib.print-area"), body: field(t("map.lay.paper"), sel("p", [["draw", t("map.lay.draw")], ["fit", t("map.lay.fit")], ["A4p", "A4 ↕"], ["A4l", "A4 ↔"], ["A3p", "A3 ↕"], ["A3l", "A3 ↔"]], "draw")) });
+  const v = await modal(E, { title: t("map.rib.print-area"), ok: t("map.ok.apply"), body: field(t("map.lay.paper"), sel("p", [["draw", t("map.lay.draw")], ["fit", t("map.lay.fit")], ["A4p", "A4 ↕"], ["A4l", "A4 ↔"], ["A3p", "A3 ↕"], ["A3l", "A3 ↔"]], "draw")) });
   if (!v) return;
   const b = E.live.bounds();
   if (v.p === "fit") { E.live.transact(t("map.undo.print"), () => E.live.setDocField("printArea", [b[0] - 5, b[1] - 5, b[2] + 5, b[3] + 5])); E.view.overlay(); return; }
@@ -71,7 +71,7 @@ async function northLines(E) {
   if (!s) { E.say(t("map.lay.noNorthSymbol"), "bad"); return; }
   const r = E.doc.printArea || E.live.bounds();
   const sprint = E.doc.scale <= 5000;
-  const v = await modal(E, { title: t("map.rib.north-lines"), body: field(t("map.lay.spacing"), `<input name="d" type="number" step="1" min="5" value="${sprint ? 20 : 30}">`, t("map.lay.spacingHint"))
+  const v = await modal(E, { title: t("map.rib.north-lines"), ok: t("map.ok.add"), body: field(t("map.lay.spacing"), `<input name="d" type="number" step="1" min="5" value="${sprint ? 20 : 30}">`, t("map.lay.spacingHint"))
     + field(t("map.props.declination"), `<input name="decl" type="number" step="0.01" value="${E.doc.declination || 0}">`, t("map.props.declinationHint")) });
   if (!v) return;
   const d = num(v.d), decl = num(v.decl) || 0;
@@ -151,7 +151,7 @@ async function credits(E) {
   E.live.transact(t("map.undo.layout"), () => lines.forEach((l, i) => E.live.add({ sym: ts.sym, otp: 4, ang: 0, coords: [G.pt(p[0], p[1] - i * 4)], text: l, part: E.part, src: "layout" })));
 }
 async function qr(E) {
-  const v = await modal(E, { title: t("map.rib.qr"), body: field(t("map.lay.qrUrl"), `<input name="u" type="url" required placeholder="https://">`) });
+  const v = await modal(E, { title: t("map.rib.qr"), ok: t("map.ok.add"), body: field(t("map.lay.qrUrl"), `<input name="u" type="url" required placeholder="https://">`) });
   if (!v?.u) return;
   const { QRCODE } = await import("../vendor.js");
   const mod = await import(QRCODE), q = (mod.default || mod.qrcode || window.qrcode)(0, "M");
@@ -216,7 +216,7 @@ export async function addSetSymbols(E, nums) {
   return want.map((s) => s.sym);
 }
 async function symbolSet(E) {
-  const v = await modal(E, { title: t("map.rib.symbol-set"), body: field(t("map.lay.set"), sel("s", Object.entries(SETS).map(([k, n]) => [k, n]), E.doc.scale <= 5000 ? "issprom2019-2" : "isom2017-2"))
+  const v = await modal(E, { title: t("map.rib.symbol-set"), ok: t("map.ok.apply"), body: field(t("map.lay.set"), sel("s", Object.entries(SETS).map(([k, n]) => [k, n]), E.doc.scale <= 5000 ? "issprom2019-2" : "isom2017-2"))
     + `<fieldset class="mp-choice"><legend>${esc(t("map.lay.setHow"))}</legend><label><input type="radio" name="h" value="add" checked> ${esc(t("map.lay.setAdd"))}</label><label><input type="radio" name="h" value="replace"> ${esc(t("map.lay.setReplace"))}</label></fieldset>` });
   if (!v) return;
   const set = await loadSet(v.s), syms = scaled(set, E.doc.scale);

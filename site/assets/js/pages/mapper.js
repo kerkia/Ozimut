@@ -172,7 +172,7 @@ async function fillList(el) {
 // ---- a new map ------------------------------------------------------------------------------------------------------------------
 async function newMap() {
   const { modal, field } = await import("../tracer/dialogs.js");
-  const v = await modal(null, { title: t("map.new.title"), wide: true, body: `
+  const v = await modal(null, { title: t("map.new.title"), wide: true, ok: t("map.start.newBtn"), body: `
     ${field(t("map.new.name"), `<input name="title" required maxlength="140">`)}
     <fieldset class="mp-choice"><legend>${t("map.new.kind")}</legend>
       <label><input type="radio" name="kind" value="sprint" required> ${t("map.new.sprint")}</label>

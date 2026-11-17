@@ -28,6 +28,7 @@ import { insetSrc } from "./layoutx.js";
 import { mapOf, drawExtra, loadExtraMaps, templatesOf } from "./maps.js";
 import { mountRibbon } from "./ribbon.js";
 import { paintRoutes, paceOf } from "./routedraw.js";
+import { render as renderSteps } from "./firststeps.js";
 import * as auth from "../auth.js";
 import { t, tn, locale } from "./lang.js";
 
@@ -553,7 +554,7 @@ export async function openEditor(ctx) {
     });
   }
   // the selected object's pane: its details are in its contextual tab, the pane shows the course
-  function infoPane() { const el = $("#tr-info"); el.hidden = !!E.sel; el.innerHTML = A.describeSelection(E); A.bindInfo(E, el); }
+  function infoPane() { const el = $("#tr-info"); el.hidden = !!E.sel; el.innerHTML = A.describeSelection(E); A.bindInfo(E, el); renderSteps(E); }
 
   root.addEventListener("click", (e) => {
     const b = e.target.closest("[data-act]");

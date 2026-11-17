@@ -88,7 +88,7 @@ export function mountRibbon(E, host) {
     const ctxGroups = kind ? CONTEXT[kind] : null;
     if (R.tab === "ctx" && !ctxGroups) R.tab = R.prev || "draw";
     const tabs = TABS.map((x) => `<button type="button" class="tr-rtab" role="tab" data-tab="${x.id}" aria-selected="${R.tab === x.id}">${esc(t(`map.tab.${x.id}`))}</button>`).join("");
-    const ctx = ctxGroups ? `<div class="tr-rctx"><span class="tr-rctx-h">${esc(t(`map.ctx.${kind}`))}</span><button type="button" class="tr-rtab" role="tab" data-tab="ctx" aria-selected="${R.tab === "ctx"}">${esc(t("map.ctx.tab"))}</button></div>` : "";
+    const ctx = ctxGroups ? `<div class="tr-rctx${R.pulse ? " new" : ""}"><span class="tr-rctx-h">${esc(t(`map.ctx.${kind}`))}</span><button type="button" class="tr-rtab" role="tab" data-tab="ctx" aria-selected="${R.tab === "ctx"}">${esc(t("map.ctx.tab"))}</button></div>` : "";
     const groups = R.tab === "ctx" ? ctxGroups : TABS.find((x) => x.id === R.tab)?.groups || [];
     host.innerHTML = `<div class="tr-rtabs" role="tablist"><button type="button" class="tr-rtab file" data-file>${esc(t("map.tab.file"))}</button>${tabs}${ctx}</div>
       <div class="tr-rbody">${groups.map(groupHtml).join("")}</div>`;
@@ -96,7 +96,7 @@ export function mountRibbon(E, host) {
   }
   host.addEventListener("click", (ev) => {
     const tb = ev.target.closest("[data-tab]");
-    if (tb) { if (R.tab !== "ctx") R.prev = R.tab; R.tab = tb.dataset.tab; draw(); return; }
+    if (tb) { if (R.tab !== "ctx") R.prev = R.tab; R.tab = tb.dataset.tab; R.pulse = false; draw(); return; }
     if (ev.target.closest("[data-file]")) { E.fileMenu(ev.target.closest("[data-file]")); return; }
     const b = ev.target.closest("[data-act]");
     if (!b) return;
@@ -105,7 +105,14 @@ export function mountRibbon(E, host) {
   });
   host.addEventListener("contextmenu", (ev) => ev.preventDefault());
   R.draw = draw;
-  R.showContext = () => { if (E.selKind?.() && R.tab !== "ctx") { R.prev = R.tab; R.tab = "ctx"; } draw(); };
+  // (owner, 2026-11-17: each object just drawn took the ribbon to its own tab, and the drawing modes went out of reach in the
+  // middle of a drawing session; as in the Tracer, the tab then only shows itself, with a pulse)
+  R.showContext = () => {
+    const kind = E.selKind?.(), choosing = ["select", "vertex"].includes(E.toolName);
+    R.pulse = false;
+    if (kind && R.tab !== "ctx") { if (choosing) { R.prev = R.tab; R.tab = "ctx"; } else R.pulse = true; }
+    draw();
+  };
   /** Every command, for the search. */
   R.commands = () => {
     const out = new Map();

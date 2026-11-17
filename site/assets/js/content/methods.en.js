@@ -1006,6 +1006,7 @@ export function build(X) {
               keeps only unreadable data. A lost passphrase cannot be recovered: first export an Ozimut file (${W("export-ocn")}), which
               is not encrypted.</p></div>
           </div>
+          <p class="tr-steps-doc">An event still empty shows <b>“First steps”</b> in the left pane: place the start, the controls and the finish, create a course, click its controls in order, then check and print — each step with the button that does it, ticked once done. The cross hides it.</p>
         </section>`,
       carte: () => html`
         <section class="mx-slide" id="tr-carte">

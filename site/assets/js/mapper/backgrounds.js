@@ -266,7 +266,7 @@ async function addOnline(E) {
       if (fr) { const b = E.live.bounds(), [lat, lon] = mmToLatLon(fr, (b[0] + b[2]) / 2, (b[1] + b[3]) / 2), SP = await import("./support.js"); note = SP.noteHtml(await SP.at(lat, lon), lat, lon, ["backgrounds"]); }
     } catch (e) { note = ""; }
   }
-  const v = await modal(E, { title: t("map.rib.bg-online"), body: field(t("map.bg.layer"), sel("layer", keys.map((k) => [k, t(`map.bg.layer.${k}`)]), keys[0])) + `<p class="mp-hint">${esc(t("map.bg.onlineHint"))}</p>` + note });
+  const v = await modal(E, { title: t("map.rib.bg-online"), ok: t("map.ok.show"), body: field(t("map.bg.layer"), sel("layer", keys.map((k) => [k, t(`map.bg.layer.${k}`)]), keys[0])) + `<p class="mp-hint">${esc(t("map.bg.onlineHint"))}</p>` + note });
   if (!v) return;
   const entry = { id: `b${Date.now().toString(36)}`, name: t(`map.bg.layer.${v.layer}`), kind: "online", layer: v.layer, toMap: [1, 0, 0, -1, 0, 0], opacity: 0.6, visible: true, image: null };
   E.view.backgrounds.unshift(entry);

@@ -1007,6 +1007,7 @@ export function build(X) {
               garde que des données illisibles. Perdue, elle ne se retrouve pas : exportez d'abord un fichier Ozimut (${W("export-ocn")}), qui, lui,
               n'est pas chiffré.</p></div>
           </div>
+          <p class="tr-steps-doc">Un événement encore vide affiche <b>« Premiers pas »</b> dans le panneau de gauche : poser le départ, les postes et l'arrivée, créer un circuit, cliquer ses postes dans l'ordre, puis vérifier et imprimer — chaque étape avec le bouton qui la fait, cochée une fois faite. La croix le masque.</p>
         </section>`,
       carte: () => html`
         <section class="mx-slide" id="tr-carte">

@@ -3373,6 +3373,29 @@ Every multiple-choice game was played through to its score page at phone size, w
   course alone), and the offline copy with the network cut (the event reopened, routes computed, the shading drawn). Not done: the
   routes' engine on an OpenStreetMap-only event,
   vegetation height or the LiDAR layers as inputs of the route computation (never for runners — see « Generated maps »).
+- **The Tracer's and Cartographier's workflows reviewed** (owner, 2026-11-17: « improve them wherever needed, without loss of
+  efficiency »; a newcomer's journey played in headless Edge through both tools — start screen, a new event or map, the first
+  objects, every ribbon tab, the menus, the dialogs, 1100 px and a phone — scripts `tour_tracer.mjs`, `tour_carto.mjs`,
+  `carto_dialogs.mjs` kept with the session's scratch). **The Tracer**: « Premiers pas » (`tracer/firststeps.js`, `#tr-steps` above
+  the left pane's details): an event opened incomplete lists its four steps — start, controls and finish placed; a course made; its
+  controls clicked in order; check and print —, each with the button that does it, ticked as done; « × » hides it for good when
+  given up before the end (`localStorage ocn.tr.steps`), for that event once built (`ocn.tr.steps.<id>`); an event that comes with
+  its courses (an import) never shows it. « Nouveau circuit » asks for the name, the type, the classes and the print scale; the
+  rest folds under « Longueur, définitions, numérotation… » (open for an existing course, and kept open once opened,
+  `ocn.tr.courseMore`), a score course's fields show for one only, the button says « Créer le circuit », and the control tool is
+  then in hand on the « Tracer » tab with a line saying to click the controls in order. « Longueur mesurée » offers « le long de
+  l'itinéraire principal (sprint) » (`lengthBy "main"`: opening and saving a course's properties used to drop the length the routes'
+  « Reporter sur le circuit » had set). A control's commands and right-click menu: its definition, text lines and drawing before the
+  variants. The command search ranks a name's start, then a word's start, then the name, its place, its description (« pdf »
+  found « Lire un circuit imprimé » first). **A dialog's fields align on their labels** (`.tr-grid2 { align-items: start }`, both
+  tools: a line of help under one field pushed its neighbours' labels down). **Cartographier**: the ribbon no longer goes to the
+  selection's tab while one draws (`ribbon.showContext`: only for the tools that choose, the tab pulses otherwise; taking a drawing
+  tool gives the ribbon back to « Dessiner »); the status bar keeps the position and the scale whole, the tool's help takes the room
+  left (its whole text under the mouse), a warning is never squeezed out; the title has room at 1100 px; an empty map says where to
+  start (`#mp-starthint`: a symbol on the left, or « Données », « Fonds »); the right-click menu has its icons and « Supprimer »
+  last; the dialogs' confirming buttons say what they do (`map.ok.*`: « Ajouter à la carte », « Créer le PDF », « Créer le lien »…).
+  Looked at and left as they are: both start screens, the ribbons' tabs and groups, the Fichier menus, the export chooser, the
+  one-line ribbon at 1100 px, Cartographier's start screen on a phone.
 - **Printing for a print shop: one engine for both tools** (owner, 2026-11-12: « Cartographier has separations, yet maps are printed
   with their courses from the Tracer »): `tracer/vmap/inks.js` — OCAD's spot inks read (`readInks`, `attachInks`: `map.spots` and each
   colour's `spot` on every OCAD 9+ map the Tracer opens; Cartographier's `spotsFromParams` calls it; Mapper files' spot colours are read

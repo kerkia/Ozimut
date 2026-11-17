@@ -130,7 +130,7 @@ async function photo(E) {
   await addComment(E, at, { photo: pid });
 }
 async function addComment(E, at, extra = {}) {
-  const v = await modal(E, { title: t("map.comment.title"), body: field(t("map.comment.text"), `<textarea name="text" rows="3" maxlength="1000"></textarea>`) });
+  const v = await modal(E, { title: t("map.comment.title"), ok: t("map.ok.add"), body: field(t("map.comment.text"), `<textarea name="text" rows="3" maxlength="1000"></textarea>`) });
   if (!v && !extra.photo) return;
   const list = await S.comments(E.id).catch(() => E.comments || []);
   list.push({ id: `c${Date.now().toString(36)}`, x: at[0], y: at[1], text: v?.text || "", by: E.you?.name || "", at: new Date().toISOString(), done: false, ...extra });

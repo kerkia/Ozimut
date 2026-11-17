@@ -1007,6 +1007,7 @@ export function build(X) {
               guarda datos ilegibles. Si se pierde, no se puede recuperar: exporta primero un archivo Ozimut (${W("export-ocn")}), que
               no está cifrado.</p></div>
           </div>
+          <p class="tr-steps-doc">Un evento aún vacío muestra <b>«Primeros pasos»</b> en el panel izquierdo: colocar la salida, los controles y la meta, crear un recorrido, hacer clic en sus controles en orden, y luego revisar e imprimir — cada paso con el botón que lo hace, marcado cuando está hecho. La cruz lo oculta.</p>
         </section>`,
       carte: () => html`
         <section class="mx-slide" id="tr-carte">

@@ -255,7 +255,7 @@ function blankOf(kind, E) {
 /** « Nouveau symbole »: a copy of the current symbol, or a blank point, line, area or text. */
 export async function newSymbol(E) {
   const cur = E.currentSymbol();
-  const v = await modal(E, { title: t("map.sym.new"), body: `<fieldset class="mp-choice"><legend>${esc(t("map.sym.startFrom"))}</legend>
+  const v = await modal(E, { title: t("map.sym.new"), ok: t("map.ok.create"), body: `<fieldset class="mp-choice"><legend>${esc(t("map.sym.startFrom"))}</legend>
     ${cur ? `<label><input type="radio" name="k" value="copy" checked> ${esc(t("map.sym.copyOf", { s: `${numLabel(cur.sym)} ${symName(cur)}` }))}</label>` : ""}
     ${["point", "line", "area", "text"].map((k, i) => `<label><input type="radio" name="k" value="${k}" ${!cur && !i ? "checked" : ""}> ${esc(t(`map.sym.blank.${k}`))}</label>`).join("")}</fieldset>` });
   if (!v) return null;

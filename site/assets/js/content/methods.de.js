@@ -1007,6 +1007,7 @@ export function build(X) {
               nur unlesbare Daten. Geht sie verloren, lässt sie sich nicht wiederfinden: Exportiere zuerst eine Ozimut-Datei (${W("export-ocn")}), die ihrerseits
               nicht verschlüsselt ist.</p></div>
           </div>
+          <p class="tr-steps-doc">Eine noch leere Veranstaltung zeigt im linken Bereich <b>„Erste Schritte“</b>: Start, Posten und Ziel setzen, eine Bahn anlegen, ihre Posten der Reihe nach anklicken, dann prüfen und drucken — jeder Schritt mit dem Knopf, der ihn ausführt, abgehakt, sobald er erledigt ist. Das Kreuz blendet sie aus.</p>
         </section>`,
       carte: () => html`
         <section class="mx-slide" id="tr-carte">
