@@ -170,12 +170,23 @@ def write_build_stamp() -> str:
     h = hashlib.sha1()
     for p in sorted(site.rglob("*")):
         rel = p.relative_to(site).as_posix()
-        if not p.is_file() or rel.startswith(("data/", "auth/")) or rel == "assets/build.txt":
+        if not p.is_file() or rel.startswith(("data/", "auth/")) or rel in ("assets/build.txt", "assets/data.txt"):
             continue
         h.update(rel.encode("utf-8"))
         h.update(p.read_bytes())
     stamp = h.hexdigest()[:16]
     (site / "assets" / "build.txt").write_text(stamp, encoding="utf-8")
+    return stamp
+
+
+def write_data_stamp() -> str:
+    """This deploy's time, published as assets/data.txt. A page keeps the data it read for the whole visit (data.js's
+    cache, the pages' own), so a tab left open showed the results of before a deploy (owner, 2026-11-17: Stats' last race
+    was 8 November hours after FFCO's 14 and 15 were in): the app compares this file as it does build.txt and reloads at
+    its next change of page. Every deploy changes it — a deploy happens only when something new was found. Not part of
+    the code's fingerprint (write_build_stamp leaves it out)."""
+    stamp = time.strftime("%Y%m%dT%H%M%SZ", time.gmtime())
+    (ROOT / "site" / "assets" / "data.txt").write_text(stamp, encoding="utf-8")
     return stamp
 
 
@@ -209,6 +220,7 @@ def deploy(db: Path | None = None) -> bool:
         print("4. deploy: npx not found (install Node.js)")
         return False
     code = code_fingerprint()
+    write_data_stamp()
     t0 = time.monotonic()
     cmd = [npx, "--yes", "wrangler", "pages", "deploy", "site", "--project-name", PAGES_PROJECT,
            "--branch", "main", "--commit-dirty=true"]

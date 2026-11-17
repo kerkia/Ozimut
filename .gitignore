@@ -12,6 +12,7 @@ cache/
 site/data/
 site/auth/
 site/assets/build.txt
+site/assets/data.txt
 
 # reports, exports, local data files
 exports/

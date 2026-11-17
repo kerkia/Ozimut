@@ -882,18 +882,24 @@ function renderFooter() {
 // The pages' modules stay in memory for the whole visit: a tab left open keeps the old code after a deploy (owner,
 // 2026-10-15: a fixed analysis still showed the old result). The deploy publishes a fingerprint of the code
 // (assets/build.txt, update.write_build_stamp); at a change of page, at most once a minute, a different one reloads
-// the page — never in the middle of a page's work.
-let build = null, buildAt = 0;
-async function codeChanged() {
-  if (Date.now() - buildAt < 60e3) return false;
-  buildAt = Date.now();
-  try {
-    const r = await fetch("/assets/build.txt", { cache: "no-store" });
-    const v = r.ok ? (await r.text()).trim() : "";
-    if (!/^[0-9a-f]{8,40}$/.test(v)) return false;                 // none (local server) or not the file
-    if (build == null) { build = v; return false; }
-    return v !== build;
-  } catch (e) { return false; }
+// the page — never in the middle of a page's work. The data alike (owner, 2026-11-17: Stats still showed 8 November as
+// the last race hours after FFCO's 14 and 15 were in): the files read stay in memory for the visit (data.js and the
+// pages' own caches), so a new deploy's time (assets/data.txt, update.write_data_stamp) reloads the page the same way.
+const stamps = { "/assets/build.txt": [/^[0-9a-f]{8,40}$/, null], "/assets/data.txt": [/^\d{8}T\d{6}Z$/, null] };
+let stampAt = 0;
+async function siteChanged() {
+  if (Date.now() - stampAt < 60e3) return false;
+  stampAt = Date.now();
+  const read = async ([url, s]) => {
+    try {
+      const r = await fetch(url, { cache: "no-store" });
+      const v = r.ok ? (await r.text()).trim() : "";
+      if (!s[0].test(v)) return false;                              // none (local server) or not the file
+      if (s[1] == null) { s[1] = v; return false; }
+      return v !== s[1];
+    } catch (e) { return false; }
+  };
+  return (await Promise.all(Object.entries(stamps).map(read))).some(Boolean);
 }
 
 // ---- routing ---------------------------------------------------------------
@@ -902,7 +908,7 @@ let lastRoute = null;
 let token = 0;
 async function route_() {
   if (silent) return;
-  if (await codeChanged()) { location.reload(); return; }
+  if (await siteChanged()) { location.reload(); return; }
   let r = parseHash();
   // a page that follows its own address (the Agenda: list <-> details) is not rebuilt for a change of query
   if (current?.onQuery && lastRoute === r.route) { current.onQuery(r.query); return; }
@@ -1183,7 +1189,7 @@ async function start() {
   if (auth.guest()) await ensurePass().catch(() => { auth.setGuest(false); forgetPass(); });
   await data.bootPublic();
   renderFooter();
-  codeChanged();                                   // the version this visit runs
+  siteChanged();                                   // the code and data this visit runs
   window.addEventListener("hashchange", route_);
   window.addEventListener("ocn:install", () => { const b = $("#install-btn"); if (b) b.hidden = pwa.installState() !== "ready"; });
   // a page's own « Choisir un autre pays » (country.hint)
