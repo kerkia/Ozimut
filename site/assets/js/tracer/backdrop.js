@@ -237,19 +237,31 @@ function parseNmea(text) {
   }
   return out;
 }
-/** Text rows holding a latitude and a longitude in decimal degrees (FRWD's and other loggers' exports, CSV): the first two
- *  neighbouring numbers of each row that read as one — the columns that vary like positions over the file. */
-function parseRows(text) {
-  const rows = text.split(/\r?\n/).map((l) => l.trim().split(/[;,\t ]+/).map((x) => Number(x.replace(",", ".")))).filter((r) => r.length >= 2);
+/** Text rows holding a latitude and a longitude (loggers' exports, CSV): the two neighbouring columns that read as a position
+ *  and vary like one over the file. Decimal degrees, or degrees and minutes written « ddmm.mmmm » as NMEA does — FRWD's export
+ *  (a tab-separated text: a few header lines, then a row a second with the elapsed time, a lap mark, the latitude and the
+ *  longitude in its 5th and 6th columns, altitude, heart rate; decimal commas in a Finnish Windows). A row's columns are split
+ *  on tabs when it has some (empty fields kept: a lap mark must not shift the others), else on « ; », else on commas or spaces;
+ *  with tabs or « ; » a comma is a decimal sign. Rows at 0, 0 (no fix yet) are left out. */
+export function parseRows(text) {
+  const num = (x) => (x.trim() === "" ? NaN : Number(x.trim().replace(",", ".")));
+  const rows = text.split(/\r?\n/).map((l) => (l.includes("\t") ? l.split("\t").map(num) : l.includes(";") ? l.split(";").map(num) : l.trim().split(/[, ]+/).map(Number))).filter((r) => r.length >= 2);
+  const dm = (v) => { const a = Math.abs(v), d = Math.floor(a / 100), m = a - 100 * d; return m < 60 ? Math.sign(v) * (d + m / 60) : NaN; };
   let best = null;
-  for (let c = 0; c < 12; c++) {
-    const ok = rows.filter((r) => Number.isFinite(r[c]) && Number.isFinite(r[c + 1]) && Math.abs(r[c]) <= 90 && Math.abs(r[c + 1]) <= 180 && (r[c] % 1 || r[c + 1] % 1));
-    if (ok.length < 5) continue;
-    const span = (k) => Math.max(...ok.map((r) => r[k])) - Math.min(...ok.map((r) => r[k]));
-    if (span(c) > 1 || span(c + 1) > 2 || !(span(c) > 0)) continue;           // a track spans far less than a degree
-    if (!best || ok.length > best.ok.length) best = { c, ok };
+  for (const conv of [(v) => v, dm]) {
+    for (let c = 0; c < 12; c++) {
+      const ok = rows.map((r) => [conv(r[c]), conv(r[c + 1]), r[c], r[c + 1]])
+        .filter(([la, lo, a, b]) => Number.isFinite(la) && Number.isFinite(lo) && Math.abs(la) <= 90 && Math.abs(lo) <= 180 && (a % 1 || b % 1) && (la || lo));
+      if (ok.length < 5) continue;
+      const span = (k) => Math.max(...ok.map((r) => r[k])) - Math.min(...ok.map((r) => r[k]));
+      if (span(0) > 1 || span(1) > 2 || !(span(0) > 0)) continue;             // a track spans far less than a degree
+      // degrees and minutes are only taken where the numbers cannot be decimal degrees (a latitude beyond 90)
+      if (conv === dm && !ok.some(([, , a, b]) => Math.abs(a) > 90 || Math.abs(b) > 180)) continue;
+      if (!best || ok.length > best.length) best = ok;
+    }
+    if (best) break;
   }
-  return best ? best.ok.map((r) => [r[best.c], r[best.c + 1]]) : [];
+  return best ? best.map(([la, lo]) => [la, lo]) : [];
 }
 /** A track file's positions, in pieces: [[[lat, lon]…]…]; null when the file is none Ozimut reads. */
 async function readTrack(file) {

@@ -3316,8 +3316,10 @@ Every multiple-choice game was played through to its score page at phone size, w
   `model.printBgOf`; 200 dpi JPEG under a vector map, with its credit). **An event without a map** (« Nouvel événement › Pas de carte ?
   Tracer sur OpenStreetMap »: centre typed or the device's position, sheet, scale): `ev.map.kind "none"`, `ev.geo` north up round the
   place, `ev.printBg = "osm"`, OpenStreetMap shown at opening and printed in the map's place (PDF, images). « Trace GPS… »
-  (`importTrack`: GPX track or route, TCX/FIT through `trace/track.js`, NMEA GGA/RMC, rows of latitude/longitude for FRWD and other
-  loggers — **no real FRWD file tried**) as line specials (`track: true`, on « Tous les postes » unless ticked for all; a jump splits a
+  (`importTrack`: GPX track or route, TCX/FIT through `trace/track.js`, NMEA GGA/RMC, and text rows holding a latitude and a longitude, in decimal
+  degrees or as « ddmm.mmmm » (`parseRows`) — FRWD's export is such a text: tab-separated, header lines, then a row a second with
+  the position in its 5th and 6th columns, decimal commas possible; its layout learnt from QuickRoute's importer (GPL: the layout only,
+  none of its code) and tested on a file built to it, **no real FRWD file tried**) as line specials (`track: true`, on « Tous les postes » unless ticked for all; a jump splits a
   piece only beyond 150 m and 8 × the file's median step). « Voir ici sur… » (right click; `lookHere`: OpenStreetMap, Google Maps, Street
   View, Géoportail, Remonter le temps, map.geo.admin.ch, Mapy.cz, Mapillary, copy the coordinates). **Standards**: ISCD 2024 is a new
   event's (`descStandard "2024"`, Purple Pen's symbol file under its « 2018 », `model.descBase`; 5.26 « Railway, tramway » and 15.6 « Map
@@ -3350,7 +3352,9 @@ Every multiple-choice game was played through to its score page at phone size, w
   « Fermer » took no focus, so Échap did not close it (`dialogs.modal`); a popup menu did not close on Échap. Checked 2026-11-16 in
   headless Edge on the local test event (scripts kept with the session's scratch: `shot.mjs`, `check.mjs`). Guide: « Le tracé » chapters
   « Fonds et relief » and « Les itinéraires », and additions to six others. The offline copy (`offline.js`) keeps the new modules and the elevation model
-  (the events record's `dem`, `E.localDem`). Not done: FRWD's own binary format, the routes' engine on an OpenStreetMap-only event,
+  (the events record's `dem`, `E.localDem`). Checked on 2026-11-17: a map lent to a second account joined by a lent link (six exports refused, the PDF with the
+  course alone), and the offline copy with the network cut (the event reopened, routes computed, the shading drawn). Not done: the
+  routes' engine on an OpenStreetMap-only event,
   vegetation height or the LiDAR layers as inputs of the route computation (never for runners — see « Generated maps »).
 - **Printing for a print shop: one engine for both tools** (owner, 2026-11-12: « Cartographier has separations, yet maps are printed
   with their courses from the Tracer »): `tracer/vmap/inks.js` — OCAD's spot inks read (`readInks`, `attachInks`: `map.spots` and each
