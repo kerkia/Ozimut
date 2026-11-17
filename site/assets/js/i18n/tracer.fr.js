@@ -2011,7 +2011,7 @@ export default {
   "trc.pp.locks.other": "le verrou de {n} postes",
   // the advanced level: courses from other programs (iofin.js), classes as data (classes.js)
   "trc.rd.gExchange": "Autres logiciels",
-  "trc.rd.importCourses": "Importer des circuits…",
+  "trc.rd.importCourses": "Importer des circuits…",
   "trc.rd.importCoursesTip": "Les postes, circuits, catégories et équipes d'un IOF XML (Condes, OCAD, MeOS…), ou les circuits d'une carte OCAD de traçage.",
   "trc.rd.classes": "Catégories…",
   "trc.rd.classesTip": "Chaque catégorie, son circuit et ses concurrents attendus : les charges des postes en découlent.",
