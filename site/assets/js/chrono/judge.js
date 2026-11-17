@@ -53,8 +53,8 @@ function startOf(st, runner, read, hint) {
 
 function finishOf(st, read, course) {
   if (!read) return null;
-  if (!read.rel) return read.ed?.finish ?? read.finish ?? null;
-  // an Emit card has no finish field: the last punch that is not a control of the course (the finish unit or the reader)
+  if (!read.rel || read.ed?.finish != null || read.finish != null) return read.ed?.finish ?? read.finish ?? null;
+  // an Emit card read without its reader's own punch: the last punch that is not a control of the course (the finish unit)
   const P = punchesOf(read), on = new Set((course?.controls || []).flatMap((c) => codesOf(st, c)));
   for (let j = P.length - 1; j > 0; j--) if (!on.has(P[j][0]) && P[j][0] !== 0) return P[j][1];
   return null;

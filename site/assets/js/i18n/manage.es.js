@@ -41,6 +41,7 @@ export default {
   "mg.tab.direct": "Directo",
   "mg.tab.resultats": "Resultados",
   "mg.tab.analyse": "Análisis",
+  "mg.tab.chrono": "Chrono",
   "mg.tab.equipe": "Equipo",
   "mg.chip.bookOpen": "reserva abierta",
   "mg.chip.startlist": "lista publicada",

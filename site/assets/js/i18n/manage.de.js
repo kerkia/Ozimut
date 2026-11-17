@@ -41,6 +41,7 @@ export default {
   "mg.tab.direct": "Live",
   "mg.tab.resultats": "Ergebnisse",
   "mg.tab.analyse": "Analyse",
+  "mg.tab.chrono": "Chrono",
   "mg.tab.equipe": "Team",
   "mg.chip.bookOpen": "Buchung offen",
   "mg.chip.startlist": "Liste veröffentlicht",

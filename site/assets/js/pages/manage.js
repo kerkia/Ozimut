@@ -455,7 +455,9 @@ async function byCourse(main, q) {
 async function eventPage(main, id, q) {
   const [D, mine] = await Promise.all([api(`/${id}`), api("").catch(() => ({ events: [] }))]);
   if (!D.member && !D.admin) return joinScreen(main, D);
-  const ev = D.event, tabs = TABS[ev.type] || ALL_TABS;
+  const ev = D.event, tabs = [...(TABS[ev.type] || ALL_TABS)];
+  // « Chrono » (2026-11-17, owner: Ozimut's race timing, administrators only while it is being tried), before « Équipe »
+  if (auth.session()?.admin) tabs.splice(tabs.indexOf("equipe"), 0, "chrono");
   const tab = tabs.includes(q.onglet) ? q.onglet : defaultTab(ev);
   const others = mine.events.filter((e) => e.me || e.id === ev.id).sort((a, b) => b.date.localeCompare(a.date));
   const pending = ev.linkState === "pending";
@@ -475,6 +477,7 @@ async function eventPage(main, id, q) {
   const panel = $("#mg-panel");
   if (tab === "equipe") return teamTab(panel, D);
   if (tab === "trace") return traceTab(panel, D);
+  if (tab === "chrono") return (await import("./chrono.js")).render(panel, { event: ev });
   if (pending && tab !== "analyse") { panel.innerHTML = html`<div class="card"><div class="empty">${t("mg.link.waitTools")}</div></div>`; return; }
   if (tab === "analyse") return analysisTab(panel, D, q);
   const race = await raceOf(ev);

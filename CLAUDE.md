@@ -746,6 +746,72 @@ the points of the controls taken, their number when the controls carry none; lat
 By hand: `python -m ffco_scraper.prov --db <db>
 --out site/data --days 31 --budget 600` (`--build-only` rebuilds the files without fetching).
 
+## Ozimut Chrono (race timing)
+
+**Ozimut Chrono** (owner, 2026-11-17, after the study of the timing tools clubs use — MeOS, OE12, SiTiming, QuickEvent…, private
+artifact https://claude.ai/artifact/1dFDHiPCfLzd5N3CbRx1tG — and the design note with mock-ups,
+https://claude.ai/artifact/HuNh42gd6RU8uqaHthADP4): the « GEC » inside Ozimut — entries, start draw, card reading, results,
+referee — for a timing team that often has no Internet. **Administrators only** for now: the tab « Chrono » of an Orga event
+(`pages/manage.js` adds it before « Équipe » for `auth.session().admin`; `pages/chrono.js`), `functions/api/chrono` an
+administrator's session or the event's own key. The contract is `docs/chrono/design.md`; read it first. Owner's decisions:
+**compatible with MeOS, never derived from it** (its files and protocols, none of its (A)GPL code, nor any other GPL code);
+no waiting for the federations' or the editors' answers; two shells (the tab and a desktop app); Emit from the start; every
+country (rules by country, nothing French in the engine); a tab of an Orga event — « Direct » and « Résultats » stay for those
+who time with another tool.
+
+- **Engine** `site/assets/js/chrono/` — pure ES modules (no DOM, no UI text; they run in a page, in the app and under Node):
+  `log.js` (the **log of operations** every station appends to — `ev`, `put`, `many`, `read`, `assign`, `edit`, `punch`,
+  `note` —, ordered by a hybrid clock, station and sequence, folded into the state: stations converge whatever the order of
+  arrival; names that would reach an object's prototype are refused), `model.js` (`importSet`: rows found by licence, else
+  name and club, never doubled; `takeRead`: a card kept once and given to its holder), `times.js` (12-hour card clocks,
+  Emit's times from the card's own zero), `judge.js` (a card against its course by longest common subsequence: missing and
+  extra punches, alternative codes, forked classes — the variant the card fits —, score, relay legs, start by list / start
+  punch / mass, the closing time), `view.js` (lists by class and by course with places at each control, the problems that wait
+  for someone, liveresultat's compact form for « En direct », the exporters' view), `draw.js` (start draw by class or course,
+  club separation, vacant places, seeded), `rules/` (`fr`, `ca`, `iof`: categories by age, draw habits, entry kinds, the
+  federation's files — FFCO's results by circuit), `io/` (`iofxml.js` IOF XML 3.0 entries, starts, courses, results there and
+  back; `oecsv.js` the OE layouts by their headings in French, English or German, written as **OE 2003, the layout FFCO's
+  archive and CN results files use** — windows-1252 —, with a pre-flight; `meosxml.js` MeOS's event file, `mop.js` MeOS's
+  online results, `sirap.js` radio punches), `si/` (SPORTident: protocol, cards SI5-SI11/SIAC/pCard, reader over Web Serial,
+  a simulator; ported from MIT-licensed libraries, `site/assets/chrono/LICENSE-sportident.txt`), `emit/` (the 250 reader and
+  MTR4, written from the protocol's facts: `docs/chrono/emit.md`), `print/` (the finish receipt as ESC/POS bytes or HTML,
+  lists as pages), `sync.js` (stations exchange what they lack: a message link to a hub, a request to the cloud),
+  `store.js` (IndexedDB with strict durability, a journal in a folder, the event file `.ozchrono`).
+- **Screens** `chrono/ui/` + `site/assets/chrono.css`, texts in the area catalogue `i18n/chrono.{fr,en,de,es}.js`
+  (`chr.*`): `app.js` (`mountChrono`: bar with the devices' state and the clock, rail of posts, ribbon of the post in hand,
+  status line; a card read on any post is kept, judged, announced and printed; `window.chronoDebug()` gives its context),
+  nine posts — « Préparer » (an assistant: event, courses, classes, entries, starts, equipment, links, a check;
+  `importFiles` takes any file and says what it holds before merging; the federation's file kept on the computer as an
+  archive for quick entry), « Accueil », « Départ », « Arrivée » (the last card in large, what waits for someone, the cards
+  read lately; the dialogs of `dialogs.js`: an entry, a card's content corrected by hand — the card's own content is never
+  changed, the correction replaces it and is noted —, a card nobody holds, a finish typed by hand), « Suivi », « Speaker »,
+  « Arbitre » (the journal of every change made by hand, read from the log; complaints and decisions), « Postes » (which
+  units are punched, which seem dead or off the clock), « Clôturer » (what is still open, FFCO's file with its pre-flight,
+  IOF XML, MeOS, a web page, publication to « Résultats » through `/api/upload`, the card numbers remembered on the
+  computer). **A rehearsal** (« Préparer › Matériel ») works on a copy of the log with made-up cards — nothing saved nor
+  sent; with no entries it makes a small invented race (`prepare.demoSet`).
+- **Cloud** `functions/api/chrono/[[path]].js` — R2 only (`chrono/<event>/meta.json` and batches `b/<key>.json`, no D1
+  table): `sync` (each station's operations in sequence, what the caller lacks given back a few batches a call), `token`
+  (an HMAC of the event's id for the stations that are not signed in; CORS open for it), `live` (the lists passed to a
+  broadcast of « En direct », opened at the first call). The login gate lets `/api/chrono/<event>/…` through: the function
+  checks the session or the key itself. The Orga event `<id>`'s log is `e<id>`.
+- **Desktop app** `chrono-app/` (Electron; `README.md` there): `hub.mjs` is plain Node — HTTP on 8377 serving
+  `www/index.html` (→ `chrono/ui/standalone.js`) and the site's assets, a WebSocket `/hub` linking every station to the
+  event's log, a journal `<event>.ozchrono.jsonl` per event, a SIRAP listener on 10000, a key for other computers —,
+  `main.mjs` / `preload.cjs` the window (`window.chronoApp`: silent printing, printers, save dialog; Web Serial allowed).
+  `node chrono-app/dev-hub.mjs [port] [folder]` runs the hub alone. **Electron itself was never run** (not installed on the
+  PC): `npm install` in `chrono-app`, then `npm start`.
+- **Tests** (no dependency but `ws` for the hub's, `npm install --omit=dev` in `chrono-app`): `node tools/chrono/t_engine.mjs`,
+  `t_io.mjs`, `t_sync.mjs`, `t_si.mjs`, `t_emit.mjs`, `t_meos.mjs`, `t_hub.mjs` (557 checks on 2026-11-17). In a browser
+  (headless Edge, 2026-11-17): the hub's page through every post in a rehearsal, two stations on one event through the hub,
+  imports of an IOF XML course file and a CSV of entries, and the tab inside the site on the local dev server (an
+  administrator: mount, cloud sync between two browsers, the key accepted and a wrong one refused).
+- **Never tried on real equipment**: no SPORTident or Emit station, no thermal printer, no real MeOS, no file accepted by
+  FFCO yet, Electron not run. Not built: multi-day totals, knockout sprints, pairs, a list designer, invoices by club,
+  team entry screens for relays (relay judging and team results exist; teams come from an import), Emit's eScan.
+  The privacy page has « Chronométrage (Ozimut Chrono) » (17 November 2026): update it when Chrono opens beyond the
+  administrators.
+
 ## Changing a method: migrations
 
 `update.py` holds version numbers stored in table `engine_meta`. Bumping one makes the next run of any kind

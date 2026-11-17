@@ -1,0 +1,70 @@
+{
+  "name": "ozimut-chrono",
+  "productName": "Ozimut Chrono",
+  "version": "0.1.0",
+  "description": "Orienteering race timing: Ozimut Chrono's screens on a computer, with a hub for the other stations and phones",
+  "author": "Ozimut",
+  "homepage": "https://ozimut.com",
+  "private": true,
+  "type": "module",
+  "main": "main.mjs",
+  "scripts": {
+    "start": "electron .",
+    "dist": "electron-builder",
+    "test": "node ../tools/chrono/t_hub.mjs"
+  },
+  "dependencies": {
+    "ws": "^8.23.0"
+  },
+  "devDependencies": {
+    "electron": "^45.3.3",
+    "electron-builder": "^26.18.0"
+  },
+  "build": {
+    "appId": "com.ozimut.chrono",
+    "productName": "Ozimut Chrono",
+    "directories": {
+      "output": "dist"
+    },
+    "files": [
+      "main.mjs",
+      "hub.mjs",
+      "strings.mjs",
+      "preload.cjs",
+      "www/**"
+    ],
+    "extraResources": [
+      {
+        "from": "../site/assets",
+        "to": "site/assets"
+      }
+    ],
+    "fileAssociations": [
+      {
+        "ext": "ozchrono",
+        "name": "Ozimut Chrono event",
+        "description": "Ozimut Chrono event",
+        "role": "Editor"
+      }
+    ],
+    "icon": "../site/assets/icon-512.png",
+    "win": {
+      "target": [
+        "nsis",
+        "portable"
+      ]
+    },
+    "mac": {
+      "target": [
+        "dmg"
+      ],
+      "category": "public.app-category.sports"
+    },
+    "linux": {
+      "target": [
+        "AppImage"
+      ],
+      "category": "Sports"
+    }
+  }
+}

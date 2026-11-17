@@ -11,22 +11,23 @@ export const cmp = (a, b) => a.t - b.t || (a.s < b.s ? -1 : a.s > b.s ? 1 : 0) |
 export const opId = (o) => `${o.s}:${o.n}`;
 export const opMs = (o) => Math.floor(o.t / 1000);
 
+const UNSAFE = new Set(["__proto__", "constructor", "prototype"]);
 function putRow(st, c, id, p) {
-  const col = st[c];
-  if (!col) return;
+  const col = COLS.includes(c) ? st[c] : null;
+  if (!col || id == null || UNSAFE.has(String(id)) || (p !== null && typeof p !== "object")) return;      // never a name that would reach the objects' prototype
   if (p === null) { delete col[id]; return; }
   const row = col[id] || (col[id] = { id });
-  for (const [k, v] of Object.entries(p)) { if (v === null || v === undefined) delete row[k]; else row[k] = v; }
+  for (const [k, v] of Object.entries(p)) { if (UNSAFE.has(k)) continue; if (v === null || v === undefined) delete row[k]; else row[k] = v; }
   if (c === "controls") row.code = Number(id);
 }
 
 /** One operation folded into the state. */
 export function apply(st, o) {
   switch (o.k) {
-    case "ev": for (const [k, v] of Object.entries(o.p || {})) { if (v === null) delete st.event[k]; else st.event[k] = v; } break;
+    case "ev": for (const [k, v] of Object.entries(o.p || {})) { if (UNSAFE.has(k)) continue; if (v === null) delete st.event[k]; else st.event[k] = v; } break;
     case "put": putRow(st, o.c, o.id, o.p); break;
-    case "many": for (const [c, id, p] of o.rows || []) putRow(st, c, id, p); break;
-    case "read": if (o.r?.id && !st.reads[o.r.id]) st.reads[o.r.id] = { ...o.r, st: o.s }; break;
+    case "many": if (Array.isArray(o.rows)) for (const r of o.rows) if (Array.isArray(r)) putRow(st, r[0], r[1], r[2]); break;
+    case "read": if (o.r?.id && !UNSAFE.has(String(o.r.id)) && Array.isArray(o.r.punches) && !st.reads[o.r.id]) st.reads[o.r.id] = { ...o.r, st: o.s }; break;
     case "assign": if (st.reads[o.id]) st.reads[o.id].runner = o.runner; break;
     case "edit": if (st.reads[o.id]) { if (o.e) st.reads[o.id].ed = o.e; else delete st.reads[o.id].ed; } break;
     case "punch": if (o.p) st.radio.push({ ...o.p, id: opId(o) }); break;

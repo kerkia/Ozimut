@@ -138,7 +138,7 @@ export function problems(st, view, { now = null } = {}) {
   for (const r of rows) {
     if (r.read && r.finish == null && !r.manual) out.push({ kind: "nofinish", level: "stop", runner: r.id, read: r.read });
     else if (r.read && r.start == null && !r.manual) out.push({ kind: "nostart", level: "stop", runner: r.id, read: r.read });
-    else if (r.read && r.auto === "mp" && !r.manual && !st.reads[r.read]?.seen) out.push({ kind: "mp", level: "warn", runner: r.id, read: r.read });
+    else if (r.read && r.auto === "mp" && !r.manual && !st.reads[r.read]?.ed?.seen) out.push({ kind: "mp", level: "warn", runner: r.id, read: r.read });
     if ((perRunner.get(r.id) || 0) > 1) out.push({ kind: "reread", level: "info", runner: r.id, n: perRunner.get(r.id) });
     if (!r.cls) out.push({ kind: "nocls", level: "warn", runner: r.id });
     if (st.event.close != null && now != null && now > st.event.close && r.status === "run") out.push({ kind: "out", level: "stop", runner: r.id });

@@ -22,6 +22,7 @@ const PUBLIC = [/^\/$/, /^\/index\.html$/, /^\/robots\.txt$/, /^\/assets\//, /^\
   /^\/sw(-push)?\.js$/, /^\/manifest(\.(en|de|es))?\.webmanifest$/, /^\/offline(\.html)?$/,
   /^\/api\/notify$/, /^\/api\/account\/(status|register|resend|verify|login|forgot|reset|handoff)$/, /^\/api\/guest$/,
   /^\/api\/live\/mop$/,           // MeOS's online results: no session, the broadcast's MeOS password (api/live/mop.js)
+  /^\/api\/chrono\/[A-Za-z0-9_-]{1,64}(\/(sync|live|token))?$/,   // Ozimut Chrono's stations: an administrator's session or the event's own key, checked there (api/chrono)
   /^\/api\/phone(\/[a-z2-9]{12}(\/file(\/\d{1,3})?)?)?$/];   // « Depuis mon téléphone »: the link's own keys (api/phone)
 const RECHECK_MS = 3600e3;       // how often a session is re-validated against the accounts database
 // A demo account (admin page, « Démo »; 2026-10-18) only reads: any other method is refused, but for these

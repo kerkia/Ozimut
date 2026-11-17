@@ -19,8 +19,18 @@ export function unwrap(x, after = 0, slack = 3600) {
 export function normaliseRead(raw, zero = 0) {
   const out = { card: Number(raw.card), sys: raw.sys || "si", at: raw.at || Date.now(), family: raw.family || undefined };
   if (raw.rel) {
+    // Emit: the race is what follows the last start unit (code 0) and precedes the first reader (codes 250-253); the
+    // finish is the last unit punched before the reader, whether a finish unit or the course's last control
     out.rel = 1;
-    out.punches = (raw.punches || []).map((p) => [Number(p.code), Math.round(p.t * 10) / 10]);
+    let P = (raw.punches || []).map((p) => [Number(p.code), Math.round(p.t * 10) / 10]);
+    const zero = P.map((p) => p[0]).lastIndexOf(0);
+    if (zero >= 0) P = P.slice(zero + 1);
+    const rd = P.findIndex((p) => p[0] >= 250 && p[0] <= 253);
+    out.read = rd >= 0;
+    if (rd >= 0) P = P.slice(0, rd);
+    out.punches = P;
+    out.start = 0;
+    out.finish = rd >= 0 && P.length ? P[P.length - 1][1] : null;
     if (raw.readAt != null) out.readAt = raw.readAt;
     return out;
   }
