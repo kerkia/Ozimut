@@ -2191,6 +2191,32 @@ Every multiple-choice game was played through to its score page at phone size, w
   break them); Lake Sammamish's brown renders as rgb(128, 0, 0) and is not read. Not done: form lines (dashed half-interval lines,
   read as full contours), a map's brown learnt from the map itself, vector sources (OCAD/OMAP through `tracer/vmap/`, symbols
   101-103, or a PDF's brown paths: exact lines, the next step), Analyse multi.
+  **Small, compressed photos; no « north up » box** (owner, 2026-11-17: three sprint maps of the Morbihan O'tour photographed and
+  sent through a messaging app, 960 × 1280, two of them sideways — « 0 control placed correctly »). On such a photo the
+  course's lines are a pixel wide and the JPEG gives them the colour of what surrounds them (olive, paving): nothing is purple but
+  the title, whose letters were read as three controls; four points then « fitted » the trace 4 of 4, and a sideways photo was out
+  of the ± 30° the box « carte orientée au nord » allowed (the calibration starts at the drop: no time to untick it).
+  `course.js` `detectCourse` now reads twice when needed (`READER` 3): by colour (`readCourse`, as before), kept when 3 circles or
+  more are read and 60 % of them are joined to another by a printed leg (`legged`: `legIn` ≥ 0.75); else **without colour**
+  (`dark`, `darkMask`: the lightness's density over its 9 px closing, the mask at 0.4 of its 95th percentile) — a ring all but
+  complete (0.9 with a pixel of tolerance, 0.7 without; no « hollow inside, clear outside » on a town's map), 8 px at least, the
+  control radius weighing rings by r² (letters and tree dots are many and small), controls within 0.85-1.18 r*, reached by a
+  line, not a hatching's ring (inner ≥ 0.9 and outer ≥ 0.65), one per 1.2 r*; the finish's rings 1.15 times apart or more, the
+  outer ≥ 0.95 r*; no ridge pass, `probe` an all but complete ring only — taken when it reads 5 circles or more, 80 % of them
+  joined by legs (a map without a course: 6 of 16 on GifCure, refused). A colour reading none of whose circles a leg reaches
+  returns nothing. **The start is not read without colour** (triangles of dark lines everywhere: tried at the end of a leg
+  leaving a control, dropped): the race then runs from the trace's beginning unless the start is placed by hand. **The order**
+  without a start: `chainBack`, back from the finish along the most fully inked leg at each step (within 0.08 of the best, the
+  nearer; a control touching the finish joined without a leg); the controls it does not reach are placed by the page by passes
+  chosen together along the printed legs (`courseOrder`: `visitOrder(extra, { leg })` — the first control, run past again
+  between 21 and 22, had come out as number 21). `align.js` `alignTrack`: no `northUp`; ± 30° about each quarter turn, and of the
+  ways up that pass 80 % of the most controls passed, the closest fit in metres, the upright one if within 1.25 of it (a wrong way
+  up at a large scale passes most controls too, 8-12 m from the trace against 2-6); `min` 5 points on the trace (3 for points
+  placed by hand). Measured (session scratch `eval.mjs`, `e2e.mjs`, `page.mjs` — the page in headless Edge): the three photos
+  24/24, 17/18 (the 18th found where the trace turns) and 17/17 controls with their finishes, fits of 2-4 m, rotations 93.8°,
+  94.5° and 3.9° found, numbered in the printed order but for 10 and 11 of the first (44 m apart, taken in the trace's order);
+  the earlier cases unchanged (Fougères 15/16, the synthetic and « hard » photos, none on the two maps without a course).
+  The calibration of such a photo takes ~30 s (two readings). Test copies in the git-ignored `site/data/_trtest/q/`.
 - **The analyses' playback layout** (owner, 2026-11-01: « the map is the key and should always be fully visible », « never need to
   scroll down on a large screen »; supersedes the layout notes above for « Analyse solo » and « Analyse multi »): the controls above
   the map (`.an-bar`: the race's line, play, speed, follow, the time slider, ⤢ ↗; Solo's figures of the moment on a second line —

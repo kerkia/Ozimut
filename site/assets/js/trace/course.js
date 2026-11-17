@@ -25,15 +25,40 @@
 //    inside and with no straight line across. Measured 2026-10-31 (the Fougères photo; the « Entrainement Gif »
 //    course drawn on its scanned map, clean and as two phone photos; the synthetic test maps; two maps without a
 //    course): 13/16, 24/24, 24/24 and 12/24 against 6, 24, 3 and 0, no false control on any (3 on the scan before).
+// 5. Without colour (2026-11-17, three photos of sprint maps sent through a messaging app, 960 x 1280: the course's
+//    lines a pixel wide, the JPEG's colour that of the olive green or the paving around them — nothing purple left but
+//    the title's letters, which were read as the controls): the same steps on what is darker than its surroundings and
+//    thin. A ring must be all but complete (0.9 with a pixel of tolerance, 0.7 without), 8 px at least; the control
+//    radius weighs the rings by their size (letters and tree dots are many and small); a control is reached by a line,
+//    is not a hatching's ring, and is alone within 1.2 r*; the finish's two rings 1.15 times apart or more. The start
+//    is not read (its triangle is joined to the town's lines, and triangles of dark lines are everywhere); the
+//    course's order is read back from the finish along the legs, as far as they lead. Measured: 24/24, 17/18 and 17/17
+//    controls and the three finishes, against none; the order of the last 8, the last 6 and all 17 controls.
 // Positions come back in the image's own pixels.
 
 const RADII = [6, 7, 8, 9, 10, 11, 12, 13, 15, 17, 19, 21, 23, 26, 29, 32, 36, 40, 45, 50];
 /** The reading's version, kept with a calibration: one made by an earlier reading says a better one exists. 2026-10-31:
- *  the ink; 2026-11-01: the course's order and the controls found along the legs. */
-export const READER = 2;
+ *  the ink; 2026-11-01: the course's order and the controls found along the legs; 2026-11-17: the colour-blind reading. */
+export const READER = 3;
 const ANGLES = 24, STRIDE = 4;
+const DARK_T = 0.4, IN_DARK = 0.45, LEG = 0.75;
 
-export async function detectCourse(image, { maxSide = 1800, debug = false } = {}) {
+/**
+ * The course printed on the map. Read by the overprint's colour first; when that finds no course whose circles the
+ * leg lines join — fewer than three circles, or under 60 % of them joined to another — the map is read again without
+ * colour (`dark`: dark thin rings of one size), and that reading is taken when it finds five circles or more, at least
+ * 80 % of them joined by legs (a map without a course makes rings here and there, which no straight line joins). A
+ * colour reading none of whose circles a leg reaches is letters or a logo: nothing is returned for it.
+ */
+export async function detectCourse(image, opts = {}) {
+  const a = await readCourse(image, opts);
+  const n = a.controls.length;
+  if (n >= 3 && a.legged >= Math.max(3, 0.6 * n)) return a;
+  const b = await readCourse(image, { ...opts, dark: true });
+  if (b.controls.length >= 5 && b.legged >= 0.8 * b.controls.length) return b;
+  return n >= 3 && !a.legged ? { ...a, controls: [], start: null, finish: null, sequence: null, order: () => null } : a;
+}
+async function readCourse(image, { maxSide = 1800, debug = false, dark = false } = {}) {
   const W = image.width, H = image.height;
   let s = Math.min(1, maxSide / Math.max(W, H)), w, h, full, lw, lum, ink, tInk, dens;
   const read = () => {
@@ -42,7 +67,7 @@ export async function detectCourse(image, { maxSide = 1800, debug = false } = {}
     const g = cv.getContext("2d", { willReadFrequently: true });
     g.drawImage(image, 0, 0, w, h);
     const data = g.getImageData(0, 0, w, h).data;
-    ({ m: full, M: ink, t: tInk, D: dens } = inkMask(data, w, h));
+    ({ m: full, M: ink, t: tInk, D: dens } = (dark ? darkMask : inkMask)(data, w, h));
     lw = lineWidth(full, w, h);
     lum = new Uint8Array(w * h);                                          // the lightness, for the finish's rings
     for (let i = 0, p = 0; i < lum.length; i++, p += 4) lum[i] = (299 * data[p] + 587 * data[p + 1] + 114 * data[p + 2]) / 1000;
@@ -55,17 +80,20 @@ export async function detectCourse(image, { maxSide = 1800, debug = false } = {}
   const mask = thinOnly(full, w, h, Math.max(1, Math.round(1.5 * lw)));
   const dil = dilate(mask, w, h);
   // a ring of the course is the overprint's colour and empty inside (a hatching's grid of lines makes rings too)
-  const genuine = (c) => purpleRing(ringColour(ink, dens, w, h, c.x, c.y, c.r)) && inkInside(ink, w, h, c.x, c.y, c.r, tInk) <= 0.3;
-  const { circles, rStar, found } = findCircles(mask, dil, w, h, lw, genuine);
+  // (the colour-blind reading: any dark ring, and a town's map leaves more inside a circle)
+  const coloured = dark ? () => true : (c) => purpleRing(c.cr !== undefined ? c : ringColour(ink, dens, w, h, c.x, c.y, c.r));
+  const IN = dark ? IN_DARK : 0.3;
+  const genuine = dark ? () => true : (c) => coloured(c) && inkInside(ink, w, h, c.x, c.y, c.r, tInk) <= IN;
+  const { circles, rStar, found } = findCircles(mask, dil, w, h, lw, genuine, dark);
   let controls = [], finish = null, start = null, startCands = null, added = null;
   if (rStar) {
-    controls = circles.filter((c) => c.r >= 0.75 * rStar && c.r <= 1.25 * rStar);
+    controls = circles.filter((c) => c.r >= (dark ? 0.85 : 0.75) * rStar && c.r <= (dark ? 1.18 : 1.25) * rStar);
     // the finish: two concentric rings, the outer 1.25 to 1.6 times the inner — ISOM draws them 5 and 7 mm across
     // around 6 mm control circles, so both come out near a control's size (2026-10-14); else the larger circle
     // concentric with a control-sized one, or alone if clearly a ring
     let pair = null;
     for (const a of circles) for (const b of circles) {
-      if (b.r <= a.r || b.r > 1.6 * a.r || b.r < 1.25 * a.r || a.r < 0.6 * rStar || b.r > 1.9 * rStar || Math.hypot(a.x - b.x, a.y - b.y) > 0.3 * a.r) continue;
+      if (b.r <= a.r || b.r > 1.6 * a.r || b.r < (dark ? 1.15 : 1.25) * a.r || a.r < 0.6 * rStar || b.r > 1.9 * rStar || (dark && b.r < 0.95 * rStar) || Math.hypot(a.x - b.x, a.y - b.y) > 0.3 * a.r) continue;
       const sc = Math.min(a.score, b.score);
       if (!pair || sc > pair.sc) pair = { a, b, sc };
     }
@@ -91,19 +119,30 @@ export async function detectCourse(image, { maxSide = 1800, debug = false } = {}
     for (const c of controls) c.touch = ringTouch(lines, w, h, c.x, c.y, c.r);
     const oneEnd = lw * (Math.max(6, 0.5 * rStar) - 2);                  // the line pixels one leg's end leaves in the ring
     // a perfect ring is a control whatever its lines look like (a photo breaks them); a lesser one needs a line
-    const reached = controls.filter((c) => c.touch >= Math.max(3, 0.2 * oneEnd) || (c.score >= 0.75 && c.raw >= 0.5));
+    const reached = controls.filter((c) => c.touch >= Math.max(3, 0.2 * oneEnd) || (!dark && c.score >= 0.75 && c.raw >= 0.5));
     if (reached.length >= 3) controls = reached;
-    start = findStart(mask, dil, longLines, lines, circles, w, h, rStar, [...controls, ...(finish ? [finish] : [])], debug ? (startCands = []) : null);
+    // colour-blind, the start is not read: a town's lines join the triangle to everything, and where a leg ends many
+    // triangles of dark lines score as well as the real one (the page takes the start from the trace, or by hand)
+    start = dark ? null
+      : findStart(mask, dil, longLines, lines, circles, w, h, rStar, [...controls, ...(finish ? [finish] : [])], debug ? (startCands = []) : null);
     if (start) controls = controls.filter((c) => Math.hypot(c.x - start.x, c.y - start.y) >= 1.2 * rStar);
     // the course's own ink, and empty inside: not a grey building on olive green, a brown knoll or a magenta hatching
     for (const c of controls) Object.assign(c, ringColour(ink, dens, w, h, c.x, c.y, c.r));
-    controls = controls.filter((c) => purpleRing(c) && inkInside(ink, w, h, c.x, c.y, c.r, tInk) <= 0.3);
+    if (!dark) controls = controls.filter((c) => coloured(c) && inkInside(ink, w, h, c.x, c.y, c.r, tInk) <= IN);
+    else {
+      // colour-blind: not a ring of a hatching or a texture (as much ink inside and around as on it), and one circle a
+      // place — a ring read twice, a pixel or two smaller, is the same control
+      controls = controls.filter((c) => !(c.inner >= 0.9 && c.outer >= 0.65));
+      const one = [];
+      for (const c of [...controls].sort((a, b) => b.score + b.raw - a.score - a.raw)) if (!one.some((k) => Math.hypot(k.x - c.x, k.y - c.y) < 1.2 * rStar)) one.push(c);
+      controls = one;
+    }
     // the finish likewise — the start triangle may be drawn inside it, so a little more ink is allowed there
-    if (finish && (!purpleRing(ringColour(ink, dens, w, h, finish.x, finish.y, finish.r2))
-      || inkInside(ink, w, h, finish.x, finish.y, finish.r1 ?? finish.r2, tInk) > (finish.r1 ? 0.45 : 0.3))) finish = null;
+    if (finish && (!coloured({ x: finish.x, y: finish.y, r: finish.r2 })
+      || (!dark && inkInside(ink, w, h, finish.x, finish.y, finish.r1 ?? finish.r2, tInk) > (finish.r1 ? 0.45 : IN)))) finish = null;
     // the rings the first pass missed — a side faded by a photo's blur, an arc cut by ISOM, over yellow or green —
     // read on the continuous ink field once three controls say what the course looks like: its radius and its ink
-    if (controls.length >= 3) {
+    if (controls.length >= 3 && !dark) {
       const known = [...controls, ...(finish ? [{ ...finish, r: finish.r2 }] : []), ...(start ? [{ ...start, r: start.R }] : [])];
       const med = (v) => [...v].sort((p, q) => p - q)[v.length >> 1];
       const cr = med(controls.map((c) => c.cr ?? 0.5)), cb = med(controls.map((c) => c.cb ?? 0.5));
@@ -116,8 +155,8 @@ export async function detectCourse(image, { maxSide = 1800, debug = false } = {}
         const c = bestRidge(ink, w, h, c0.x, c0.y, rStar, tInk);
         if (!free(c) || c.score < 0.55 || c.arcs < 0.4 || c.score + c.arcs < 1.3) continue;
         Object.assign(c, ringColour(ink, dens, w, h, c.x, c.y, c.r));
-        const ok = purpleRing(c) && Math.abs(c.cr - cr) <= 0.3 && Math.abs(c.cb - cb) <= 0.3
-          && inkInside(ink, w, h, c.x, c.y, c.r, tInk) <= 0.3 && lineAcross(ink, w, h, c.x, c.y, c.r, tInk) < 0.8;
+        const ok = coloured(c) && (dark || (Math.abs(c.cr - cr) <= 0.3 && Math.abs(c.cb - cb) <= 0.3))
+          && inkInside(ink, w, h, c.x, c.y, c.r, tInk) <= IN && lineAcross(ink, w, h, c.x, c.y, c.r, tInk) < 0.8;
         if (debug) added.push({ ...c, ok });
         if (ok) { known.push(c); controls.push({ x: c.x, y: c.y, r: c.r, score: c.score, raw: c.arcs, ridge: true }); }
       }
@@ -133,9 +172,19 @@ export async function detectCourse(image, { maxSide = 1800, debug = false } = {}
     const x0 = X * s, y0 = Y * s, R = Math.max(4, radius * s);
     // the course's ink, empty inside, no line across it; for a click, a faint ring only right under it — two
     // overlapping circles cut where they meet (the Fougères photo's 15 and 16, 2026-10-31) took a click 18 px away
-    const plain = (c, v) => purpleRing(ringColour(ink, dens, w, h, c.x, c.y, c.r)) && inkInside(ink, w, h, c.x, c.y, c.r, tInk) <= 0.3 && lineAcross(ink, w, h, c.x, c.y, c.r, tInk) < 0.8
+    const plain = (c, v) => coloured({ x: c.x, y: c.y, r: c.r }) && inkInside(ink, w, h, c.x, c.y, c.r, tInk) <= IN && lineAcross(ink, w, h, c.x, c.y, c.r, tInk) < 0.8
       && (!loose || v >= 1.1 || Math.hypot(c.x - x0, c.y - y0) <= 0.5 * rStar);
     let best = null;
+    if (dark) {                                                           // colour-blind: an all but complete ring only
+      for (let r = Math.max(4, Math.round(rStar) - 1); r <= Math.round(rStar) + 1; r++) {
+        for (let y = Math.round(y0 - R); y <= y0 + R; y += 2) for (let x = Math.round(x0 - R); x <= x0 + R; x += 2) {
+          const sc = ringScore(dil, w, h, x, y, r, 48);
+          if (!best || sc > best.score) best = { x, y, r, score: sc };
+        }
+      }
+      const c = best && refineCircle(mask, dil, w, h, best.x, best.y, best.r);
+      return c && c.score >= (loose ? 0.8 : 0.9) && c.raw >= (loose ? 0.55 : 0.7) && !(c.inner >= 0.9 && c.outer >= 0.65) ? back(c) : null;
+    }
     for (let y = Math.round(y0 - R); y <= y0 + R; y += 2) for (let x = Math.round(x0 - R); x <= x0 + R; x += 2) {
       if ((x - x0) ** 2 + (y - y0) ** 2 > R * R) continue;
       const q = ridgeRing(ink, w, h, x, y, rStar, tInk);
@@ -225,14 +274,39 @@ export async function detectCourse(image, { maxSide = 1800, debug = false } = {}
   // the course in its order, read as a runner reads the map — not from the trace (owner, 2026-11-01: the trace had
   // numbered 8 before 5, 6, 7): from the start triangle along the legs, and back from the finish along them; where a
   // leg leads to no circle found, the circle is looked for at its end (the photo's 15 and 16, 2026-11-01)
-  const sequence = rStar && start && controls.length >= 2 ? followCourse(finish) : null;
+  const sequence = rStar && controls.length >= 2 ? (start ? followCourse(finish) : dark ? chainBack(finish) : null) : null;
+  // the controls a printed leg joins to another one (or to the finish): a course's circles are, a texture's rings are not
+  const legged = !rStar ? 0 : controls.filter((a) => controls.some((b) => b !== a && legIn(a.x, a.y, b.x, b.y, 1.3 * rStar, 1.3 * rStar) >= LEG)
+    || (finish && legIn(a.x, a.y, finish.x, finish.y, 1.3 * rStar, 1.1 * finish.r2) >= LEG)).length;
   /** The course's order again, with a finish placed by the page (where the trace ends: a finish over water is not read
    *  from the map) — `finish` [x, y] in the image's pixels. */
   const order = ({ finish: F = null } = {}) => {
-    if (!rStar || !start || controls.length < 2) return null;
-    const q = followCourse(F ? { x: F[0] * s, y: F[1] * s, r2: finish?.r2 ?? 1.4 * rStar } : finish);
+    if (!rStar || controls.length < 2 || (!start && !dark)) return null;
+    const q = (start ? followCourse : chainBack)(F ? { x: F[0] * s, y: F[1] * s, r2: finish?.r2 ?? 1.4 * rStar } : finish);
     return { ...q, points: q.points.map(back) };
   };
+  // without a start (the colour-blind reading): back from the finish along the legs, each time to a control not placed
+  // yet that a leg joins; the controls in the course's order, then the finish. It stops where no leg leads on: the
+  // controls before are left to the page, which places them by the trace
+  function chainBack(fin) {
+    if (!fin) return null;
+    const left = controls.map((c) => ({ kind: "control", x: c.x, y: c.y, r: rStar }));
+    const seq = [{ kind: "finish", x: fin.x, y: fin.y, r: fin.r2 ?? 1.4 * rStar }];
+    for (let p = seq[0]; left.length;) {
+      // the leg inked the most (a chance run of a town's lines joins two controls at 0.75, a printed leg near 1);
+      // between two alike, the nearer; no leg is drawn between two symbols that all but touch (the last control
+      // beside the finish)
+      const joined = left.map((q) => ({ q, d: Math.hypot(q.x - p.x, q.y - p.y), v: legIn(p.x, p.y, q.x, q.y, (p.kind === "control" ? 1.3 : 1.1) * p.r, 1.3 * q.r) }))
+        .map((z) => (z.d < 2.2 * rStar + p.r ? { ...z, v: 1 } : z)).filter((z) => z.v >= LEG);
+      const top = Math.max(0, ...joined.map((z) => z.v));
+      joined.splice(0, joined.length, ...joined.filter((z) => z.v >= top - 0.08).sort((a, b) => a.d - b.d).map((z) => z.q));
+      if (!joined.length) break;
+      const q = joined[0];
+      left.splice(left.indexOf(q), 1); seq.push(q); p = q;
+    }
+    if (seq.length < 3) return null;
+    return { points: seq.reverse().map((q) => ({ kind: q.kind, x: q.x, y: q.y })), complete: !left.length, reversible: false };
+  }
   function followCourse(fin) {
     const syms = [{ kind: "start", x: start.x, y: start.y, r: start.R }, ...controls.map((c) => ({ kind: "control", x: c.x, y: c.y, r: rStar, c })),
       ...(fin ? [{ kind: "finish", x: fin.x, y: fin.y, r: fin.r2 }] : [])];
@@ -361,15 +435,15 @@ export async function detectCourse(image, { maxSide = 1800, debug = false } = {}
   // inside, no line across it (a leg stops at a control's circle), apart from the symbols placed
   function legRing(ring, placed) {
     const c = bestRidge(ink, w, h, Math.round(ring.x), Math.round(ring.y), rStar, tInk);
-    if (c.score + c.arcs < 0.8 || c.score < 0.45 || c.arcs < 0.25 || !purpleRing(ringColour(ink, dens, w, h, c.x, c.y, c.r))
-      || inkInside(ink, w, h, c.x, c.y, c.r, tInk) > 0.3 || lineAcross(ink, w, h, c.x, c.y, c.r, tInk) >= 0.8
+    if (c.score + c.arcs < 0.8 || c.score < 0.45 || c.arcs < 0.25 || !coloured({ x: c.x, y: c.y, r: c.r })
+      || inkInside(ink, w, h, c.x, c.y, c.r, tInk) > IN || lineAcross(ink, w, h, c.x, c.y, c.r, tInk) >= 0.8
       || placed.concat(controls).some((p) => Math.hypot(p.x - c.x, p.y - c.y) < 1.2 * rStar)) return null;
     return { x: c.x, y: c.y, r: c.r, score: c.score, raw: c.arcs, alongLeg: true };
   }
   return { W, H, s, r: rStar ? rStar / s : null, controls: controls.map(back), probe, probeFinish, leg,
     sequence: sequence && { ...sequence, points: sequence.points.map(back) }, order,
     finish: finish && { ...back(finish), r1: finish.r1 == null ? null : finish.r1 / s, r2: finish.r2 / s },
-    start: start && { ...back(start), R: start.R / s }, nCircles: circles.length, lw,
+    start: start && { ...back(start), R: start.R / s }, nCircles: circles.length, lw, dark, legged,
     found: debug ? found.map(back) : undefined, added: debug && added ? added.map(back) : undefined, startCands: debug && startCands ? startCands.map(back) : undefined };
 }
 
@@ -448,7 +522,7 @@ function thinOnly(m, w, h, k) {
   }
   return out;
 }
-function findCircles(mask, dil, w, h, lw, genuine) {
+function findCircles(mask, dil, w, h, lw, genuine, dark = false) {
   const px = [];
   for (let i = 0; i < mask.length; i++) if (mask[i]) px.push(i);
   if (!px.length) return { circles: [], rStar: null, found: [] };
@@ -457,7 +531,7 @@ function findCircles(mask, dil, w, h, lw, genuine) {
   const found = [];
   for (const r of RADII) {
     if (r * 2 > Math.min(w, h)) break;
-    if (r < 2.5 * lw) continue;                                      // a circle this small lies within a line
+    if (r < 2.5 * lw || (dark && r < 8)) continue;                   // a circle this small lies within a line
     acc.fill(0);
     const dx = new Int16Array(ANGLES), dy = new Int16Array(ANGLES);
     for (let a = 0; a < ANGLES; a++) { dx[a] = Math.round(r * Math.cos((2 * Math.PI * a) / ANGLES)); dy[a] = Math.round(r * Math.sin((2 * Math.PI * a) / ANGLES)); }
@@ -489,10 +563,14 @@ function findCircles(mask, dil, w, h, lw, genuine) {
   // finish's inner circle) — never a small circle, which a thick purple patch would fill
   // a ring: nearly complete with a pixel of tolerance (a photo blurs the line), or crisp though partly hidden —
   // a small circle where a line meets a ring scores 0.6 to 0.7 tolerant and less raw; hollow inside, clear outside
-  const strict = (c) => ((c.score >= 0.8 && c.raw >= 0.3) || (c.score >= 0.55 && c.raw >= 0.5)) && c.inner <= 0.3 && c.outer <= 0.4;
+  // colour-blind, on a town's map nothing is hollow or clear (buildings, kerbs, trees inside and around): the ring
+  // itself must be all but complete — the letters, tree dots and digits' loops that are too are far smaller than the
+  // controls, and fewer once weighed by their size
+  const strict = dark ? (c) => c.score >= 0.9 && c.raw >= 0.7
+    : (c) => ((c.score >= 0.8 && c.raw >= 0.3) || (c.score >= 0.55 && c.raw >= 0.5)) && c.inner <= 0.3 && c.outer <= 0.4;
   const kept = suppress(found.filter(strict)).filter(genuine);
-  const rStar = controlRadius(kept);
-  if (!rStar) return { circles: kept, rStar, found };
+  const rStar = controlRadius(kept, dark);
+  if (!rStar || dark) return { circles: kept, rStar, found };
   const more = found.filter((c) => !strict(c) && c.score >= 0.85 && c.raw >= 0.6 && c.outer <= 0.6 && c.inner <= 0.75 && c.r >= 0.75 * rStar && c.r <= 1.8 * rStar);
   return { circles: suppress([...kept, ...more]), rStar, found };
 }
@@ -506,13 +584,13 @@ function suppress(found) {
   return kept;
 }
 /** The radius the good circles share: the densest window of radii (± 30 %), weighted by the circles' scores. */
-function controlRadius(circles) {
+function controlRadius(circles, bySize = false) {
   if (!circles.length) return null;
   const cs = [...circles].sort((a, b) => a.r - b.r);
   let best = null;
   for (let i = 0; i < cs.length; i++) {
     let j = i, sum = 0;
-    while (j < cs.length && cs[j].r <= cs[i].r * 1.3) sum += cs[j++].score;
+    while (j < cs.length && cs[j].r <= cs[i].r * 1.3) { sum += cs[j].score * (bySize ? cs[j].r * cs[j].r : 1); j++; }
     if (!best || sum > best.sum) best = { sum, i, j };
   }
   const win = cs.slice(best.i, best.j);
@@ -664,6 +742,31 @@ function inkMask(data, w, h) {
   bg.set(D[1]); blur(bg, w, h, tmp);
   const m = new Uint8Array(n);
   for (let i = 0; i < n; i++) if (M[i] > t && Math.abs(a[i]) < 0.45 * bg[i]) m[i] = 1;
+  return { m, M, t, D };
+}
+
+/** The colour-blind ink: what is darker than its surroundings and thin — a small, strongly compressed photo keeps the
+ *  darkness of a line a pixel wide and none of its colour (the JPEG's chroma is the surroundings'). `M` the lightness's
+ *  density over the local background, `m` the mask at `DARK_T` of the strongest (the 95th percentile). */
+function darkMask(data, w, h) {
+  const K = 4, T = 0.1, n = w * h;
+  const a = new Float32Array(n), tmp = new Float32Array(n), bg = new Float32Array(n), D = [];
+  for (let c = 0; c < 3; c++) {
+    for (let i = 0; i < n; i++) a[i] = data[4 * i + c] + 1;
+    closing(a, w, h, K, tmp, bg);
+    const d = new Float32Array(n);
+    for (let i = 0; i < n; i++) d[i] = bg[i] > a[i] ? Math.log(bg[i] / a[i]) : 0;
+    D.push(d);
+  }
+  for (let i = 0; i < n; i++) a[i] = (299 * data[4 * i] + 587 * data[4 * i + 1] + 114 * data[4 * i + 2]) / 1000 + 1;
+  closing(a, w, h, K, tmp, bg);
+  const M = new Float32Array(n), hist = new Uint32Array(400);
+  let cnt = 0;
+  for (let i = 0; i < n; i++) { const v = (M[i] = bg[i] > a[i] ? Math.log(bg[i] / a[i]) : 0); if (v > T) { hist[Math.min(399, (v * 100) | 0)]++; cnt++; } }
+  let t = T;
+  for (let k = 399, acc = 0; k >= 0; k--) { acc += hist[k]; if (acc >= 0.05 * cnt) { t = Math.max(T, DARK_T * (k / 100)); break; } }
+  const m = new Uint8Array(n);
+  for (let i = 0; i < n; i++) if (M[i] > t) m[i] = 1;
   return { m, M, t, D };
 }
 

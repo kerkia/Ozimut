@@ -1448,7 +1448,7 @@ async function editor(box, ctx) {
       }
     }
     if (!st.geo && st.track && pts.length >= 3) {
-      const al = alignTrack(st.track, pts, { rStar: st.detect?.r || null, northUp: true, tol: 20 });
+      const al = alignTrack(st.track, pts, { rStar: st.detect?.r || null, tol: 20 });
       if (al) { st.geo = geoFromFit(al.fit, st.track); st.geoHow = t("sh.geo.trace", { m: Math.round(al.rms / al.fit.scale) }); }
       else st.notes.push(t("an.st.noAlign"));
     }

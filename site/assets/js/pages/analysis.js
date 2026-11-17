@@ -260,7 +260,7 @@ export async function render(main, { query = {}, route } = {}) {
   // { name, note, ... } per role; an OCAD or Mapper map is the map itself (files.map.vec) when no image of it is given, else read
   // for the computed routes only (files.vector)
   const files = { map: null, trace: null, geo: null, world: null, prj: null, iof: null, vector: null };
-  let iofIndex = 0, northUp = true, restoredFiles = false;
+  let iofIndex = 0, restoredFiles = false;
   let course = null, courseCache = null, geoFit = null, geoHow = "", auto = null, prepToken = 0, status = "";
   let targets = [], cur = 0, fit = null, offset = null, rmsM = null, calibrated = false, mode = "auto", notes = [];
   let mapOrdered = false;                                                  // the targets in the course's order read on the map
@@ -1132,17 +1132,17 @@ export async function render(main, { query = {}, route } = {}) {
       setStatus(t("an.st.aligning"));
       await tick();
       if (my !== prepToken) return;
-      auto = alignTrack(track, ptsOf(located), { rStar: r, northUp, tol: TOL });
+      auto = alignTrack(track, ptsOf(located), { rStar: r, tol: TOL });
       geometry = auto?.fit || null;
       if (!auto) notes.push(t("an.st.noAlign"));
     } else if (!geometry) notes.push(t("an.st.fewPoints", { n: located.length }));
     // the rings the first pass missed: where the trace turns sharply and no control is placed, look again
     if (geometry && course?.probe && !iofCourse) {
-      const added = probeTurns(geometry, located);
+      const added = probeTurns(geometry, located).filter((a) => !pts.some((p) => p.pos && Math.hypot(p.pos[0] - a.pos[0], p.pos[1] - a.pos[1]) < 1.5 * r));
       if (added.length) {
-        pts.push(...added.filter((a) => !pts.some((p) => p.pos && Math.hypot(p.pos[0] - a.pos[0], p.pos[1] - a.pos[1]) < 1.5 * r)));
+        pts.push(...added);
         located = pts.filter((p) => p.pos);
-        if (!geoFit) { const again = alignTrack(track, ptsOf(located), { rStar: r, northUp, tol: TOL }); if (again && again.inliers > (auto?.inliers || 0)) { auto = again; geometry = again.fit; } }
+        if (!geoFit) { const again = alignTrack(track, ptsOf(located), { rStar: r, tol: TOL }); if (again && again.inliers > (auto?.inliers || 0)) { auto = again; geometry = again.fit; } }
         notes.push(t("an.st.probed", { n: added.length }));
       }
     }
@@ -1270,8 +1270,11 @@ export async function render(main, { query = {}, route } = {}) {
     if (extra.length) {
       const vo = passesInOrder(track, geometry, ptsOf(list), TOL), tOf = new Map(list.map((p, i) => [p, vo.pass.get(i)]));
       const beforeFinish = () => list.length - (list[list.length - 1].kind === "finish" ? 1 : 0);
-      for (const p of extra) {
-        const t0 = visitOrder(track, geometry, ptsOf([p]), TOL).pass.get(0);
+      // their passes chosen together, by the legs printed between them: a control run past again later (the first
+      // control, on the way from 21 to 22: 2026-11-17) keeps the pass that puts it next to the controls its legs join
+      const ve = extra.length > 1 ? visitOrder(track, geometry, ptsOf(extra), TOL, { leg: course?.leg }) : null;
+      for (const [j, p] of extra.entries()) {
+        const t0 = ve ? ve.pass.get(j) : visitOrder(track, geometry, ptsOf([p]), TOL).pass.get(0);
         let at = t0 == null ? -1 : list.findIndex((q) => q.kind === "control" && tOf.get(q) != null && tOf.get(q) > t0);
         if (at < 0) at = beforeFinish();
         list.splice(at, 0, p); tOf.set(p, t0);
@@ -1313,7 +1316,7 @@ export async function render(main, { query = {}, route } = {}) {
       if (geoFit) fit = geoFit;
       else if (geometry) fit = geometry;
       else if (auto?.fit) fit = auto.fit;                                   // placed by hand: the geometry found stays
-      else if (located.length >= 3) { auto = alignTrack(track, ptsOf(located), { rStar: course?.r || null, northUp, tol: TOL }); fit = auto?.fit || null; }
+      else if (located.length >= 3) { auto = alignTrack(track, ptsOf(located), { rStar: course?.r || null, tol: TOL, min: 3 }); fit = auto?.fit || null; }
       if (fit) {
         // the course's order read on the map stays, the trace timing it; else the trace's own visiting order. In the
         // map's order a control added by hand goes where the trace passes it, among the others
@@ -1451,7 +1454,7 @@ export async function render(main, { query = {}, route } = {}) {
           ${offset != null && guessOffset() != null ? html`<div><span class="muted">${t("an.cal.offset")}</span> <b>${signed(offset - guessOffset())}</b> <span class="muted" title="${t("an.cal.offset.hint")}">ⓘ</span></div>` : ""}
           ${offset == null ? html`<div class="notice">${t("an.cal.noStart")}</div>` : ""}`
         : html`<div class="muted">${mode === "manual" ? t("an.cal.need", { n: need }) : status}</div>`}</div>
-      <label class="an-opt" style="margin-top:8px"><input type="checkbox" id="an-north" ${raw(northUp ? "checked" : "")}> ${t("an.northUp")}</label></div>
+      </div>
       <div class="an-actions">
         <button type="button" class="btn btn-primary" id="an-done" ${raw(fit && offset != null ? "" : "disabled")}>${t("an.cal.done")}</button>${keepBox()}
         ${whose?.other ? html`<button type="button" class="btn btn-sm" id="an-switch" data-di="${whose.other.di}" data-ci="${whose.other.ci}" data-ri="${whose.other.ri}" title="${t("an.switch.hint")}">${t("an.switch", { o: whose.other.name })}</button>` : ""}
@@ -1481,7 +1484,6 @@ export async function render(main, { query = {}, route } = {}) {
     bindKeepBox($("#an-side"));
     $("#an-manual")?.addEventListener("click", () => { mode = "manual"; cur = nextTarget(0); if (cur < 0) cur = 0; side(); draw(); });
     $("#an-auto")?.addEventListener("click", () => prepare({ fresh: true }));
-    $("#an-north").addEventListener("change", (e) => { northUp = e.target.checked; prepare(); });
   }
   /** A click on the map in manual mode: the current target goes there (snapped to a circle found nearby). */
   function placeClick(px, py) {
@@ -2958,7 +2960,7 @@ export async function render(main, { query = {}, route } = {}) {
   // files opened with the installed app or shared to it (pwa.js): they join the files of the visit, as if dropped
   const received = await takeInbox();
   if (memo) {
-    ({ map, track, courseCache, iofIndex, northUp, restoredFiles } = memo);
+    ({ map, track, courseCache, iofIndex, restoredFiles } = memo);
     Object.assign(files, memo.files);
     memos[pageMode] = null;
     filesCard(); setup();
@@ -2990,6 +2992,6 @@ export async function render(main, { query = {}, route } = {}) {
     document.removeEventListener("keydown", onDrawKey); offArrows(); measure.destroy(); video?.close();
     themeWatch.disconnect();
     stop(); ro.disconnect(); barFloat.destroy(); handleClear.destroy(); prepToken++; close3d(); rcs.token++; rcs.plan?.destroy();
-    if (map || track) memos[pageMode] = { map, track, courseCache, iofIndex, northUp, restoredFiles: true, files: { ...files }, orgaKey: orgaMode ? key : null };
+    if (map || track) memos[pageMode] = { map, track, courseCache, iofIndex, restoredFiles: true, files: { ...files }, orgaKey: orgaMode ? key : null };
   } };
 }

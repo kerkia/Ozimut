@@ -4,7 +4,11 @@
 // controls are brought back to the trace's metres and looked up in a distance field of the trace (a chamfer grid):
 // the hypothesis with the most controls within 20 m wins, after the best forty are refined by ICP (each control to
 // its nearest trace point, least squares, eight rounds). The scale is bounded by the circle's radius (2 to 3.5 mm on
-// a map at 1:3000 to 1:15000), the rotation by ± 30° when the map is north up.
+// a map at 1:3000 to 1:15000), the rotation by ± 30° about each way up a photo may be: north at the top, or a quarter,
+// a half or three quarters of a turn from it (a map photographed sideways; 2026-11-17 — a box « carte orientée au nord »
+// before, which the calibration never waited for).
+// Five controls at least must lie on the trace: two are placed there by construction, and three or four of four points
+// — the letters of a title read as controls — fit somewhere along any trace.
 // visitOrder: once the geometry is known, the controls' passing times (the closest approach), their visiting order,
 // the start's departure and the finish's arrival.
 
@@ -13,10 +17,11 @@ import { finishArrival } from "./track.js";
 
 const angleDiff = (a, b) => { let d = b - a; while (d > Math.PI) d -= 2 * Math.PI; while (d < -Math.PI) d += 2 * Math.PI; return d; };
 
-/** pts: [{ x, y, kind }] in image px, unordered. Returns { fit, inliers, rms, rotationDeg, pxPerM } or null. */
-export function alignTrack(track, pts, { rStar = null, northUp = true, tol = 20 } = {}) {
+/** pts: [{ x, y, kind }] in image px, unordered. `min`: the points that must lie on the trace (5 for points read on
+ *  the map; 3 for points a person placed). Returns { fit, inliers, rms, rotationDeg, pxPerM } or null. */
+export function alignTrack(track, pts, { rStar = null, tol = 20, min = 5 } = {}) {
   const n = track.n;
-  if (n < 10 || pts.length < 3) return null;
+  if (n < 10 || pts.length < min) return null;
   let V = simplify(track.x, track.y, n, 12);
   if (V.length > 130) {                              // the sharpest corners
     const turn = (k) => { const i = V[k], a = V[k - 1], b = V[k + 1];
@@ -36,9 +41,9 @@ export function alignTrack(track, pts, { rStar = null, northUp = true, tol = 20 
     const s0 = diagQ / Math.max(1, Math.hypot(x1 - x0, y1 - y0));
     sLo = s0 / 6; sHi = s0 * 6;
   }
-  const rotMax = northUp ? (30 * Math.PI) / 180 : Infinity;
-  const K = 40, top = [];
-  const consider = (inl, sum, h) => {
+  const rotMax = (30 * Math.PI) / 180;
+  const K = 40, tops = [[], [], [], []];
+  const consider = (top, inl, sum, h) => {
     if (top.length === K && (inl < top[K - 1].inl || (inl === top[K - 1].inl && sum >= top[K - 1].sum))) return;
     let k = top.length;
     while (k > 0 && (top[k - 1].inl < inl || (top[k - 1].inl === inl && top[k - 1].sum > sum))) k--;
@@ -53,8 +58,8 @@ export function alignTrack(track, pts, { rStar = null, northUp = true, tol = 20 
       if (a === b) continue;
       const dqx = Q[b][0] - Q[a][0], dqy = Q[b][1] - Q[a][1], sc = Math.hypot(dqx, dqy) / Lp;
       if (sc < sLo || sc > sHi) continue;
-      const rot = angleDiff(angP, Math.atan2(dqy, dqx));
-      if (Math.abs(rot) > rotMax) continue;
+      const rot = angleDiff(angP, Math.atan2(dqy, dqx)), turn = Math.round(rot / (Math.PI / 2));
+      if (Math.abs(rot - (turn * Math.PI) / 2) > rotMax) continue;
       const c = Math.cos(rot) / sc, s = Math.sin(rot) / sc;        // the inverse: m = R(-rot)(q - q_a)/sc + p_i
       let inl = 0, sum = 0;
       for (let k = 0; k < Q.length; k++) {
@@ -62,30 +67,40 @@ export function alignTrack(track, pts, { rStar = null, northUp = true, tol = 20 
         const d = D.lookup(c * wx + s * wy + px0, -s * wx + c * wy + py0);
         if (d <= tol) { inl++; sum += d; }
       }
-      if (inl >= 3) consider(inl, sum, [i, j, a, b]);
+      if (inl >= 3) consider(tops[(turn + 4) % 4], inl, sum, [i, j, a, b]);
     }
   }
-  if (!top.length) return null;
   const hash = spatialHash(track.x, track.y, n, tol * 1.5);
-  let best = null;
-  for (const { h } of top) {
-    let f = similarityFrom2([track.x[h[0]], track.y[h[0]]], [track.x[h[1]], track.y[h[1]]], Q[h[2]], Q[h[3]]);
-    if (!f) continue;
-    let res = null;
-    for (let it = 0; it < 8; it++) {
-      const S = [], T = [];
-      for (const q of Q) { const [mx, my] = toM(f, q[0], q[1]); const k = hash.nearest(mx, my); if (k >= 0) { S.push([track.x[k], track.y[k]]); T.push(q); } }
-      if (S.length < 2) break;
-      const g = fitSimilarity(S, T);
-      if (!g) break;
-      f = g;
-      let inl = 0;
-      for (const q of Q) { const [mx, my] = toM(f, q[0], q[1]); const k = hash.nearest(mx, my); if (k >= 0 && hash.dist(mx, my, k) <= tol) inl++; }
-      res = { f, inl, rms: g.rms };
+  const turned = [];
+  for (const top of tops) {
+    let mine = null;
+    for (const { h } of top) {
+      let f = similarityFrom2([track.x[h[0]], track.y[h[0]]], [track.x[h[1]], track.y[h[1]]], Q[h[2]], Q[h[3]]);
+      if (!f) continue;
+      let res = null;
+      for (let it = 0; it < 8; it++) {
+        const S = [], T = [];
+        for (const q of Q) { const [mx, my] = toM(f, q[0], q[1]); const k = hash.nearest(mx, my); if (k >= 0) { S.push([track.x[k], track.y[k]]); T.push(q); } }
+        if (S.length < 2) break;
+        const g = fitSimilarity(S, T);
+        if (!g) break;
+        f = g;
+        let inl = 0;
+        for (const q of Q) { const [mx, my] = toM(f, q[0], q[1]); const k = hash.nearest(mx, my); if (k >= 0 && hash.dist(mx, my, k) <= tol) inl++; }
+        res = { f, inl, rms: g.rms };
+      }
+      if (res && (!mine || res.inl > mine.inl || (res.inl === mine.inl && res.rms < mine.rms))) mine = res;
     }
-    if (res && (!best || res.inl > best.inl || (res.inl === best.inl && res.rms < best.rms))) best = res;
+    turned.push(mine);
   }
-  if (!best || best.inl < Math.max(3, Math.ceil(0.5 * pts.length))) return null;
+  // which way up: a wrong one, laid at a large scale, passes most controls too — within 20 m of a trace that then
+  // covers the map — but loosely (8 to 12 m from it, against 2 to 6 for the right one, on five photos). Of the ways
+  // up that pass 80 % of the most controls passed, the closest fit; the upright one if it is about as close
+  const most = Math.max(0, ...turned.map((m) => (m ? m.inl : 0))), loose = (m) => m.rms / m.f.scale;
+  let best = null;
+  for (const m of turned) if (m && m.inl >= 0.8 * most && (!best || loose(m) < loose(best))) best = m;
+  if (best && turned[0] && turned[0].inl >= 0.8 * most && loose(turned[0]) <= 1.25 * loose(best)) best = turned[0];
+  if (!best || best.inl < Math.max(min, Math.ceil(0.5 * pts.length))) return null;
   // a photographed or scanned map is slightly skewed: with enough controls, an affine fit absorbs it
   if (best.inl >= 6) {
     const S = [], T = [];
