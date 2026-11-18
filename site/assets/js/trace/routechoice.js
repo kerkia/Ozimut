@@ -35,10 +35,12 @@ export const A = { WHITE: 0, OPEN: 1, ROUGH: 2, G1: 3, G2: 4, G3: 5, WATER: 6, S
 export const N_CLASSES = 13;
 const UNKNOWN = 255;
 // pixel kinds: the areas are their class; the inks above them; a north line's pixel taken out
-const I_PURPLE = 20, I_BLACK = 21, I_GREY = 22, I_BROWN = 23, I_BLUE = 24, I_OLIVE = 25, I_ERASED = 26;
+const I_PURPLE = 20, I_BLACK = 21, I_GREY = 22, I_BROWN = 23, I_BLUE = 24, I_OLIVE = 25, I_ERASED = 26, I_MIXED = 27;
 export const INK = { PURPLE: I_PURPLE, BLACK: I_BLACK, GREY: I_GREY, BROWN: I_BROWN, BLUE: I_BLUE, OLIVE: I_OLIVE };
 /** The path layer's kinds; BRIDGE marks the pixels drawn across a dashed path's gaps. */
 export const PATH = { SMALL: 1, PATH: 2, TRACK: 3, BRIDGE: 4 };
+/** A sprint map's distances against a forest map's (1:4 000 against 1:10 000): the overprint's tests, the course's release. */
+export const SPRINT_SCALE = 0.4;
 /** The half width of the thickness test, metres: an ink wider than about twice this is an area. */
 export const THICK = { forest: 3.5, sprint: 2 };
 
@@ -63,8 +65,9 @@ export const DEFAULTS = {
 export const CROSS_PACE = 0.36;
 
 // ---- 1. pixels ---------------------------------------------------------------------------------------------------------
-/** A colour's kind: an area (A.*) or an ink (INK.*). */
-export function kindOf(r, g, b) {
+/** A colour's kind: an area (A.*) or an ink (INK.*). oliveFrom: the hue from which a dark yellow-green is olive (oliveFrom()'s,
+ *  for a photo or a scan; 0, every one: a map's own colours). */
+export function kindOf(r, g, b, oliveFrom = 0) {
   const max = r > g ? (r > b ? r : b) : (g > b ? g : b), min = r < g ? (r < b ? r : b) : (g < b ? g : b), span = max - min;
   // the course's purple, as trace/course.js reads it (the dark plum of a photo included)
   if (max >= 40 && g === min && span) {
@@ -81,11 +84,40 @@ export function kindOf(r, g, b) {
     return t < 0.12 ? A.WHITE : t < 0.36 ? A.G1 : t < 0.52 ? A.G2 : A.G3;
   }
   if (hue >= 36 && hue < 70) {
+    // olive green (out of bounds: an area once thick): a dark colour of the olive's hue on that image (oliveFrom); a darker one of
+    // a lower hue is a blend — olive against a street's pink, the course's purple over olive — which its neighbours decide
+    // (I_MIXED, an ink no area claims: as olive it narrowed every street and lane by a cell each side, 2026-11-17). A photo lights
+    // one part of the map and not another, so a lit olive is told from yellow by its hue, 50-60° where yellow's is 38-46° (the
+    // Auray sprint photo: olive 52-55° up to 214 bright, read as open land; the Fougères photo's white balance puts its olive at
+    // 42-44°, dark: the hue decides only among the brighter pixels); the brightest stay yellow whatever their hue (lemon yellow)
+    if (span > 50 && (max < 200 ? hue >= oliveFrom : max < 225 && hue >= 50)) return I_OLIVE;
     if (max >= 200) { const y = (max - b) / max; return y > 0.55 ? A.OPEN : y > 0.15 ? A.ROUGH : A.WHITE; }
-    return span > 50 ? I_OLIVE : I_GREY;                 // olive green: out of bounds (an area once thick)
+    return span > 50 ? I_MIXED : I_GREY;
   }
   if (hue < 36) return min > 215 ? A.WHITE : I_BROWN;
   return I_PURPLE;                                       // pinks and violets the test above missed: the overprint's edges
+}
+
+/**
+ * The hue from which a dark yellow-green is olive on this image: 6° under the peak of the dark, coloured pixels of 36-70°
+ * (olive's, wherever the white balance put it: 52° on the Auray photo, 43° on the Fougères one, 51° on the Gif scan); 0 (every
+ * one) when the image has too few of them to tell.
+ */
+function oliveFrom(rgba, w, h) {
+  const hist = new Float64Array(72), step = Math.max(1, Math.floor(Math.sqrt((w * h) / 400000)));
+  let n = 0, all = 0;
+  for (let y = 0; y < h; y += step) for (let x = 0; x < w; x += step) {
+    const p = 4 * (y * w + x), r = rgba[p], g = rgba[p + 1], b = rgba[p + 2];
+    all++;
+    const max = Math.max(r, g, b), min = Math.min(r, g, b), span = max - min;
+    if (max >= 200 || span <= 50 || b === max) continue;
+    const hue = max === r ? 60 * ((g - b) / span) : 60 * ((b - r) / span + 2);
+    if (hue >= 36 && hue < 70) { hist[Math.floor(hue)]++; n++; }
+  }
+  if (n < 0.005 * all) return 0;
+  let best = 0, peak = 0;
+  for (let k = 38; k < 68; k++) { const v = hist[k - 2] + hist[k - 1] + hist[k] + hist[k + 1] + hist[k + 2]; if (v > best) { best = v; peak = k; } }
+  return Math.max(36, peak - 6);
 }
 
 /**
@@ -351,9 +383,11 @@ function northLines(kind, rgba, w, h, mpp, nmask) {
  * and blue. Its pixels closed by ~12 m (the gaps between hatch lines, between crosses); a closed piece of 600 m² whose ink fills
  * at most 60 % of it (a leg, a circle's arc fills it all) is overprint. What an opening of ~20 m keeps of it is an out-of-bounds
  * area when it covers 1 500 m² (hatching; a course's number beside its circle is released near its control); the rest, thin, red and 60 m long at least, a forbidden
- * route. Returns per pixel 1 (area), 2 (route), else 0.
+ * route. Distances and areas for a forest map at about 1:10 000; sc scales them (SPRINT_SCALE: a sprint map's symbols are
+ * drawn 2.5 times smaller on the ground, and at 12 m the course's own legs, closed where they converge, made areas out of bounds
+ * across the streets of the Auray sprint photo, 2026-11-17). Returns per pixel 1 (area), 2 (route), else 0.
  */
-function overprint(rgba, kind, w, h, mpp) {
+function overprint(rgba, kind, w, h, mpp, sc = 1) {
   const N = w * h, O = new Uint8Array(N), R = new Uint8Array(N);
   const red = (r, g, b) => r > 60 && g < 0.55 * r && b < 0.45 * r;
   // the map's own brown when it is red enough to pass (mapBrown), its anti-aliased edges with it: never the overprint
@@ -371,17 +405,17 @@ function overprint(rgba, kind, w, h, mpp) {
     else if (red(r, g, b) && !notRed?.[i]) { O[i] = R[i] = 1; any++; }
   }
   const out = new Uint8Array(N);
-  const kc = Math.max(2, Math.round(12 / mpp)), ko = Math.max(2, Math.round(10 / mpp));
+  const kc = Math.max(2, Math.round((12 * sc) / mpp)), ko = Math.max(2, Math.round((10 * sc) / mpp));
   const C = morph(morph(O, w, h, kc, false), w, h, kc, true);
   const { lab, comps } = components(C, w, h);
   const ink = new Int32Array(comps.length);
   for (let i = 0; i < N; i++) if (lab[i] && O[i]) ink[lab[i]]++;
-  const keep = comps.map((c, id) => id > 0 && c.n * mpp * mpp >= 600 && ink[id] <= 0.6 * c.n);
+  const keep = comps.map((c, id) => id > 0 && c.n * mpp * mpp >= 600 * sc * sc && ink[id] <= 0.6 * c.n);
   const cand = new Uint8Array(N);
   for (let i = 0; i < N; i++) if (lab[i] && keep[lab[i]]) cand[i] = 1;
   const areas = morph(morph(cand, w, h, ko, true), w, h, ko, false);
   // an area of 1 500 m² at least (a symbol, a number away from its circle are smaller)
-  const al = components(areas, w, h), big = al.comps.map((c) => !!c && c.n * mpp * mpp >= 1500);
+  const al = components(areas, w, h), big = al.comps.map((c) => !!c && c.n * mpp * mpp >= 1500 * sc * sc);
   for (let i = 0; i < N; i++) if (al.lab[i] && !big[al.lab[i]]) areas[i] = 0;
   const near = morph(areas, w, h, ko, false);
   const band = new Uint8Array(N);
@@ -389,7 +423,7 @@ function overprint(rgba, kind, w, h, mpp) {
   const redC = any ? morph(morph(R, w, h, kc, false), w, h, kc, true) : R;
   for (let i = 0; i < N; i++) { if (areas[i] && cand[i]) out[i] = 1; else if (cand[i] && !near[i] && redC[i]) band[i] = 1; }
   const bl = components(band, w, h);
-  const long = bl.comps.map((c) => (c ? Math.hypot(c.x1 - c.x0 + 1, c.y1 - c.y0 + 1) * mpp >= 60 : false));
+  const long = bl.comps.map((c) => (c ? Math.hypot(c.x1 - c.x0 + 1, c.y1 - c.y0 + 1) * mpp >= 60 * sc : false));
   for (let i = 0; i < N; i++) if (bl.lab[i] && long[bl.lab[i]]) out[i] = 2;
   return out;
 }
@@ -612,10 +646,15 @@ export function classify(rgba0, w, h, mpp, opt = {}, progress = () => {}) {
   const rgba = opt.flat === false ? rgba0 : flatten(rgba0, w, h, mpp);
   progress(0.2);
   const kind = new Uint8Array(N);
-  for (let i = 0, p = 0; i < N; i++, p += 4) kind[i] = rgba[p + 3] < 128 ? A.WHITE : kindOf(rgba[p], rgba[p + 1], rgba[p + 2]);
+  const ol = oliveFrom(rgba, w, h);
+  for (let i = 0, p = 0; i < N; i++, p += 4) kind[i] = rgba[p + 3] < 128 ? A.WHITE : kindOf(rgba[p], rgba[p + 1], rgba[p + 2], ol);
   progress(0.3);
   const north = new Uint8Array(N), nlines = northLines(kind, rgba, w, h, mpp, north);
-  const over = overprint(rgba, kind, w, h, mpp);
+  // a sprint map's buildings (grey) photographed under a cold light come out bluish grey, flecked with « blue » that made water
+  // and shallow water (passable) inside them: on a sprint map a blue with little colour is grey (after the north lines, which
+  // take any bluish pixel)
+  if (opt.map === "sprint") for (let i = 0, p = 0; i < N; i++, p += 4) if (kind[i] === I_BLUE && Math.max(rgba[p], rgba[p + 1], rgba[p + 2]) - Math.min(rgba[p], rgba[p + 1], rgba[p + 2]) < 36) kind[i] = I_GREY;
+  const over = overprint(rgba, kind, w, h, mpp, opt.map === "sprint" ? SPRINT_SCALE : 1);
   progress(0.45);
   const lw = lineWidth(kind, w, h, I_BLACK);
   const k = Math.max(1, Math.round((THICK[opt.map] ?? THICK.forest) / mpp));
@@ -662,10 +701,12 @@ export function classify(rgba0, w, h, mpp, opt = {}, progress = () => {}) {
     if (i >= w && area[i - w] === UNKNOWN) { area[i - w] = v; q[qt++] = i - w; }
     if (i + w < N && area[i + w] === UNKNOWN) { area[i + w] = v; q[qt++] = i + w; }
   }
-  // the overprint's areas are out of bounds whatever lies under them; on its forbidden routes no path is followed
-  for (let i = 0; i < N; i++) { if (over[i] === 1) area[i] = A.OOB; if (over[i]) path[i] = 0; }
+  // the overprint's areas are out of bounds and on its forbidden routes no path is followed — both decided per cell by costs(),
+  // since near the course's controls the overprint is the course's own circles and lines (releaseAround) and the ground under them,
+  // kept here, is what counts (2026-11-17: it was overwritten, so a released cell became runnable forest: the routes of the Auray
+  // sprint photo ran straight through the buildings and gardens round every control)
   progress(1);
-  return { area, path, blue, north, over, lw, k, lines, northLines: nlines, ms: Date.now() - t0 };
+  return { area, path, blue, north, over, lw, k, lines, northLines: nlines, olive: ol, ms: Date.now() - t0 };
 }
 
 // ---- 2. cells -----------------------------------------------------------------------------------------------------------
@@ -740,7 +781,7 @@ export const blackMode = (s) => (s.black && s.black !== "auto" ? s.black : s.map
 
 /**
  * Per cell: f (time multiplier against white forest on the flat; Infinity = impassable) and r (navigation risk factor
- * ≥ 1). G: the cells (G.release: the cells near the course's controls, where the overprint is the course's own); mpc: metres
+ * ≥ 1). G: the cells (G.release, releaseAround's: 1 near the course's controls, 2 along its legs); mpc: metres
  * per cell.
  */
 export function costs(G, s, mpc) {
@@ -754,29 +795,31 @@ export function costs(G, s, mpc) {
   const FP = [1, inv(sp.small), inv(sp.path), inv(sp.track)], FS = [1, inv(sp.slow1), inv(sp.slow2), inv(sp.slow3)];
   const f = new Float32Array(M), hand = new Uint8Array(M), isPath = new Uint8Array(M);
   const ov = G.over, rel = G.release;
+  // the overprint's areas out of bounds (near a control it is the course's own circle or number: the ground under it counts)
+  const oob = (k) => ov?.[k] === 1 && rel?.[k] !== 1;
   for (let k = 0; k < M; k++) {
-    // the overprint near a control is the course's own circle or number: the ground under it is taken as runnable forest
-    const freed = ov?.[k] === 1 && rel?.[k];
-    let v = G.block?.[k] ? Infinity : freed ? 1 : F[cls[k]];
+    const shut = oob(k);
+    let v = G.block?.[k] || shut ? Infinity : F[cls[k]];
     // a table per symbol's own speed for the area (the Tracer): in the class's place
     const ts = G.speed?.[k];
-    if (ts && !freed && !G.block?.[k]) v = ts === 255 ? Infinity : 100 / ts;
-    if (G.slow?.[k] && !freed) v *= FS[G.slow[k]];                     // stony or sandy ground, over what grows there
+    if (ts && !shut && !G.block?.[k]) v = ts === 255 ? Infinity : 100 / ts;
+    if (G.slow?.[k]) v *= FS[G.slow[k]];                               // stony or sandy ground, over what grows there
     // a vector map's path crosses water or a building (a bridge, a passage), never an area out of bounds nor an impassable wall or
     // fence (its crossing points are holes in it: trace/vectorroutes.js); on an image a line read as a path opens nothing impassable
     // (the black edge of a building, of an area out of bounds), nor does a gap bridged
-    if (bm === "paths" && path[k] && cls[k] !== A.OOB && !G.block?.[k] && (G.vector ? raw[k] || v < Infinity : v < Infinity)) { v = Math.min(v, G.pspeed?.[k] ? 100 / G.pspeed[k] : FP[path[k]]); isPath[k] = 1; }
+    if (bm === "paths" && path[k] && cls[k] !== A.OOB && !shut && !G.block?.[k] && (G.vector ? raw[k] || v < Infinity : v < Infinity)) { v = Math.min(v, G.pspeed?.[k] ? 100 / G.pspeed[k] : FP[path[k]]); isPath[k] = 1; }
     else if (bm === "obstacles" && raw[k]) v = Infinity;
     // a forbidden route is crossed, not followed: slow along it, its path no handrail
     if (ov?.[k] === 2 && !rel?.[k]) { v = Math.max(v, FORBIDDEN_ROUTE); isPath[k] = 0; }
     f[k] = v;
   }
   // the handrails: paths (or black lines), streams, the edges between areas seen differently, the banks of what blocks
+  const groupOf = (k) => (oob(k) ? GROUP[A.OOB] : GROUP[cls[k]]);
   for (let j = 0; j < ny; j++) for (let i = 0; i < nx; i++) {
     const k = j * nx + i;
-    if (isPath[k] || raw[k] || G.blue[k] > 25 || G.hand?.[k] || G.block?.[k]) { hand[k] = 1; continue; }
-    const g = GROUP[cls[k]];
-    if ((i < nx - 1 && GROUP[cls[k + 1]] !== g) || (j < ny - 1 && GROUP[cls[k + nx]] !== g)) { hand[k] = 1; if (i < nx - 1) hand[k + 1] = 1; if (j < ny - 1) hand[k + nx] = 1; }
+    if (isPath[k] || (raw[k] && !oob(k)) || G.blue[k] > 25 || G.hand?.[k] || G.block?.[k]) { hand[k] = 1; continue; }
+    const g = groupOf(k);
+    if ((i < nx - 1 && groupOf(k + 1) !== g) || (j < ny - 1 && groupOf(k + nx) !== g)) { hand[k] = 1; if (i < nx - 1) hand[k + 1] = 1; if (j < ny - 1) hand[k + nx] = 1; }
   }
   // the distance to the nearest handrail (chamfer, two passes), in metres
   const d = new Float32Array(M).fill(1e9);
@@ -824,15 +867,32 @@ function crosses(cr, nx, k, q, n) {
 }
 export const RISK_DIST = 50;                              // metres from a handrail at which the risk is full
 const FORBIDDEN_ROUTE = 2.5;                             // a forbidden route's cells: 40 % of white forest's speed (crossed, not followed)
-/** The cells within `radius` metres of the course's controls (map px): where the overprint is the course itself. */
+/**
+ * Where the overprint is the course itself (map px of its controls, in the course's order): 1 within `radius` metres of a control
+ * (its circle, its number: neither out of bounds nor a forbidden route), 2 within radius / 6 of the straight leg between two
+ * controls (the leg's line, red where it crosses yellow or olive, read as a forbidden route on a sprint photo, 2026-11-17: no
+ * band there; an area out of bounds the leg crosses stays shut).
+ */
 export function releaseAround(G, em, pts, radius = 75) {
   const { nx, ny, cs } = G, M = nx * ny, out = new Uint8Array(M);
   const mpc = Math.min(Math.hypot(...em[0]), Math.hypot(...em[1])), R = Math.ceil(radius / mpc);
-  for (const [x, y] of pts) {
-    const ci = Math.floor(x / cs), cj = Math.floor(y / cs);
+  const metres = (di, dj) => [di * em[0][0] + dj * em[1][0], di * em[0][1] + dj * em[1][1]];
+  const cellsOf = pts.map(([x, y]) => [Math.floor(x / cs), Math.floor(y / cs)]);
+  for (const [ci, cj] of cellsOf) {
     for (let j = Math.max(0, cj - R); j <= Math.min(ny - 1, cj + R); j++) for (let i = Math.max(0, ci - R); i <= Math.min(nx - 1, ci + R); i++) {
-      const di = i - ci, dj = j - cj;
-      if (Math.hypot(di * em[0][0] + dj * em[1][0], di * em[0][1] + dj * em[1][1]) <= radius) out[j * nx + i] = 1;
+      if (Math.hypot(...metres(i - ci, j - cj)) <= radius) out[j * nx + i] = 1;
+    }
+  }
+  const half = radius / 6, Rl = Math.ceil(half / mpc);
+  for (let n = 0; n + 1 < cellsOf.length; n++) {
+    const [ai, aj] = cellsOf[n], [bi, bj] = cellsOf[n + 1], [ux, uy] = metres(bi - ai, bj - aj), L2 = ux * ux + uy * uy;
+    for (let j = Math.max(0, Math.min(aj, bj) - Rl); j <= Math.min(ny - 1, Math.max(aj, bj) + Rl); j++) {
+      for (let i = Math.max(0, Math.min(ai, bi) - Rl); i <= Math.min(nx - 1, Math.max(ai, bi) + Rl); i++) {
+        const k = j * nx + i;
+        if (out[k]) continue;
+        const [px, py] = metres(i - ai, j - aj), t = L2 ? Math.max(0, Math.min(1, (px * ux + py * uy) / L2)) : 0;
+        if (Math.hypot(px - t * ux, py - t * uy) <= half) out[k] = 2;
+      }
     }
   }
   return out;
@@ -1476,7 +1536,7 @@ export function picture(X) {
   const { nx, ny, cls, path } = X.G, raw = X.G.raw || path, out = new Uint8ClampedArray(nx * ny * 4);
   for (let k = 0; k < nx * ny; k++) {
     const ov = X.G.over?.[k], rel = X.G.release?.[k];
-    const c = ov === 2 && !rel ? BAND_RGB : ov === 1 && rel ? CLASS_RGB[A.WHITE] : X.C.isPath[k] ? PATH_RGB[path[k]] : (raw[k] || X.G.block?.[k]) && !(X.C.f[k] < Infinity) ? BLOCK_RGB
+    const c = ov === 2 && !rel ? BAND_RGB : ov === 1 && rel !== 1 ? CLASS_RGB[A.OOB] : X.C.isPath[k] ? PATH_RGB[path[k]] : (raw[k] || X.G.block?.[k]) && !(X.C.f[k] < Infinity) ? BLOCK_RGB
       : X.G.cross?.[k] ? CROSS_RGB : X.G.north?.[k] ? NORTH_RGB : X.G.slow?.[k] && cls[k] !== A.BUILDING && cls[k] !== A.WATER ? SLOW_RGB[X.G.slow[k]] : CLASS_RGB[cls[k]];
     out[4 * k] = c[0]; out[4 * k + 1] = c[1]; out[4 * k + 2] = c[2]; out[4 * k + 3] = 255;
   }
