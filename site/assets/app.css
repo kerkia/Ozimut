@@ -4857,4 +4857,5 @@ body[data-group="pixel"] { --grp: var(--pixel); --grp-wash: var(--pixel-wash); }
 .mg-chip.draft { background: var(--flag-wash); color: var(--ink); }
 .mg-chip.later { background: var(--water-wash); color: var(--ink); }
 .mg-next { margin-top: 16px; }
-.mg-next h3 { font-size: 15px; margin: 0 0 8px; }
+.mg-next h3, .mg-forms h3 { font-size: 15px; margin: 0 0 8px; }
+.mg-forms { margin-top: 12px; }

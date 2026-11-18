@@ -440,9 +440,10 @@ export function build(X) {
             anhakst, und wird am Computer genutzt. Es ist eine einzige Seite, ${P("#/orga", "Meine Veranstaltungen")}: deine vergangenen, heutigen und kommenden Veranstaltungen –
             jede ein Lauf oder ein Training –, jede mit den Werkzeugen des Veranstalters, in Reitern je nach ihrer Art:</p>
           ${list([
-            html`<b>Einzelwettkampf</b> und <b>Score</b>: Bahnlegung, Starts, Live, Ergebnisse, Analyse, Team.`,
-            html`<b>Staffel</b>: Bahnlegung, Live, Analyse, Team (Ergebnisse und Startliste einer Staffel lassen sich noch nicht hochladen).`,
-            html`<b>Training</b>: Bahnlegung, Analyse, Team.`,
+            html`<b>Wettkampf</b> (Einzel oder Score) und <b>Öffentliches Training</b> — offen für alle, oft kostenpflichtig und mit
+              Zeitnahme, außerhalb der Ranglisten: Bahnlegung, Starts, Live, Ergebnisse, Analyse, Team.`,
+            html`<b>Staffelwettkampf</b>: Bahnlegung, Live, Analyse, Team (Ergebnisse und Startliste einer Staffel lassen sich noch nicht hochladen).`,
+            html`<b>Vereinstraining</b>: Bahnlegung, Analyse, Team.`,
           ])}
           <p>Eine Veranstaltung öffnet sich auf dem Reiter, der zu ihrem Tag passt: Starts vor dem Lauf, Live am Tag selbst, danach Ergebnisse; ein
             Training vor seinem Datum auf seiner Bahnlegung, danach auf seiner Analyse.</p>
@@ -456,8 +457,8 @@ export function build(X) {
         ${slide("Orga", "Eine Veranstaltung anlegen", html`
           <p>„Veranstaltung anlegen“, oben auf der Seite, geht in drei Schritten:</p>
           <div class="mx-steps">
-            <div class="mx-step"><b>Art, Land und Datum</b>Einzelwettkampf, Score (die Posten in beliebiger Reihenfolge, nach Punkten gewertet),
-              Staffel oder Training; ein Land, dem du beigetreten bist; ein Datum in den letzten 60 oder den nächsten 400 Tagen.</div>
+            <div class="mx-step"><b>Art, Land und Datum</b>Wettkampf, Öffentliches Training oder Vereinstraining, dann die Variante: Einzel,
+              Score / Rogaine (die Posten in beliebiger Reihenfolge) oder, bei einem Wettkampf, Staffel — „✎ Bearbeiten“ ändert sie später; ein Land, dem du beigetreten bist; ein Datum in den letzten 60 oder den nächsten 400 Tagen.</div>
             <div class="mx-step"><b>Im Kalender des Verbands?</b>In Frankreich wird ein Wettkampf mit seinem Eintrag im Kalender des Verbands
               verknüpft: Die Seite bietet die Wettkämpfe des gewählten Tages an, die deines Vereins zuerst, oder „Er steht nicht im Kalender“.</div>
             <div class="mx-step"><b>Die Veranstaltung</b>Ihr Name, Ort, Verein, Disziplin, Format und Website, aus dem Kalender übernommen, wenn der

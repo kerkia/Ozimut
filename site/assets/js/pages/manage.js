@@ -18,11 +18,18 @@ import { dateWords } from "../datewords.js";
 import { betaTag, betaNote } from "../beta.js";
 
 export const BASE = "#/orga";
-const TYPES = ["individual", "score", "relay", "training"];
+// an event's kind and form (owner, 2026-11-18): a competition (individual, score / rogaine, relay), a public training (open to
+// all, often paid and timed) or a club training, each of these individual or score — score only in that the controls are taken
+// in any order. The server keeps both in one stored type (functions/_lib/events.js: « individual », « score », « relay »,
+// « public », « public-score », « training », « training-score »).
+const KINDS = { competition: ["individual", "score", "relay"], public: ["individual", "score"], training: ["individual", "score"] };
+const kindOf = (type) => (/^training/.test(type || "") ? "training" : /^public/.test(type || "") ? "public" : "competition");
+const formOf = (type) => (/score$/.test(type || "") ? "score" : type === "relay" ? "relay" : "individual");
 // « Tracé » first (owner, 2026-11-12: course setting is the event's too — its own team and secrecy kept, the Tracer's)
 const ALL_TABS = ["trace", "departs", "direct", "resultats", "analyse", "equipe"];
-// the tabs of each type (a relay's results and start list wait for « Résultats » to take relays; a training has no race page)
-const TABS = { individual: ALL_TABS, score: ALL_TABS, relay: ["trace", "direct", "analyse", "equipe"], training: ["trace", "analyse", "equipe"] };
+// the tabs of each type (a relay's results and start list wait for « Résultats » to take relays; a club training has no race
+// page; a public training, often timed, has a competition's)
+const tabsOf = (ev) => (formOf(ev.type) === "relay" ? ["trace", "direct", "analyse", "equipe"] : kindOf(ev.type) === "training" ? ["trace", "analyse", "equipe"] : ALL_TABS);
 const NEXT = ["trace", "analyse", "equipe"];                            // the steps offered once an event is created
 const TERRAINS = ["Forêt", "Sprint", "VTT", "Ski"];                    // the data's values (i18n-ignore)
 const FORMATS = ["MD", "LD", "Sprint", "Nuit", "Autre"];                // (i18n-ignore)
@@ -39,7 +46,10 @@ async function api(path = "", { method = "GET", body } = {}) {
   return j;
 }
 const errText = (e) => { const k = `mg.err.${String(e?.code || "").replace(/\s+/g, "_")}`; return t(k) !== k ? t(k) : t("mg.err.other"); };
-const typeLabel = (x) => t(`mg.type.${x}`);
+const kindLabel = (k) => t(`mg.kind.${k}`);
+const formLabel = (f) => t(`mg.form.${f}`);
+/** « Compétition », « Entraînement de club · Score / rogaine »: the kind, and the form when not individual. */
+const typeLabel = (type) => [kindLabel(kindOf(type)), formOf(type) !== "individual" ? formLabel(formOf(type)) : ""].filter(Boolean).join(" · ");
 const tabLabel = (k) => t(`mg.tab.${k}`);
 // the course setting is still in beta (owner, 2026-11-12): « bêta » after its tab's name
 const tabBeta = (k) => (k === "trace" ? html`<sup class="nav-beta" title="${t("beta.mark.tip")}">${t("beta.mark")}</sup>` : "");
@@ -50,8 +60,8 @@ const formatLabel = (x) => (FORMATS.includes(x) ? t(`mg.format.${x}`) : x || "")
 /** The tab an event opens on: the one its day calls for; but when that tab holds nothing yet and another does (with S, the chips'
  *  states), the first that does (owner, 2026-11-12: a coming training with its analysis open and no course setting opened on Tracé). */
 const defaultTab = (ev, S = null) => {
-  const tabs = TABS[ev.type] || ALL_TABS, d = ev.date, now = today();
-  const want = ev.type === "training" ? (d > now ? "trace" : "analyse") : d > now ? "departs" : d === now ? "direct" : "resultats";
+  const tabs = tabsOf(ev), d = ev.date, now = today();
+  const want = kindOf(ev.type) === "training" ? (d > now ? "trace" : "analyse") : d > now ? "departs" : d === now ? "direct" : "resultats";
   const pick = tabs.includes(want) ? want : tabs[0];
   if (!S) return pick;
   const busy = (k) => k !== "equipe" && !!stateOf(ev, k, S).cls;
@@ -123,7 +133,7 @@ const linkTag = (ev) => (ev.linkState === "pending" ? html`<span class="tag mg-w
 
 // ---- the list ----------------------------------------------------------------------------------------------------------
 const FKEY = "ocn.mg.filters";
-const filters = () => { try { return { when: ["today", "soon", "past"], type: "", ...JSON.parse(sessionStorage.getItem(FKEY) || "{}") }; } catch (e) { return { when: ["today", "soon", "past"], type: "" }; } };
+const filters = () => { try { return { when: ["today", "soon", "past"], kind: "", ...JSON.parse(sessionStorage.getItem(FKEY) || "{}") }; } catch (e) { return { when: ["today", "soon", "past"], kind: "" }; } };
 const saveFilters = (f) => { try { sessionStorage.setItem(FKEY, JSON.stringify(f)); } catch (e) { /* this visit only */ } };
 
 async function listPage(main, q) {
@@ -141,7 +151,7 @@ async function listPage(main, q) {
     <div class="filters mg-filters">
       ${[["today", "agd.when.today"], ["soon", "agd.when.coming"], ["past", "mg.when.past"]].map(([k, l]) => html`<label class="check"><input type="checkbox" data-when="${k}" ${raw(f.when.includes(k) ? "checked" : "")}> ${t(l)}</label>`)}
       <label class="field"><span>${t("mg.f.type")}</span><select id="mg-type"><option value="">${t("mg.f.all")}</option>
-        ${TYPES.map((x) => html`<option value="${x}" ${raw(f.type === x ? "selected" : "")}>${typeLabel(x)}</option>`)}</select></label>
+        ${Object.keys(KINDS).map((x) => html`<option value="${x}" ${raw(f.kind === x ? "selected" : "")}>${kindLabel(x)}</option>`)}</select></label>
       <label class="field"><span>${t("mg.f.search")}</span><input id="mg-q" style="width:200px"></label>
       ${D.admin ? html`<label class="check" style="margin-left:auto"><input type="checkbox" id="mg-all" ${raw(all ? "checked" : "")}> ${t("mg.f.allEvents")}</label>` : ""}
     </div>
@@ -150,7 +160,7 @@ async function listPage(main, q) {
   const draw = () => {
     const now = today(), s = normalise($("#mg-q").value || "");
     const period = (e) => (e.date === now ? "today" : e.date > now ? "soon" : "past");
-    const list = D.events.filter((e) => f.when.includes(period(e)) && (!f.type || e.type === f.type)
+    const list = D.events.filter((e) => f.when.includes(period(e)) && (!f.kind || kindOf(e.type) === f.kind)
       && (!s || normalise(`${e.name} ${e.club} ${e.place}`).includes(s))).sort((a, b) => a.date.localeCompare(b.date) || a.name.localeCompare(b.name));
     if (!list.length) {
       $("#mg-list").innerHTML = html`<div class="empty">${D.events.length ? t("mg.none.filtered") : t("mg.none")}</div>`;
@@ -168,7 +178,7 @@ async function listPage(main, q) {
         <div class="mg-name"><a href="${href({ ev: e.id, onglet: defaultTab(e, S) })}"><b>${e.name}</b></a>
           <div class="muted">${[typeLabel(e.type), terrainLabel(e.terrain), e.epreuve !== e.terrain ? formatLabel(e.epreuve) : "", e.club, e.place].filter(Boolean).join(" · ")} ${linkTag(e)}
             ${D.admin && !e.me ? html`<span class="tag">${t("mg.notMember")}</span>` : ""}</div></div>
-        <div class="mg-chips">${(TABS[e.type] || ALL_TABS).map((k) => chipOf(e, k, S))}</div></div>`);
+        <div class="mg-chips">${tabsOf(e).map((k) => chipOf(e, k, S))}</div></div>`);
     }
     if (!line && f.when.includes("past")) rows.push(html`<div class="mg-now">${t("mg.today", { d: fmtDate(now) })}</div>`);
     $("#mg-list").innerHTML = html`${rows}`;
@@ -179,7 +189,7 @@ async function listPage(main, q) {
     });
   };
   $$("[data-when]").forEach((c) => c.addEventListener("change", () => { f.when = $$("[data-when]").filter((x) => x.checked).map((x) => x.dataset.when); saveFilters(f); draw(); }));
-  $("#mg-type").addEventListener("change", (e) => { f.type = e.target.value; saveFilters(f); draw(); });
+  $("#mg-type").addEventListener("change", (e) => { f.kind = e.target.value; saveFilters(f); draw(); });
   $("#mg-q").addEventListener("input", draw);
   $("#mg-all")?.addEventListener("change", (e) => {
     try { localStorage.setItem(ALL_KEY, e.target.checked ? "1" : "0"); } catch (err) { /* this visit only */ }
@@ -202,7 +212,7 @@ async function listPage(main, q) {
 // ---- France's agenda: the competitions an event may be linked to ----------------------------------------------------------
 let agendaMemo = null;
 const frAgenda = () => (agendaMemo ||= data.countryJson("FR", "agenda.json").catch(() => null));
-const asType = (e) => (/relais/i.test(e.epr || "") ? "relay" : /score/i.test(e.epr || "") ? "score" : "individual");
+const asForm = (e) => (/relais/i.test(e.epr || "") ? "relay" : /score|rogaine/i.test(e.epr || "") ? "score" : "individual");
 const terrainOf = (e) => e.terrain || (/vtt/i.test(e.spec || "") ? "VTT" : /ski/i.test(e.spec || "") ? "Ski" : /sprint/i.test(e.epr || "") ? "Sprint" : "Forêt");
 /**
  * The calendar's competitions of a day, the account's club first, with the events holding them: the agenda's, and — the agenda
@@ -274,14 +284,15 @@ async function createPage(main, q) {
     const p = pre ? null : (await getProv("index.json").catch(() => null))?.races?.find((r) => r.key === q.course);
     if (p) pre = { id: null, key: p.key, name: p.name, date: p.date_iso, epr: p.epreuve };
   }
-  const st = { next: "", type: pre ? asType(pre) : "individual", cc: pre ? "FR" : cs.includes("FR") ? "FR" : cs[0] || "", day: pre?.date || "", pick: pre ? pre.key || `a${pre.id}` : "", list: [] };
+  const st = { next: "", kind: "competition", form: pre ? asForm(pre) : "individual", cc: pre ? "FR" : cs.includes("FR") ? "FR" : cs[0] || "", day: pre?.date || "", pick: pre ? pre.key || `a${pre.id}` : "", list: [] };
   main.innerHTML = html`
     <a class="back-link" href="${BASE}">‹ ${t("mg.back")}</a>
     <div class="page-head"><div><h1>${t("mg.new.title")}</h1><p class="lede">${t("mg.new.lede")}</p></div></div>
     ${cs.length ? "" : html`<div class="notice">${t("mg.new.noCountry")}</div>`}
     <section class="card"><div class="card-head"><h2>${t("mg.new.s1")}</h2></div><div class="card-body">
-      <div class="mg-types">${TYPES.map((x) => html`<label class="mg-type"><input type="radio" name="mg-type" value="${x}" ${raw(st.type === x ? "checked" : "")}>
-        <b>${typeLabel(x)}</b><span class="muted">${t(`mg.type.${x}.hint`)}</span></label>`)}</div>
+      <div class="mg-types">${Object.keys(KINDS).map((x) => html`<label class="mg-type"><input type="radio" name="mg-kind" value="${x}" ${raw(st.kind === x ? "checked" : "")}>
+        <b>${kindLabel(x)}</b><span class="muted">${t(`mg.kind.${x}.hint`)}</span></label>`)}</div>
+      <div class="mg-forms"><h3>${t("mg.f.form")}</h3><div class="mg-types" id="mg-forms"></div></div>
       <div class="filters" style="margin-top:12px">
         <label class="field"><span>${t("mg.f.country")}</span><select id="mg-cc">${cs.map((c) => html`<option value="${c}" ${raw(c === st.cc ? "selected" : "")}>${country.name(c)}</option>`)}</select></label>
         <label class="field"><span>${t("mg.f.date")}</span><input type="date" id="mg-day" value="${st.day}"></label>
@@ -296,7 +307,15 @@ async function createPage(main, q) {
       <div class="row" style="gap:10px;margin-top:12px;align-items:center"><button type="button" class="btn btn-primary" id="mg-create">${t("mg.new.create")}</button>
         <span class="muted" id="mg-create-msg"></span></div></div></section>`;
   dateWords($("#mg-day"));
-  const linkable = () => st.cc === "FR" && st.type !== "training" && !!st.day;
+  const linkable = () => st.cc === "FR" && st.kind === "competition" && !!st.day;
+  /** The forms the kind offers (a relay only for a competition), the one chosen kept when the kind has it. */
+  function drawForms() {
+    if (!KINDS[st.kind].includes(st.form)) st.form = "individual";
+    $("#mg-forms").innerHTML = html`${KINDS[st.kind].map((x) => html`<label class="mg-type"><input type="radio" name="mg-form" value="${x}" ${raw(st.form === x ? "checked" : "")}>
+      <b>${formLabel(x)}</b><span class="muted">${t(`mg.form.${x}.hint`)}</span></label>`)}`;
+    $$("input[name=mg-form]").forEach((r) => r.addEventListener("change", () => { st.form = r.value; }));
+  }
+  drawForms();
   async function refresh() {
     $("#mg-cal").hidden = !linkable();
     if (linkable()) {
@@ -325,7 +344,7 @@ async function createPage(main, q) {
     const x = st.list.find((y) => y.key === st.pick);
     $("#mg-desc").hidden = !st.day || (linkable() && !st.pick);
     $$(".mg-form [data-f]").forEach((el) => { el.disabled = !!x; });
-    const training = st.type === "training", line = $(".mg-train-club");
+    const training = st.kind === "training", line = $(".mg-train-club");
     // the next step: the course setting for a competition, the map analysis for a training, until one is chosen
     $("#mg-next").hidden = !!x?.holder;
     const next = st.next || (training ? "analyse" : "trace");
@@ -341,7 +360,7 @@ async function createPage(main, q) {
   }
   // the organising club: the account's own in the chosen country by default, the country's clubs offered
   const clubs = async () => { st.myClub = await fillClubs($("#mg-desc"), st.cc, { setDefault: !st.list.some((y) => y.key === st.pick) }); drawDesc(); };
-  $$("input[name=mg-type]").forEach((r) => r.addEventListener("change", () => { st.type = r.value; refresh(); }));
+  $$("input[name=mg-kind]").forEach((r) => r.addEventListener("change", () => { st.kind = r.value; drawForms(); refresh(); }));
   $$("input[name=mg-next]").forEach((r) => r.addEventListener("change", () => { st.next = r.value; }));
   $("#mg-cc").addEventListener("change", (e) => { st.cc = e.target.value; refresh().then(clubs); });
   $("#mg-day").addEventListener("change", (e) => { st.day = e.target.value; refresh(); });
@@ -353,8 +372,8 @@ async function createPage(main, q) {
       catch (e) { msg.textContent = errText(e); }
       return;
     }
-    const body = { type: st.type, country: st.cc, date: st.day, ...readForm(), ...(x ? { link: x.key } : {}),
-      ...(st.type === "training" ? { club: st.myClub || "" } : {}) };
+    const body = { kind: st.kind, form: st.form, country: st.cc, date: st.day, ...readForm(), ...(x ? { link: x.key } : {}),
+      ...(st.kind === "training" ? { club: st.myClub || "" } : {}) };
     try {
       const r = await api("", { method: "POST", body }), e = r.event;
       const next = $("input[name=mg-next]:checked")?.value || "equipe";
@@ -455,7 +474,7 @@ async function byCourse(main, q) {
 async function eventPage(main, id, q) {
   const [D, mine] = await Promise.all([api(`/${id}`), api("").catch(() => ({ events: [] }))]);
   if (!D.member && !D.admin) return joinScreen(main, D);
-  const ev = D.event, tabs = [...(TABS[ev.type] || ALL_TABS)];
+  const ev = D.event, tabs = [...tabsOf(ev)];
   // « Chrono » (2026-11-17, owner: Ozimut's race timing, administrators only while it is being tried), before « Équipe »
   if (auth.session()?.admin) tabs.splice(tabs.indexOf("equipe"), 0, "chrono");
   const tab = tabs.includes(q.onglet) ? q.onglet : defaultTab(ev);
@@ -472,7 +491,7 @@ async function eventPage(main, id, q) {
     ${pending ? html`<div class="notice">${t("mg.link.pending", { name: D.competition?.name || "" })}</div>` : ""}
     <div data-bar-tabs><nav class="page-tabs mg-tabs" role="tablist">${tabs.map((k) => html`<a role="tab" aria-selected="${k === tab}" href="${href({ ev: ev.id, onglet: k })}">${tabLabel(k)}${tabBeta(k)}${k === "equipe" && D.requests.length ? html` <span class="mg-badge">${D.requests.length}</span>` : ""}</a>`)}</nav></div>
     <div id="mg-panel" class="mg-panel"></div>`;
-  $("#mg-switch")?.addEventListener("change", (e) => { const o = others.find((x) => x.id === e.target.value); location.hash = href({ ev: o.id, onglet: (TABS[o.type] || ALL_TABS).includes(tab) ? tab : defaultTab(o) }); });
+  $("#mg-switch")?.addEventListener("change", (e) => { const o = others.find((x) => x.id === e.target.value); location.hash = href({ ev: o.id, onglet: tabsOf(o).includes(tab) ? tab : defaultTab(o) }); });
   $("#mg-edit").addEventListener("click", () => editDialog(D));
   const panel = $("#mg-panel");
   if (tab === "equipe") return teamTab(panel, D);
@@ -519,7 +538,7 @@ async function analysisTab(panel, D, q) {
     q = { ...q, err };
   }
   panel.innerHTML = html`<section class="card"><div class="card-body">
-    <p>${t(ev.type === "training" ? "mg.an.training" : "mg.an.race")}</p>
+    <p>${t(kindOf(ev.type) === "training" ? "mg.an.training" : "mg.an.race")}</p>
     <div class="row" style="gap:10px;align-items:center"><button type="button" class="btn btn-primary" id="mg-an-open" ${raw(pending ? "disabled" : "")}>${t("mg.an.open")}</button>
       <span class="muted" id="mg-an-msg">${pending ? t("mg.link.waitTools") : q.err ? errText(q.err) : ""}</span></div></div></section>`;
   $("#mg-an-open").addEventListener("click", async () => {
@@ -528,7 +547,7 @@ async function analysisTab(panel, D, q) {
 }
 /** The event's map analysis created (a competition's own, or a training's) and kept with the event. */
 async function openAnalysis(ev) {
-  const body = ev.type === "training"
+  const body = kindOf(ev.type) === "training" || !ev.race
     ? { kind: "club", title: ev.name, date: ev.date, vis: "public", country: ev.country, via: "gerer" }
     : { kind: "race", race: ev.race, title: ev.name, date: ev.date, vis: "public", via: "gerer" };
   const r = await fetch("api/analyses", { method: "POST", credentials: "same-origin", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
@@ -614,16 +633,19 @@ function teamTab(panel, D) {
 
 // ---- « ✎ Modifier »: the description, the calendar link, deletion ----------------------------------------------------------
 async function editDialog(D) {
-  const ev = D.event, linked = isLinked(ev), canLink = ev.type !== "training" && ev.country === "FR";
+  const ev = D.event, linked = isLinked(ev), canLink = kindOf(ev.type) === "competition" && ev.country === "FR";
+  const kind0 = kindOf(ev.type), form0 = formOf(ev.type);
   const dlg = document.createElement("dialog");
   dlg.className = "mg-dialog";
   dlg.innerHTML = html`<form method="dialog" class="mg-dlg">
     <h2>${t("mg.edit.title")}</h2>
     <div class="filters" style="margin:0">
-      <label class="field"><span>${t("mg.f.type")}</span><select data-f="type">${TYPES.filter((x) => (ev.type === "training") === (x === "training"))
-        .map((x) => html`<option value="${x}" ${raw(ev.type === x ? "selected" : "")}>${typeLabel(x)}</option>`)}</select></label>
+      <label class="field"><span>${t("mg.f.type")}</span><select data-f="kind">${Object.keys(KINDS)
+        .map((x) => html`<option value="${x}" ${raw(kind0 === x ? "selected" : "")}>${kindLabel(x)}</option>`)}</select></label>
+      <label class="field"><span>${t("mg.f.form")}</span><select data-f="form"></select></label>
       <label class="field"><span>${t("mg.f.date")}</span><input type="date" data-f="date" value="${ev.date}" ${raw(linked ? "disabled" : "")}></label>
     </div>
+    <p class="muted" id="mg-dl-kind" hidden></p>
     ${formFields(ev)}
     ${canLink ? html`<div class="mg-sec"><h3>${t("mg.edit.calendar")}</h3><div id="mg-dl-link"></div></div>` : ""}
     <div class="mg-sec row" style="justify-content:space-between;align-items:center;gap:10px">
@@ -633,8 +655,19 @@ async function editDialog(D) {
   document.body.append(dlg);
   dlg.showModal();
   dateWords($("[data-f=date]", dlg));
-  showFields(dlg, ev.type === "training");
-  if (ev.type !== "training") fillClubs(dlg, ev.country, { setDefault: false });
+  // the kind chosen: its forms, its fields, and a word on what changes (a club training holds no competition)
+  const kindSel = $("[data-f=kind]", dlg), formSel = $("[data-f=form]", dlg), note = $("#mg-dl-kind", dlg);
+  const syncKind = () => {
+    const k = kindSel.value, f = formSel.value || form0;
+    formSel.innerHTML = html`${KINDS[k].map((x) => html`<option value="${x}" ${raw(x === f ? "selected" : "")}>${formLabel(x)}</option>`)}`;
+    showFields(dlg, k === "training");
+    if (k !== "training") fillClubs(dlg, ev.country, { setDefault: false });
+    const change = k !== kind0 ? (k === "training" ? "toTraining" : kind0 === "training" ? "fromTraining" : "") : "";
+    note.hidden = !change;
+    note.textContent = change ? t(`mg.edit.kind.${change}`) : "";
+  };
+  kindSel.addEventListener("change", syncKind);
+  syncKind();
   dlg.addEventListener("close", () => dlg.remove());
   $("#mg-dl-cancel", dlg).addEventListener("click", () => dlg.close());
   const say = (s) => { $("#mg-dl-msg", dlg).textContent = s; };

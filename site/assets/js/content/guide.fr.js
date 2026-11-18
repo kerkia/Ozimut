@@ -438,9 +438,10 @@ export function build(X) {
             C'est une seule page, ${P("#/orga", "Mes événements")} : vos événements passés, du jour et à venir — une course ou un entraînement
             chacun —, chacun avec les outils de l'organisateur, en onglets selon son type :</p>
           ${list([
-            html`<b>Compétition individuelle</b> et <b>Score</b> : Tracé, Départs, Direct, Résultats, Analyse, Équipe.`,
-            html`<b>Relais</b> : Tracé, Direct, Analyse, Équipe (les résultats et la liste de départ d'un relais ne se déposent pas encore).`,
-            html`<b>Entraînement</b> : Tracé, Analyse, Équipe.`,
+            html`<b>Compétition</b> (individuelle ou score) et <b>Entraînement public</b> — ouvert à tous, souvent payant et chronométré, hors
+              classement : Tracé, Départs, Direct, Résultats, Analyse, Équipe.`,
+            html`<b>Compétition en relais</b> : Tracé, Direct, Analyse, Équipe (les résultats et la liste de départ d'un relais ne se déposent pas encore).`,
+            html`<b>Entraînement de club</b> : Tracé, Analyse, Équipe.`,
           ])}
           <p>Un événement s'ouvre sur l'onglet de son moment : Départs avant la course, Direct le jour même, Résultats ensuite ; un entraînement sur
             son tracé avant sa date, sur son analyse ensuite.</p>
@@ -454,8 +455,9 @@ export function build(X) {
         ${slide("Orga", "Créer un événement", html`
           <p>« Créer un événement », en haut de la page, se fait en trois étapes :</p>
           <div class="mx-steps">
-            <div class="mx-step"><b>Le type, le pays et la date</b>Compétition individuelle, Score (les postes dans l'ordre que l'on veut, classés aux
-              points), Relais ou Entraînement ; un pays que vous avez rejoint ; une date dans les 60 derniers jours ou les 400 prochains.</div>
+            <div class="mx-step"><b>Le type, le pays et la date</b>Compétition, Entraînement public ou Entraînement de club, puis sa variante :
+              Individuel, Score / rogaine (les postes dans l'ordre que l'on veut) ou, pour une compétition, Relais — « ✎ Modifier » les change
+              ensuite ; un pays que vous avez rejoint ; une date dans les 60 derniers jours ou les 400 prochains.</div>
             <div class="mx-step"><b>Au calendrier de la fédération ?</b>En France, une compétition se rattache à celle du calendrier de la
               fédération : la page propose les compétitions du jour choisi, celles de votre club en premier, ou « Elle n'est pas au calendrier ».</div>
             <div class="mx-step"><b>L'événement</b>Son nom, son lieu, son club, sa spécialité, son format et son site web, repris du calendrier quand

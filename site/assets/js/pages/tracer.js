@@ -226,13 +226,15 @@ const escA = (s) => String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "
 
 /** The competitions the account runs on Ozimut (« Orga › Gérer », 2026-11-11: its events' competitions, the agenda's place
  *  beside them); before migration 0026 (the API answers 503), as before: the club's, and those the account declared. */
+/** Is an event of Orga a club training (no competition of its own; « training » or « training-score », _lib/events.js)? */
+const clubTraining = (e) => (e?.kind ? e.kind === "training" : /^training/.test(e?.type || ""));
 async function clubRaces() {
   // opened from an event of Orga: that event's competition alone (a training: none, the training's fields filled from it)
-  if (forEvent) return forEvent.type !== "training" && forEvent.race && forEvent.linkState !== "pending"
+  if (forEvent) return !clubTraining(forEvent) && forEvent.race && forEvent.linkState !== "pending"
     ? [{ key: forEvent.race, date: forEvent.date, name: forEvent.name, place: forEvent.place || "", org: forEvent.club || "", epr: forEvent.epreuve || "" }] : [];
   const r = await fetch("api/events", { credentials: "same-origin", cache: "no-store" }).catch(() => null);
   if (r?.ok) {
-    const evs = ((await r.json()).events || []).filter((e) => e.type !== "training" && e.race && e.linkState !== "pending");
+    const evs = ((await r.json()).events || []).filter((e) => !clubTraining(e) && e.race && e.linkState !== "pending");
     let ag = null;
     try { ag = await data.agenda(); } catch (e) { /* no agenda */ }
     return evs.map((e) => {
@@ -261,10 +263,10 @@ async function clubRaces() {
 function kindFields(races, title = forEvent?.name || "") {
   // the event of « Orga › Gérer » the Tracer was opened for: said, not asked (owner, 2026-11-16)
   if (forEvent && forEvent.linkState !== "pending") {
-    const race = forEvent.type !== "training" ? races.find((x) => x.key === forEvent.race) : null;
+    const race = !clubTraining(forEvent) ? races.find((x) => x.key === forEvent.race) : null;
     if (race) return `<input type="hidden" name="kind" value="race"><input type="hidden" name="race" value="${escA(race.key)}">
       <p class="tr-hint">${escA(t("trc.page.forEvent", { name: race.name, date: fmtDate(race.date) }))}</p>`;
-    if (forEvent.type === "training" && (forEvent.name || "").trim().length >= 3) return `<input type="hidden" name="kind" value="training">
+    if (clubTraining(forEvent) && (forEvent.name || "").trim().length >= 3) return `<input type="hidden" name="kind" value="training">
       <input type="hidden" name="title" value="${escA(forEvent.name)}"><input type="hidden" name="date" value="${escA(forEvent.date || today())}">
       <p class="tr-hint">${escA(t("trc.page.forEvent", { name: forEvent.name, date: fmtDate(forEvent.date || today()) }))}</p>`;
   }

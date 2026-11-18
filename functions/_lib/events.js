@@ -11,7 +11,23 @@ import { isAdmin } from "./api.js";
 import { DECLARED, clubOf, orgCode, raceOf } from "./club.js";
 import { randomBytes } from "./crypto.js";
 
-export const TYPES = ["individual", "score", "relay", "training"];
+// An event's kind and form (owner, 2026-11-18): a competition (individual, score / rogaine or relay), a public training (open
+// to all, often paid and timed: individual or score) or a club training (individual or score); score differs from individual
+// only in that the controls are taken in any order. Stored in the one column `type` of migration 0026, its values kept: a
+// competition « individual » | « score » | « relay », a public training « public » | « public-score », a club training
+// « training » | « training-score ». A club training holds no competition (no race key); a public training has its own
+// « d<id> » as an unlinked competition (start list, live, results), never linked to the calendar.
+export const KINDS = { competition: ["individual", "score", "relay"], public: ["individual", "score"], training: ["individual", "score"] };
+export const kindOf = (type) => (/^training/.test(type || "") ? "training" : /^public/.test(type || "") ? "public" : "competition");
+export const formOf = (type) => (/score$/.test(type || "") ? "score" : type === "relay" ? "relay" : "individual");
+/** The stored type of a kind and form (a form the kind has not: individual). */
+export const typeOf = (kind, form) => {
+  const k = KINDS[kind] ? kind : "competition", f = KINDS[k].includes(form) ? form : "individual";
+  return k === "competition" ? f : f === "score" ? `${k}-score` : k;
+};
+export const TYPES = Object.entries(KINDS).flatMap(([k, fs]) => fs.map((f) => typeOf(k, f)));
+/** Does an event of this type hold a competition of its own (start list, live, results)? */
+export const racing = (type) => kindOf(type) !== "training";
 export const strict = (env) => String(env.EVENTS_STRICT || "") === "1";
 export const newId = () => Array.from(randomBytes(10), (b) => "abcdefghijkmnpqrstuvwxyz23456789"[b % 32]).join("");
 /** « Camille M. »: how people outside a team see its members. */
@@ -91,13 +107,14 @@ export async function claimed(env, request, key) {
 
 /** Writes (or retires) the R2 mirror of an unlinked competition, read by the results run as a declared competition. */
 export async function mirror(env, ev) {
-  if (!env.BUCKET || ev.type === "training") return;
-  // a relay is not taken by the results run yet (ffco_scraper/prov/races.py drops relays): not mirrored
-  const own = ev.race_key === `d${ev.id}` && ev.status === "active" && ev.type !== "relay";
+  if (!env.BUCKET) return;
+  // a relay is not taken by the results run yet (ffco_scraper/prov/races.py drops relays): not mirrored; a club training holds
+  // no competition (one that was a public training or a competition before has its mirror retired)
+  const own = racing(ev.type) && ev.race_key === `d${ev.id}` && ev.status === "active" && formOf(ev.type) !== "relay";
   const was = await env.BUCKET.head(`${DECLARED}${ev.id}.json`);
   if (!own && !was) return;
   const d = { id: ev.id, key: `d${ev.id}`, country: ev.country, club: ev.club, name: ev.name, date: ev.date, place: ev.place,
-    terrain: ev.terrain, epreuve: ev.epreuve, site: ev.site, owner: ev.created_by, event: ev.id, type: ev.type,
+    terrain: ev.terrain, epreuve: ev.epreuve, site: ev.site, owner: ev.created_by, event: ev.id, type: formOf(ev.type), kind: kindOf(ev.type),
     status: own ? "active" : "removed", created: ev.created_at, updated: ev.updated_at };
   await env.BUCKET.put(`${DECLARED}${ev.id}.json`, JSON.stringify(d), {
     httpMetadata: { contentType: "application/json" },

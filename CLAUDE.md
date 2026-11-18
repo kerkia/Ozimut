@@ -2853,9 +2853,18 @@ Every multiple-choice game was played through to its score page at phone size, w
   « Analyses », « Résultats », « Horaires » and « Direct » are an event's tabs (their addresses lead there: `app.route_`,
   `#/orga-horaires?course=X` → the event holding X on « Départs », else the creation with X chosen; `#/orga-analyses?id=` still opens
   an analysis's own page). **An event** (D1 **migration 0026**: `events`, `event_members`, `event_requests`) is one race or one
-  training (owner: « one event, one race », as FFCO), its type `individual` | `score` | `relay` | `training` deciding its tabs
-  (`TABS`: Départs — the booking and the start list —, Direct — and the GPS link —, Résultats, Analyse, Équipe; a relay Direct,
-  Analyse, Équipe — « Résultats » leaves relays out, see the plan's relay proposal —; a training Analyse, Équipe). No « Aperçu » tab
+  training (owner: « one event, one race », as FFCO), its **kind and variant** deciding its tabs (owner, 2026-11-18: three kinds —
+  a competition, individual | score / rogaine | relay; a **public training**, open to all, often paid and timed, individual | score;
+  a **club training**, individual | score —, score differing from individual only in that the controls are taken in any order;
+  both chosen at creation and changed later in « ✎ Modifier »). Stored in the one column `type`, no migration
+  (`_lib/events.js` `KINDS`, `kindOf`, `formOf`, `typeOf`): « individual », « score », « relay », « public », « public-score »,
+  « training », « training-score »; the API takes `{ kind, form }` (or `type`) and returns `type`, `kind`, `form`. A public training
+  has its own « d<id> » as an unlinked competition (start list, live, results, mirrored to R2 `declared/` with `type` = the form and
+  `kind`; `cn` 0, outside the rankings) and is never linked to the calendar; a club training holds none (race key NULL). A change of
+  kind: to a club training refused while linked (`linked`) or once something was published under its key (`type published`); from a
+  club training it gets its « d<id> ». Tabs (`manage.js` `tabsOf`): Tracé, Départs — the booking and the start list —, Direct — and
+  the GPS link —, Résultats, Analyse, Équipe; a relay Tracé, Direct, Analyse, Équipe — « Résultats » leaves relays out, see the plan's
+  relay proposal —; a club training Tracé, Analyse, Équipe. No « Aperçu » tab
   and no « Réglages »: the list of events is the way in (Arena's look: periods, months, today's line, each row's tabs as chips with
   their state, a chip opening that tab, the row the tab fitting its day), « ✎ Modifier » the description, the calendar link and
   deletion. **The team** (owner): every member has the same rights (everything, the team and deletion included); nobody is added —

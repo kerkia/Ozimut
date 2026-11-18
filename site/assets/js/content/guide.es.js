@@ -435,9 +435,10 @@ export function build(X) {
             Es una sola página, ${P("#/orga", "Mis eventos")}: tus eventos pasados, de hoy y próximos —una carrera o un entrenamiento cada uno—, cada
             uno con las herramientas del organizador, en pestañas según su tipo:</p>
           ${list([
-            html`<b>Competición individual</b> y <b>Score</b>: Trazado, Salidas, Directo, Resultados, Análisis, Equipo.`,
-            html`<b>Relevos</b>: Trazado, Directo, Análisis, Equipo (los resultados y la lista de salida de un relevo aún no se pueden subir).`,
-            html`<b>Entrenamiento</b>: Trazado, Análisis, Equipo.`,
+            html`<b>Competición</b> (individual o score) y <b>Entrenamiento abierto</b> — abierto a todos, a menudo de pago y cronometrado,
+              fuera de los rankings: Trazado, Salidas, Directo, Resultados, Análisis, Equipo.`,
+            html`<b>Competición de relevos</b>: Trazado, Directo, Análisis, Equipo (los resultados y la lista de salida de un relevo aún no se pueden subir).`,
+            html`<b>Entrenamiento de club</b>: Trazado, Análisis, Equipo.`,
           ])}
           <p>Un evento se abre en la pestaña que corresponde a su fecha: Salidas antes de la carrera, Directo el mismo día, Resultados después; un
             entrenamiento, en su trazado antes de su fecha y en su análisis después.</p>
@@ -451,8 +452,8 @@ export function build(X) {
         ${slide("Orga", "Crear un evento", html`
           <p>«Crear un evento», arriba en la página, se hace en tres pasos:</p>
           <div class="mx-steps">
-            <div class="mx-step"><b>Tipo, país y fecha</b>Competición individual, Score (los controles en el orden que se quiera, clasificados por
-              puntos), Relevos o Entrenamiento; un país al que te hayas unido; una fecha dentro de los últimos 60 días o los próximos 400.</div>
+            <div class="mx-step"><b>Tipo, país y fecha</b>Competición, Entrenamiento abierto o Entrenamiento de club, y luego su variante: Individual,
+              Score / rogaine (los controles en el orden que se quiera) o, para una competición, Relevos — «✎ Modificar» los cambia después; un país al que te hayas unido; una fecha dentro de los últimos 60 días o los próximos 400.</div>
             <div class="mx-step"><b>¿En el calendario de la federación?</b>En Francia, una competición se vincula a su entrada en el calendario de la
               federación: la página propone las competiciones del día elegido, las de tu club primero, o «No está en el calendario».</div>
             <div class="mx-step"><b>El evento</b>Su nombre, lugar, club, disciplina, formato y sitio web, tomados del calendario cuando la competición

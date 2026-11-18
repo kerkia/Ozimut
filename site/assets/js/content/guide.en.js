@@ -421,9 +421,10 @@ export function build(X) {
             It is one page, ${P("#/orga", "My events")}: your events, past, today's and coming — one race or one training session each —, each with
             the organiser's tools, in tabs by its type:</p>
           ${list([
-            html`<b>Individual competition</b> and <b>Score</b>: Course setting, Starts, Live, Results, Analysis, Team.`,
-            html`<b>Relay</b>: Course setting, Live, Analysis, Team (a relay's results and start list cannot be uploaded yet).`,
-            html`<b>Training</b>: Course setting, Analysis, Team.`,
+            html`<b>Competition</b> (individual or score) and <b>Public training</b> — open to all, often paid and timed, outside the
+              rankings: Course setting, Starts, Live, Results, Analysis, Team.`,
+            html`<b>Relay competition</b>: Course setting, Live, Analysis, Team (a relay's results and start list cannot be uploaded yet).`,
+            html`<b>Club training</b>: Course setting, Analysis, Team.`,
           ])}
           <p>An event opens on the tab that fits its day: Starts before the race, Live on the day, Results afterwards; a training session on its
             course setting before its date, on its analysis afterwards.</p>
@@ -436,8 +437,8 @@ export function build(X) {
         ${slide("Orga", "Creating an event", html`
           <p>“Create an event”, at the top of the page, takes three steps:</p>
           <div class="mx-steps">
-            <div class="mx-step"><b>Type, country and date</b>Individual competition, Score (the controls in any order, ranked by points), Relay or
-              Training; a country you have joined; a date within the last 60 days or the next 400.</div>
+            <div class="mx-step"><b>Type, country and date</b>Competition, Public training or Club training, then its variant: Individual, Score /
+              rogaine (the controls in any order) or, for a competition, Relay — “✎ Edit” changes them later; a country you have joined; a date within the last 60 days or the next 400.</div>
             <div class="mx-step"><b>On the federation's calendar?</b>In France, a competition is linked to its entry in the federation's calendar:
               the page offers the competitions of the day chosen, your club's first, or “It is not on the calendar”.</div>
             <div class="mx-step"><b>The event</b>Its name, place, club, discipline, format and website, taken from the calendar when the competition

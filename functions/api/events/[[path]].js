@@ -9,7 +9,7 @@
 //   GET    /api/events/find                the events of others one may ask to join (60 days back to 400 ahead)
 //   GET    /api/events/holders?keys=a1,a2  which events hold these competitions { key: { id, name, by, mine } }
 //   GET    /api/events/pending             the links waiting for an administrator (administrators)
-//   POST   /api/events                     { type, country, name, date, place, club, terrain, epreuve, site, link? } a new event
+//   POST   /api/events                     { kind, form (or type), country, name, date, place, club, terrain, epreuve, site, link? } a new event
 //   POST   /api/events/migrate             administrators: events made from what organisers did before (idempotent)
 //   GET    /api/events/<id>                members: the event, its team and requests; others: what the join screen needs
 //   PUT    /api/events/<id>                members: the description, { analysis } its map analysis
@@ -23,7 +23,7 @@
 import { allow, isAdmin, json, nowIso, parisToday, readBody, withUser } from "../../_lib/api.js";
 import { DECLARED, agendaRace, clubLabel, clubOf, findRace, orgCode, raceOf } from "../../_lib/club.js";
 import { acceptedCountries, memberships, validCountry } from "../../_lib/countries.js";
-import { TYPES, eventOf, linked, mirror, newId, ready, shortName } from "../../_lib/events.js";
+import { TYPES, eventOf, formOf, kindOf, linked, mirror, newId, racing, ready, shortName, typeOf } from "../../_lib/events.js";
 import { flushPush, queuePush } from "../../_lib/push.js";
 import { eventPush } from "../../_lib/templates.js";
 import { broadcasts } from "../../_lib/live.js";
@@ -41,7 +41,8 @@ const addDays = (iso, n) => new Date(Date.parse(`${iso}T12:00:00Z`) + n * 86400e
 function fields(b, countries, admin, before = null) {
   const country = String(b.country ?? before?.country ?? "").toUpperCase();
   if (!validCountry(country) || (!admin && country !== before?.country && !countries.includes(country))) return { error: "country" };
-  const type = TYPES.includes(b.type) ? b.type : before?.type || "individual";
+  // the kind and form (competition | public | training; individual | score | relay), else a stored type, else as it was
+  const type = b.kind ? typeOf(b.kind, b.form) : TYPES.includes(b.type) ? b.type : before?.type || "individual";
   const name = clean(b.name ?? before?.name, 120), date = String(b.date ?? before?.date ?? "");
   if (name.length < 3) return { error: "name" };
   const today = parisToday();
@@ -57,7 +58,7 @@ const one = (env, id) => env.DB.prepare("SELECT * FROM events WHERE id = ? AND s
 const members = async (env, id) => (await env.DB.prepare(`SELECT m.user_id, m.joined_at, u.first_name, u.last_name, u.display_name, u.licence
   FROM event_members m JOIN users u ON u.id = m.user_id WHERE m.event_id = ? ORDER BY m.joined_at`).bind(id).all()).results;
 const isMember = async (env, id, uid) => !!(await env.DB.prepare("SELECT 1 FROM event_members WHERE event_id = ? AND user_id = ?").bind(id, uid).first());
-const view = (e) => ({ id: e.id, type: e.type, country: e.country, name: e.name, date: e.date, place: e.place, club: e.club, terrain: e.terrain,
+const view = (e) => ({ id: e.id, type: e.type, kind: kindOf(e.type), form: formOf(e.type), country: e.country, name: e.name, date: e.date, place: e.place, club: e.club, terrain: e.terrain,
   epreuve: e.epreuve, site: e.site, race: e.race_key || null, link: e.link_key || null, linkState: e.link_state, analysis: e.analysis || null,
   created: e.created_at, updated: e.updated_at });
 
@@ -123,7 +124,7 @@ export const onRequest = withUser(async ({ request, env, params, waitUntil }, us
       FROM events e WHERE e.status = 'active' AND e.date BETWEEN ? AND ?
         AND NOT EXISTS (SELECT 1 FROM event_members x WHERE x.event_id = e.id AND x.user_id = ?)
       ORDER BY e.date LIMIT 500`).bind(user.id, addDays(today, -PAST_DAYS), addDays(today, AHEAD_DAYS), user.id).all();
-    return json({ events: results.map((e) => ({ id: e.id, type: e.type, country: e.country, name: e.name, date: e.date, place: e.place,
+    return json({ events: results.map((e) => ({ id: e.id, type: e.type, kind: kindOf(e.type), form: formOf(e.type), country: e.country, name: e.name, date: e.date, place: e.place,
       club: e.club, linked: linked(e.race_key), members: e.n, asked: !!e.asked })) });
   }
   if (parts[0] === "holders" && method === "GET") {
@@ -161,9 +162,9 @@ export const onRequest = withUser(async ({ request, env, params, waitUntil }, us
     const b = await readBody(request);
     if (!b) return json({ error: "bad request" }, 400);
     if (!(await allow(env, `event:${user.id}`, 20, 86400))) return json({ error: "too many" }, 429);
-    // a calendar competition gives its name, day and place (France)
+    // a calendar competition gives its name, day and place (France); only a competition is linked to one
     let cal = null;
-    if (b.link && b.type !== "training") {
+    if (b.link && kindOf(b.kind ? typeOf(b.kind, b.form) : b.type) === "competition") {
       cal = await calendarOf(env, request, b.link);
       if (!cal.race) return json({ error: "unknown competition" }, 404);
       if (cal.held) return json({ error: "held", holder: await holderOf(env, cal.held, user.id) }, 409);
@@ -174,12 +175,12 @@ export const onRequest = withUser(async ({ request, env, params, waitUntil }, us
     const f = fields(b, cal ? ["FR"] : acceptedCountries(mships), admin);
     if (f.error) return json(f, 400);
     // a training is its creator's club's (owner, 2026-11-16: the form no longer asks)
-    if (f.type === "training" && !f.club) {
+    if (kindOf(f.type) === "training" && !f.club) {
       f.club = (f.country === "FR" ? await clubLabel(env, request, user.licence) : null)
         || clean((mships || []).find((m) => m.country === f.country && m.status === "ok")?.club, 80) || "";
     }
     const id = newId();
-    let race_key = f.type === "training" ? null : `d${id}`, link_key = null, link_state = "none";
+    let race_key = racing(f.type) ? `d${id}` : null, link_key = null, link_state = "none";
     if (cal) {
       link_key = cal.race.key;
       if (admin || (await inClub(env, request, user, cal.race))) { race_key = cal.race.key; link_state = "verified"; }
@@ -208,7 +209,7 @@ export const onRequest = withUser(async ({ request, env, params, waitUntil }, us
   if (!sub && method === "GET") {
     if (!may) {
       const asked = await env.DB.prepare("SELECT id FROM event_requests WHERE event_id = ? AND user_id = ? AND status = 'pending'").bind(id, user.id).first();
-      return json({ event: { id: ev.id, type: ev.type, name: ev.name, date: ev.date, place: ev.place, club: ev.club, country: ev.country },
+      return json({ event: { id: ev.id, type: ev.type, kind: kindOf(ev.type), form: formOf(ev.type), name: ev.name, date: ev.date, place: ev.place, club: ev.club, country: ev.country },
         member: false, holder: await holderOf(env, ev, user.id), asked: asked?.id || null });
     }
     const team = await members(env, id);
@@ -279,7 +280,7 @@ export const onRequest = withUser(async ({ request, env, params, waitUntil }, us
       if (held) return json({ error: "held", holder: await holderOf(env, held, user.id) }, 409);
       next = { ...ev, race_key: race.key, link_state: "approved", updated_at: now };
     } else {
-      next = { ...ev, race_key: ev.type === "training" ? null : `d${ev.id}`, link_key: null, link_state: "none", updated_at: now };
+      next = { ...ev, race_key: racing(ev.type) ? `d${ev.id}` : null, link_key: null, link_state: "none", updated_at: now };
     }
     await env.DB.prepare("UPDATE events SET race_key = ?, link_key = ?, link_state = ?, updated_at = ? WHERE id = ?")
       .bind(next.race_key, next.link_key, next.link_state, now, id).run();
@@ -296,7 +297,17 @@ export const onRequest = withUser(async ({ request, env, params, waitUntil }, us
     if (!(await allow(env, `event-edit:${user.id}`, 200, 86400))) return json({ error: "too many" }, 429);
     const f = fields(b, acceptedCountries(await memberships(env, user.id)), admin, ev);
     if (f.error) return json(f, 400);
-    if (f.type !== ev.type && (f.type === "training" || ev.type === "training")) return json({ error: "type" }, 400);
+    // a change of kind (owner, 2026-11-18: the type may be changed once the event exists): a competition held from the calendar
+    // (or waiting for it) is detached first; one that published under its own key cannot become a club training
+    let keys = { race_key: ev.race_key, link_key: ev.link_key, link_state: ev.link_state };
+    const was = kindOf(ev.type), will = kindOf(f.type);
+    if (was !== will) {
+      if (will !== "competition" && (linked(ev.race_key) || ev.link_state === "pending")) return json({ error: "linked" }, 409);
+      if (will === "training") {
+        if (ev.race_key && (await published(env, ev.race_key))) return json({ error: "type published" }, 409);
+        keys = { race_key: null, link_key: null, link_state: "none" };
+      } else if (was === "training") keys = { race_key: `d${ev.id}`, link_key: null, link_state: "none" };
+    }
     let analysis = ev.analysis;
     if (b.analysis !== undefined) {
       // its map analysis: one the account may manage (its own, or the competition's), never another's
@@ -307,16 +318,17 @@ export const onRequest = withUser(async ({ request, env, params, waitUntil }, us
         if (!m || !(admin || m.owner === user.id || (m.kind === "race" && m.race && m.race === ev.race_key))) return json({ error: "analysis" }, 403);
       }
     }
-    const next = { ...ev, ...f, analysis, updated_at: now };
+    const next = { ...ev, ...f, ...keys, analysis, updated_at: now };
     await env.DB.prepare(`UPDATE events SET type = ?, country = ?, name = ?, date = ?, place = ?, club = ?, terrain = ?, epreuve = ?, site = ?,
-      analysis = ?, updated_at = ? WHERE id = ?`).bind(f.type, f.country, f.name, f.date, f.place, f.club, f.terrain, f.epreuve, f.site, analysis, now, id).run();
+      race_key = ?, link_key = ?, link_state = ?, analysis = ?, updated_at = ? WHERE id = ?`).bind(f.type, f.country, f.name, f.date, f.place, f.club,
+      f.terrain, f.epreuve, f.site, keys.race_key, keys.link_key, keys.link_state, analysis, now, id).run();
     await mirror(env, next);
-    return json({ ok: true, event: view(next), soon: next.race_key === `d${id}` ? await startRun(env) : false });
+    return json({ ok: true, event: view(next), soon: next.race_key === `d${id}` || ev.race_key === `d${id}` ? await startRun(env) : false });
   }
 
   if (sub === "link" && method === "POST") {
     const b = (await readBody(request)) || {};
-    if (ev.type === "training") return json({ error: "type" }, 400);
+    if (kindOf(ev.type) !== "competition") return json({ error: "type" }, 400);
     let next;
     if (!b.key) {                                  // detached: the competition goes back to nobody, the event to its own key
       next = { ...ev, race_key: `d${ev.id}`, link_key: null, link_state: "none", updated_at: now };

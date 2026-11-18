@@ -105,7 +105,7 @@ export async function mountChrono(root, opt) {
   if (opt.session) await ctx.net.sync();
   if (opt.seed && !real.state.event.name) {
     const s = opt.seed;
-    real.add("ev", { p: { id: opt.ev, name: s.name || "", date: s.date || "", country: s.country || "FR", rules: String(s.country || "fr").toLowerCase(), type: s.type === "training" ? "individual" : s.type || "individual",
+    real.add("ev", { p: { id: opt.ev, name: s.name || "", date: s.date || "", country: s.country || "FR", rules: String(s.country || "fr").toLowerCase(), type: s.form || (/score$/.test(s.type || "") ? "score" : s.type === "relay" ? "relay" : "individual"),
       club: s.club || "", place: s.place || "", race: s.race || null, timing: "si", startMode: "list", zero: 36000 } }, ctx.by);
   }
   if (opt.session && real.state.event.name && !real.state.event.lan) real.add("ev", { p: { lan: newCode() } }, ctx.by);
