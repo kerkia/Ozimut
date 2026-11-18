@@ -2841,7 +2841,7 @@ async function replay(box, { A, id, course, race, init = {}, traces, allTraces =
       if (my !== rcm.token) return;
       const facts = await rcm.plan.settings(rcm.s, rcmReading);
       if (my !== rcm.token) return;
-      await rcm.plan.controls(ctrls.map((p) => [p.x, p.y]));
+      await rcm.plan.controls(ctrls.map((p) => [p.x, p.y]), course.score ? 0 : course.r || 0);   // a score course prints no legs
       if (my !== rcm.token) return;
       if (facts) { rcmFacts(facts); rcm.pic = null; }
       rcm.calib = rcm.s.calib ? await rcmCalibrate(my) : null;

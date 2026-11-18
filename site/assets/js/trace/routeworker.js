@@ -7,16 +7,18 @@
 // and boundaries, kept over a new reading), tour (the costs from each control to its nearest ones), path (one leg's best route).
 
 import { classify, cells, costs, context, legSearch, lineRoute, matchRoute, picture, decisionPicture, releaseAround, DEFAULTS,
-  freeCells, cellOf, costsFrom, bestPath, forbidCells, SPRINT_SCALE } from "./routechoice.js";
+  freeCells, cellOf, costsFrom, bestPath, forbidCells, courseInk, SPRINT_SCALE } from "./routechoice.js";
 import { heightAt } from "./terrain.js";
 
 let G = null, h = null, em = null, mpc = 1, cs = 1, W = 0, H = 0, settings = { ...DEFAULTS }, X = null;
-let image = null, mppRead = 1, kindRead = "forest", facts = null, ctrlPts = [];
+let image = null, mppRead = 1, kindRead = "forest", facts = null, ctrlPts = [], ctrlR = 0;
 let forbidden = null, tourCells = [];                // the setter's objects (map px of the image read), a tour's controls (cells)
 const scratch = {};                                  // costsFrom's arrays, kept between its calls
 const decisions = new Map();                         // the last legs' decision maps, by their points
 /** The overprint released round the course's controls (its circles, numbers): 75 m on a forest map, less on a sprint map. */
 const released = () => releaseAround(G, em, ctrlPts, kindRead === "sprint" ? 75 * SPRINT_SCALE : 75);
+/** The course's circles and legs, where its ink may read as black lines (an image's only: a vector map's course is not drawn). */
+const inked = () => (image ? courseInk(G, ctrlPts, ctrlR) : null);
 
 /** The grid's size and the metres of a pixel step (J's columns): the cell size, about 1.5 m, 4 million cells at most. */
 function start(w, hh, J) {
@@ -34,6 +36,7 @@ function finish(px) {
   G = cells(px, W, H, cs);
   if (forbidden) forbidCells(G, forbidden.areas, forbidden.lines);
   G.release = released();
+  G.courseInk = inked();
   h = hOld && hOld.length === G.nx * G.ny ? hOld : null;
   rebuild();
   const counts = new Array(13).fill(0), paths = [0, 0, 0, 0];
@@ -124,7 +127,7 @@ const ops = {
     const undo = freeCells(X, tourCells.length ? tourCells : [cellOf(X, a), cellOf(X, b)]);
     try { return { route: bestPath(X, a, b) }; } finally { undo(); }
   },
-  controls({ pts }) { ctrlPts = pts || []; if (G) { G.release = released(); rebuild(); } return {}; },
+  controls({ pts, r }) { ctrlPts = pts || []; ctrlR = r || 0; if (G) { G.release = released(); G.courseInk = inked(); rebuild(); } return {}; },
 };
 
 self.onmessage = (e) => {

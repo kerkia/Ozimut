@@ -95,12 +95,13 @@ export function planner(image, toM, vector = null, opts = {}) {
       if (!cache.has(k)) cache.set(k, ready.then(() => ask("leg", { a: S(a), b: S(b) })).then((r) => (r.routes ? r.routes.map((x) => ({ ...x, pts: x.pts.map(U) })) : null)));
       return cache.get(k);
     },
-    /** The course's controls (map px): the overprint around them is the course's own (circles, numbers), not out of bounds. */
-    async controls(pts) {
-      const k = JSON.stringify(pts.map((p) => p.map((v) => Math.round(v))));
+    /** The course's controls (map px), in its order, and its circles' radius (px, optional): the overprint around them is the
+     *  course's own (circles, numbers, legs), not out of bounds, nor its lines walls or paths. */
+    async controls(pts, r = 0) {
+      const k = JSON.stringify(pts.map((p) => p.map((v) => Math.round(v)))) + `|${Math.round(r)}`;
       if (k === ckey) return;
       await ready; ckey = k;
-      await ask("controls", { pts: pts.map(S) });
+      await ask("controls", { pts: pts.map(S), r: r * sc });
       cache.clear(); decs.clear();
     },
     /** The decision map of a leg: { canvas (one pixel a cell), x, y (its corner, map px), cell (map px a cell) }, or null. */
