@@ -63,6 +63,8 @@ export const DEFAULTS = {
 /** The pace (s/m of white forest on the flat, 6:00 min/km) at which a crossing takes `cross` seconds: the model's times are in
  *  metres of white forest, a runner's pace scales them all, the crossings with them. */
 export const CROSS_PACE = 0.36;
+/** The time multiplier under the course's own printed lines on an image (G.inkBand): crossed, not followed. */
+export const INK_SLOW = 3;
 
 // ---- 1. pixels ---------------------------------------------------------------------------------------------------------
 /** A colour's kind: an area (A.*) or an ink (INK.*). ol: the image's olive and yellow (oliveModel()'s, for a photo or a scan;
@@ -108,6 +110,9 @@ export function kindOf(r, g, b, ol = null) {
     return span > 50 ? I_MIXED : I_GREY;
   }
   if (hue < 36) return min > 215 ? A.WHITE : I_BROWN;
+  // a sprint map's pale lilac tint is ground (the Quiberon photo's squares and lanes, 234 187 222 once levelled: read as the
+  // overprint's out-of-bounds area, they shut both ways from the start to control 1 — 2026-11-18); the course's purple is strong
+  if (ol?.sprint && min >= 165) return A.ROUGH;
   return I_PURPLE;                                       // pinks and violets the test above missed: the overprint's edges
 }
 
@@ -435,7 +440,9 @@ function overprint(rgba, kind, w, h, mpp, sc = 1) {
   let any = 0;
   for (let i = 0, p = 0; i < N; i++, p += 4) {
     const r = rgba[p], g = rgba[p + 1], b = rgba[p + 2];
-    if (kind[i] === I_PURPLE) O[i] = 1;
+    // on a sprint map only a strong purple: the pink blends of a dark course line with a lilac lane were closed into an
+    // out-of-bounds block across it (the Quiberon photo's start, 2026-11-18)
+    if (kind[i] === I_PURPLE) { if (sc >= 1 || Math.max(r, g, b) - Math.min(r, g, b) >= 0.35 * Math.max(r, g, b)) O[i] = 1; }
     else if (red(r, g, b) && !notRed?.[i]) { O[i] = R[i] = 1; any++; }
   }
   const out = new Uint8Array(N);
@@ -688,6 +695,17 @@ export function classify(rgba0, w, h, mpp, opt = {}, progress = () => {}) {
   // and shallow water (passable) inside them: on a sprint map a blue with little colour is grey (after the north lines, which
   // take any bluish pixel)
   if (opt.map === "sprint") for (let i = 0, p = 0; i < N; i++, p += 4) if (kind[i] === I_BLUE && Math.max(rgba[p], rgba[p + 1], rgba[p + 2]) - Math.min(rgba[p], rgba[p + 1], rgba[p + 2]) < 36) kind[i] = I_GREY;
+  // a photographed sprint map's buildings, told on the photo as taken: the levelling takes the brightest neutral pixels of a block
+  // for its paper, and in a town without white those are the lit roofs — levelled to white, runnable (the houses round control 3
+  // of the Quiberon photo, 2026-11-18). A neutral colour (no channel 10 % above another), neither black nor paper-white, is a
+  // building there; the streets are warm (pink, beige), the paper brighter
+  if (opt.map === "sprint" && rgba !== rgba0) {
+    for (let i = 0, p = 0; i < N; i++, p += 4) {
+      if (kind[i] === I_PURPLE || kind[i] === I_ERASED || kind[i] === I_BLACK) continue;
+      const r = rgba0[p], g = rgba0[p + 1], b = rgba0[p + 2], mx = Math.max(r, g, b);
+      if (mx >= 95 && mx < 210 && mx - Math.min(r, g, b) <= Math.max(14, 0.1 * mx)) kind[i] = I_GREY;
+    }
+  }
   const over = overprint(rgba, kind, w, h, mpp, opt.map === "sprint" ? SPRINT_SCALE : 1);
   progress(0.45);
   const lw = lineWidth(kind, w, h, I_BLACK);
@@ -696,21 +714,25 @@ export function classify(rgba0, w, h, mpp, opt = {}, progress = () => {}) {
   const area = new Uint8Array(N).fill(UNKNOWN);
   for (let i = 0; i < N; i++) if (kind[i] < 20) area[i] = kind[i];
   // the thick parts of each ink: areas of their own
-  const thickOf = (test, decide) => {
+  const thickOf = (test, decide, keep = null) => {        // keep: the kinds that take the area (default: all the test's)
     const m = new Uint8Array(N);
     for (let i = 0; i < N; i++) if (test(kind[i], i)) m[i] = 1;
     const open = morph(morph(m, w, h, k, true), w, h, k, false);
     for (let i = 0; i < N; i++) open[i] &= m[i];
     const { lab, comps } = components(open, w, h);
-    const stats = comps.map(() => [0, 0, 0]);
-    for (let i = 0; i < N; i++) if (lab[i]) { const s = stats[lab[i]]; s[0]++; if (kind[i] === I_BLACK) s[1]++; s[2] += rgba[4 * i]; }
+    const stats = comps.map(() => [0, 0, 0, 0]);
+    for (let i = 0; i < N; i++) if (lab[i]) { const s = stats[lab[i]]; s[0]++; if (kind[i] === I_BLACK) s[1]++; s[2] += rgba[4 * i]; if (kind[i] === I_PURPLE) s[3]++; }
     const cls = comps.map((c, id) => (id && c.n >= minArea ? decide(stats[id]) : UNKNOWN));
-    for (let i = 0; i < N; i++) if (lab[i] && cls[lab[i]] !== UNKNOWN) area[i] = cls[lab[i]];
+    for (let i = 0; i < N; i++) if (lab[i] && cls[lab[i]] !== UNKNOWN && (!keep || keep(kind[i]))) area[i] = cls[lab[i]];
     return open;
   };
   // a forest map's grey is bare rock, a dark grey; a lighter one is the photo's shade on the paper (a crease, a corner): nothing
   const shade = opt.map === "sprint" ? 256 : 165;
-  const darkThick = thickOf((v) => v === I_BLACK || v === I_GREY, (s) => (s[1] > 0.5 * s[0] ? A.BUILDING : s[2] / s[0] > shade ? UNKNOWN : A.GREY));
+  // on a sprint map the course's line drawn across a building is part of it: a control circle cut the houses inside it in two,
+  // halves too thin to be read as buildings (Quiberon's control 3, 2026-11-18); mostly purple, it is the overprint's own
+  const sprintInk = opt.map === "sprint";
+  const darkThick = thickOf((v) => v === I_BLACK || v === I_GREY || (sprintInk && v === I_PURPLE),
+    (s) => (s[3] > 0.4 * s[0] ? UNKNOWN : s[1] > 0.5 * s[0] ? A.BUILDING : s[2] / s[0] > shade ? UNKNOWN : A.GREY), (v) => v !== I_PURPLE);
   // a paved area is a light brown; a dark one is ink — the course's legs on a photo that lost their purple come out dark brown,
   // blurred thick enough for the test, and were paved corridors across the gardens (the Quiberon photo, 2026-11-18)
   thickOf((v, i) => v === I_BROWN && rgba[4 * i] >= 170, () => A.PAVED);
@@ -891,6 +913,11 @@ export function costs(G, s, mpc) {
     // the course printed in black (a photo whose purple went dark): its circles and legs are neither paths nor walls
     if (bm === "paths" && path[k] && !ink?.[k] && cls[k] !== A.OOB && !shut && !G.block?.[k] && (G.vector ? raw[k] || v < Infinity : v < Infinity)) { v = Math.min(v, G.pspeed?.[k] ? 100 / G.pspeed[k] : FP[path[k]]); isPath[k] = 1; }
     else if (bm === "obstacles" && raw[k] && !ink?.[k]) v = Infinity;
+    // under the course's own lines on a photo (courseInk's band one pixel wider: the line and its blend) a way is crossed, not
+    // followed: the line blended with the olive and the roofs reads as open ground, and leg 1-2's route of the Quiberon photo ran
+    // along control 3's circle between a house and a garden (2026-11-18). Closing such cells when closed ground lies on both sides
+    // sealed the controls standing in a lane that leaves their circle aslant, and lanes a leg is drawn along
+    if (G.inkBand?.[k] && v < Infinity) v *= INK_SLOW;
     // a forbidden route is crossed, not followed: slow along it, its path no handrail
     if (ov?.[k] === 2 && !rel?.[k]) { v = Math.max(v, FORBIDDEN_ROUTE); isPath[k] = 0; }
     f[k] = v;
@@ -987,9 +1014,9 @@ export function releaseAround(G, em, pts, radius = 75) {
  * as wide as the overprint's line (0.35 mm against a circle of 5-6 mm) and the photo's blur. costs() takes no black line there
  * for a path or a wall. Null without a radius.
  */
-export function courseInk(G, pts, r) {
+export function courseInk(G, pts, r, wider = 0) {
   if (!(r > 0) || !pts?.length) return null;
-  const { nx, ny, cs } = G, out = new Uint8Array(nx * ny), half = 0.1 * r + 1.5;
+  const { nx, ny, cs } = G, out = new Uint8Array(nx * ny), half = 0.1 * r + 1.5 + wider;
   const mark = (x0, y0, x1, y1, test) => {
     for (let j = Math.max(0, Math.floor(y0 / cs)); j <= Math.min(ny - 1, Math.floor(y1 / cs)); j++)
       for (let i = Math.max(0, Math.floor(x0 / cs)); i <= Math.min(nx - 1, Math.floor(x1 / cs)); i++) if (test((i + 0.5) * cs, (j + 0.5) * cs)) out[j * nx + i] = 1;

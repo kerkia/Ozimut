@@ -17,8 +17,9 @@ const scratch = {};                                  // costsFrom's arrays, kept
 const decisions = new Map();                         // the last legs' decision maps, by their points
 /** The overprint released round the course's controls (its circles, numbers): 75 m on a forest map, less on a sprint map. */
 const released = () => releaseAround(G, em, ctrlPts, kindRead === "sprint" ? 75 * SPRINT_SCALE : 75);
-/** The course's circles and legs, where its ink may read as black lines (an image's only: a vector map's course is not drawn). */
-const inked = () => (image ? courseInk(G, ctrlPts, ctrlR) : null);
+/** The course's circles and legs, where its ink may read as black lines, and a pixel wider its blend, slowed (an image's only: a
+ *  vector map's course is not drawn). */
+const inked = () => { if (!image) return null; G.inkBand = courseInk(G, ctrlPts, ctrlR, 1); return courseInk(G, ctrlPts, ctrlR); };
 
 /** The grid's size and the metres of a pixel step (J's columns): the cell size, about 1.5 m, 4 million cells at most. */
 function start(w, hh, J) {
