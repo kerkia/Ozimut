@@ -1610,7 +1610,8 @@ def _once(doc, fix, frame, log, what, areas_only=False, decks=None):
         # an impassable fence shorter than 3 mm is an impassable wall (ISSprOM 518)
         f518 = line_feats(["518"])
         if f518:
-            chains = as_lines(shapely.ops.linemerge(unary_union([f["g"] for f in f518])))
+            u18_ = unary_union([f["g"] for f in f518])
+            chains = as_lines(shapely.ops.linemerge(u18_) if u18_.geom_type in ("MultiLineString", "GeometryCollection") else u18_)
             short = [l for l in chains if l.length < RULES["fenceShortMm"] * k]
             if short:
                 SH = unary_union([l.buffer(0.05) for l in short])

@@ -1401,8 +1401,11 @@ Every multiple-choice game was played through to its score page at phone size, w
   Etalab does not serve a commune.
   **The legibility check** (2026-11-12, after the mapper's remark that OCAD has one: « add tests that the standards are applied »):
   `tools/virtually/legibility.py`, run by `town_map.py` on its objects before it writes them (`--no-fix`: report only; alone:
-  `py legibility.py <race> [--fix] [--in F] [--out F]`), so Pixel's town races and Cartographier's « Plan de ville (sprint) » come
-  out checked; the report rule by rule with the first places in Lambert 93 in the log and `src/legibility.json`. ISSprOM 2019-2's
+  `py legibility.py <race> [--fix] [--in F] [--out F]`), so Pixel's town races come out checked — **not Cartographier's « Plan de
+  ville (sprint) »** (owner, 2026-11-18: the check and `test_remarks.py` are the developer's extensive tests, run to keep improving
+  the generator; a user would not know what to do with their outcome, and on Gif they took about 100 of the map's 120 minutes):
+  `townmap_ci.py` runs `town_map.py --clip --no-check`, no repair pass and no report (`legibility.despike_doc`, a cleanup, still runs);
+  its repairs are to move into the generator's own steps, so that its first draw needs none; the report rule by rule with the first places in Lambert 93 in the log and `src/legibility.json`. ISSprOM 2019-2's
   rules: impassable features (521, 520, 411, 301, 709, walls 515/529, fences 518) under 0.4 mm apart (1.6 m; under 0.02 mm they
   touch, OCAD's grid) — closed: a wall's end drawn on to what lies straight ahead (beside it: reported, drawn sideways it made
   zigzags), the space between areas filled with the area's symbol (buildings merged, olive extended), long gaps by a closing, two
@@ -1441,8 +1444,8 @@ Every multiple-choice game was played through to its score page at phone size, w
   src/legibility.json (UTF-8 now), publishable when no « shall » rule is left. `py legibility.py <race> [--fix] [--sheet F.html]
   [--gate]` (--gate: exit 2 when not publishable; the map's edge is its objects' extent, or its area's box when cut to it).
   **`upload.py` refuses a package whose report has errors** unless `--accept-violations`, and the report always goes with the
-  package (`virtual/<race>/legibility.json`); `townmap_ci.py` puts it in the town plan (`legibility`: entries with their places)
-  and its result (`gate`), and Cartographier says after the import how many points the generator's check left (`map.data.town.leg`).
+  package (`virtual/<race>/legibility.json`); the town plans made for Cartographier carry none (from
+  2026-11-13 to 18 `townmap_ci.py` put it in the plan and Cartographier said how many points the check left).
   **`sheet.py`**: one HTML page, a crop of the map (48 m, 8 px/m, drawn from map_objects.json) round each place flagged — its
   rule's paragraph, text, detail and Lambert 93 coordinates, 12 crops a rule spread over the map —, the summary, the manual list as
   a checklist and the planned checks. **`test_remarks.py <race>`**: a test for each of the 31 remarks of standard-remarks.md and the

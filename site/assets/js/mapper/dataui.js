@@ -279,9 +279,6 @@ async function waitTown(E, p) {
     const n = bring(E, objects, t("map.undo.data"));
     keepTown(E, null);
     E.say(tn("map.data.brought", n) + ` · ${t("map.data.town.credit", { date: lidarYear(j) })}`);
-    // what the generator's legibility check (tools/virtually/legibility.py) could not mend: said, for the mapper to review
-    const lg = j.legibility?.gate;
-    if (lg && lg.error + lg.warn > 0) E.say(tn("map.data.town.leg", lg.error + lg.warn), lg.error ? "bad" : null);
   } finally { if (E._townWait === p.req) E._townWait = null; }
 }
 /** What the workflow is doing (townmap_ci.py's progress, 2026-11-12): « setup » (the runner installing) said as the preparation, the

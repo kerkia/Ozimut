@@ -1,8 +1,9 @@
 """Cartographier's « Plan de ville (sprint) » made on GitHub (.github/workflows/townmap.yml; owner, 2026-11-12: one engine for a
 town's sprint map — the generator Pixel's races use —, quality before speed): each request the site wrote (functions/api/townmap:
 R2 townmap/req/<id>.json, { id, lat, lon, w, h, by, at, status }) made by town_fetch.py (IGN's LiDAR HD, BD TOPO, BD ORTHO and
-its infrared, the cadastre, OpenStreetMap) and town_map.py --clip (the ISSprOM 2019-2 objects, cut to the area asked for), the
-objects written gzipped to R2 townmap/out/<id>.json.gz, the request marked done or failed, its progress written into it as it goes.
+its infrared, the cadastre, OpenStreetMap) and town_map.py --clip --no-check (the ISSprOM 2019-2 objects, cut to the area asked
+for; no legibility check: the developer's tests, owner 2026-11-18), the objects written gzipped to R2 townmap/out/<id>.json.gz, the request marked done or
+failed, its progress written into it as it goes.
 
   python tools/virtually/townmap_ci.py --reqs <folder of the requests> --work <work folder>
   (env BUCKET=s3://cn-state, R2=<endpoint>: the aws CLI's address, AWS_* as lidarmap.yml; BUCKET=file://<folder> on the PC)
@@ -117,7 +118,7 @@ def make(req: dict, work: Path) -> dict:
             prog.extra = {"step": parts[1]}
             prog("map", STEPS.get(parts[1], 0), force=True)
     t0 = time.monotonic()
-    stream([PY, HERE / "town_map.py", rid, "--clip"], prog, "map", est=30 + w * h / 5000, on_line=stepped, env=env, cwd=HERE)
+    stream([PY, HERE / "town_map.py", rid, "--clip", "--no-check"], prog, "map", est=30 + w * h / 5000, on_line=stepped, env=env, cwd=HERE)
     timing["map"] = round(time.monotonic() - t0)
     prog.extra = {}
     rd = work / rid
@@ -126,25 +127,15 @@ def make(req: dict, work: Path) -> dict:
     lidar = json.load(open(rd / "src" / "lidar.json", encoding="utf-8")) if (rd / "src" / "lidar.json").exists() else {}
     out.update(area=area["box"], made=now_iso(), lidar={k: v.get("date", "") for k, v in lidar.items()},
                cadastre="pci" if (rd / "src" / "parcelles_pci.json").exists() else "etalab")
-    # the legibility check's report (legibility.py, run by town_map.py): what it left, rule by rule with its places, goes with
-    # the map — the mapper corrects a town plan, so it is said, not refused
-    lp = rd / "src" / "legibility.json"
-    if lp.exists():
-        lg = json.load(open(lp, encoding="utf-8"))
-        out["legibility"] = {"standard": lg.get("standard"), "gate": lg.get("gate"),
-                             "entries": {k: {"ref": v.get("ref"), "sev": v.get("sev"), "left": v.get("left"), "fixed": v.get("fixed"),
-                                             "places": [p["at"] for p in v.get("places", [])[:200]]}
-                                         for k, v in lg.get("entries", {}).items()}}
     prog("upload", 0)
     data = gzip.compress(json.dumps(out, separators=(",", ":")).encode("utf-8"))
     ci.aws("cp", "-", f"{ci.BUCKET}/{OUT}{rid}.json.gz", "--content-type", "application/json", data=data)
-    return {"objects": len(out["objects"]), "bytes": len(data), "lidar": sorted(set(out["lidar"].values())), "s": timing,
-            "legibility": (out.get("legibility") or {}).get("gate")}
+    return {"objects": len(out["objects"]), "bytes": len(data), "lidar": sorted(set(out["lidar"].values())), "s": timing}
 
 
 # town_map.py's steps and the share of the map's time they usually start at (500 × 500 m of Gif, 2026-11-12)
 STEPS = {"points": 0.0, "photo": 0.1, "vectors": 0.12, "areas": 0.2, "enclosures": 0.35, "lines": 0.45, "contours": 0.75,
-         "objects": 0.82, "legibility": 0.86}
+         "objects": 0.82}
 
 
 def setup(reqs: Path):

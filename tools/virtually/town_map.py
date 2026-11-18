@@ -1,6 +1,10 @@
 """A sprint map (ISSprOM 2019-2, 1:4000) of a town from open data, for « Virtually » (town_fetch.py first):
 
-  py town_map.py <race> [--clip] [--no-fix]    DATA/<race>/map_objects.json, then  node --import ../mapper/shim.mjs mkocd.mjs … map.ocd
+  py town_map.py <race> [--clip] [--no-fix | --no-check]    DATA/<race>/map_objects.json, then  node --import ../mapper/shim.mjs mkocd.mjs … map.ocd
+
+--no-check: no legibility check at all (neither its repairs nor its report) — the maps made for a user (Cartographier's « Plan de
+ville », townmap_ci.py; owner, 2026-11-18): the check and test_remarks.py are the developer's extensive tests, run on Pixel's
+town races (town_all.py) to keep improving the generator, and a user would not know what to do with their outcome.
 
 --clip: the objects cut to the area asked for (area.json `box`) instead of the area fetched with its margin (`ext`, the 3D
 scene's horizon) — Cartographier's « Plan de ville » (townmap_ci.py), whose map is exactly that area; the margin still serves the
@@ -51,6 +55,12 @@ from scipy.ndimage import (binary_closing, binary_opening, distance_transform_ed
 import shapely
 from shapely.geometry import shape, LineString, Polygon, MultiPolygon, Point, box as sbox
 from shapely.ops import unary_union
+
+
+def merge_lines(g):
+    """shapely's linemerge, which refuses a single line (2026-11-18: one passage in a 500 m square stopped the map)"""
+    from shapely.ops import linemerge as _lm
+    return _lm(g) if g.geom_type in ("MultiLineString", "GeometryCollection") else g
 
 DATA = Path(os.environ.get("VIRTUAL_DATA") or Path(__file__).resolve().parents[4] / "data" / "virtual")
 if not DATA.exists():
@@ -874,13 +884,13 @@ from shapely.ops import linemerge
 # court where the LiDAR sees its fence
 tennis = [s["g"].boundary for s in sports if s["sport"] in ("tennis", "padel")]
 if tennis:
-    tl = linemerge(unary_union(tennis))
+    tl = merge_lines(unary_union(tennis))
     for l in getattr(tl, "geoms", [tl]):
         walls.append((l, "court", False))
 encl = [s["g"].boundary for s in sports if s["sport"] in ("multi", "basketball", "handball")]
 n_encl = len(tennis)
 if encl:
-    ln = linemerge(unary_union(encl))
+    ln = merge_lines(unary_union(encl))
     for l in getattr(ln, "geoms", [ln]):
         run = []
         for d in np.arange(0, l.length, 2.0):
@@ -1345,7 +1355,7 @@ for d in decks:                                            # a deck's sides over
 PASS = []
 if passages:
     widths = [(p[0].buffer(0.5), p[1]) for p in passages]
-    merged = linemerge(unary_union([p[0] for p in passages]))
+    merged = merge_lines(unary_union([p[0] for p in passages]))
     lines_m = [pc for pc in getattr(merged, "geoms", [merged]) if pc.geom_type == "LineString" and pc.length >= 1]
     for i, pc in enumerate(lines_m):
         others = unary_union([q for j, q in enumerate(lines_m) if j != i] or [LineString()])
@@ -1745,13 +1755,16 @@ for xm in np.arange(math.floor((X0 - CX) / 120) * 120, (X1 - CX) + 1, 120):
 # curved: what can be mended safely is (gaps under 0.4 mm between impassable features closed, slivers given to their
 # neighbour…), the rest reported in src/legibility.json
 import legibility
-step("legibility")
 DOC = {"title": f"{RACE} sprint", "scale": SCALE, "set": "issprom2019-2", "realWorld": {"x": CX, "y": CY, "epsg": 2154},
        "objects": objects}
-LEG = legibility.check(DOC, fix="--no-fix" not in sys.argv, frame=CLIP, log=log, decks=DECK_ALL)   # (its sides: 515, no gap)
-for line in ["legibility"] + LEG.lines():
-    log(line)
-legibility.write_report(LEG, SRC / "legibility.json")
+if "--no-check" in sys.argv:                 # a user's map: no test run (an earlier report would be read as this map's)
+    (SRC / "legibility.json").unlink(missing_ok=True)
+else:
+    step("legibility")
+    LEG = legibility.check(DOC, fix="--no-fix" not in sys.argv, frame=CLIP, log=log, decks=DECK_ALL)   # (its sides: 515, no gap)
+    for line in ["legibility"] + LEG.lines():
+        log(line)
+    legibility.write_report(LEG, SRC / "legibility.json")
 objects = DOC["objects"]
 # path ends the check cut short (lines in buildings, in the olive, on paving) drawn on again to the paving or the path within
 # 4 m, unless that crosses a building or the olive (2026-11-15, remark 17's test: six ends 0.3-4 m short after the check)
@@ -1921,7 +1934,7 @@ def _corners_only(r, closed):
 # no needle (2026-11-14, remark 1's test: 37 spikes in the paving, rings running out and back along themselves after the areas'
 # overlays): a vertex where a ring turns back (over 170°) on a triangle under 0.5 m², or a needle under 0.25 m wide, is taken out,
 # again until none is left — legibility.despike_doc, which the check already runs before and after each of its passes (what is
-# checked is what is published; the points two areas share stay, 2026-11-17): here for a map made with --no-fix
+# checked is what is published; the points two areas share stay, 2026-11-17): here for a map made with --no-fix or --no-check
 n_spk = legibility.despike_doc(DOC)
 log("ring points of needles taken out", n_spk)
 n_curved = 0
