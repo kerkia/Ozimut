@@ -55,7 +55,7 @@ async function start() {
   assets = app.isPackaged ? path.join(process.resourcesPath, "site", "assets") : path.join(here, "..", "site", "assets");
   try {
     hub = await startHub({ port: SMOKE ? 0 : PORT, tries: MORE_PORTS + 1, sirapPort: SMOKE ? null : SIRAP_PORT, folder, assets, www: path.join(here, "www"),
-      token: set.token, name: os.hostname(), version: app.getVersion() });
+      token: set.token, name: os.hostname(), version: app.getVersion(), ...(SMOKE ? { discovery: false } : {}) });
   } catch (e) {
     if (SMOKE) return smokeEnd([`hub: ${e?.stack || e}`]);
     dialog.showErrorBox(S.startTitle, e.code === "EADDRINUSE" ? fill(S.startPorts, { a: PORT, b: PORT + MORE_PORTS }) : `${fill(S.startFolder, { folder })}\n${e.message}`);

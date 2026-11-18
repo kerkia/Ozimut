@@ -115,6 +115,11 @@ export function newStation() {
   const A = "abcdefghjkmnpqrstuvwxyz23456789", r = crypto.getRandomValues(new Uint8Array(6));
   return [...r].map((x) => A[x % A.length]).join("");
 }
+/** An event's code for linking the arena's computers (peers.mjs): six letters and digits that cannot be mistaken. */
+export function newCode() {
+  const A = "ABCDEFGHJKMNPQRSTUVWXYZ23456789", r = crypto.getRandomValues(new Uint8Array(6));
+  return [...r].map((x) => A[x % A.length]).join("");
+}
 export function newId() {
   const A = "abcdefghjkmnpqrstuvwxyz23456789", r = crypto.getRandomValues(new Uint8Array(9));
   return [...r].map((x) => A[x % A.length]).join("");

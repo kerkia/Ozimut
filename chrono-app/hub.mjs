@@ -17,7 +17,8 @@ import os from "node:os";
 import path from "node:path";
 import crypto from "node:crypto";
 import { WebSocketServer } from "ws";
-import { Log } from "../site/assets/js/chrono/log.js";
+import { Log, newCode } from "../site/assets/js/chrono/log.js";
+import { startPeers, proofOk, STATION, DISCOVERY_PORT } from "./peers.mjs";
 import { link } from "../site/assets/js/chrono/sync.js";
 import { takeRead } from "../site/assets/js/chrono/model.js";
 import { SirapDecoder } from "../site/assets/js/chrono/io/sirap.js";
@@ -80,10 +81,12 @@ function readJournal(file) {
  * of the standalone page; `token`: asked of other computers (a random one when none is given); `tries`: how many ports to
  * try from `port` on when it is taken; `sirapPort`: null for no SIRAP listener; `trustLoopback: false` asks the token of
  * this computer too (tests); `origins`: the sites whose pages may call the hub of their visitor's own computer.
- * Returns `{ port, sirapPort (null when it could not be had), token, name, folder, station, addresses(), events(), open(ev), close() }`.
+ * `discovery`: `{ port, to: [{ host, port }] }` where the hub says who it is (peers.mjs; the network's broadcast by default),
+ * false for none; `codes`: false gives no event a code of its own (tests).
+ * Returns `{ port, sirapPort (null when it could not be had), token, name, folder, station, addresses(), events(), open(ev), peers, close() }`.
  */
 export async function startHub({ port = 8377, sirapPort = 10000, folder, assets, www, token, name, version = "", tries = 1,
-  trustLoopback = true, origins = ["https://ozimut.com"] } = {}) {
+  trustLoopback = true, origins = ["https://ozimut.com"], discovery = { port: DISCOVERY_PORT }, codes = true } = {}) {
   if (!folder || !assets || !www) throw new Error("startHub: folder, assets and www are needed");
   folder = path.resolve(folder);
   const root = path.resolve(assets), index = path.join(path.resolve(www), "index.html"), doc = path.join(path.resolve(www), "doc.html");
@@ -106,7 +109,14 @@ export async function startHub({ port = 8377, sirapPort = 10000, folder, assets,
 
   // ---- the events: one log each, its journal behind it ----
   const logs = new Map();          // the id in lower case (Windows' file names ignore case) -> { ev, file, log, fd, cut, waiting, fault }
-  const row = (ev, log, fault) => ({ ev, name: log.state.event.name || "", date: log.state.event.date || "", ops: log.ops.length, ...(fault ? { fault } : {}) });
+  const row = (ev, log, fault) => ({ ev, name: log.state.event.name || "", date: log.state.event.date || "", ops: log.ops.length, lan: log.state.event.lan || "", ...(fault ? { fault } : {}) });
+  // an event made on this computer is given its code, which the arena's other computers type once to link to it; an event
+  // joined from the network keeps the code its user typed (meta.codes) until its log brings its own
+  const coded = (e) => {
+    const st = e.log.state.event;
+    if (!codes || st.lan || !st.name || meta.codes?.[e.ev]) return;
+    e.log.add("ev", { p: { lan: newCode() } }, "hub");
+  };
 
   /** What waits goes to the journal's end and through to the disk; a failure keeps it for the next try. */
   function write(e) {
@@ -132,7 +142,7 @@ export async function startHub({ port = 8377, sirapPort = 10000, folder, assets,
   const again = setInterval(() => { for (const e of logs.values()) write(e); }, 5000);
   again.unref();
 
-  function open(ev) {
+  function open(ev, { quiet = false } = {}) {
     if (typeof ev !== "string" || !EVENT_ID.test(ev) || DEVICE.test(ev)) throw new Error("event");
     const k = ev.toLowerCase();
     let e = logs.get(k);
@@ -142,10 +152,12 @@ export async function startHub({ port = 8377, sirapPort = 10000, folder, assets,
       if (twin && twin !== ev) throw new Error("event");
       const file = path.join(folder, `${ev}.ozchrono.jsonl`), { ops, cut } = readJournal(file);
       e = { ev, file, log: new Log(meta.station, ops), fd: null, cut, waiting: [], fault: null };
-      e.log.on((added) => { e.waiting.push(...added); write(e); });
+      // after the merge that brought the name: an operation added inside it would not reach the station that sent it
+      e.log.on((added) => { e.waiting.push(...added); write(e); if (!quiet) setTimeout(() => coded(e), 0); });
       logs.set(k, e);
     }
-    if (meta.last !== ev) { meta.last = ev; saveMeta(); }
+    if (!quiet) coded(e);
+    if (!quiet && meta.last !== ev) { meta.last = ev; saveMeta(); }
     return e.log;
   }
 
@@ -193,6 +205,20 @@ export async function startHub({ port = 8377, sirapPort = 10000, folder, assets,
     return !req.headers.origin || okOrigin(req.headers.origin, req);
   }
   const allowed = (req, q) => local(req) || tokenOk(q.get("k")) || tokenOk(req.headers["x-hub-token"]) || tokenOk(cookie(req));
+  // another hub proves it knows the event's code; ten wrong proofs a minute from one address and it is no longer heard
+  const misses = new Map();
+  function peerOk(req, q) {
+    const ip = req.socket.remoteAddress || "", now = Date.now(), m = (misses.get(ip) || []).filter((t) => now - t < 60000);
+    if (m.length >= 10) return false;
+    const ev = q.get("ev") || "";
+    if (proofOk(q.get("lan"), codeOf(ev), ev)) return true;
+    m.push(now); misses.set(ip, m);
+    return false;
+  }
+  function codeOf(ev) {
+    if (typeof ev !== "string" || !EVENT_ID.test(ev)) return "";
+    return logs.get(ev.toLowerCase())?.log.state.event.lan || meta.codes?.[ev] || (peek(ev)?.lan ?? "");
+  }
   const split = (url) => { const at = url.indexOf("?"); return at < 0 ? [url, new URLSearchParams()] : [url.slice(0, at), new URLSearchParams(url.slice(at + 1))]; };
 
   // ---- HTTP ----
@@ -232,7 +258,21 @@ export async function startHub({ port = 8377, sirapPort = 10000, folder, assets,
       const full = path.join(root, p.slice(8));
       return full.startsWith(root + path.sep) ? file(req, res, full, head) : say(res, 403);
     }
-    if (p === "/hub/info") return send(res, 200, MIME[".json"], JSON.stringify({ name, version, events: events() }), { ...cors, ...head });
+    if (p === "/hub/info") {
+      return send(res, 200, MIME[".json"], JSON.stringify({ name, version, station: meta.station, port: bound, token, addresses: addresses(), events: events().map(({ lan, ...r }) => r), peers: peers?.info() || null }), { ...cors, ...head });
+    }
+    // asked by this computer's own page only: an event heard of on the network joined with its code, a hub given by hand
+    if ((p === "/hub/join" || p === "/hub/peer") && !local(req)) return say(res, 403, cors);
+    if (p === "/hub/join" || p === "/hub/peer") {
+      const ev = q.get("ev") || "";
+      if (!EVENT_ID.test(ev) || !peers) return send(res, 400, MIME[".json"], "{\"error\":\"event\"}", cors);
+      const answer = (how) => send(res, 200, MIME[".json"], JSON.stringify({ result: how }), cors);
+      if (p === "/hub/join") { peers.join(ev, q.get("code") || "").then(answer, () => answer("unreachable")); return; }
+      const host = String(q.get("host") || "").trim(), pt = Number(q.get("port")) || 8377, k = q.get("k") || "";
+      if (!/^[A-Za-z0-9.:[\]-]{1,100}$/.test(host)) return send(res, 400, MIME[".json"], "{\"error\":\"host\"}", cors);
+      peers.addStatic(host.replace(/^\[|\]$/g, ""), pt, k, ev).then((how) => { meta.statics = peers.statics(); saveMeta(); answer(how); }, () => answer("unreachable"));
+      return;
+    }
     return say(res, 404);
   }
   const server = http.createServer((req, res) => {
@@ -251,10 +291,15 @@ export async function startHub({ port = 8377, sirapPort = 10000, folder, assets,
     ws.alive = true;
     ws.on("pong", () => { ws.alive = true; });
     ws.on("error", () => {});
-    if (!allowed(req, q)) return ws.close(4401, "token");
+    const peer = STATION.test(q.get("peer") || "") ? q.get("peer") : "";
+    // another hub is never trusted for being on this computer: it gives the key, or proves it knows the event's code
+    const byKey = tokenOk(q.get("k")) || tokenOk(req.headers["x-hub-token"]) || tokenOk(cookie(req));
+    if (!(peer ? byKey || peerOk(req, q) : allowed(req, q))) return ws.close(4401, "token");
     const ev = q.get("ev") || "";
     let log;
-    try { log = open(ev); } catch (e) { return ws.close(e.message === "event" ? 4400 : 1011, e.message === "event" ? "event" : "journal"); }
+    try { log = open(ev, { quiet: !!peer }); } catch (e) { return ws.close(e.message === "event" ? 4400 : 1011, e.message === "event" ? "event" : "journal"); }
+    const gone = peer && peers ? peers.incoming(peer, ev) : null;
+    ws.on("close", () => gone?.());
     const l = link(log, (m) => { if (ws.readyState === ws.OPEN) ws.send(JSON.stringify(m)); }, { ev, name, onFault: () => ws.close(4400, "event") });
     ws.on("message", (data, binary) => {
       if (binary) return;
@@ -317,17 +362,30 @@ export async function startHub({ port = 8377, sirapPort = 10000, folder, assets,
     try { sirapBound = await listen(sirap, sirapPort); } catch (e) { /* taken (another timing software on this computer): no radio by this way */ }
     sirap.on("error", () => {});
   }
+  // ---- the arena's other computers ----
+  const addresses = () => Object.values(os.networkInterfaces()).flat().filter((a) => a && a.family === "IPv4" && !a.internal).map((a) => a.address);
+  let heldAt = 0, heldList = [];
+  const peers = startPeers({
+    station: meta.station, name, port: bound, sane: saneOps,
+    held: () => { if (Date.now() - heldAt > 2000) { heldList = events().map((r) => ({ ev: r.ev, name: r.name, date: r.date })); heldAt = Date.now(); } return heldList; },
+    codeOf, open: (ev) => open(ev, { quiet: true }),
+    setCode: (ev, code) => { meta.codes = { ...(meta.codes || {}) }; if (code) meta.codes[ev] = code; else delete meta.codes[ev]; saveMeta(); heldAt = 0; },
+    discovery, statics: Array.isArray(meta.statics) ? meta.statics : [],
+  });
+
   // radio punches have their event before any station is back
   if (typeof meta.last === "string" && fs.existsSync(path.join(folder, `${meta.last}.ozchrono.jsonl`))) { try { open(meta.last); } catch (e) { /* no longer an event */ } }
 
   return {
     port: bound, sirapPort: sirapBound, token, name, folder, station: meta.station,
     /** This computer's addresses on its networks (IPv4), for the other stations: `http://<address>:<port>/?k=<token>`. */
-    addresses: () => Object.values(os.networkInterfaces()).flat().filter((a) => a && a.family === "IPv4" && !a.internal).map((a) => a.address),
-    events,
+    addresses,
+    events: () => events().map(({ lan, ...r }) => r),
+    peers,
     /** The event's log (read from its journal the first time); throws "event" for an id that is none. */
     open,
     async close() {
+      await peers.close();
       clearInterval(again);
       clearInterval(beat);
       const down = (srv) => new Promise((ok) => { if (srv.listening) srv.close(() => ok()); else ok(); });

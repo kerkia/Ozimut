@@ -3,23 +3,26 @@
 // documentation on the site (content/guide.de.js, chapter « chrono-app »).
 export default {
   title: "Die Anwendung Ozimut Chrono",
-  lede: "Die Zeitmessung von Ozimut, auf einem Computer installiert: ohne Internet, mehrere Stationen verbunden, Belege ohne Druckdialog. Diese Anleitung ist dieselbe in der Anwendung (Hilfe › Dokumentation) und in der Orga-Dokumentation auf ozimut.com.",
+  lede: "Die Zeitmessung von Ozimut, auf einem Computer installiert: ohne Internet, die Computer im Wettkampfzentrum miteinander verbunden, Belege ohne Druckdialog. Diese Anleitung ist dieselbe in der Anwendung (Hilfe › Dokumentation) und in der Orga-Dokumentation auf ozimut.com.",
   sections: [
     { id: "what", title: "Wozu die Anwendung dient", html: `
       <p>Die Anwendung Ozimut Chrono zeigt dieselben Bildschirme wie der Reiter „Chrono“ einer Orga-Veranstaltung auf ozimut.com. Dazu
         kann sie, was ein Browser-Tab nicht kann:</p>
       <ul>
         <li>sie läuft <b>ohne Internet</b>;</li>
-        <li>sie ist ein <b>Hub</b>: Die anderen Computer und die Telefone im lokalen Netz öffnen ihre Adresse im Browser und arbeiten am
-          selben Lauf;</li>
+        <li>sie <b>verbindet die Computer im Wettkampfzentrum</b> miteinander: Jeder, der sie hat, behält den ganzen Lauf und hält ihn mit den
+          anderen auf dem Stand, ohne Hauptrechner; Telefone und Bildschirme öffnen im Browser die Adresse eines dieser Computer;</li>
         <li>sie schreibt jeden Vorgang in ein <b>Protokoll</b>, eine Datei pro Veranstaltung in einem Ordner des Computers;</li>
         <li>sie druckt die Belege <b>ohne Druckdialog</b>;</li>
         <li>sie empfängt die <b>Funkstempel</b> von Relais (SIRAP-Protokoll).</li>
       </ul>
       <p><b>Der Reiter allein genügt</b>, wenn ein einziger Computer zeitmisst oder wenn alle Stationen Internet haben: Sie halten sich
-        dann über die Kopie auf Ozimut auf dem Stand. Um ein Chip-Lesegerät anzuschließen, braucht es Chrome oder Edge.</p>
+        dann über die Kopie auf Ozimut auf dem Stand. Um ein Chip-Lesegerät anzuschließen, braucht es Chrome oder Edge. <b>Ohne
+        Internet</b> installierst du die Anwendung auf jedem Computer, der Chips ausliest oder Belege druckt (siehe „Die Computer im
+        Wettkampfzentrum verbinden“).</p>
       <p><b>In der Testphase.</b> Wie Chrono selbst wurde die Anwendung noch nie mit echten SPORTident- oder Emit-Stationen, mit einem
-        Belegdrucker oder bei einem echten Wettkampf eingesetzt. Probiere sie bei einem Training oder neben deiner gewohnten Software aus.</p>` },
+        Belegdrucker oder bei einem echten Wettkampf eingesetzt, und ihre Verbindungen wurden noch nicht zwischen echten Computern im Netz
+        eines Wettkampfzentrums erprobt. Probiere sie bei einem Training oder neben deiner gewohnten Software aus.</p>` },
     { id: "install", title: "Herunterladen und installieren", html: `
       <p>Die Dateien lädst du von Ozimut herunter: Orga › Meine Veranstaltungen › eine Veranstaltung › Reiter „Chrono“ › Vorbereiten ›
         Verbindungen › „Anwendung herunterladen“.</p>
@@ -44,10 +47,11 @@ export default {
           dann „Dennoch öffnen“. In älteren Versionen: Rechtsklick auf die Anwendung, „Öffnen“, dann bestätigen.</li>
       </ul>` },
     { id: "first", title: "Erster Start", html: `
-      <p>Das Fenster öffnet sich auf der Startseite: die Liste „Veranstaltungen“ und die Karte „Neue Veranstaltung“ (ein Name, ein Datum,
-        die Regeln des Landes — Frankreich, Kanada oder IOF-Regeln —, dann „Erstellen“). Ist eine Veranstaltung geöffnet, läuft alles wie
-        im Reiter: die Stationen Vorbereiten, Anmeldung, Start, Ziel, Übersicht, Sprecher, Schiedsrichter, Posten und Abschließen,
-        beschrieben in der Orga-Dokumentation, Kapitel „Chrono“.</p>
+      <p>Das Fenster öffnet sich auf der Startseite: die Liste „Veranstaltungen“, die Karte „Neue Veranstaltung“ (ein Name, ein Datum, die
+        Regeln des Landes — Frankreich, Kanada oder IOF-Regeln —, dann „Erstellen“) und die Karte „Im Netzwerk“, die Veranstaltungen der
+        anderen Computer im Wettkampfzentrum, denen du mit ihrem Code beitrittst (siehe „Die Computer im Wettkampfzentrum verbinden“). Ist
+        eine Veranstaltung geöffnet, läuft alles wie im Reiter: die Stationen Vorbereiten, Anmeldung, Start, Ziel, Übersicht, Sprecher,
+        Schiedsrichter, Posten und Abschließen, beschrieben in der Orga-Dokumentation, Kapitel „Chrono“.</p>
       <ul>
         <li><b>Der Ordner der Veranstaltungen</b> heißt „Ozimut Chrono“ und liegt in deinen Dokumenten; die Anwendung legt ihn an. Datei ›
           „Datenordner öffnen“ zeigt ihn.</li>
@@ -55,24 +59,54 @@ export default {
           „Veranstaltungsdatei öffnen…“: Ihre Vorgänge kommen zu dieser Veranstaltung in der Anwendung hinzu, ohne etwas zu verdoppeln,
           und die Veranstaltung öffnet sich.</li>
         <li><b>Nur eine Anwendung auf einmal</b>: Ein zweiter Start holt das schon offene Fenster nach vorn.</li>
-        <li><b>Die Firewall</b>: Beim ersten Start fragt Windows unter Umständen, ob andere Computer die Anwendung erreichen dürfen.
-          Erlaube es für private Netzwerke, wenn sich andere Stationen verbinden sollen.</li>
+        <li><b>Die Firewall</b>: Beim ersten Start fragt Windows, ob Ozimut Chrono im Netzwerk kommunizieren darf. Erlaube es für private
+          Netzwerke: Sonst finden die anderen Computer im Wettkampfzentrum sie nicht, und Telefone können sie nicht öffnen.</li>
         <li><b>Das Menü</b>: Datei (eine Datei öffnen, den Ordner öffnen, beenden), Bearbeiten, Ansicht (neu laden, Zoom, Vollbild),
-          Hilfe › „Dokumentation“ (<kbd>F1</kbd>) und „Über Ozimut Chrono“ mit der Version, den Adressen für die anderen Stationen, dem
-          Port der Funkstempel und dem Datenordner.</li>
+          Hilfe › „Dokumentation“ (<kbd>F1</kbd>) und „Über Ozimut Chrono“ mit der Version, der Adresse für Telefone und andere Computer
+          (mit dem Schlüssel der Anwendung), dem Port der Funkstempel und dem Datenordner.</li>
       </ul>` },
-    { id: "hub", title: "Andere Computer und Telefone verbinden", html: `
-      <p>Die Anwendung ist ein Hub: Alle Geräte im selben lokalen Netz — ein WLAN-Zugangspunkt oder ein einfacher Router genügt, ohne
-        Internet — können am selben Lauf arbeiten.</p>
+    { id: "hub", title: "Die Computer im Wettkampfzentrum verbinden", html: `
+      <p>Alle Computer, auf denen die Anwendung läuft, sind gleichberechtigt: kein Hauptrechner, kein zentraler Computer, den man wählen
+        müsste. Jeder behält seine vollständige Kopie des Laufs und sein eigenes Protokoll. Sie müssen nur im selben lokalen Netz sein — ein
+        WLAN-Zugangspunkt oder ein einfacher Router genügt, ohne Internet.</p>
+      <h3>Wie sie sich finden</h3>
+      <p>Alle paar Sekunden meldet jede Anwendung im lokalen Netz, wer sie ist und welche Veranstaltungen sie hat (deren Namen und Datum, nie
+        deren Code). Zwei Anwendungen mit derselben Veranstaltung verbinden sich von selbst und halten sich gegenseitig auf dem Stand. Die
+        Verbindungen laufen über jeden beliebigen der Computer: Es genügt, dass jeder mindestens einen anderen erreicht. Ein Computer, der
+        geht oder neu startet, holt bei seiner Rückkehr von selbst nach, was ohne ihn geschehen ist.</p>
+      <h3>Der Code der Veranstaltung</h3>
+      <p>Jede Veranstaltung hat einen Code aus sechs Zeichen, Buchstaben und Ziffern, die sich nicht verwechseln lassen (nie O, 0, I, L oder
+        1). Er steht groß in Vorbereiten › Verbindungen, Karte „Die anderen Rechner im Wettkampfzentrum“, unter „Code der Veranstaltung“. Er
+        entsteht von selbst mit der Veranstaltung, in der Anwendung wie im Reiter „Chrono“ von Ozimut. Er schützt die Veranstaltung: Ein
+        anderer Computer muss ihn kennen, um sich zu verbinden, und er wird nie im Netz gemeldet — eine Anwendung beweist, dass sie ihn
+        kennt, ohne ihn zu nennen.</p>
+      <h3>Der Veranstaltung von einem anderen Computer aus beitreten</h3>
       <ol>
-        <li>Öffne auf dem Computer der Anwendung Hilfe › „Über Ozimut Chrono“: Das Fenster nennt die Adresse, die zu öffnen ist, in der
-          Form <code>http://192.168.1.20:8377/?k=…</code>. Was auf <code>?k=</code> folgt, ist der <b>Schlüssel</b> des Hubs.</li>
-        <li>Öffne diese Adresse auf dem anderen Computer oder dem Telefon im Browser. Ohne den Schlüssel fragt die Seite danach, in einem
-          Feld mit einem Schlüsselsymbol.</li>
-        <li>Wähle die Veranstaltung in der Liste. Diese Station sieht den Lauf nach wenigen Augenblicken und schreibt hinein wie die
-          anderen.</li>
+        <li>Installiere die Anwendung auf diesem Computer und öffne sie.</li>
+        <li>Ihre Startseite hat eine Karte „Im Netzwerk“: die Veranstaltungen der anderen Computer im Wettkampfzentrum, jeweils mit dem
+          Computer, der sie hat („auf PC-Ziel“). Klicke auf die Veranstaltung.</li>
+        <li>Gib ihren Code ein, in Groß- oder Kleinbuchstaben, dann „Beitreten“. Die Veranstaltung öffnet sich und füllt sich in wenigen
+          Augenblicken. Ein falscher Code wird abgelehnt: „Das ist nicht der Code dieser Veranstaltung.“</li>
       </ol>
-      <p>Eine Station, die das Netz verliert, arbeitet allein weiter und verbindet sich von selbst wieder; nichts geht verloren.</p>
+      <p>Der Code wird nur einmal gefragt: Danach verbindet sich dieser Computer von selbst, bei jedem Start, in jedem Netz. Nach einem
+        Neustart ist nichts zu wiederholen.</p>
+      <p>In Vorbereiten › Verbindungen nennt die Karte „Die anderen Rechner im Wettkampfzentrum“ den Code, die verbundenen Computer („2 weitere
+        Rechner verbunden: PC-Ziel, PC-Anmeldung“ oder „Noch kein anderer Rechner teilt diese Veranstaltung…“) und die anderen Anwendungen,
+        die im Netz zu sehen sind. Die Leiste oben fasst es zusammen: „1 weiterer Rechner verbunden“, „Kein anderer Rechner“.</p>
+      <h3>Ein Rechner erscheint nicht?</h3>
+      <p>Manche Netze (öffentliches WLAN, Schulnetz) verhindern, dass sich Computer finden. Öffne in Vorbereiten › Verbindungen „Ein Rechner
+        erscheint nicht?“, gib die Adresse und den Schlüssel der Anwendung des anderen Computers ein und wähle „Verbinden“. Ihr Menü Hilfe ›
+        „Über Ozimut Chrono“ nennt eine Adresse der Form <code>http://192.168.1.20:8377/?k=…</code>: Die Adresse ist
+        <code>192.168.1.20:8377</code>, der Schlüssel das, was auf <code>?k=</code> folgt. Auch diese Verbindung bleibt von einem Start zum
+        nächsten erhalten.</p>
+      <h3>Telefone und Bildschirme</h3>
+      <p>Ein Telefon, ein Tablet oder ein Bildschirm (Sprecher, Ergebnisse, Schiedsrichter, Startliste) braucht nichts zu installieren: Sein
+        Browser öffnet die Adresse eines beliebigen Computers, auf dem die Anwendung läuft. Vorbereiten › Verbindungen nennt sie („Handys und
+        Bildschirme ohne die Anwendung (Sprecher, Ergebnisse, Schiedsrichter): öffne <code>http://192.168.1.20:8377/?k=…</code>“), Hilfe ›
+        „Über Ozimut Chrono“ ebenso. Was auf <code>?k=</code> folgt, ist der <b>Schlüssel</b> dieser Anwendung; ohne ihn fragt die Seite
+        danach, in einem Feld mit einem Schlüsselsymbol. Wähle die Veranstaltung in der Liste: Diese Station sieht den Lauf nach wenigen
+        Augenblicken und schreibt hinein wie die anderen. Eine Station, die das Netz verliert, arbeitet allein weiter und verbindet sich von
+        selbst wieder; nichts geht verloren.</p>
       <h3>Eine Station, eine Rolle</h3>
       <p>Hänge <code>&amp;role=</code> an die Adresse, damit eine Station nur zeigt, was sie betrifft, zum Beispiel
         <code>http://192.168.1.20:8377/?k=…&amp;role=start</code>:</p>
@@ -89,27 +123,37 @@ export default {
       </table>
       <p>Ist die Veranstaltung geöffnet, nennt die Adresse im Browser sie (<code>&amp;ev=…</code>): Lege sie als Lesezeichen ab, sie
         öffnet diese Veranstaltung direkt wieder, in dieser Rolle.</p>
-      <h3>Chip-Lesegeräte an den anderen Stationen</h3>
+      <h3>Chip-Lesegeräte und Belegdrucker</h3>
       <p>Ein Browser lässt eine Seite nur dann mit einem Chip-Lesegerät oder mit einem Belegdrucker an seriellem Anschluss sprechen, wenn
-        sie von einer sicheren Website oder vom Computer selbst kommt. Eine Seite, die von einem anderen Computer aus an der Adresse des
-        Hubs geöffnet wird, kann also keine Chips auslesen: Sie eignet sich für die Anmeldung ohne Lesegerät, den Start, die Übersicht,
-        den Sprecher, den Schiedsrichter. Für eine zweite Auslesestation:</p>
+        sie von einer sicheren Website oder vom Computer selbst kommt. Eine Seite, die an der Adresse eines anderen Computers geöffnet wird,
+        kann also keine Chips auslesen: Sie eignet sich für den Start, die Übersicht, den Sprecher, den Schiedsrichter, die Anmeldung ohne
+        Lesegerät. <b>Jeder Computer, der Chips ausliest oder Belege druckt, hat die Anwendung</b>, mit den anderen verbunden wie oben.</p>
+      <h3>Was wir empfehlen</h3>
       <ul>
-        <li>mit Internet: Öffne auf diesem Computer den Reiter „Chrono“ der Veranstaltung auf ozimut.com, in Chrome oder Edge; er hält
-          sich über die Kopie auf Ozimut auf dem Stand;</li>
-        <li>ohne Internet: Installiere die Anwendung auch dort, öffne darin die Veranstaltungsdatei (.ozchrono), die auf dem ersten
-          Computer gespeichert wurde, gib dann in Vorbereiten › Verbindungen die Adresse des ersten (<code>192.168.1.20:8377</code>) und
-          den „Hub-Schlüssel“ ein und wähle „Verbinden“. Das ist nach jedem Neustart der Anwendung zu wiederholen.</li>
-      </ul>` },
+        <li><b>Ohne Internet im Wettkampfzentrum</b>: Installiere die Anwendung auf jedem Computer, der Chips ausliest oder Belege druckt;
+          erstelle (oder importiere) die Veranstaltung auf einem von ihnen; auf jedem anderen: Startseite › „Im Netzwerk“ › die
+          Veranstaltung › ihr Code. Telefone und Bildschirme öffnen die Adresse aus Vorbereiten › Verbindungen.</li>
+        <li><b>Mit Internet</b>: überall der Reiter „Chrono“ von Ozimut, oder die Anwendung, die das stille Drucken der Belege hinzufügt —
+          direkt auf den gewählten Drucker, ohne Druckdialog — und eine Kopie des Laufs auf der Festplatte des Computers.</li>
+      </ul>
+      <p><b>Noch nicht in einem echten Wettkampfzentrum erprobt.</b> Die Verbindungen wurden nur zwischen mehreren Anwendungen auf einem
+        Computer getestet, noch nie zwischen echten Laptops im Netz eines Wettkampfzentrums. Manche Netze blockieren die Meldungen: Dann
+        hilft „Ein Rechner erscheint nicht?“.</p>` },
     { id: "tab", title: "Den Ozimut-Reiter mit der Anwendung verbinden", html: `
-      <p>Öffne auf dem Computer der Anwendung zusätzlich den Reiter „Chrono“ der Veranstaltung auf ozimut.com (Chrome oder Edge), dann
-        Vorbereiten › Verbindungen › „Die App auf diesem Computer suchen“. Der Reiter verbindet sich mit der Anwendung, und die Leiste
-        oben zeigt „Hub“. Von da an ist die Veranstaltung des Reiters auch in der Anwendung, mit ihrem Protokoll im Ordner.</p>
-      <p>Wozu das dient: Der Reiter ist bei Ozimut angemeldet — die Kopie auf Ozimut, die Live-Ergebnisse, „Auf Ozimut veröffentlichen“ —,
-        und die Anwendung verbindet die Stationen im Wettkampfzentrum ohne Internet. Im Reiter erzeugt „Den anderen Stationen Zugang
-        geben“ einen Schlüssel, der mit dem Lauf mitreist: Die Stationen der Anwendung tauschen dann ebenfalls mit Ozimut aus, wenn sie
-        Internet haben.</p>
-      <p>Antwortet der Reiter „Die App Ozimut Chrono wurde auf diesem Computer nicht gefunden“: Prüfe, ob sie läuft, und erteile die
+      <p>Der Reiter „Chrono“ einer Veranstaltung auf ozimut.com dient zum Vorbereiten zu Hause und zur Zeitmessung in einem
+        Wettkampfzentrum mit Internet: Die im Reiter geöffneten Stationen halten sich über die Kopie auf Ozimut auf dem Stand.</p>
+      <p>Auf einem Computer, auf dem die Anwendung läuft, kann sich der Reiter auch mit ihr verbinden: Vorbereiten › Verbindungen › „Die App
+        auf diesem Computer suchen“ (Chrome oder Edge). Die Leiste oben zeigt dann „Anwendung“, danach die Zahl der anderen verbundenen
+        Computer. Von da an ist die Veranstaltung des Reiters auch in der Anwendung, mit ihrem Protokoll im Ordner, und die anderen Computer
+        im Wettkampfzentrum können ihr mit ihrem Code beitreten.</p>
+      <p><b>Der Reiter verbindet sich nur mit der Anwendung seines eigenen Computers</b>, nie mit der eines anderen: Eine sichere Seite (https)
+        darf nicht mit einer unverschlüsselten lokalen Seite (http) sprechen. Mit Internet im Wettkampfzentrum können alle einfach den Reiter
+        nutzen; ohne Internet nimm die Anwendung auf jedem Computer.</p>
+      <p>Wozu es dient, den Reiter mit der Anwendung zu verbinden: Der Reiter ist bei Ozimut angemeldet — die Kopie auf Ozimut, die
+        Live-Ergebnisse, „Auf Ozimut veröffentlichen“ —, und die Anwendung verbindet die Computer im Wettkampfzentrum ohne Internet. Im Reiter
+        erzeugt „Den anderen Stationen Zugang geben“ einen Schlüssel, der mit dem Lauf mitreist: Die Computer mit der Anwendung tauschen dann
+        ebenfalls mit Ozimut aus, wenn sie Internet haben.</p>
+      <p>Antwortet der Reiter „Die App Ozimut Chrono wurde auf diesem Computer nicht gefunden.“: Prüfe, ob sie läuft, und erteile die
         Erlaubnis, falls der Browser fragt, ob er auf Geräte im lokalen Netzwerk zugreifen darf.</p>` },
     { id: "print", title: "Belege ohne Druckdialog drucken", html: `
       <p>In Vorbereiten › Geräte › „Belegdrucker“ fügt die Anwendung bei „Drucken auf“ eine Auswahl hinzu: „Dem gewählten Drucker, ohne
@@ -148,16 +192,23 @@ export default {
         <li><b>Die Veranstaltungen</b>: in Dokumente › „Ozimut Chrono“, ein Protokoll pro Veranstaltung,
           <code>&lt;Veranstaltung&gt;.ozchrono.jsonl</code>. Jeder Vorgang wird dort angehängt und in dem Moment auf die Platte
           geschrieben, in dem er geschieht; die Datei wird nie neu geschrieben. Sie wird wieder gelesen, wenn die Veranstaltung erneut
-          geöffnet wird (eine letzte, durch einen Stromausfall abgeschnittene Zeile wird übergangen). Die Datei <code>hub.json</code>
-          daneben merkt sich die Identität des Hubs und die zuletzt geöffnete Veranstaltung.</li>
+          geöffnet wird (eine letzte, durch einen Stromausfall abgeschnittene Zeile wird übergangen). Jeder Computer im Wettkampfzentrum hat
+          sein eigenes, vollständiges Protokoll.</li>
+        <li><b>Die Datei <code>hub.json</code></b> daneben merkt sich die Identität dieses Computers im Netz, die zuletzt geöffnete
+          Veranstaltung, die Codes, die zum Beitreten eingegeben wurden, und die von Hand hinzugefügten Adressen („Ein Rechner erscheint
+          nicht?“).</li>
         <li><b>Sichern</b> heißt, diesen Ordner zu kopieren. Ein Protokoll öffnest du auf einem anderen Computer über Datei ›
           „Veranstaltungsdatei öffnen…“.</li>
         <li><b>Die Einstellungen</b>: <code>settings.json</code> im Einstellungsordner der Anwendung (<code>%APPDATA%\\Ozimut Chrono</code>
-          unter Windows): der Schlüssel des Hubs und der zuletzt benutzte Speicherordner. Eine Zeile <code>"folder"</code>, von Hand bei
-          geschlossener Anwendung ergänzt, legt die Veranstaltungen in einen anderen Ordner.</li>
-        <li><b>Die Anwendung selbst sendet nichts irgendwohin.</b> Eine Veranstaltung tauscht nur dann mit Ozimut aus, wenn die Kopie vom
-          Ozimut-Reiter aus eingerichtet wurde („Den anderen Stationen Zugang geben“).</li>
-        <li>Das Protokoll enthält Namen, Vereine, Lizenz- und Chipnummern: Bewahre diesen Ordner so auf wie deine Ergebnisdateien.</li>
+          unter Windows): der Schlüssel der Anwendung (nach dem Telefone und von Hand hinzugefügte Verbindungen fragen) und der zuletzt
+          benutzte Speicherordner. Eine Zeile <code>"folder"</code>, von Hand bei geschlossener Anwendung ergänzt, legt die Veranstaltungen
+          in einen anderen Ordner.</li>
+        <li><b>Die Anwendung sendet von sich aus nichts ins Internet.</b> Im lokalen Netz meldet sie den Namen des Computers sowie Namen und
+          Datum ihrer Veranstaltungen und tauscht einen Lauf nur mit den Computern aus, die seinen Code oder ihren Schlüssel kennen. Eine
+          Veranstaltung tauscht nur dann mit Ozimut aus, wenn die Kopie vom Ozimut-Reiter aus eingerichtet wurde („Den anderen Stationen
+          Zugang geben“).</li>
+        <li>Das Protokoll enthält Namen, Vereine, Lizenz- und Chipnummern und den Code der Veranstaltung: Bewahre diesen Ordner so auf wie
+          deine Ergebnisdateien.</li>
       </ul>` },
     { id: "update", title: "Aktualisieren, deinstallieren", html: `
       <ul>
@@ -177,14 +228,23 @@ export default {
         <tbody>
           <tr><td>„Ozimut Chrono kann nicht starten“: Die Ports 8377 bis 8387 sind alle belegt.</td><td>Die Anwendung nimmt Port 8377
             oder, wenn er belegt ist, den ersten freien bis 8387. Schließe das Programm, das sie belegt. Ist der Port nicht 8377, ändert
-            sich die Adresse für die anderen Stationen: „Über“ nennt die richtige.</td></tr>
+            sich die Adresse für die Telefone: Vorbereiten › Verbindungen und „Über“ nennen die richtige.</td></tr>
           <tr><td>„Der Datenordner kann nicht benutzt werden“.</td><td>In den Ordner „Ozimut Chrono“ der Dokumente lässt sich nicht
             schreiben (geschützter Ordner oder laufende Synchronisierung): Gib ihn frei oder nenne in <code>settings.json</code> einen
             anderen Ordner.</td></tr>
-          <tr><td>Ein anderer Computer oder ein Telefon öffnet die Adresse nicht.</td><td>Prüfe, ob das Gerät im selben Netz ist; ob die
-            Firewall des Computers der Anwendung den Zugriff zulässt (erlaube „Ozimut Chrono“ in privaten Netzwerken); ob das WLAN die
-            Geräte nicht voneinander isoliert, wie es öffentliche Netze tun; ob die Adresse die aus „Über“ ist.</td></tr>
-          <tr><td>Die Seite fragt nach einem Schlüssel.</td><td>Tippe ein, was in der Adresse aus „Über“ auf <code>?k=</code> folgt.</td></tr>
+          <tr><td>Ein anderer Computer erscheint nicht unter „Im Netzwerk“, die Leiste zeigt „Kein anderer Rechner“, oder „Der andere Rechner
+            antwortet nicht.“</td><td>Prüfe, ob er eingeschaltet ist, ob die Anwendung dort läuft und ob er im selben Netz ist. Beim ersten
+            Start fragt Windows einmal, ob Ozimut Chrono in privaten Netzwerken zugelassen wird: Stimme zu (sonst lass es in der
+            Windows-Firewall zu). Manche WLANs isolieren die Geräte voneinander oder blockieren die Meldungen, wie öffentliche Netze und
+            Schulnetze: Nimm dann „Ein Rechner erscheint nicht?“. Zwischen den Computern müssen der UDP-Port 8379 (die Meldungen) und der
+            TCP-Port 8377 (die Verbindungen und die Seiten) durchgehen.</td></tr>
+          <tr><td>„Das ist nicht der Code dieser Veranstaltung.“</td><td>Gib den Code erneut ein, den der andere Computer in Vorbereiten ›
+            Verbindungen anzeigt. Er enthält nie O, 0, I, L oder 1.</td></tr>
+          <tr><td>Ein Telefon öffnet die Adresse nicht.</td><td>Prüfe, ob es im selben Netz ist wie der Computer, ob dessen Firewall „Ozimut
+            Chrono“ durchlässt, ob das WLAN die Geräte nicht voneinander isoliert und ob die Adresse die aus Vorbereiten › Verbindungen oder
+            „Über“ ist.</td></tr>
+          <tr><td>Die Seite fragt nach einem Schlüssel.</td><td>Tippe ein, was in der Adresse aus Vorbereiten › Verbindungen oder „Über“ auf
+            <code>?k=</code> folgt.</td></tr>
           <tr><td>Windows oder der Virenschutz blockiert die Anwendung.</td><td>Sie ist noch nicht signiert: siehe „Herunterladen und
             installieren“.</td></tr>
           <tr><td>Das Chip-Lesegerät wird nicht erkannt.</td><td>Prüfe das Kabel und den USB-Treiber des Lesegeräts; schließe jedes andere

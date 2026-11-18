@@ -30,7 +30,7 @@ const here = path.dirname(fileURLToPath(import.meta.url));
 const assets = path.join(here, "..", "..", "site", "assets"), www = path.join(here, "..", "..", "chrono-app", "www");
 const folder = fs.mkdtempSync(path.join(os.tmpdir(), "ozchrono-hub-")), folder2 = fs.mkdtempSync(path.join(os.tmpdir(), "ozchrono-hub-"));
 const TOKEN = "essai-jeton-0123";
-const start = (o = {}) => startHub({ port: 0, sirapPort: 0, folder, assets, www, token: TOKEN, name: "Essai", version: "9.9.9", ...o });
+const start = (o = {}) => startHub({ port: 0, sirapPort: 0, folder, assets, www, token: TOKEN, name: "Essai", version: "9.9.9", discovery: false, codes: false, ...o });
 
 // a request as written: no client tidies the path up
 const get = (port, url, headers = {}, method = "GET") => new Promise((done, fail) => {
@@ -80,7 +80,7 @@ eq([(await get(P, "/assets/../../chrono-app/hub.mjs")).status, (await get(P, "/a
   (await get(P, "/assets/%2e%2e/%2e%2e/chrono-app/package.json")).status, (await get(P, "/assets/app.css::$DATA")).status, (await get(P, "/assets/nul")).status], [403, 403, 403, 403, 403, 403], "no way out of the assets");
 eq((await get(P, "/hub/info", {}, "POST")).status, 405, "only reads over HTTP");
 r = await get(P, "/hub/info");
-eq([r.status, JSON.parse(r.body)], [200, { name: "Essai", version: "9.9.9", events: [] }], "/hub/info, no event yet");
+{ const j = JSON.parse(r.body); eq([r.status, j.name, j.version, j.events, j.token, j.port, j.peers], [200, "Essai", "9.9.9", [], TOKEN, P, { hubs: [], links: [], network: [] }], "/hub/info, no event yet"); }
 // a page of another site calling 127.0.0.1 is not this computer's user
 eq((await get(P, "/hub/info", { Origin: "https://elsewhere.example" })).status, 401, "another site's page is asked the token");
 eq((await get(P, "/hub/info", { Host: `elsewhere.example:${P}` })).status, 401, "another name pointed at this computer is asked the token");

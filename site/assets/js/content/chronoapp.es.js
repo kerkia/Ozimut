@@ -3,23 +3,25 @@
 // documentation on the site (content/guide.es.js, chapter « chrono-app »).
 export default {
   title: "La aplicación Ozimut Chrono",
-  lede: "El cronometraje de Ozimut instalado en un ordenador: sin Internet, varios puestos conectados, tiques impresos sin ventana. Esta guía es la misma en la aplicación (Ayuda › Documentación) y en la documentación de Orga en ozimut.com.",
+  lede: "El cronometraje de Ozimut instalado en un ordenador: sin Internet, los ordenadores de la arena enlazados entre sí, tiques impresos sin ventana. Esta guía es la misma en la aplicación (Ayuda › Documentación) y en la documentación de Orga en ozimut.com.",
   sections: [
     { id: "what", title: "Para qué sirve la aplicación", html: `
       <p>La aplicación Ozimut Chrono muestra las mismas pantallas que la pestaña «Chrono» de un evento de Orga, en ozimut.com. Además hace
         lo que una pestaña de navegador no puede hacer:</p>
       <ul>
         <li>funciona <b>sin Internet</b>;</li>
-        <li>sirve de <b>concentrador</b>: los demás ordenadores y los teléfonos de la red local abren su dirección en el navegador y
-          trabajan en la misma carrera;</li>
+        <li><b>enlaza los ordenadores de la arena</b> entre sí: cada uno de los que la tienen guarda toda la carrera y la mantiene al día con
+          los demás, sin ordenador principal; los teléfonos y las pantallas abren en su navegador la dirección de cualquiera de ellos;</li>
         <li>escribe cada operación en un <b>registro</b>, un archivo por evento en una carpeta del ordenador;</li>
         <li>imprime los tiques <b>sin ventana de impresión</b>;</li>
         <li>recibe las <b>picadas por radio</b> de los repetidores (protocolo SIRAP).</li>
       </ul>
       <p><b>La pestaña sola basta</b> cuando cronometra un único ordenador, o cuando todos los puestos tienen Internet: entonces se
-        mantienen al día por la copia en Ozimut. Para conectar un lector de tarjetas hace falta Chrome o Edge.</p>
+        mantienen al día por la copia en Ozimut. Para conectar un lector de tarjetas hace falta Chrome o Edge. <b>Sin Internet</b>, instala
+        la aplicación en cada ordenador que lea tarjetas o imprima tiques (consulta «Enlazar los ordenadores de la arena»).</p>
       <p><b>En pruebas.</b> Como el propio Chrono, la aplicación nunca se ha usado todavía con estaciones SPORTident o Emit reales, ni con
-        una impresora de tiques, ni en una competición real. Pruébala en un entrenamiento o junto a tu programa habitual.</p>` },
+        una impresora de tiques, ni en una competición real, y sus enlaces aún no se han probado entre ordenadores reales en la red de una
+        arena. Pruébala en un entrenamiento o junto a tu programa habitual.</p>` },
     { id: "install", title: "Descargar e instalar", html: `
       <p>Los archivos se descargan desde Ozimut: Orga › Mis eventos › un evento › pestaña «Chrono» › Preparar › Conexiones › «Descargar la
         aplicación».</p>
@@ -43,33 +45,62 @@ export default {
           «Abrir igualmente». En las versiones anteriores: clic derecho en la aplicación, «Abrir», y confirma.</li>
       </ul>` },
     { id: "first", title: "Primer arranque", html: `
-      <p>La ventana se abre en el inicio: la lista «Eventos» y la tarjeta «Nuevo evento» (un nombre, una fecha, las reglas del país —
-        Francia, Canadá o reglas de la IOF — y «Crear»). Con el evento abierto, todo funciona como en la pestaña: los puestos Preparar,
-        Secretaría, Salida, Meta, Seguimiento, Speaker, Juez, Controles y Cerrar, descritos en la documentación de Orga, capítulo
-        «Chrono».</p>
+      <p>La ventana se abre en el inicio: la lista «Eventos», la tarjeta «Nuevo evento» (un nombre, una fecha, las reglas del país —
+        Francia, Canadá o reglas de la IOF — y «Crear») y la tarjeta «En la red», los eventos de los otros ordenadores de la arena, a los que
+        te unes con su código (consulta «Enlazar los ordenadores de la arena»). Con el evento abierto, todo funciona como en la pestaña: los
+        puestos Preparar, Secretaría, Salida, Meta, Seguimiento, Speaker, Juez, Controles y Cerrar, descritos en la documentación de Orga,
+        capítulo «Chrono».</p>
       <ul>
         <li><b>La carpeta de los eventos</b> es «Ozimut Chrono», en tus Documentos; la aplicación la crea. Archivo › «Abrir la carpeta de
           datos» la muestra.</li>
         <li><b>Un archivo de evento</b> (.ozchrono) se abre con doble clic (con la versión instalada), o con Archivo › «Abrir un archivo
           de evento…»: sus operaciones se añaden a ese evento en la aplicación, sin duplicar nada, y el evento se abre.</li>
         <li><b>Una sola aplicación a la vez</b>: arrancarla una segunda vez trae la ventana ya abierta.</li>
-        <li><b>El cortafuegos</b>: en el primer arranque, Windows puede preguntar si deja que otros ordenadores alcancen la aplicación.
-          Acéptalo para las redes privadas si otros puestos tienen que conectarse.</li>
+        <li><b>El cortafuegos</b>: en el primer arranque, Windows pregunta si deja que Ozimut Chrono se comunique en la red. Acéptalo para las
+          redes privadas: si no, los otros ordenadores de la arena no la encuentran y los teléfonos no pueden abrirla.</li>
         <li><b>El menú</b>: Archivo (abrir un archivo, abrir la carpeta, salir), Edición, Ver (recargar, zoom, pantalla completa), Ayuda ›
-          «Documentación» (<kbd>F1</kbd>) y «Acerca de Ozimut Chrono», que da la versión, las direcciones para los demás puestos, el
-          puerto de las picadas por radio y la carpeta de datos.</li>
+          «Documentación» (<kbd>F1</kbd>) y «Acerca de Ozimut Chrono», que da la versión, la dirección que hay que abrir desde los teléfonos y
+          los otros ordenadores (con la clave de la aplicación), el puerto de las picadas por radio y la carpeta de datos.</li>
       </ul>` },
-    { id: "hub", title: "Conectar otros ordenadores y teléfonos", html: `
-      <p>La aplicación es un concentrador: todos los aparatos de la misma red local — basta un punto de acceso wifi o un simple router,
-        sin Internet — pueden trabajar en la misma carrera.</p>
+    { id: "hub", title: "Enlazar los ordenadores de la arena", html: `
+      <p>Todos los ordenadores en los que funciona la aplicación son iguales: no hay ordenador principal ni ordenador central que elegir.
+        Cada uno guarda su copia completa de la carrera y su propio registro. Basta con que estén en la misma red local — un punto de acceso
+        wifi o un simple router, sin Internet.</p>
+      <h3>Cómo se encuentran</h3>
+      <p>Cada pocos segundos, cada aplicación anuncia en la red local quién es y qué eventos tiene (su nombre y su fecha, nunca su código).
+        Dos aplicaciones que tienen el mismo evento se enlazan solas y se mantienen al día la una a la otra. Los enlaces pasan por cualquiera
+        de los ordenadores: basta con que cada uno alcance al menos a otro. Un ordenador que se va o se reinicia recupera solo, a su vuelta,
+        lo que se ha hecho sin él.</p>
+      <h3>El código del evento</h3>
+      <p>Cada evento tiene un código de seis caracteres, letras y cifras que no se confunden (nunca O, 0, I, L ni 1). Aparece en grande en
+        Preparar › Conexiones, tarjeta «Los otros ordenadores de la arena», bajo «Código del evento». Se crea solo con el evento, tanto en la
+        aplicación como en la pestaña «Chrono» de Ozimut. Protege el evento: otro ordenador tiene que conocerlo para enlazarse, y nunca se
+        anuncia en la red — una aplicación demuestra que lo conoce sin decirlo.</p>
+      <h3>Unirse al evento desde otro ordenador</h3>
       <ol>
-        <li>En el ordenador de la aplicación, abre Ayuda › «Acerca de Ozimut Chrono»: la ventana da la dirección que hay que abrir, del
-          tipo <code>http://192.168.1.20:8377/?k=…</code>. Lo que sigue a <code>?k=</code> es la <b>clave</b> del concentrador.</li>
-        <li>En el otro ordenador o en el teléfono, abre esa dirección en el navegador. Sin la clave, la página la pide en un campo
-          marcado con una llave.</li>
-        <li>Elige el evento en la lista. Este puesto ve la carrera en unos instantes y escribe en ella como los demás.</li>
+        <li>Instala la aplicación en ese ordenador y ábrela.</li>
+        <li>Su inicio tiene una tarjeta «En la red»: los eventos de los otros ordenadores de la arena, cada uno con el ordenador que lo tiene
+          («en PC-Meta»). Haz clic en el evento.</li>
+        <li>Escribe su código, en mayúsculas o minúsculas, y luego «Unirse». El evento se abre y se llena en unos instantes. Un código
+          erróneo se rechaza: «Ese no es el código de este evento.»</li>
       </ol>
-      <p>Un puesto que pierde la red sigue solo y se vuelve a conectar por sí mismo cuando vuelve; no se pierde nada.</p>
+      <p>El código solo se pide una vez: después, este ordenador se enlaza solo, en cada arranque, en cualquier red. No hay nada que repetir
+        tras un reinicio.</p>
+      <p>En Preparar › Conexiones, la tarjeta «Los otros ordenadores de la arena» da el código, los ordenadores enlazados («2 otros ordenadores
+        enlazados: PC-Meta, PC-Secretaría», o «Ningún otro ordenador comparte aún este evento…») y las otras aplicaciones vistas en la red.
+        La barra superior lo resume: «1 otro ordenador enlazado», «Ningún otro ordenador».</p>
+      <h3>¿No aparece un ordenador?</h3>
+      <p>Algunas redes (wifi pública, red de un colegio) impiden que los ordenadores se encuentren. En Preparar › Conexiones, abre «¿No aparece
+        un ordenador?», indica la dirección y la clave de la aplicación del otro ordenador y luego «Conectar». Su menú Ayuda › «Acerca de
+        Ozimut Chrono» da una dirección del tipo <code>http://192.168.1.20:8377/?k=…</code>: la dirección es <code>192.168.1.20:8377</code>,
+        la clave lo que sigue a <code>?k=</code>. Este enlace también se conserva de un arranque al siguiente.</p>
+      <h3>Teléfonos y pantallas</h3>
+      <p>Un teléfono, una tableta o una pantalla (speaker, resultados, juez, lista de salida) no tiene nada que instalar: su navegador abre la
+        dirección de cualquier ordenador en el que funcione la aplicación. Preparar › Conexiones la da («Teléfonos y pantallas sin la
+        aplicación (locutor, resultados, árbitro): abre <code>http://192.168.1.20:8377/?k=…</code>»), y Ayuda › «Acerca de Ozimut Chrono»
+        también. Lo que sigue a <code>?k=</code> es la <b>clave</b> de esa aplicación; sin ella, la página la pide en un campo marcado con una
+        llave. Elige el evento en la lista: este puesto ve la carrera en unos instantes y escribe en ella como los demás. Un puesto que pierde
+        la red sigue solo y se vuelve a enlazar por sí mismo cuando vuelve; no se pierde nada.</p>
       <h3>Un puesto, un papel</h3>
       <p>Añade <code>&amp;role=</code> a la dirección para que un puesto solo muestre lo que le concierne, por ejemplo
         <code>http://192.168.1.20:8377/?k=…&amp;role=start</code>:</p>
@@ -86,28 +117,38 @@ export default {
       </table>
       <p>Con el evento abierto, la dirección del navegador lo nombra (<code>&amp;ev=…</code>): guárdala en favoritos, vuelve a abrir
         directamente ese evento, con ese papel.</p>
-      <h3>Los lectores de tarjetas en los demás puestos</h3>
+      <h3>Los lectores de tarjetas y las impresoras de tiques</h3>
       <p>Un navegador solo deja que una página hable con un lector de tarjetas, o con una impresora de tiques en puerto serie, si la
-        página viene de un sitio seguro o del propio ordenador. Por eso, una página abierta en la dirección del concentrador desde otro
-        ordenador no puede leer tarjetas: sirve para la secretaría sin lector, la salida, el seguimiento, el speaker, el juez. Para un
-        segundo puesto de lectura:</p>
+        página viene de un sitio seguro o del propio ordenador. Por eso, una página abierta en la dirección de otro ordenador no puede leer
+        tarjetas: sirve para la salida, el seguimiento, el speaker, el juez, la secretaría sin lector. <b>Cada ordenador que lee tarjetas o
+        imprime tiques tiene la aplicación</b>, enlazada con los demás como se explica más arriba.</p>
+      <h3>Lo que recomendamos</h3>
       <ul>
-        <li>con Internet: abre en ese ordenador la pestaña «Chrono» del evento en ozimut.com, en Chrome o Edge; se mantiene al día por
-          la copia en Ozimut;</li>
-        <li>sin Internet: instala también allí la aplicación, abre en ella el archivo del evento (.ozchrono) guardado en el primer
-          ordenador y después, en Preparar › Conexiones, indica la dirección del primero (<code>192.168.1.20:8377</code>) y la «Clave del
-          concentrador», y «Conectar». Hay que repetirlo cuando se reinicia la aplicación.</li>
-      </ul>` },
+        <li><b>Sin Internet en la arena</b>: instala la aplicación en cada ordenador que lea tarjetas o imprima tiques; crea (o importa) el
+          evento en uno de ellos; en cada uno de los demás, inicio › «En la red» › el evento › su código. Los teléfonos y las pantallas abren
+          la dirección que da Preparar › Conexiones.</li>
+        <li><b>Con Internet</b>: la pestaña «Chrono» de Ozimut en todas partes, o la aplicación, que añade la impresión silenciosa de los
+          tiques — directamente en la impresora elegida, sin ventana de impresión — y una copia de la carrera en el disco del ordenador.</li>
+      </ul>
+      <p><b>Todavía sin probar en una arena real.</b> Los enlaces solo se han probado entre varias aplicaciones de un mismo ordenador, nunca
+        todavía entre portátiles reales en la red de una arena. Algunas redes bloquean los anuncios: entonces sirve «¿No aparece un
+        ordenador?».</p>` },
     { id: "tab", title: "Conectar la pestaña de Ozimut con la aplicación", html: `
-      <p>En el ordenador de la aplicación, abre también la pestaña «Chrono» del evento en ozimut.com (Chrome o Edge) y luego Preparar ›
-        Conexiones › «Buscar la aplicación en este ordenador». La pestaña se conecta con la aplicación, y la barra superior muestra
-        «Concentrador». Desde ese momento, el evento de la pestaña está también en la aplicación, con su registro en la carpeta.</p>
-      <p>Para qué sirve: la pestaña tiene la sesión iniciada en Ozimut — la copia en Ozimut, los resultados en directo, «Publicar en
-        Ozimut» —, y la aplicación conecta los puestos de la zona de competición sin Internet. En la pestaña, «Dar acceso a los demás
-        puestos» crea una clave que viaja con la carrera: los puestos de la aplicación intercambian entonces también con Ozimut cuando
-        tienen Internet.</p>
-      <p>Si la pestaña responde «No se ha encontrado la aplicación Ozimut Chrono en este ordenador»: comprueba que está en marcha y, si
-        el navegador pide permiso para acceder a los dispositivos de la red local, concédelo.</p>` },
+      <p>La pestaña «Chrono» de un evento en ozimut.com sirve para preparar en casa y para cronometrar en una arena con Internet: los
+        puestos abiertos en la pestaña se mantienen al día por la copia en Ozimut.</p>
+      <p>En un ordenador en el que funciona la aplicación, la pestaña también puede enlazarse con ella: Preparar › Conexiones › «Buscar la
+        aplicación en este ordenador» (Chrome o Edge). La barra superior muestra entonces «Aplicación» y después el número de otros
+        ordenadores enlazados. Desde ese momento, el evento de la pestaña está también en la aplicación, con su registro en la carpeta, y los
+        otros ordenadores de la arena pueden unirse a él con su código.</p>
+      <p><b>La pestaña solo se enlaza con la aplicación de su propio ordenador</b>, nunca con la de otro: una página segura (https) no puede
+        hablar con una página local no segura (http). Con Internet en la arena, todos pueden usar simplemente la pestaña; sin Internet, usa
+        la aplicación en cada ordenador.</p>
+      <p>Para qué sirve enlazar la pestaña con la aplicación: la pestaña tiene la sesión iniciada en Ozimut — la copia en Ozimut, los
+        resultados en directo, «Publicar en Ozimut» —, y la aplicación enlaza los ordenadores de la arena sin Internet. En la pestaña, «Dar
+        acceso a los demás puestos» crea una clave que viaja con la carrera: los ordenadores de la aplicación intercambian entonces también
+        con Ozimut cuando tienen Internet.</p>
+      <p>Si la pestaña responde «No se ha encontrado la aplicación Ozimut Chrono en este ordenador.»: comprueba que está en marcha y, si el
+        navegador pide permiso para acceder a los dispositivos de la red local, concédelo.</p>` },
     { id: "print", title: "Imprimir los tiques sin ventana", html: `
       <p>En Preparar › Material › «Impresora de tiques», la aplicación añade una opción a «Imprimir en»: «La impresora elegida, sin
         ventana (aplicación)».</p>
@@ -143,17 +184,20 @@ export default {
       <ul>
         <li><b>Los eventos</b>: en Documentos › «Ozimut Chrono», un registro por evento, <code>&lt;evento&gt;.ozchrono.jsonl</code>. Cada
           operación se añade y se escribe en el disco en el momento en que ocurre; el archivo nunca se reescribe. Se vuelve a leer al
-          reabrir el evento (una última línea cortada por un corte de corriente se ignora). El archivo <code>hub.json</code>, al lado,
-          recuerda la identidad del concentrador y el último evento abierto.</li>
+          reabrir el evento (una última línea cortada por un corte de corriente se ignora). Cada ordenador de la arena tiene el suyo,
+          completo.</li>
+        <li><b>El archivo <code>hub.json</code></b>, al lado, recuerda la identidad de este ordenador en la red, el último evento abierto, los
+          códigos escritos para unirse a un evento y las direcciones añadidas a mano («¿No aparece un ordenador?»).</li>
         <li><b>Hacer una copia de seguridad</b> es copiar esa carpeta. Un registro se abre en otro ordenador con Archivo › «Abrir un
           archivo de evento…».</li>
         <li><b>Los ajustes</b>: <code>settings.json</code>, en la carpeta de ajustes de la aplicación (<code>%APPDATA%\\Ozimut Chrono</code>
-          en Windows): la clave del concentrador y la última carpeta de guardado. Una línea <code>"folder"</code>, añadida a mano con la
-          aplicación cerrada, pone los eventos en otra carpeta.</li>
-        <li><b>La aplicación en sí no envía nada a ningún sitio.</b> Un evento solo intercambia con Ozimut si la copia se ha preparado
-          desde la pestaña de Ozimut («Dar acceso a los demás puestos»).</li>
-        <li>El registro contiene nombres, clubes, números de licencia y de tarjeta: guarda esa carpeta como guardas tus archivos de
-          resultados.</li>
+          en Windows): la clave de la aplicación (la que piden los teléfonos y los enlaces añadidos a mano) y la última carpeta de guardado.
+          Una línea <code>"folder"</code>, añadida a mano con la aplicación cerrada, pone los eventos en otra carpeta.</li>
+        <li><b>La aplicación no envía nada a Internet por sí misma.</b> En la red local anuncia el nombre del ordenador y el nombre y la fecha
+          de sus eventos, y solo intercambia una carrera con los ordenadores que conocen su código, o su clave. Un evento solo intercambia
+          con Ozimut si la copia se ha preparado desde la pestaña de Ozimut («Dar acceso a los demás puestos»).</li>
+        <li>El registro contiene nombres, clubes, números de licencia y de tarjeta, y el código del evento: guarda esa carpeta como guardas
+          tus archivos de resultados.</li>
       </ul>` },
     { id: "update", title: "Actualizar, desinstalar", html: `
       <ul>
@@ -172,13 +216,22 @@ export default {
         <tbody>
           <tr><td>«Ozimut Chrono no puede arrancar»: los puertos 8377 a 8387 están todos ocupados.</td><td>La aplicación toma el puerto
             8377 o, si está ocupado, el primero libre hasta el 8387. Cierra el programa que los ocupa. Si el puerto no es el 8377, la
-            dirección que hay que dar a los demás puestos cambia: «Acerca de» da la correcta.</td></tr>
+            dirección que hay que dar a los teléfonos cambia: Preparar › Conexiones y «Acerca de» dan la correcta.</td></tr>
           <tr><td>«No se puede usar la carpeta de datos».</td><td>No se puede escribir en la carpeta «Ozimut Chrono» de Documentos (carpeta
             protegida o en plena sincronización): libérala, o indica otra carpeta en <code>settings.json</code>.</td></tr>
-          <tr><td>Otro ordenador o un teléfono no abre la dirección.</td><td>Comprueba que está en la misma red; que el cortafuegos del
-            ordenador de la aplicación deja alcanzarla (permite «Ozimut Chrono» en las redes privadas); que la red wifi no aísla los
-            aparatos entre sí, como hacen las redes públicas; que la dirección es la de «Acerca de».</td></tr>
-          <tr><td>La página pide una clave.</td><td>Escribe lo que sigue a <code>?k=</code> en la dirección que da «Acerca de».</td></tr>
+          <tr><td>Otro ordenador no aparece en «En la red», la barra dice «Ningún otro ordenador», o «El otro ordenador no
+            responde.»</td><td>Comprueba que está encendido, que la aplicación funciona en él y que está en la misma red. En el primer
+            arranque, Windows pide una vez permitir Ozimut Chrono en las redes privadas: acéptalo (si no, permítelo en el cortafuegos de
+            Windows). Algunas redes wifi aíslan los aparatos entre sí o bloquean los anuncios, como las redes públicas y las de los
+            colegios: usa entonces «¿No aparece un ordenador?». Entre los ordenadores tienen que pasar el puerto UDP 8379 (los anuncios) y el
+            puerto TCP 8377 (los enlaces y las páginas).</td></tr>
+          <tr><td>«Ese no es el código de este evento.»</td><td>Vuelve a escribir el código que aparece en el otro ordenador, en Preparar ›
+            Conexiones. Nunca contiene O, 0, I, L ni 1.</td></tr>
+          <tr><td>Un teléfono no abre la dirección.</td><td>Comprueba que está en la misma red que el ordenador, que el cortafuegos de este
+            deja pasar «Ozimut Chrono», que la wifi no aísla los aparatos entre sí, y que la dirección es la de Preparar › Conexiones o la de
+            «Acerca de».</td></tr>
+          <tr><td>La página pide una clave.</td><td>Escribe lo que sigue a <code>?k=</code> en la dirección que dan Preparar › Conexiones o
+            «Acerca de».</td></tr>
           <tr><td>Windows o el antivirus bloquea la aplicación.</td><td>Todavía no está firmada: consulta «Descargar e instalar».</td></tr>
           <tr><td>No se ve el lector de tarjetas.</td><td>Comprueba el cable y el controlador USB del lector; cierra cualquier otro
             programa que tenga su puerto (otro programa de cronometraje, la herramienta de configuración de las estaciones, una pestaña

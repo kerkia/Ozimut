@@ -152,6 +152,31 @@ print(html, { printer?, silent?, widthMm? }) → { ok, error? }, saveFile(name, 
 The page (`chrono/ui/net.js`) connects to the hub it was served by (`location.host`), or — from ozimut.com's Chrono tab —
 to an app on the same computer (`ws://127.0.0.1:8377/hub`).
 
+
+### The arena's computers (peers.mjs, 2026-11-18)
+
+Every app's hub is equal: nothing is chosen as the master. `chrono-app/peers.mjs`:
+- **Saying who it is**: a UDP broadcast every 5 s on port 8379 (`{ oz: "chrono", v: 1, id: <hub station>, name, port, events:
+  [{ ev, n: name, d: day }] }`, the 12 latest events), to each interface's broadcast address and 255.255.255.255.
+- **Linking**: a hub that hears of an event it holds too dials that hub (`ws://host:port/hub?ev=&peer=<its station>&lan=<proof>`),
+  the smaller station id dialling, one link a pair (an incoming link from that hub stops the dial); the link is `sync.link` on
+  both ends, so links may go through any hub and a hub that restarts catches up by itself. Lost links are dialled again every
+  5 s while the other hub is heard of.
+- **The event's code** (`event.lan`, six characters of `log.newCode`): made when the event gets its name (a hub's page —
+  `hub.coded`, after the merge that brought the name —, or Ozimut's tab after its first cloud sync). The proof is
+  HMAC-SHA256(code, `oz-join:<ev>`); the broadcast never carries the code nor anything made from it. Another hub is never trusted
+  for being on this computer: it gives the hub's key or the proof (`peerOk`, ten wrong proofs a minute from an address and it
+  is no longer heard).
+- **Joining**: the page's home lists `/hub/info` `peers.network` (events heard of, not held); a click and the code →
+  `GET /hub/join?ev=&code=` (this computer's page only) → `peers.join`: the code kept in `hub.json` `codes` until the log brings
+  its own, then a dial to every hub holding it → "ok" | "code" | "unreachable" | "none".
+- **By hand** (networks that drop broadcasts): `GET /hub/peer?host=&port=&k=&ev=` (this computer's page only): the other hub's
+  address and key, kept in `hub.json` `statics` and dialled at every start.
+- `/hub/info` adds `station`, `port`, `token`, `addresses` and `peers: { hubs, links, network }`; Préparer › Liaisons shows the
+  code, the computers linked, the others heard of and the address for phones; the bar the count of computers linked.
+- Tested: `tools/chrono/t_peers.mjs` (three hubs on one computer, each on its own discovery port; a wrong code, a restart, an
+  address and key), and the pages of two hubs in headless Edge. Not yet on real laptops on an arena's network.
+
 ## Rules by country
 
 `rules/<cc>.js`: statuses and their order in the lists, start interval by discipline, club separation, entry kinds

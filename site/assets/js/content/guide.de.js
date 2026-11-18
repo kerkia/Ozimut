@@ -582,11 +582,10 @@ export function build(X) {
             gewohnten Software aus; vertraue ihm noch keinen Wettkampf allein an.</div>
           <p><b>Die Idee in drei Sätzen.</b> Jede Station — ein Computer oder ein Telefon, auf dem Chrono geöffnet ist — schreibt, was sie tut
             (eine Anmeldung, ein ausgelesener Chip, eine Korrektur), als Vorgang in ein gemeinsames Protokoll, das des Laufs. Die Stationen
-            halten sich gegenseitig auf dem Stand: über die Kopie auf Ozimut, wenn es Internet gibt, über den Hub der Anwendung im lokalen
-            Netz, sonst über eine Datei, die man mitnimmt. Ohne Verbindung behält jede Station alles bei sich und arbeitet weiter: Nichts geht
+            halten sich gegenseitig auf dem Stand: über die Kopie auf Ozimut, wenn es Internet gibt, über die Anwendung Ozimut Chrono im lokalen Netz — jeder Computer, der sie hat, verbindet sich von selbst mit den anderen —, sonst über eine Datei, die man mitnimmt. Ohne Verbindung behält jede Station alles bei sich und arbeitet weiter: Nichts geht
             verloren, und alles findet wieder zusammen, sobald die Verbindung zurück ist, in beliebiger Reihenfolge.</p>
-          <p><b>Der Bildschirm.</b> Oben der Name der Veranstaltung, der Zustand der Geräte und Verbindungen (Lesegeräte, Drucker, Kopie auf
-            Ozimut, Hub) und die Uhrzeit. Links die neun Stationen: Vorbereiten, Anmeldung, Start, Ziel, Übersicht, Sprecher, Schiedsrichter,
+          <p><b>Der Bildschirm.</b> Oben der Name der Veranstaltung, der Zustand der Geräte und Verbindungen (Lesegeräte, Drucker, Kopie auf Ozimut,
+            verbundene Computer) und die Uhrzeit. Links die neun Stationen: Vorbereiten, Anmeldung, Start, Ziel, Übersicht, Sprecher, Schiedsrichter,
             Posten, Abschließen (<kbd>Alt</kbd>+<kbd>1</kbd> bis <kbd>Alt</kbd>+<kbd>9</kbd>). Unter der Leiste die Schaltflächen der
             geöffneten Station. Unten die Zähler: Teilnehmer, unterwegs, ausgelesene Chips, gewertet, zu klärende Punkte. Ein Chip, der an
             irgendeiner Station ausgelesen wird, wird behalten, bewertet, mit einem Ton gemeldet (hoch: alles in Ordnung; tief: etwas fehlt)
@@ -611,8 +610,8 @@ export function build(X) {
             <div class="mx-step"><b>Starts</b>Die „Auslosung“ der Startzeiten, die Kontrolle der Liste, der Druck der Startlisten, der
               IOF-XML-Export. Entfällt beim Start an der Starteinheit oder beim Massenstart.</div>
             <div class="mx-step"><b>Geräte</b>Die Chip-Lesegeräte, der Belegdrucker und der „Probelauf“.</div>
-            <div class="mx-step"><b>Verbindungen</b>Der Name des Bedieners, die Kopie auf Ozimut, die Live-Ergebnisse, der Hub, die
-              Veranstaltungsdatei.</div>
+            <div class="mx-step"><b>Verbindungen</b>Der Name des Bedieners, die Kopie auf Ozimut, die Live-Ergebnisse, die anderen Computer im
+              Wettkampfzentrum und der Code der Veranstaltung, die Veranstaltungsdatei.</div>
             <div class="mx-step"><b>Prüfen</b>Was den Beginn verhindert und was nur empfohlen ist, mit „Dorthin“ zum betroffenen Schritt;
               dann „Station Ziel öffnen“.</div>
           </div>
@@ -775,15 +774,44 @@ export function build(X) {
               Ozimut kopiert: Ein anderer Computer, der dieselbe Veranstaltung öffnet, übernimmt den Lauf, und nichts geht verloren, wenn
               dieser ausfällt. „Den anderen Stationen Zugang geben“ erzeugt einen Schlüssel, der mit dem Lauf mitreist: Stationen ohne Konto
               (die Anwendung, ein Telefon) tauschen dann ebenfalls mit Ozimut aus, ohne etwas einzugeben.</p></div>
-            <div class="mx-box" style="--c:var(--s3)"><h3>Hub</h3><p>Die Anwendung Ozimut Chrono auf einem Computer im Wettkampfzentrum
-              verbindet die Stationen des lokalen Netzes ohne Internet. Auf demselben Computer: „Die App auf diesem Computer suchen“. Die
-              anderen Computer und die Telefone öffnen die Adresse der Anwendung in ihrem Browser (siehe
-              ${CHAP("chrono-app", "Die Chrono-Anwendung")}).</p></div>
+            <div class="mx-box" style="--c:var(--s3)"><h3>Die anderen Rechner im Wettkampfzentrum</h3><p>Die Anwendung Ozimut Chrono
+              verbindet jeden Computer im Wettkampfzentrum, der sie hat, ohne Internet mit den anderen: alle gleichberechtigt, jeder mit
+              seiner vollständigen Kopie. Ein anderer Computer tritt der Veranstaltung einmal bei, mit dem „Code der Veranstaltung“, der hier
+              steht; Telefone und Bildschirme öffnen die hier genannte Adresse. Im Reiter, auf einem Computer, auf dem die Anwendung läuft:
+              „Die App auf diesem Computer suchen“ (siehe unten und ${CHAP("chrono-app", "Die Chrono-Anwendung")}).</p></div>
             <div class="mx-box" style="--c:var(--s2)"><h3>Veranstaltungsdatei</h3><p>„Datei speichern“ legt den ganzen Lauf in eine
               .ozchrono-Datei, zum Mitnehmen auf einem USB-Stick; „Datei laden“ fügt sie dem geöffneten Lauf hinzu, ohne etwas zu verdoppeln.
               In Chrome oder Edge schreibt „Ein Protokoll in einem Ordner führen“ jeden Vorgang zusätzlich in einen Ordner des Computers.</p></div>
           </div>
           <p>Der „Name des Bedieners“ (Schritt „Verbindungen“) wird bei jeder Änderung vermerkt, für das Protokoll des Schiedsrichters.</p>`, "chrono-liaisons")}
+        ${slide("Chrono", "Die Computer im Wettkampfzentrum", html`
+          <p>Mit der Anwendung Ozimut Chrono sind alle Computer im Wettkampfzentrum gleichberechtigt: kein Hauptrechner, kein zentraler
+            Computer, den man wählen müsste. Jede Anwendung meldet im lokalen Netz die Veranstaltungen, die sie hat; zwei Anwendungen mit
+            derselben Veranstaltung verbinden sich von selbst, jede behält ihre vollständige Kopie und ihr Protokoll, und ein Computer, der
+            zurückkommt, holt nach, was er verpasst hat. Es genügt, dass jeder Computer mindestens einen anderen erreicht.</p>
+          ${list([
+            html`<b>Der Code der Veranstaltung</b>: sechs Buchstaben und Ziffern, mit der Veranstaltung erzeugt, groß angezeigt in
+              Vorbereiten › Verbindungen. Ein anderer Computer muss ihn kennen, um sich zu verbinden; er wird nie im Netz gemeldet.`,
+            html`<b>Von einem anderen Computer aus beitreten</b>: die Anwendung installieren und öffnen; ihre Startseite › „Im Netzwerk“ › die
+              Veranstaltung › ihr Code, ein einziges Mal. Danach verbindet sich dieser Computer von selbst, bei jedem Start.`,
+            html`<b>Telefone und Bildschirme</b> (Sprecher, Ergebnisse, Schiedsrichter, Startliste): nichts zu installieren, ihr Browser öffnet
+              die Adresse eines Computers, auf dem die Anwendung läuft, genannt in Vorbereiten › Verbindungen. Sie können keine Chips auslesen
+              und nicht auf einem Belegdrucker am seriellen Anschluss drucken: Die Browser verbieten es solchen lokalen Seiten.`,
+            html`<b>Der Reiter „Chrono“ von Ozimut</b> verbindet sich mit der Anwendung seines eigenen Computers („Die App auf diesem
+              Computer suchen“), nie mit der eines anderen: Eine https-Seite darf nicht mit einer lokalen http-Seite sprechen.`,
+            html`<b>Ein Rechner erscheint nicht?</b> Manche Netze (öffentliches WLAN, Schulnetz) blockieren die Meldungen: Gib in Vorbereiten ›
+              Verbindungen die Adresse und den Schlüssel der anderen Anwendung ein (ihr Menü Hilfe › Über).`,
+          ])}
+          <div class="mx-grid">
+            <div class="mx-box" style="--c:var(--s3)"><h3>Ohne Internet</h3><p>Installiere die Anwendung auf jedem Computer, der Chips
+              ausliest oder Belege druckt; erstelle (oder importiere) die Veranstaltung auf einem von ihnen; auf jedem anderen: Startseite ›
+              „Im Netzwerk“ › die Veranstaltung › ihr Code. Telefone und Bildschirme öffnen die Adresse aus Verbindungen.</p></div>
+            <div class="mx-box" style="--c:var(--s1)"><h3>Mit Internet</h3><p>Überall der Reiter „Chrono“, auf dem Stand gehalten durch die
+              Kopie auf Ozimut; oder die Anwendung, die das stille Drucken der Belege hinzufügt — direkt auf den gewählten Drucker, ohne
+              Druckdialog — und eine Kopie des Laufs auf der Festplatte des Computers.</p></div>
+          </div>
+          <p>Diese Verbindungen wurden bisher nur zwischen mehreren Anwendungen auf einem Computer erprobt, noch nicht zwischen echten Computern
+            im Netz eines Wettkampfzentrums. Die Einzelheiten: ${CHAP("chrono-app", "Die Chrono-Anwendung")}.</p>`, "chrono-arene")}
         ${slide("Chrono", "Die Regeln nach Land und die Grenzen", html`
           <p>Die „Regeln“ der Veranstaltung legen die Alterskategorien, die Gewohnheiten der Auslosung, die Arten der Anmeldung
             (Lizenzinhaber, Tageslizenz, Lizenz eines anderen Verbands, ohne Lizenz) und die Datei des Verbands fest.</p>
@@ -801,7 +829,7 @@ export function build(X) {
             html`eine Datei mit Teamergebnissen für Staffeln und die Veröffentlichung einer Staffel in „Ergebnisse“;`,
             html`der Reiter für andere als die Administratoren.`,
           ])}
-          <p>Die Installation der Anwendung, der Hub, der Direktdruck und die Funkposten sind in
+          <p>Die Installation der Anwendung, das Verbinden der Computer im Wettkampfzentrum, der Direktdruck und die Funkposten sind in
             ${CHAP("chrono-app", "Die Chrono-Anwendung")} beschrieben.</p>`, "chrono-regles")}`,
       "chrono-app": () => appDoc("Die Chrono-Anwendung"),
     });

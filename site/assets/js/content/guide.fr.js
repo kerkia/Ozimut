@@ -576,11 +576,10 @@ export function build(X) {
             côté de votre logiciel habituel ; ne lui confiez pas encore seul une compétition.</div>
           <p><b>L'idée, en trois phrases.</b> Chaque poste — un ordinateur ou un téléphone où Chrono est ouvert — écrit ce qu'il fait (une
             inscription, une puce lue, une correction) comme une opération dans un même journal, celui de la course. Les postes se tiennent à
-            jour entre eux : par la copie sur Ozimut quand il y a Internet, par le concentrateur de l'application sur un réseau local, par un
-            fichier que l'on transporte sinon. Sans liaison, chaque poste garde tout chez lui et continue : rien n'est perdu, et tout se rejoint
+            jour entre eux : par la copie sur Ozimut quand il y a Internet, par l'application Ozimut Chrono sur un réseau local — chaque ordinateur qui l'a se relie de lui-même aux autres —, par un fichier que l'on transporte sinon. Sans liaison, chaque poste garde tout chez lui et continue : rien n'est perdu, et tout se rejoint
             au retour de la liaison, dans n'importe quel ordre.</p>
           <p><b>L'écran.</b> En haut, le nom de l'événement, l'état du matériel et des liaisons (lecteurs, imprimante, copie sur Ozimut,
-            concentrateur) et l'heure. À gauche, les neuf postes : Préparer, Accueil, Départ, Arrivée, Suivi, Speaker, Arbitre, Postes, Clôturer
+            ordinateurs reliés) et l'heure. À gauche, les neuf postes : Préparer, Accueil, Départ, Arrivée, Suivi, Speaker, Arbitre, Postes, Clôturer
             (<kbd>Alt</kbd>+<kbd>1</kbd> à <kbd>Alt</kbd>+<kbd>9</kbd>). Sous la barre, les boutons du poste ouvert. En bas, les compteurs : inscrits,
             en course, puces lues, classés, points à traiter. Une puce lue sur n'importe quel poste est gardée, jugée, annoncée par un bip (aigu :
             tout va bien ; grave : quelque chose manque) et, si vous l'avez demandé, imprimée.</p>`)}
@@ -604,7 +603,8 @@ export function build(X) {
             <div class="mx-step"><b>Départs</b>« Tirage » des heures, contrôle de la liste, impression des listes de départ, export IOF XML. Sans
               objet pour un départ au boîtier ou en masse.</div>
             <div class="mx-step"><b>Matériel</b>Les lecteurs de puces, l'imprimante des tickets, et la « Répétition ».</div>
-            <div class="mx-step"><b>Liaisons</b>Le nom de l'opérateur, la copie sur Ozimut, le direct, le concentrateur, le fichier de l'événement.</div>
+            <div class="mx-step"><b>Liaisons</b>Le nom de l'opérateur, la copie sur Ozimut, le direct, les autres ordinateurs de l'arène et le
+              code de l'événement, le fichier de l'événement.</div>
             <div class="mx-step"><b>Vérifier</b>Ce qui empêche de commencer, ce qui est seulement conseillé, avec « Y aller » vers l'étape en
               cause ; puis « Ouvrir le poste Arrivée ».</div>
           </div>
@@ -762,15 +762,44 @@ export function build(X) {
               copiée sur Ozimut : un autre ordinateur ouvrant le même événement reprend la course, et rien n'est perdu si celui-ci tombe en
               panne. « Donner l'accès aux autres postes » crée une clé qui voyage avec la course : les postes sans compte (l'application, un
               téléphone) échangent alors eux aussi avec Ozimut, sans rien saisir.</p></div>
-            <div class="mx-box" style="--c:var(--s3)"><h3>Concentrateur</h3><p>L'application Ozimut Chrono, sur un ordinateur de l'arène, relie
-              les postes du réseau local sans Internet. Sur le même ordinateur : « Chercher l'application sur cet ordinateur ». Les autres
-              ordinateurs et les téléphones ouvrent l'adresse de l'application dans leur navigateur (voir
-              ${CHAP("chrono-app", "L'application Chrono")}).</p></div>
+            <div class="mx-box" style="--c:var(--s3)"><h3>Les autres ordinateurs de l'arène</h3><p>L'application Ozimut Chrono, sur chaque
+              ordinateur de l'arène qui l'a, les relie entre eux sans Internet : tous égaux, chacun avec sa copie complète. Un autre
+              ordinateur rejoint l'événement une fois, avec le « Code de l'événement » affiché ici ; les téléphones et les écrans ouvrent
+              l'adresse donnée ici. Dans l'onglet, sur un ordinateur où l'application tourne : « Chercher l'application sur cet
+              ordinateur » (voir plus bas, et ${CHAP("chrono-app", "L'application Chrono")}).</p></div>
             <div class="mx-box" style="--c:var(--s2)"><h3>Fichier de l'événement</h3><p>« Enregistrer le fichier » met toute la course dans un
               fichier .ozchrono, à porter sur une clé ; « Reprendre un fichier » l'ajoute à la course ouverte, sans rien doubler. Dans Chrome ou
               Edge, « Tenir un journal dans un dossier » écrit aussi chaque opération dans un dossier de l'ordinateur.</p></div>
           </div>
           <p>Le « Nom de l'opérateur » (étape « Liaisons ») est noté avec chaque modification, pour le journal de l'arbitre.</p>`, "chrono-liaisons")}
+        ${slide("Chrono", "Les ordinateurs de l'arène", html`
+          <p>Avec l'application Ozimut Chrono, tous les ordinateurs de l'arène sont égaux : pas de maître, pas d'ordinateur central à
+            choisir. Chaque application annonce sur le réseau local les événements qu'elle tient ; deux applications qui tiennent le même
+            événement se relient d'elles-mêmes, chacune garde sa copie complète et son journal, et un ordinateur qui revient rattrape ce qu'il
+            a manqué. Il suffit que chaque ordinateur en joigne au moins un autre.</p>
+          ${list([
+            html`<b>Le code de l'événement</b> : six lettres et chiffres, créé avec l'événement, affiché en grand dans Préparer › Liaisons. Un
+              autre ordinateur doit le connaître pour se relier ; il n'est jamais annoncé sur le réseau.`,
+            html`<b>Rejoindre depuis un autre ordinateur</b> : installer l'application et l'ouvrir ; son accueil › « Sur le réseau » ›
+              l'événement › son code, une seule fois. Ensuite cet ordinateur se relie tout seul, à chaque lancement.`,
+            html`<b>Téléphones et écrans</b> (speaker, résultats, arbitre, liste de départ) : rien à installer, leur navigateur ouvre l'adresse
+              d'un ordinateur où l'application tourne, donnée dans Préparer › Liaisons. Ils ne lisent pas de puces et n'impriment pas sur une
+              imprimante à tickets en port série : les navigateurs l'interdisent à ces pages locales.`,
+            html`<b>L'onglet « Chrono » d'Ozimut</b> se relie à l'application de son propre ordinateur (« Chercher l'application sur cet
+              ordinateur »), jamais à celle d'un autre : une page https n'a pas le droit de parler à une page locale en http.`,
+            html`<b>Un ordinateur n'apparaît pas ?</b> Certains réseaux (Wi-Fi public, réseau d'école) bloquent les annonces : dans Préparer ›
+              Liaisons, donnez l'adresse et la clé de l'autre application (son menu Aide › À propos).`,
+          ])}
+          <div class="mx-grid">
+            <div class="mx-box" style="--c:var(--s3)"><h3>Sans Internet</h3><p>Installez l'application sur chaque ordinateur qui lit des
+              puces ou imprime des tickets ; créez (ou importez) l'événement sur l'un d'eux ; sur chacun des autres, accueil › « Sur le
+              réseau » › l'événement › son code. Les téléphones et les écrans ouvrent l'adresse donnée dans Liaisons.</p></div>
+            <div class="mx-box" style="--c:var(--s1)"><h3>Avec Internet</h3><p>L'onglet « Chrono » partout, tenu à jour par la copie sur
+              Ozimut ; ou l'application, qui ajoute l'impression silencieuse des tickets — tout droit sur l'imprimante choisie, sans fenêtre
+              d'impression — et une copie de la course sur le disque de l'ordinateur.</p></div>
+          </div>
+          <p>Ces liaisons n'ont encore été essayées qu'entre plusieurs applications d'un même ordinateur, pas entre de vrais ordinateurs sur
+            le réseau d'une arène. Le détail : ${CHAP("chrono-app", "L'application Chrono")}.</p>`, "chrono-arene")}
         ${slide("Chrono", "Les règles par pays, et les limites", html`
           <p>Les « Règles » de l'événement fixent les catégories d'âge, les usages du tirage, les types d'inscription (licencié, titre de
             participation, licencié d'une autre fédération, sans licence) et le fichier de la fédération.</p>
@@ -787,7 +816,7 @@ export function build(X) {
             html`un fichier de résultats par équipe pour les relais, et la publication d'un relais dans « Résultats » ;`,
             html`l'onglet pour d'autres que les administrateurs.`,
           ])}
-          <p>L'installation de l'application, le concentrateur, l'impression directe et les postes radio sont décrits dans
+          <p>L'installation de l'application, la liaison des ordinateurs de l'arène, l'impression directe et les postes radio sont décrits dans
             ${CHAP("chrono-app", "L'application Chrono")}.</p>`, "chrono-regles")}`,
       "chrono-app": () => appDoc("L'application Chrono"),
     });

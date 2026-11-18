@@ -4,7 +4,7 @@
 
 import { t, tn, locale } from "../../i18n.js";
 import { html, raw, icon, toast } from "./kit.js";
-import { Log } from "../log.js";
+import { Log, newCode } from "../log.js";
 import { openEvent, kvGet } from "../store.js";
 import { buildView, problems } from "../view.js";
 import { rulesOf } from "../rules/index.js";
@@ -108,6 +108,7 @@ export async function mountChrono(root, opt) {
     real.add("ev", { p: { id: opt.ev, name: s.name || "", date: s.date || "", country: s.country || "FR", rules: String(s.country || "fr").toLowerCase(), type: s.type === "training" ? "individual" : s.type || "individual",
       club: s.club || "", place: s.place || "", race: s.race || null, timing: "si", startMode: "list", zero: 36000 } }, ctx.by);
   }
+  if (opt.session && real.state.event.name && !real.state.event.lan) real.add("ev", { p: { lan: newCode() } }, ctx.by);
   ctx.archive = (await kvGet(`archive:${ctx.rules().id}`)) || [];
 
   root.classList.add("chr");
@@ -150,7 +151,8 @@ export async function mountChrono(root, opt) {
       chip("card", rd, D.readers.some((r) => r.state === "error") ? "bad" : D.readers.length ? "ok" : "off", t("chr.dev.readerTip"), "kit"),
       chip("print", t(`chr.dev.pr.${D.printer.mode}`), D.lastError ? "bad" : D.printer.mode === "none" ? "off" : "ok", D.lastError || t("chr.dev.printerTip"), "kit"),
       chip("cloud", t(`chr.net.${cloud}`), cl, N.cloud.error || t("chr.net.tip"), "net"),
-      N.hub.state !== "off" ? chip("link", t(`chr.hub.${N.hub.state}`), N.hub.state === "on" ? "ok" : "bad", N.hub.url, "net") : "",
+      N.hub.state !== "off" ? chip("link", N.hub.state === "on" && N.hub.info ? (N.linked().length ? tn("chr.lan.linked", N.linked().length) : t("chr.lan.solo")) : t(`chr.hub.${N.hub.state}`),
+        N.hub.state === "on" ? (N.hub.info && !N.linked().length ? "off" : "ok") : "bad", N.linked().map((l) => l.name).join(", ") || N.hub.url, "net") : "",
     ].join("");
     $("#chr-dev").querySelectorAll("button").forEach((b) => b.addEventListener("click", () => { ui.prepStep = b.dataset.act === "kit" ? "kit" : "net"; show(posts.some((p) => p.id === "prepare") ? "prepare" : cur, true); }));
     $("#chr-sand").hidden = !sand;

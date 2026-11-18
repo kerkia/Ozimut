@@ -78,6 +78,7 @@ export function makeNet(ctx, opt = {}) {
       n++;
       if (cloudOf() && !busy && (pending() || n % 8 === 0 || N.cloud.state === "idle")) N.sync();
       if (n % 5 === 0) pushLive();
+      pollHub();
     }, 4000);
     if (typeof window !== "undefined") window.addEventListener("online", N.sync);
     if (opt.hubUrl) N.joinHub(opt.hubUrl);
@@ -99,7 +100,7 @@ export function makeNet(ctx, opt = {}) {
         lk = link(ctx.log, (m) => { if (sock.readyState === 1) sock.send(JSON.stringify(m)); }, { ev: ctx.ev, name: opt.name || "",
           onPeer: (p) => { N.hub.peer = p; ctx.change(); }, onFault: (w) => { N.hub.error = w; N.hub.state = "refused"; closed = true; sock.close(); ctx.change(); } });
         lk.open();
-        N.hub.state = "on"; N.hub.error = ""; ctx.change();
+        N.hub.state = "on"; N.hub.error = ""; ctx.change(); pollHub();
       };
       sock.onmessage = (e) => { try { lk?.receive(JSON.parse(e.data)); } catch (err) { /* not ours */ } };
       sock.onclose = (e) => {
@@ -117,7 +118,7 @@ export function makeNet(ctx, opt = {}) {
     lk?.close(); lk = null;
     try { ws?.close(); } catch (e) { /* gone */ }
     ws = null;
-    N.hub = { state: "off", url: "", peer: null, error: "" };
+    N.hub = { state: "off", url: "", peer: null, error: "", info: null, sig: "" };
     if (!quiet) ctx.change();
   };
   /** Is the desktop app running on this computer? Resolves to its info, or null. */
@@ -127,6 +128,34 @@ export function makeNet(ctx, opt = {}) {
       .then(async (r) => (r.ok ? { ...(await r.json()), port: APP_PORT + i } : null)).catch(() => null)));
     return tries.find(Boolean) || null;
   };
+  /** The hub's HTTP address (http://host:port), from its socket's; null when none. */
+  N.hubBase = () => { try { const u = new URL(N.hub.url); return `${u.protocol === "wss:" ? "https:" : "http:"}//${u.host}`; } catch (e) { return null; } };
+  const hubKey = () => { try { return new URL(N.hub.url).searchParams.get("k") || ""; } catch (e) { return ""; } };
+  /** The hub's `/hub/info`: its addresses, key, the other hubs and the links to them. */
+  N.hubInfo = async () => {
+    const b = N.hubBase();
+    if (!b) return null;
+    const r = await fetch(`${b}/hub/info`, { headers: hubKey() ? { "X-Hub-Token": hubKey() } : {}, signal: AbortSignal.timeout(3000) });
+    return r.ok ? r.json() : null;
+  };
+  /** The computers this event is linked to through the hub (its own page apart). */
+  N.linked = () => (N.hub.info?.peers?.links || []).filter((l) => l.ev === ctx.ev && l.state === "on")
+    .filter((l, i, a) => a.findIndex((x) => x.station === l.station) === i);
+  /** True where this page may ask its hub to link (the app's own window, or a page of this computer). */
+  N.local = () => { const b = N.hubBase(); return !!b && /^https?:\/\/(127\.0\.0\.1|localhost|\[::1\])(:\d+)?$/.test(b); };
+  /** Another computer's hub given by hand (a network that drops the discovery): "ok" | "code" | "unreachable". */
+  N.addPeer = async (host, port, k) => {
+    const q = new URLSearchParams({ host, port: String(port || APP_PORT), k, ev: ctx.ev });
+    const r = await fetch(`${N.hubBase()}/hub/peer?${q}`, { signal: AbortSignal.timeout(15000) });
+    return r.ok ? (await r.json()).result : "unreachable";
+  };
+  async function pollHub() {
+    if (N.hub.state !== "on") { if (N.hub.info) { N.hub.info = null; ctx.change(); } return; }
+    try {
+      const i = await N.hubInfo(), sig = JSON.stringify(i?.peers || null) + (i?.addresses || []).join();
+      if (sig !== N.hub.sig) { N.hub.info = i; N.hub.sig = sig; ctx.change(); }
+    } catch (e) { /* asked again */ }
+  }
   /** The log in use changed (the rehearsal's copy, back to the real one): links follow the real one only. */
   N.relink = () => { if (N.hub.url && !ctx.sandbox?.()) N.joinHub(N.hub.url); };
   N.stop = () => { clearInterval(timer); N.leaveHub(true); if (typeof window !== "undefined") window.removeEventListener("online", N.sync); };

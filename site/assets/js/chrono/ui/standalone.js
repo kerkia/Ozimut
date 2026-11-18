@@ -7,6 +7,7 @@ import { t, loadArea } from "../../i18n.js";
 import { html } from "./kit.js";
 import { newId } from "../log.js";
 import { listEvents } from "../store.js";
+import { formDialog, field, values } from "./kit.js";
 import { mountChrono } from "./app.js";
 
 export async function standalone(root) {
@@ -17,8 +18,9 @@ export async function standalone(root) {
   const open = (ev, seed = null) => { history.replaceState(null, "", `?${new URLSearchParams({ ...Object.fromEntries(q), ev })}`); return mountChrono(root, { ev, seed, hubUrl, role, user: "" }); };
   if (q.get("ev")) return open(q.get("ev"));
 
-  let hub = [];
-  try { const r = await fetch(`/hub/info${k ? `?k=${encodeURIComponent(k)}` : ""}`); if (r.ok) hub = (await r.json()).events || []; } catch (e) { /* no hub: this browser's own events */ }
+  let hub = [], network = [];
+  const ask = async () => { try { const r = await fetch(`/hub/info${k ? `?k=${encodeURIComponent(k)}` : ""}`); if (r.ok) { const j = await r.json(); hub = j.events || []; network = j.peers?.network || []; } } catch (e) { /* no hub: this browser's own events */ } };
+  await ask();
   const mine = await listEvents().catch(() => []);
   const seen = new Set(), all = [...hub, ...mine].filter((e) => !seen.has(e.ev) && seen.add(e.ev));
   root.innerHTML = html`<div class="chr-home"><h1><span class="brand-o">O</span>zimut Chrono</h1><p class="lede">${t("chr.home.lede")}</p>
@@ -28,10 +30,40 @@ export async function standalone(root) {
       <label class="chr-f"><span>${t("chr.ev.date")}</span><input name="date" type="date" value="${new Date().toISOString().slice(0, 10)}" required></label>
       <label class="chr-f"><span>${t("chr.ev.rules")}</span><select name="country"><option value="FR">${t("chr.rules.fr")}</option><option value="CA">${t("chr.rules.ca")}</option><option value="">${t("chr.rules.iof")}</option></select></label>
       <button type="submit" class="btn btn-primary">${t("chr.create")}</button></form></div>
+    <div class="chr-card" id="chr-network"></div>
     <p class="chr-home-doc"><a href="doc.html" target="_blank" rel="noopener">${t("chr.home.doc")}</a></p></div>`.toString();
-  root.querySelectorAll("[data-ev]").forEach((b) => b.addEventListener("click", () => open(b.dataset.ev)));
+  root.querySelectorAll("[data-ev]").forEach((b) => b.addEventListener("click", () => { clearInterval(tick); open(b.dataset.ev); }));
+  // the events other computers of the arena hold (their app says so on the network): one is joined with its code, once
+  const local = /^(127\.0\.0\.1|localhost|\[::1\])(:\d+)?$/.test(location.host);
+  const drawNet = () => {
+    const box = root.querySelector("#chr-network");
+    if (!box) return false;
+    box.hidden = !local;
+    box.innerHTML = html`<h3>${t("chr.home.network")}</h3>${network.length ? html`<div class="chr-picks">${network.map((e) => html`<button type="button" class="chr-pick" data-join="${e.ev}"><b>${e.name || t("chr.untitled")}</b><span>${e.date || ""}</span><span>${t("chr.home.from", { names: e.from.join(", ") })}</span></button>`)}</div>`
+      : html`<p class="chr-empty">${t("chr.home.networkNone")}</p>`}<p class="chr-dim">${t("chr.home.networkHint")}</p>`.toString();
+    box.querySelectorAll("[data-join]").forEach((b) => b.addEventListener("click", () => join(network.find((e) => e.ev === b.dataset.join))));
+    return true;
+  };
+  async function join(e) {
+    if (!e) return;
+    const ev = await formDialog({ title: t("chr.home.joinTitle", { name: e.name || t("chr.untitled") }), ok: t("chr.home.join"),
+      body: html`<p>${t("chr.home.codeAsk", { from: e.from.join(", ") })}</p>${field(t("chr.lan.code"), html`<input name="code" class="chr-lan-in" maxlength="8" autocomplete="off" autocapitalize="characters" spellcheck="false" required autofocus>`)}`,
+      async onOk(dlg) {
+        const code = values(dlg).code.toUpperCase().replace(/[^A-Z0-9]/g, "");
+        if (code.length < 4) return false;
+        dlg.fail(t("chr.home.joining"));
+        const r = await fetch(`/hub/join?${new URLSearchParams({ ev: e.ev, code })}`).then((x) => x.json()).catch(() => ({ result: "unreachable" }));
+        if (r.result === "ok") return e.ev;
+        dlg.fail(t(r.result === "code" ? "chr.home.codeBad" : "chr.home.unreachable"));
+        return false;
+      } });
+    if (ev) { clearInterval(tick); open(ev); }
+  }
+  drawNet();
+  const tick = setInterval(async () => { if (!root.querySelector("#chr-network")) { clearInterval(tick); return; } const was = JSON.stringify(network); await ask(); if (JSON.stringify(network) !== was) drawNet(); }, 3000);
   root.querySelector("#chr-new").addEventListener("submit", (e) => {
     e.preventDefault();
+    clearInterval(tick);
     const f = new FormData(e.target);
     open(newId() + newId().slice(0, 3), { name: String(f.get("name")).trim(), date: f.get("date"), country: f.get("country") || "", type: "individual" });
   });

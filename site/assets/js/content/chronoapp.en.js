@@ -3,23 +3,25 @@
 // documentation on the site (content/guide.en.js, chapter « chrono-app »).
 export default {
   title: "The Ozimut Chrono application",
-  lede: "Ozimut's race timing installed on a computer: no Internet needed, several stations linked, receipts printed without a dialog. This guide is the same in the application (Help › Documentation) and in Orga's documentation on ozimut.com.",
+  lede: "Ozimut's race timing installed on a computer: no Internet needed, the arena's computers linked together, receipts printed without a dialog. This guide is the same in the application (Help › Documentation) and in Orga's documentation on ozimut.com.",
   sections: [
     { id: "what", title: "What the application is for", html: `
       <p>The Ozimut Chrono application shows the same screens as the “Chrono” tab of an Orga event on ozimut.com. It also does what a
         browser tab cannot do:</p>
       <ul>
         <li>it works <b>without the Internet</b>;</li>
-        <li>it is a <b>hub</b>: the other computers and the phones of the local network open its address in their browser and work on the
-          same race;</li>
+        <li>it <b>links the arena's computers</b> together: each one that has it keeps the whole race and keeps it up to date with the others,
+          with no master computer; phones and screens open the address of any of them in their browser;</li>
         <li>it writes every operation to a <b>log</b>, one file per event in a folder of the computer;</li>
         <li>it prints the receipts <b>without a print dialog</b>;</li>
         <li>it receives the <b>radio punches</b> of relays (SIRAP protocol).</li>
       </ul>
       <p><b>The tab alone is enough</b> when one computer does the timing, or when every station has the Internet: they then keep each
-        other up to date through the copy on Ozimut. Plugging in a card reader takes Chrome or Edge.</p>
+        other up to date through the copy on Ozimut. Plugging in a card reader takes Chrome or Edge. <b>Without the Internet</b>, install the
+        application on every computer that reads cards or prints receipts (see “Linking the arena's computers”).</p>
       <p><b>Being tested.</b> Like Chrono itself, the application has never yet been used with real SPORTident or Emit stations, with a
-        receipt printer, or at a real competition. Try it at a training session, or alongside your usual software.</p>` },
+        receipt printer, or at a real competition, and its links have not yet been tried between real computers on an arena's network. Try it
+        at a training session, or alongside your usual software.</p>` },
     { id: "install", title: "Downloading and installing", html: `
       <p>The files are downloaded from Ozimut: Orga › My events › an event › “Chrono” tab › Prepare › Connections › “Download the
         application”.</p>
@@ -43,32 +45,60 @@ export default {
           older versions: right-click the application, “Open”, then confirm.</li>
       </ul>` },
     { id: "first", title: "First launch", html: `
-      <p>The window opens on the home screen: the list “Events” and the card “New event” (a name, a date, the country's rules — France,
-        Canada or IOF rules —, then “Create”). Once an event is open, everything works as in the tab: the stations Prepare, Desk, Start,
-        Finish, Monitor, Speaker, Referee, Units and Close, described in Orga's documentation, chapter “Chrono”.</p>
+      <p>The window opens on the home screen: the list “Events”, the card “New event” (a name, a date, the country's rules — France,
+        Canada or IOF rules —, then “Create”) and the card “On the network”, the events of the arena's other computers, to be joined with
+        their code (see “Linking the arena's computers”). Once an event is open, everything works as in the tab: the stations Prepare, Desk,
+        Start, Finish, Monitor, Speaker, Referee, Units and Close, described in Orga's documentation, chapter “Chrono”.</p>
       <ul>
         <li><b>The events' folder</b> is “Ozimut Chrono”, in your Documents; the application creates it. File › “Open the data folder”
           shows it.</li>
         <li><b>An event file</b> (.ozchrono) opens with a double-click (with the installed version), or through File › “Open an event
           file…”: its operations join that event in the application, doubling nothing, and the event opens.</li>
         <li><b>One application at a time</b>: launching it a second time brings back the window already open.</li>
-        <li><b>The firewall</b>: at the first launch Windows may ask whether other computers may reach the application. Allow it on
-          private networks if other stations are to connect.</li>
+        <li><b>The firewall</b>: at the first launch Windows asks whether Ozimut Chrono may communicate on the network. Allow it on private
+          networks: otherwise the arena's other computers do not find it, and phones cannot open it.</li>
         <li><b>The menu</b>: File (open a file, open the folder, quit), Edit, View (reload, zoom, full screen), Help › “Documentation”
-          (<kbd>F1</kbd>) and “About Ozimut Chrono”, which gives the version, the addresses for the other stations, the radio punches' port
-          and the data folder.</li>
+          (<kbd>F1</kbd>) and “About Ozimut Chrono”, which gives the version, the address to open from phones and other computers (with the
+          application's key), the radio punches' port and the data folder.</li>
       </ul>` },
-    { id: "hub", title: "Linking other computers and phones", html: `
-      <p>The application is a hub: every device on the same local network — a Wi-Fi access point or a plain router is enough, with no
-        Internet — can work on the same race.</p>
+    { id: "hub", title: "Linking the arena's computers", html: `
+      <p>Every computer the application runs on is equal: no master, no central computer to choose. Each keeps its own full copy of the race
+        and its own log. All they need is to be on the same local network — a Wi-Fi access point or a plain router, with no Internet.</p>
+      <h3>How they find each other</h3>
+      <p>Every few seconds each application announces on the local network who it is and which events it holds (their name and day, never
+        their code). Two applications holding the same event link to each other by themselves and keep each other up to date. Links go
+        through any of the computers: it is enough for each one to reach at least one other. A computer that leaves or restarts catches up
+        by itself, when it is back, with what was done without it.</p>
+      <h3>The event code</h3>
+      <p>Every event has a six-character code, letters and digits that cannot be mistaken for one another (never O, 0, I, L or 1). It is
+        shown large in Prepare › Connections, card “The arena's other computers”, under “Event code”. It is made by itself with the event,
+        in the application as in Ozimut's “Chrono” tab. It protects the event: another computer must know it to link, and it is never
+        announced on the network — an application proves it knows the code without saying it.</p>
+      <h3>Joining the event from another computer</h3>
       <ol>
-        <li>On the application's computer, open Help › “About Ozimut Chrono”: the window gives the address to open, of the form
-          <code>http://192.168.1.20:8377/?k=…</code>. What follows <code>?k=</code> is the hub's <b>key</b>.</li>
-        <li>On the other computer or the phone, open that address in the browser. Without the key, the page asks for it in a field marked
-          with a key.</li>
-        <li>Choose the event in the list. This station sees the race within moments and writes to it like the others.</li>
+        <li>Install the application on that computer and open it.</li>
+        <li>Its home screen has a card “On the network”: the events of the arena's other computers, each with the computer holding it
+          (“on FINISH-PC”). Click the event.</li>
+        <li>Type its code, in upper or lower case, then “Join”. The event opens and fills in within moments. A wrong code is refused: “That is
+          not this event's code.”</li>
       </ol>
-      <p>A station that loses the network carries on alone and reconnects by itself when it is back; nothing is lost.</p>
+      <p>The code is asked once only: after that this computer links by itself, at every launch, on any network. Nothing has to be done again
+        after a restart.</p>
+      <p>In Prepare › Connections, the card “The arena's other computers” gives the code, the computers linked (“2 other computers linked:
+        FINISH-PC, DESK-PC”, or “No other computer shares this event yet…”) and the other applications seen on the network. The top bar sums
+        it up: “1 other computer linked”, “No other computer”.</p>
+      <h3>A computer does not show up?</h3>
+      <p>Some networks (public Wi-Fi, a school's network) stop computers from finding each other. In Prepare › Connections, open “A computer
+        does not show up?”, give the address and key of the other computer's application, then “Connect”. Its menu Help › “About Ozimut
+        Chrono” gives an address of the form <code>http://192.168.1.20:8377/?k=…</code>: the address is <code>192.168.1.20:8377</code>, the
+        key what follows <code>?k=</code>. That link too is kept from one launch to the next.</p>
+      <h3>Phones and screens</h3>
+      <p>A phone, a tablet or a screen (speaker, results, referee, start list) has nothing to install: its browser opens the address of any
+        computer the application runs on. Prepare › Connections gives it (“Phones and screens without the application (speaker, results,
+        referee): open <code>http://192.168.1.20:8377/?k=…</code>”), and so does Help › “About Ozimut Chrono”. What follows <code>?k=</code>
+        is that application's <b>key</b>; without it, the page asks for it in a field marked with a key. Choose the event in the list: this
+        station sees the race within moments and writes to it like the others. A station that loses the network carries on alone and
+        reconnects by itself when it is back; nothing is lost.</p>
       <h3>One station, one role</h3>
       <p>Add <code>&amp;role=</code> to the address so that a station shows only what concerns it, for example
         <code>http://192.168.1.20:8377/?k=…&amp;role=start</code>:</p>
@@ -85,25 +115,34 @@ export default {
       </table>
       <p>Once the event is open, the browser's address names it (<code>&amp;ev=…</code>): keep it as a bookmark, it reopens that event
         directly, in that role.</p>
-      <h3>Card readers on the other stations</h3>
+      <h3>Card readers and receipt printers</h3>
       <p>A browser lets a page talk to a card reader, or to a receipt printer on a serial port, only when the page comes from a secure
-        site or from the computer itself. So a page opened at the hub's address from another computer cannot read cards: it suits a desk
-        without a reader, the start, monitoring, the speaker, the referee. For a second reading station:</p>
+        site or from the computer itself. So a page opened at another computer's address cannot read cards: it suits the start, monitoring,
+        the speaker, the referee, a desk without a reader. <b>Every computer that reads cards or prints receipts has the application</b>,
+        linked to the others as above.</p>
+      <h3>What we advise</h3>
       <ul>
-        <li>with the Internet: on that computer, open the event's “Chrono” tab on ozimut.com, in Chrome or Edge; it keeps up to date
-          through the copy on Ozimut;</li>
-        <li>without the Internet: install the application there too, open in it the event file (.ozchrono) saved on the first computer,
-          then, in Prepare › Connections, give the first computer's address (<code>192.168.1.20:8377</code>) and the “Hub key”, and
-          “Connect”. This has to be done again when the application is restarted.</li>
-      </ul>` },
+        <li><b>No Internet at the arena</b>: install the application on every computer that reads cards or prints receipts; create (or
+          import) the event on one of them; on each of the others, home screen › “On the network” › the event › its code. Phones and screens
+          open the address given in Prepare › Connections.</li>
+        <li><b>With the Internet</b>: Ozimut's “Chrono” tab everywhere, or the application, which adds silent receipt printing — straight to
+          the printer chosen, without a print dialog — and a copy of the race on the computer's disk.</li>
+      </ul>
+      <p><b>Not yet tried at a real arena.</b> The links have only been tried between several applications on one computer, never yet between
+        real laptops on an arena's network. Some networks block the announcements: “A computer does not show up?” is then the way.</p>` },
     { id: "tab", title: "Linking Ozimut's tab to the application", html: `
-      <p>On the application's computer, also open the event's “Chrono” tab on ozimut.com (Chrome or Edge), then Prepare › Connections ›
-        “Look for the app on this computer”. The tab connects to the application, and the top bar shows “Hub”. From then on the tab's event
-        is in the application too, with its log in the folder.</p>
-      <p>What it is for: the tab is signed in on Ozimut — the copy on Ozimut, the live results, “Publish on Ozimut” —, and the application
-        links the arena's stations without the Internet. In the tab, “Give the other stations access” makes a key that travels with the
-        race: the application's stations then exchange with Ozimut too when they have the Internet.</p>
-      <p>If the tab answers “The Ozimut Chrono app was not found on this computer”: check that it is running and, if the browser asks for
+      <p>An event's “Chrono” tab on ozimut.com is for preparing at home, and for timing at an arena that has the Internet: the stations
+        open in the tab keep each other up to date through the copy on Ozimut.</p>
+      <p>On a computer the application runs on, the tab can also link to it: Prepare › Connections › “Look for the app on this computer”
+        (Chrome or Edge). The top bar then shows “Application”, then the number of other computers linked. From then on the tab's event is
+        in the application too, with its log in the folder, and the arena's other computers can join it with its code.</p>
+      <p><b>The tab links only to the application of its own computer</b>, never to another's: a secure page (https) may not talk to a plain
+        local page (http). With the Internet at the arena, everyone can simply use the tab; without it, use the application on every
+        computer.</p>
+      <p>What linking the tab to the application is for: the tab is signed in on Ozimut — the copy on Ozimut, the live results, “Publish on
+        Ozimut” —, and the application links the arena's computers without the Internet. In the tab, “Give the other stations access” makes a
+        key that travels with the race: the application's computers then exchange with Ozimut too when they have the Internet.</p>
+      <p>If the tab answers “The Ozimut Chrono app was not found on this computer.”: check that it is running and, if the browser asks for
         permission to reach devices on the local network, grant it.</p>` },
     { id: "print", title: "Printing receipts without a dialog", html: `
       <p>In Prepare › Equipment › “Receipt printer”, the application adds a choice to “Print on”: “The printer chosen, without a dialog
@@ -139,15 +178,17 @@ export default {
       <ul>
         <li><b>The events</b>: in Documents › “Ozimut Chrono”, one log per event, <code>&lt;event&gt;.ozchrono.jsonl</code>. Every operation
           is added to it and written to the disk the moment it happens; the file is never rewritten. It is read again when the event is
-          reopened (a last line cut by a power failure is skipped). The file <code>hub.json</code>, beside them, keeps the hub's identity
-          and the event opened last.</li>
+          reopened (a last line cut by a power failure is skipped). Every computer of the arena has its own, complete.</li>
+        <li><b>The file <code>hub.json</code></b>, beside them, keeps this computer's identity on the network, the event opened last, the
+          event codes typed to join an event and the addresses added by hand (“A computer does not show up?”).</li>
         <li><b>Backing up</b> is copying that folder. A log opens on another computer through File › “Open an event file…”.</li>
         <li><b>The settings</b>: <code>settings.json</code>, in the application's settings folder (<code>%APPDATA%\\Ozimut Chrono</code> on
-          Windows): the hub's key and the folder last saved to. A <code>"folder"</code> line, added by hand with the application closed,
-          puts the events in another folder.</li>
-        <li><b>The application itself sends nothing anywhere.</b> An event exchanges with Ozimut only if the copy was set up from Ozimut's
-          tab (“Give the other stations access”).</li>
-        <li>The log holds names, clubs, licence and card numbers: keep that folder as you keep your results files.</li>
+          Windows): the application's key (the one phones and links added by hand ask for) and the folder last saved to. A
+          <code>"folder"</code> line, added by hand with the application closed, puts the events in another folder.</li>
+        <li><b>The application sends nothing to the Internet by itself.</b> On the local network it announces the computer's name and the
+          name and day of its events, and exchanges a race only with the computers that know its code, or its key. An event exchanges with
+          Ozimut only if the copy was set up from Ozimut's tab (“Give the other stations access”).</li>
+        <li>The log holds names, clubs, licence and card numbers, and the event code: keep that folder as you keep your results files.</li>
       </ul>` },
     { id: "update", title: "Updating, uninstalling", html: `
       <ul>
@@ -164,14 +205,23 @@ export default {
         <thead><tr><th>What happens</th><th>What to do</th></tr></thead>
         <tbody>
           <tr><td>“Ozimut Chrono cannot start”: ports 8377 to 8387 are all taken.</td><td>The application takes port 8377 or, if it is
-            taken, the first free one up to 8387. Close the program that holds them. If the port is not 8377, the address to give the other
-            stations changes: “About” gives the right one.</td></tr>
+            taken, the first free one up to 8387. Close the program that holds them. If the port is not 8377, the address to give phones
+            changes: Prepare › Connections and “About” give the right one.</td></tr>
           <tr><td>“The data folder cannot be used”.</td><td>The “Ozimut Chrono” folder of Documents cannot be written to (a protected
             folder, or one being synchronised): free it, or name another folder in <code>settings.json</code>.</td></tr>
-          <tr><td>Another computer or a phone does not open the address.</td><td>Check that it is on the same network; that the firewall of
-            the application's computer lets it be reached (allow “Ozimut Chrono” on private networks); that the Wi-Fi network does not
-            isolate devices from each other, as public networks do; that the address is the one “About” gives.</td></tr>
-          <tr><td>The page asks for a key.</td><td>Type what follows <code>?k=</code> in the address “About” gives.</td></tr>
+          <tr><td>Another computer does not show up in “On the network”, the bar says “No other computer”, or “The other computer does not
+            answer.”</td><td>Check that it is on, that the application is running on it and that it is on the same network. At the first
+            launch Windows asks once to allow Ozimut Chrono on private networks: accept (otherwise allow it in the Windows firewall). Some
+            Wi-Fi networks isolate devices from each other or block the announcements, as public and school networks do: then use “A computer
+            does not show up?”. UDP port 8379 (the announcements) and TCP port 8377 (the links and the pages) must pass between the
+            computers.</td></tr>
+          <tr><td>“That is not this event's code.”</td><td>Type again the code shown on the other computer, in Prepare › Connections. It never
+            contains O, 0, I, L or 1.</td></tr>
+          <tr><td>A phone does not open the address.</td><td>Check that it is on the same network as the computer, that the computer's firewall
+            lets “Ozimut Chrono” through, that the Wi-Fi does not isolate devices from each other, and that the address is the one in Prepare ›
+            Connections or “About”.</td></tr>
+          <tr><td>The page asks for a key.</td><td>Type what follows <code>?k=</code> in the address given by Prepare › Connections or
+            “About”.</td></tr>
           <tr><td>Windows or the antivirus blocks the application.</td><td>It is not signed yet: see “Downloading and installing”.</td></tr>
           <tr><td>The card reader is not seen.</td><td>Check the cable and the reader's USB driver; close any other program holding its port
             (other timing software, the stations' configuration tool, a Chrono tab open in a browser); unplug and plug it again, then

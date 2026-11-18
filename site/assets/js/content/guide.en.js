@@ -551,11 +551,11 @@ export function build(X) {
             competition.</div>
           <p><b>The idea, in three sentences.</b> Every station — a computer or a phone with Chrono open — writes what it does (an entry, a card
             read, a correction) as an operation in one log, the race's. The stations keep each other up to date: through the copy on Ozimut
-            when there is Internet, through the application's hub on a local network, through a file carried across otherwise. Without any
+            when there is Internet, through the Ozimut Chrono application on a local network — every computer that has it links to the others by itself —, through a file carried across otherwise. Without any
             link a station keeps everything itself and carries on: nothing is lost, and everything comes together when the link is back, in
             whatever order.</p>
           <p><b>The screen.</b> At the top, the event's name, the state of the equipment and the connections (readers, printer, copy on Ozimut,
-            hub) and the clock. On the left, the nine stations: Prepare, Desk, Start, Finish, Monitor, Speaker, Referee, Units, Close
+            computers linked) and the clock. On the left, the nine stations: Prepare, Desk, Start, Finish, Monitor, Speaker, Referee, Units, Close
             (<kbd>Alt</kbd>+<kbd>1</kbd> to <kbd>Alt</kbd>+<kbd>9</kbd>). Under the bar, the buttons of the station in hand. At the bottom, the
             counts: entries, running, cards read, ranked, points to deal with. A card read at any station is kept, judged, announced by a beep
             (high: all is well; low: something is missing) and, if you asked for it, printed.</p>`)}
@@ -577,7 +577,8 @@ export function build(X) {
             <div class="mx-step"><b>Starts</b>The “Draw” of the start times, checks on the list, printing the start lists, IOF XML export. Not
               needed with a start unit or a mass start.</div>
             <div class="mx-step"><b>Equipment</b>The card readers, the receipt printer, and the “Rehearsal”.</div>
-            <div class="mx-step"><b>Connections</b>The operator's name, the copy on Ozimut, the live results, the hub, the event file.</div>
+            <div class="mx-step"><b>Connections</b>The operator's name, the copy on Ozimut, the live results, the arena's other computers and the
+              event code, the event file.</div>
             <div class="mx-step"><b>Check</b>What prevents starting and what is only advised, with “Go there” to the step concerned; then
               “Open the Finish station”.</div>
           </div>
@@ -727,15 +728,43 @@ export function build(X) {
               copied to Ozimut: another computer opening the same event takes the race over, and nothing is lost if this one breaks down.
               “Give the other stations access” makes a key that travels with the race: the stations without an account (the application, a
               phone) then exchange with Ozimut too, with nothing to type.</p></div>
-            <div class="mx-box" style="--c:var(--s3)"><h3>Hub</h3><p>The Ozimut Chrono application, on a computer of the arena, links the
-              stations of the local network without the Internet. On the same computer: “Look for the app on this computer”. The other
-              computers and the phones open the application's address in their browser (see
-              ${CHAP("chrono-app", "The Chrono application")}).</p></div>
+            <div class="mx-box" style="--c:var(--s3)"><h3>The arena's other computers</h3><p>The Ozimut Chrono application, on every computer
+              of the arena that has it, links them together without the Internet: all equal, each with its full copy. Another computer joins
+              the event once, with the “Event code” shown here; phones and screens open the address given here. In the tab, on a computer the
+              application runs on: “Look for the app on this computer” (see below, and ${CHAP("chrono-app", "The Chrono application")}).</p></div>
             <div class="mx-box" style="--c:var(--s2)"><h3>Event file</h3><p>“Save the file” puts the whole race in an .ozchrono file, to carry
               on a USB stick; “Load a file” adds it to the race in hand, doubling nothing. In Chrome or Edge, “Keep a log in a folder” also
               writes every operation into a folder of the computer.</p></div>
           </div>
           <p>The “Operator's name” (“Connections” step) is noted with every change, for the referee's log.</p>`, "chrono-liaisons")}
+        ${slide("Chrono", "The arena's computers", html`
+          <p>With the Ozimut Chrono application, all the arena's computers are equal: no master, no central computer to choose. Each
+            application announces on the local network the events it holds; two applications holding the same event link to each other by
+            themselves, each keeps its full copy and its log, and a computer that comes back catches up with what it missed. It is enough for
+            each computer to reach at least one other.</p>
+          ${list([
+            html`<b>The event code</b>: six letters and digits, made with the event, shown large in Prepare › Connections. Another computer
+              must know it to link; it is never announced on the network.`,
+            html`<b>Joining from another computer</b>: install the application and open it; its home screen › “On the network” › the event ›
+              its code, once only. After that the computer links by itself, at every launch.`,
+            html`<b>Phones and screens</b> (speaker, results, referee, start list): nothing to install, their browser opens the address of a
+              computer the application runs on, given in Prepare › Connections. They cannot read cards or print on a serial receipt printer:
+              browsers forbid it to such local pages.`,
+            html`<b>Ozimut's “Chrono” tab</b> links to the application of its own computer (“Look for the app on this computer”), never to
+              another's: an https page may not talk to a local http page.`,
+            html`<b>A computer does not show up?</b> Some networks (public Wi-Fi, a school's network) block the announcements: in Prepare ›
+              Connections, give the other application's address and key (its menu Help › About).`,
+          ])}
+          <div class="mx-grid">
+            <div class="mx-box" style="--c:var(--s3)"><h3>No Internet</h3><p>Install the application on every computer that reads cards or
+              prints receipts; create (or import) the event on one of them; on each of the others, home screen › “On the network” › the
+              event › its code. Phones and screens open the address given in Connections.</p></div>
+            <div class="mx-box" style="--c:var(--s1)"><h3>With the Internet</h3><p>The “Chrono” tab everywhere, kept up to date by the copy
+              on Ozimut; or the application, which adds silent receipt printing — straight to the printer chosen, without a print dialog —
+              and a copy of the race on the computer's disk.</p></div>
+          </div>
+          <p>These links have only been tried between several applications on one computer, not yet between real computers on an arena's
+            network. The details: ${CHAP("chrono-app", "The Chrono application")}.</p>`, "chrono-arene")}
         ${slide("Chrono", "The rules by country, and the limits", html`
           <p>The event's “Rules” set the age classes, the habits of the draw, the kinds of entry (licence holder, day licence, member of
             another federation, no licence) and the federation's file.</p>
@@ -752,7 +781,7 @@ export function build(X) {
             html`a team results file for relays, and publishing a relay in “Results”;`,
             html`the tab for others than the administrators.`,
           ])}
-          <p>Installing the application, the hub, direct printing and radio controls are described in
+          <p>Installing the application, linking the arena's computers, direct printing and radio controls are described in
             ${CHAP("chrono-app", "The Chrono application")}.</p>`, "chrono-regles")}`,
       "chrono-app": () => appDoc("The Chrono application"),
     });

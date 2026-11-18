@@ -309,3 +309,10 @@
 .chr-doc-sec code { font-family: ui-monospace, SFMono-Regular, Consolas, "Liberation Mono", monospace; font-size: .92em; background: var(--surface-2); border-radius: 4px; padding: 1px 5px; overflow-wrap: anywhere; }
 .chr-doc-sec kbd { font: inherit; font-size: .9em; border: 1px solid var(--border); border-bottom-width: 2px; border-radius: 4px; background: var(--surface); padding: 0 5px; }
 @media print { .chr-doc-toc { display: none; } .chr-doc-sec { break-inside: avoid-page; } }
+
+/* The arena's network: the event's code, the computers linked */
+.chr-lan-code { display: flex; align-items: baseline; gap: 12px; margin: 4px 0 2px; }
+.chr-lan-code span { color: var(--ink-2); }
+.chr-lan-code b { font: 700 28px/1.1 ui-monospace, "Cascadia Mono", Consolas, monospace; letter-spacing: .14em; color: var(--flag); user-select: all; }
+.chr-lan-in { font: 600 22px ui-monospace, "Cascadia Mono", Consolas, monospace; letter-spacing: .14em; text-transform: uppercase; width: 10ch; }
+.chr-sel { user-select: all; word-break: break-all; }

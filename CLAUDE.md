@@ -799,6 +799,13 @@ who time with another tool.
   `www/index.html` (→ `chrono/ui/standalone.js`) and the site's assets, a WebSocket `/hub` linking every station to the
   event's log, a journal `<event>.ozchrono.jsonl` per event, a SIRAP listener on 10000, a key for other computers —,
   `main.mjs` / `preload.cjs` the window (`window.chronoApp`: silent printing, printers, save dialog; Web Serial allowed).
+  **The arena's computers are equal** (owner, 2026-11-18: « all laptops are hubs », simple and automatic; `peers.mjs`,
+  `docs/chrono/design.md` « The arena's computers »): each app says on the network (UDP broadcast, port 8379) which events it
+  holds and links by itself to every app holding the same event, any of them relaying; an event's six-character code
+  (`event.lan`, Préparer › Liaisons) is typed once on a computer that does not hold it yet (its home screen › « Sur le réseau »),
+  then it links by itself at every start; « Un ordinateur n'apparaît pas ? » takes another app's address and key where broadcasts
+  do not pass. Phones and screens open any app's address (no card reader there: plain http). The serial port is chosen by
+  what is connected (`ports.mjs`, 2026-11-18). Tests `t_peers.mjs`, `t_ports.mjs`.
   `node chrono-app/dev-hub.mjs [port] [folder]` runs the hub alone. Electron 45 (2026-11-17): `npm install` in `chrono-app`,
   `npm start`; `npm run smoke` starts the real app hidden on a free port and checks its page is drawn (`smoke.mjs`,
   `--unpacked` for the built app, `--doc` for the documentation window). Only `js/**`, `chrono/**`, the two stylesheets and the

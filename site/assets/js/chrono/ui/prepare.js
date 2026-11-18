@@ -308,14 +308,34 @@ function netPanel(ctx) {
     <p class="chr-dim">${t("chr.net.cloudHint")}</p>
     <label class="chr-check"><input type="checkbox" id="chr-live" ${e.live ? raw("checked") : ""} ${N.cloud.state === "off" ? raw("disabled") : ""}> ${t("chr.net.live")}</label>
     <p class="chr-dim">${t("chr.net.liveHint")}${N.live.state === "ok" ? ` ${t("chr.net.liveOk", { at: atClock(N.live.last) })}` : N.live.state === "error" ? ` ${t("chr.net.liveErr")}` : ""}</p></div>
-  <div class="chr-card"><h3>${t("chr.net.hub")}</h3><p>${t(`chr.hub.long.${N.hub.state}`)} ${N.hub.url ? html`<code>${N.hub.url.replace(/\?.*$/, "")}</code>` : ""}</p>
+  <div class="chr-card"><h3>${t("chr.net.hub")}</h3>${lanBlock(ctx)}
+    ${N.local() || served() ? "" : html`<p>${t(`chr.hub.long.${N.hub.state}`)} ${N.hub.url ? html`<code>${N.hub.url.replace(/\?.*$/, "")}</code>` : ""}</p>
     <p>${N.hub.state === "off" ? html`<button type="button" class="btn" id="chr-hub-find">${icon("search", 14)} ${t("chr.net.findApp")}</button> ` : html`<button type="button" class="btn" id="chr-hub-off">${t("chr.net.leaveHub")}</button> `}
-    <input id="chr-hub-url" class="chr-in-l" placeholder="192.168.1.20:8377" value=""> <input id="chr-hub-key" class="chr-in-m" placeholder="${t("chr.net.key")}" value=""> <button type="button" class="btn" id="chr-hub-join">${t("chr.net.join")}</button></p>
-    <p class="chr-dim">${t("chr.net.hubHint")}</p>
+    </p>
+    <p class="chr-dim">${t("chr.net.hubHint")}</p>`}
     ${window.chronoApp ? "" : html`<p><button type="button" class="btn" id="chr-app-dl">${icon("down", 14)} ${t("chr.app.get")}</button> <span class="chr-dim">${t("chr.app.getHint")}</span></p>`}</div>
   <div class="chr-card"><h3>${t("chr.net.file")}</h3><p><button type="button" class="btn" id="chr-file-out">${icon("down", 14)} ${t("chr.net.fileOut")}</button>
     <button type="button" class="btn" id="chr-file-in">${icon("up", 14)} ${t("chr.net.fileIn")}</button>${"showDirectoryPicker" in window ? html` <button type="button" class="btn" id="chr-journal">${icon("file", 14)} ${ctx.ui.journal ? t("chr.net.journalOn") : t("chr.net.journal")}</button>` : ""}</p>
     <p class="chr-dim">${t("chr.net.fileHint")}</p></div>`;
+}
+/** In the app (or a page linked to the app on this computer): the event's code, the computers linked, the address for phones. */
+/** A page another computer's app serves (a phone, a screen): it follows the race, it does not link computers. */
+const served = () => typeof location !== "undefined" && location.protocol === "http:" && !/^(127\.0\.0\.1|localhost|\[::1\])(:\d+)?$/.test(location.host);
+function lanBlock(ctx) {
+  const N = ctx.net, i = N.hub.info, code = ctx.st().event.lan;
+  // Ozimut's tab, not linked to an app: the code the arena's computers will type, nothing else
+  if (!served() && !N.local() && code && (N.hub.state !== "on" || !i)) return html`<div class="chr-lan-code"><span>${t("chr.lan.code")}</span><b>${code}</b></div><p class="chr-dim">${t("chr.lan.codeTab")}</p>`;
+  if (N.hub.state !== "on" || !i) return "";
+  if (served()) return html`<p>${t("chr.lan.served", { name: i.name || "" })}</p>`;
+  const linked = N.linked(), others = (i.peers?.hubs || []).filter((h) => !linked.some((l) => l.station === h.station));
+  const phone = (i.addresses || [])[0] ? `http://${i.addresses[0]}:${i.port}/?k=${encodeURIComponent(i.token || "")}` : "";
+  return html`${code ? html`<div class="chr-lan-code"><span>${t("chr.lan.code")}</span><b>${code}</b></div><p class="chr-dim">${t("chr.lan.codeHint")}</p>` : ""}
+    ${linked.length ? html`<p><b>${t("ui.colon", { a: tn("chr.lan.linked", linked.length) })}</b> ${linked.map((l) => l.name || l.host).join(", ")}</p>` : ""}
+    ${!linked.length ? html`<p class="chr-dim">${t("chr.lan.alone")}</p>` : ""}
+    ${others.length ? html`<p class="chr-dim">${t("chr.lan.others", { names: others.map((h) => h.name).join(", ") })}</p>` : ""}
+    ${phone ? html`<p>${t("chr.lan.phones")} <code class="chr-sel">${phone}</code></p>` : ""}
+    ${N.local() ? html`<details class="chr-more"><summary>${t("chr.lan.manual")}</summary><p class="chr-dim">${t("chr.lan.manualHint")}</p>
+      <p><input id="chr-peer-host" class="chr-in-l" placeholder="192.168.1.20:8377"> <input id="chr-peer-key" class="chr-in-m" placeholder="${t("chr.net.key")}"> <button type="button" class="btn" id="chr-peer-add">${t("chr.net.join")}</button></p></details>` : ""}`;
 }
 function bindNet(ctx, el, store) {
   const N = ctx.net;
@@ -327,6 +347,14 @@ function bindNet(ctx, el, store) {
   el.querySelector("#chr-live")?.addEventListener("change", (e) => ctx.setEvent({ live: e.target.checked ? 1 : null }));
   el.querySelector("#chr-hub-find")?.addEventListener("click", async () => { const info = await N.findApp(); if (info) N.joinHub(`ws://127.0.0.1:${info.port}/hub`); else ctx.toast(t("chr.net.noApp"), "warn"); });
   el.querySelector("#chr-hub-off")?.addEventListener("click", () => N.leaveHub());
+  el.querySelector("#chr-peer-add")?.addEventListener("click", async () => {
+    const v = el.querySelector("#chr-peer-host").value.trim().replace(/^(ws|http)s?:\/\//, "").replace(/\/.*$/, ""), k = el.querySelector("#chr-peer-key").value.trim();
+    const m = /^(.*?)(?::(\d+))?$/.exec(v);
+    if (!m?.[1]) return;
+    const how = await N.addPeer(m[1], Number(m[2]) || 8377, k).catch(() => "unreachable");
+    ctx.toast(t(`chr.lan.res.${how === "ok" ? "ok" : how === "code" ? "key" : "unreachable"}`), how === "ok" ? "ok" : "stop");
+    ctx.refresh();
+  });
   el.querySelector("#chr-app-dl")?.addEventListener("click", () => appDialog());
   el.querySelector("#chr-hub-join")?.addEventListener("click", () => { const v = el.querySelector("#chr-hub-url").value.trim().replace(/^(ws|http)s?:\/\//, "").replace(/\/.*$/, ""); const k = el.querySelector("#chr-hub-key").value.trim(); if (v) N.joinHub(`ws://${v}/hub${k ? `?k=${encodeURIComponent(k)}` : ""}`); });
   el.querySelector("#chr-file-out")?.addEventListener("click", () => download(eventFileName(ctx.log, ctx.ev), toFile(ctx.log, ctx.ev), "application/json"));
@@ -355,7 +383,7 @@ function checks(ctx) {
       text: tn("chr.chk.teams", Object.values(st.teams).filter((tm) => { const k = st.classes[tm.cls]; return !k || (tm.runners || []).filter((id) => st.runners[id]).length < (k.legs?.length || k.team?.size || 1); }).length) }] : []),
     { step: "kit", ok: ctx.devices.readers.some((r) => r.state !== "error"), warn: true, text: t("chr.chk.reader") },
     { step: "kit", ok: ctx.devices.printer.mode !== "none", warn: true, text: t("chr.chk.printer") },
-    { step: "net", ok: ctx.net.cloud.state === "ok" || ctx.net.hub.state === "on" || !!ctx.ui.journal, warn: true, text: t("chr.chk.copy") },
+    { step: "net", ok: ctx.net.cloud.state === "ok" || (ctx.net.hub.state === "on" && (!ctx.net.local() || ctx.net.linked().length > 0)) || !!ctx.ui.journal, warn: true, text: t("chr.chk.copy") },
   ];
 }
 function checkPanel(ctx) {
