@@ -380,6 +380,11 @@ const CLS_KEYS = ["white", "open", "rough", "g1", "g2", "g3", "water", "shallow"
  *  scan's shade), one terrain other than white forest over two thirds of it, no path at all on a forest map of some size. */
 export function readingWarning(info, s) {
   if (!info?.counts || info.vector) return "";
+  // a photo too coarse for the reading: a town's lanes, walls and fences, a forest's paths are a pixel or two, blurred into what
+  // lies beside them, and the routes cross them or miss them whatever the reading does (the Morbihan sprint photos sent through a
+  // messaging app, about 1.1 px a metre: 2026-11-18). About 150 dpi of the map at its usual scale (1:4 000, 1:10 000) is needed
+  const mpp = info.cs ? info.mpc / info.cs : 0, need = s.map === "sprint" ? 1.5 : 0.6;
+  if (mpp > 0 && 1 / mpp < need) return t("rc.warn.coarse", { r: fmt(1 / mpp, 1), need: fmt(need, 1) });
   const n = info.counts.reduce((a, b) => a + b, 0) || 1, pct = (v) => Math.round((100 * v) / n);
   if (s.map !== "sprint" && (info.counts[A.GREY] + info.counts[A.BUILDING]) / n > 0.2) return t("rc.warn.grey", { p: pct(info.counts[A.GREY] + info.counts[A.BUILDING]) });
   for (let c = 1; c < info.counts.length; c++) if (info.counts[c] / n > 0.66) return t("rc.warn.one", { p: pct(info.counts[c]), c: t(`rc.cls.${CLS_KEYS[c]}`) });

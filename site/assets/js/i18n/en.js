@@ -2867,6 +2867,7 @@ export default {
   "rc.warn.grey": "{p}% of the map is read as bare rock or buildings: its colours were probably misread (a dark or tinted photo). Check “Show the terrain as read”.",
   "rc.warn.one": "{p}% of the map is read as “{c}”: check “Show the terrain as read”.",
   "rc.warn.nopath": "No path was read on the map: check “Show the terrain as read”.",
+  "rc.warn.coarse": "The map is read at {r} px per metre: too few for reliable routes. Paths, lanes, walls and fences are only a pixel or two wide, and the computed routes may cross or miss them. At least {need} are needed: drop the original photo at full resolution (not one sent through a messaging app, which shrinks it) or a scan at 300 dpi.",
   "rc.cls.track": "Road, track",
   "rc.cls.path": "Footpath",
   "rc.cls.small": "Small path",

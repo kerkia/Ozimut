@@ -2150,6 +2150,7 @@ export default {
   "rc.warn.grey": "{p} % de la carte est lu comme du rocher nu ou des bâtiments : ses couleurs ont sans doute été mal lues (une photo sombre ou teintée). Vérifiez « Voir le terrain tel que lu ».",
   "rc.warn.one": "{p} % de la carte est lu comme « {c} » : vérifiez « Voir le terrain tel que lu ».",
   "rc.warn.nopath": "Aucun chemin n’a été lu sur la carte : vérifiez « Voir le terrain tel que lu ».",
+  "rc.warn.coarse": "La carte est lue à {r} px par mètre : trop peu pour des itinéraires fiables. Chemins, ruelles, murs et clôtures n’y font qu’un ou deux pixels, et les itinéraires calculés peuvent les traverser ou les manquer. Il en faut {need} au moins : déposez la photo d’origine en pleine résolution (pas celle envoyée par une messagerie, qui la réduit) ou un scan à 300 ppp.",
   "rc.cls.track": "Route, piste",
   "rc.cls.path": "Chemin",
   "rc.cls.small": "Petit sentier",

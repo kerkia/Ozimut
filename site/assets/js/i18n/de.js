@@ -3006,6 +3006,7 @@ export default {
   "rc.warn.grey": "{p} % der Karte werden als nackter Fels oder Gebäude gelesen: Ihre Farben wurden wohl falsch gelesen (ein dunkles oder farbstichiges Foto). Prüfe „Gelände wie gelesen anzeigen“.",
   "rc.warn.one": "{p} % der Karte werden als „{c}“ gelesen: Prüfe „Gelände wie gelesen anzeigen“.",
   "rc.warn.nopath": "Auf der Karte wurde kein Weg gelesen: Prüfe „Gelände wie gelesen anzeigen“.",
+  "rc.warn.coarse": "Die Karte wird mit {r} px pro Meter gelesen: zu wenig für verlässliche Routen. Wege, Gassen, Mauern und Zäune sind darauf nur ein oder zwei Pixel breit, und die berechneten Routen können sie durchqueren oder übersehen. Nötig sind mindestens {need}: Lege das Originalfoto in voller Auflösung ab (nicht das über einen Messenger verschickte, der es verkleinert) oder einen Scan mit 300 dpi.",
   "rc.cls.track": "Straße, Fahrweg",
   "rc.cls.path": "Fußweg",
   "rc.cls.small": "Kleiner Pfad",

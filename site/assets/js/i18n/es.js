@@ -3006,6 +3006,7 @@ export default {
   "rc.warn.grey": "El {p} % del mapa se lee como roca desnuda o edificios: sus colores se han leído mal, sin duda (una foto oscura o con dominante de color). Comprueba «Ver el terreno tal como se ha leído».",
   "rc.warn.one": "El {p} % del mapa se lee como «{c}»: comprueba «Ver el terreno tal como se ha leído».",
   "rc.warn.nopath": "No se ha leído ningún camino en el mapa: comprueba «Ver el terreno tal como se ha leído».",
+  "rc.warn.coarse": "El mapa se lee a {r} px por metro: muy poco para itinerarios fiables. Caminos, callejones, muros y vallas solo ocupan uno o dos píxeles, y los itinerarios calculados pueden atravesarlos o pasarlos por alto. Hacen falta al menos {need}: suelta la foto original a resolución completa (no la enviada por una aplicación de mensajería, que la reduce) o un escaneo a 300 ppp.",
   "rc.cls.track": "Carretera, pista",
   "rc.cls.path": "Sendero",
   "rc.cls.small": "Senda pequeña",
