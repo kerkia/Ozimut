@@ -2588,7 +2588,7 @@ export default {
   "an.forget": "Forget the files",
   "an.st.restored": "Calibration from your last visit restored.",
   "an.st.newReader": "Ozimut reads maps better since this calibration: “Redo the automatic calibration” to benefit (controls placed by hand will need placing again).",
-  "an.st.reading": "Reading the course on the map…", "an.st.reading2": "The course has lost its colour in this picture: reading the circles without colour…", "an.st.startFound": "Start placed where the track waits, on the line leading to the first control: please check it.",
+  "an.st.reading": "Reading the course on the map…", "an.st.reading2": "The course has lost its colour in this picture: reading the circles without colour…", "an.st.startFound": "Start placed where the track waits, on the line leading to the first control: please check it.", "an.st.startTriangle": "Start placed on the triangle found at the end of the line leading to the first control, where the track waits: please check it.",
   "an.st.aligning": "Aligning the track with the controls…",
   "an.st.noCourse": "No course read on the map (no purple circles recognised): mark the controls by hand.",
   "an.st.found": "Read on the map: {n} control circles, start {s}, finish {f}.",

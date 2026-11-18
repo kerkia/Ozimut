@@ -2254,6 +2254,16 @@ Every multiple-choice game was played through to its score page at phone size, w
   pooled), **its last wait**. That is the start line, where the clock starts: on the second photo the triangle itself (2 px),
   on the third 12 m before it (a minute in the call-up box 40 m back, then 9 s), on the first 63 m before it along the
   marked route. The race clock then starts there (26:22, 28:05 and 25:49 instead of the whole trace).
+  **Then the triangle near it** (owner, 2026-11-18: « look for something that resembles a triangle close to that location »):
+  `course.js` `triangleOnLeg`, on that run from ten radii before the wait to two past it, within half a radius of the line —
+  an equilateral triangle of 0.55-0.9 r* (the three photos' are 0.6-0.8), its tip toward the first control (± 12°), each side
+  80 % of points with an ink pixel within a pixel **of the printed leg's colour** (`legColour`: the median red − green and
+  blue − green of the run's ink pixels; a point counts when its colour projects on that at half its length or more — a town's
+  black and grey lines meet in triangles of that size everywhere: hundreds of candidates by shape alone), the middle not filled
+  on the unwidened mask (a north line across it is fine), the same triangle 1.5 times larger finding little ink (score = the
+  weakest side less the larger one's, 0.4 at least); the best score, then among those within 0.07 of it the nearest to the
+  wait. Found: the second and third photos' triangles (565,420 and 654,482; note `an.st.startTriangle`); the first's sits
+  against the purple out-of-bounds area (colour and surroundings tell nothing) and the pick is 25 px below it (the wait 68 px).
 - **The analyses' playback layout** (owner, 2026-11-01: « the map is the key and should always be fully visible », « never need to
   scroll down on a large screen »; supersedes the layout notes above for « Analyse solo » and « Analyse multi »): the controls above
   the map (`.an-bar`: the race's line, play, speed, follow, the time slider, ⤢ ↗; Solo's figures of the moment on a second line —

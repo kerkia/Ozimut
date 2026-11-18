@@ -2707,7 +2707,7 @@ export default {
   "an.forget": "Dateien vergessen",
   "an.st.restored": "Kalibrierung deines letzten Besuchs wiederhergestellt.",
   "an.st.newReader": "Ozimut liest Karten seit dieser Kalibrierung besser: „Automatische Kalibrierung wiederholen“, um davon zu profitieren (von Hand gesetzte Posten müssen neu gesetzt werden).",
-  "an.st.reading": "Bahn wird von der Karte gelesen…", "an.st.reading2": "Die Bahn hat auf diesem Bild ihre Farbe verloren: Die Kreise werden ohne Farbe gelesen…", "an.st.startFound": "Start dort gesetzt, wo die Spur wartet, auf der Linie zum ersten Posten: bitte prüfen.",
+  "an.st.reading": "Bahn wird von der Karte gelesen…", "an.st.reading2": "Die Bahn hat auf diesem Bild ihre Farbe verloren: Die Kreise werden ohne Farbe gelesen…", "an.st.startFound": "Start dort gesetzt, wo die Spur wartet, auf der Linie zum ersten Posten: bitte prüfen.", "an.st.startTriangle": "Start auf das Dreieck gesetzt, das am Ende der Linie zum ersten Posten gefunden wurde, dort, wo die Spur wartet: bitte prüfen.",
   "an.st.aligning": "Track wird auf die Posten ausgerichtet…",
   "an.st.noCourse": "Keine Bahn auf der Karte gelesen (keine violetten Kreise erkannt): Setze die Posten von Hand.",
   "an.st.found": "Von der Karte gelesen: {n} Postenkreise, Start {s}, Ziel {f}.",

@@ -76,13 +76,13 @@ async function readCourse(image, { maxSide = 1800, debug = false, dark = false, 
   // a step done: said, and the page given a moment to draw it (nothing waits when nobody listens)
   const step = progress ? (f) => { progress(f); return breathe(); } : () => null;
   const W = image.width, H = image.height;
-  let s = Math.min(1, maxSide / Math.max(W, H)), w, h, full, lw, lum, ink, tInk, dens;
+  let s = Math.min(1, maxSide / Math.max(W, H)), w, h, full, lw, lum, ink, tInk, dens, pix;
   const read = () => {
     w = Math.max(1, Math.round(W * s)); h = Math.max(1, Math.round(H * s));
     const cv = typeof OffscreenCanvas !== "undefined" ? new OffscreenCanvas(w, h) : Object.assign(document.createElement("canvas"), { width: w, height: h });
     const g = cv.getContext("2d", { willReadFrequently: true });
     g.drawImage(image, 0, 0, w, h);
-    const data = g.getImageData(0, 0, w, h).data;
+    const data = (pix = g.getImageData(0, 0, w, h).data);
     ({ m: full, M: ink, t: tInk, D: dens } = (dark ? darkMask : inkMask)(data, w, h));
     lw = lineWidth(full, w, h);
     lum = new Uint8Array(w * h);                                          // the lightness, for the finish's rings
@@ -315,7 +315,7 @@ async function readCourse(image, { maxSide = 1800, debug = false, dark = false, 
         if (v >= 8) { const a = (sum[b] + sum[b + 1]) / v; waits.push({ x: from.x + a * ux, y: from.y + a * uy, wait: v, t: (when[b] + when[b + 1]) / v }); }
       }
       if (!waits.length) continue;
-      const c = { deg, len: last - f0, total: Math.max(...waits.map((q) => q.wait)), waits };
+      const c = { deg, f0, last, len: last - f0, total: Math.max(...waits.map((q) => q.wait)), waits };
       runs.push(c);
       if (all) all.push({ deg, len: c.len / s, total: c.total, waits: waits.map((q) => ({ ...q, x: q.x / s, y: q.y / s })) });
     }
@@ -324,8 +324,74 @@ async function readCourse(image, { maxSide = 1800, debug = false, dark = false, 
     const top = runs.reduce((p, q) => (q.total > p.total ? q : p));
     const pool = runs.filter((q) => Math.min(Math.abs(q.deg - top.deg), 360 - Math.abs(q.deg - top.deg)) <= 3).flatMap((q) => q.waits);
     const best = pool.reduce((p, q) => (q.t > p.t + 1 || (q.t > p.t - 1 && q.wait > p.wait) ? q : p));
-    return { x: best.x / s, y: best.y / s, wait: best.wait };
+    // the triangle itself, now that the place is narrow (owner, 2026-11-17): on that line, from the wait toward the
+    // first control, a tip pointing at the control
+    const tri = triangleOnLeg(from, best, legColour(from, top), all && (all.tri = []));
+    return tri ? { x: tri.x / s, y: tri.y / s, R: tri.R / s, wait: best.wait, triangle: true } : { x: best.x / s, y: best.y / s, wait: best.wait };
   };
+  /** A start triangle on the line from `at` (where the runner waited) to the first control `from`: an equilateral
+   *  triangle of 0.55 to 0.9 r* (measured on three town sprints: 0.6-0.8), one tip toward the control (± 12°), its centre within half a radius of the line, from
+   *  two radii behind the wait to ten before it (the start line may lie well before the triangle, along a marked
+   *  route), never within 2.5 r* of the control. Each side read on the mask (the share inked, a pixel of tolerance);
+   *  the weakest side counts, the middle must not be filled (a line across it is fine: the magnetic north lines), the same
+   *  triangle half as large again must find little ink — lines of a town meet in triangles, a drawn
+   *  triangle stands alone —, and the nearest to the wait wins among those nearly as good. */
+  /** The colour of the printed leg a run follows: the ink pixels along it, their red and blue less their green (the
+   *  overprint's purple keeps them apart from the map's black and grey lines whatever the light), the median of each. */
+  function legColour(from, run) {
+    const ux = Math.cos((run.deg * Math.PI) / 180), uy = Math.sin((run.deg * Math.PI) / 180), rb = [], bg = [];
+    for (let d = run.f0; d <= run.last; d += 0.5) for (let o = -1; o <= 1; o++) {
+      const x = Math.round(from.x + d * ux - o * uy), y = Math.round(from.y + d * uy + o * ux);
+      if (x < 0 || y < 0 || x >= w || y >= h || !full[y * w + x]) continue;
+      const p = 4 * (y * w + x); rb.push(pix[p] - pix[p + 1]); bg.push(pix[p + 2] - pix[p + 1]);
+    }
+    if (rb.length < 10) return null;
+    const med = (a) => a.sort((p, q) => p - q)[a.length >> 1];
+    return [med(rb), med(bg)];
+  }
+  function triangleOnLeg(from, at, colour, list = null) {
+    const L = Math.hypot(at.x - from.x, at.y - from.y);
+    if (L < 3 * rStar) return null;
+    const ux = (at.x - from.x) / L, uy = (at.y - from.y) / L, back0 = Math.atan2(-uy, -ux);
+    // the leg's colour, when it has one (its red and blue above its green): a side's point counts only when an ink pixel
+    // within a pixel of it shares that colour — a town's black and grey lines meet in triangles everywhere
+    const cn = colour && Math.hypot(colour[0], colour[1]) >= 8 ? Math.hypot(colour[0], colour[1]) : 0;
+    const like = (x, y) => {
+      if (!cn) return dil[y * w + x];
+      for (let j = -1; j <= 1; j++) for (let i = -1; i <= 1; i++) {
+        const X = x + i, Y = y + j;
+        if (X < 0 || Y < 0 || X >= w || Y >= h || !full[Y * w + X]) continue;
+        const p = 4 * (Y * w + X), a = pix[p] - pix[p + 1], b = pix[p + 2] - pix[p + 1];
+        if ((a * colour[0] + b * colour[1]) / cn >= 0.5 * cn) return 1;
+      }
+      return 0;
+    };
+    const side = (ax, ay, bx, by) => { let n = 0; for (let q = 0; q < 16; q++) { const f = (q + 0.5) / 16, x = Math.round(ax + f * (bx - ax)), y = Math.round(ay + f * (by - ay)); if (x >= 0 && y >= 0 && x < w && y < h && like(x, y)) n++; } return n / 16; };
+    const tri = (cx, cy, R, th) => {
+      const V = [0, 1, 2].map((m) => [cx + R * Math.cos(th + (2 * Math.PI * m) / 3), cy + R * Math.sin(th + (2 * Math.PI * m) / 3)]);
+      return Math.min(side(V[0][0], V[0][1], V[1][0], V[1][1]), side(V[1][0], V[1][1], V[2][0], V[2][1]), side(V[2][0], V[2][1], V[0][0], V[0][1]));
+    };
+    const filled = (cx, cy, r) => { let n = 0, k = 0; for (let y = Math.floor(cy - r); y <= cy + r; y++) for (let x = Math.floor(cx - r); x <= cx + r; x++) if ((x - cx) ** 2 + (y - cy) ** 2 <= r * r && x >= 0 && y >= 0 && x < w && y < h) { k++; if (full[y * w + x]) n++; } return k ? n / k : 1; };
+    const found = [];
+    for (let a = Math.max(2.5 * rStar, L - 10 * rStar); a <= L + 2 * rStar; a += 1) for (let o = -0.5 * rStar; o <= 0.5 * rStar; o += 1) {
+      const cx = from.x + a * ux - o * uy, cy = from.y + a * uy + o * ux;
+      for (const k of [0.55, 0.6, 0.65, 0.7, 0.75, 0.8, 0.85, 0.9]) for (let da = -12; da <= 12; da += 4) {
+        const R = k * rStar, th = back0 + (da * Math.PI) / 180;
+        const weak = tri(cx, cy, R, th);
+        if (weak < 0.8) continue;
+        if (filled(cx, cy, 0.35 * R) > 0.5) continue;      // filled: no triangle's hollow (a line across it is fine)
+        // a drawn triangle, not lines of the map that happen to meet: the same shape smaller and larger finds no ink
+        const score = weak - tri(cx, cy, 1.5 * R, th);
+        if (score < 0.4) continue;
+        const c = { x: cx, y: cy, R, weak, score, far: Math.abs(a - L) };
+        if (list) list.push({ x: cx / s, y: cy / s, R: R / s, k, weak: score, far: c.far / s });
+        found.push(c);
+      }
+    }
+    if (!found.length) return null;
+    const top = Math.max(...found.map((c) => c.score));
+    return found.filter((c) => c.score >= top - 0.07).reduce((p, q) => (q.far < p.far ? q : p));
+  }
   /** The share of the straight way between two symbols (image points, each left at 1.3 r*) inked with the
    *  overprint, within a pixel and a half of the line: a leg printed from one to the other comes near 1 (ISOM cuts it
    *  here and there), two symbols no leg joins near 0. For the page: the legs say which controls follow each other. */
