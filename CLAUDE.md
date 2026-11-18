@@ -1405,7 +1405,14 @@ Every multiple-choice game was played through to its score page at phone size, w
   ville (sprint) »** (owner, 2026-11-18: the check and `test_remarks.py` are the developer's extensive tests, run to keep improving
   the generator; a user would not know what to do with their outcome, and on Gif they took about 100 of the map's 120 minutes):
   `townmap_ci.py` runs `town_map.py --clip --no-check`, no repair pass and no report (`legibility.despike_doc`, a cleanup, still runs);
-  its repairs are to move into the generator's own steps, so that its first draw needs none; the report rule by rule with the first places in Lambert 93 in the log and `src/legibility.json`. ISSprOM 2019-2's
+  its repairs are to move into the generator's own steps, so that its first draw needs none. **The corrections as an option**
+  (owner, the same day): « Corriger la lisibilité » in the « Plan de ville » dialog and in « Nouvelle carte » (a sprint map),
+  unticked, with the minutes it adds (`dataui.fixMinutes`: about 1 h 30 a km² said) — 1 km² at most (`/api/townmap` `fix`,
+  400 « fix too large » beyond); such a request keeps the repair passes (never the report) in townmap.yml's job « fix », its own
+  concurrency group with 330 min, so that it never holds up the quick maps (`townmap_ci.py --kind quick|fix`, exit 3 when none of
+  its kind waits; the queue ahead counted per kind); the page says the pass running (`@@pass n`). Measured on the PC (Gif's
+  centre): 500 × 500 m without it 105 s, 300 × 300 m with it 121 s (6 passes). For the developer, the report rule by rule with
+  the first places in Lambert 93 in the log and `src/legibility.json`. ISSprOM 2019-2's
   rules: impassable features (521, 520, 411, 301, 709, walls 515/529, fences 518) under 0.4 mm apart (1.6 m; under 0.02 mm they
   touch, OCAD's grid) — closed: a wall's end drawn on to what lies straight ahead (beside it: reported, drawn sideways it made
   zigzags), the space between areas filled with the area's symbol (buildings merged, olive extended), long gaps by a closing, two

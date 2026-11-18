@@ -188,7 +188,8 @@ async function newMap() {
       ${dataBox("bdtopo", true, "map.new.national", "map.new.nationalTip")}
       ${dataBox("osm", false, "map.new.osm", "map.new.osmTip")}
       ${dataBox("dem", true, "map.new.dem", "map.new.demTip")}
-      ${dataBox("lidar", false, "map.new.lidar", "map.new.lidarTip")}</fieldset>
+      ${dataBox("lidar", false, "map.new.lidar", "map.new.lidarTip")}
+      <span data-townfix style="display:none;flex-basis:100%">${dataBox("townfix", false, "map.new.townFix", "map.new.townFixTip")}</span></fieldset>
     <div data-support></div>`,
     onOpen: (form) => {
       // what Cartographier has at the place typed; where something is missing, the way to ask Ozimut for that country
@@ -202,6 +203,14 @@ async function newMap() {
       form.place.addEventListener("input", support);
       // the forest map's scale: ISOM's own 1:15 000 by default, 1:10 000 its 150 % enlargement
       form.querySelectorAll("[name=kind]").forEach((r) => r.addEventListener("change", () => { form.querySelector("[data-fscale]").style.display = form.kind.value === "forest" ? "" : "none"; }));
+      // the town plan's legibility corrections (a sprint map in France; 1 km² at most: the sizes over it greyed out)
+      const fixBox = () => {
+        const sprint = form.kind.value === "sprint", ok = Number(form.size.value) <= 1;
+        form.querySelector("[data-townfix]").style.display = sprint ? "" : "none";
+        form.townfix.disabled = !ok; if (!ok) form.townfix.checked = false;
+      };
+      form.querySelectorAll("[name=kind]").forEach((r) => r.addEventListener("change", fixBox));
+      form.size.addEventListener("change", fixBox);
       // ⓘ: the source in a tooltip; a tap (no hover on a phone) shows it under the line
       form.querySelectorAll("[data-tip]").forEach((b) => b.addEventListener("click", () => { const p = b.parentElement.querySelector(".mp-tip"); p.style.display = p.style.display === "none" ? "block" : "none"; }));
       // one set of contours: the LiDAR's replace the terrain model's
@@ -238,7 +247,7 @@ async function newMap() {
     if (sprint && nat === "bdtopo" && (v.bdtopo || v.osm)) {
       // a sprint map in France: the town map of the generator Pixel's races use (LiDAR, BD TOPO, BD ORTHO, cadastre,
       // OpenStreetMap; the townmap workflow, several minutes), its contours with it — one engine, not the separate imports
-      await D.town(E, { contours: !!v.dem });
+      await D.town(E, { contours: !!v.dem, fix: !!v.townfix });
       if (v.lidar) await E.act("data-lidar");
     } else for (const [k, act] of [["dem", "data-contours"], ["bdtopo", "data-national"], ["osm", "data-osm"], ["lidar", "data-lidar"]]) {
       if (k === "dem" && v.lidar && !sprint) continue;            // a forest map: the LiDAR's contours, not the terrain model's

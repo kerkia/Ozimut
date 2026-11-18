@@ -2,13 +2,16 @@
 town's sprint map — the generator Pixel's races use —, quality before speed): each request the site wrote (functions/api/townmap:
 R2 townmap/req/<id>.json, { id, lat, lon, w, h, by, at, status }) made by town_fetch.py (IGN's LiDAR HD, BD TOPO, BD ORTHO and
 its infrared, the cadastre, OpenStreetMap) and town_map.py --clip --no-check (the ISSprOM 2019-2 objects, cut to the area asked
-for; no legibility check: the developer's tests, owner 2026-11-18), the objects written gzipped to R2 townmap/out/<id>.json.gz, the request marked done or
+for; no legibility check: the developer's tests, owner 2026-11-18 — a request with « fix » keeps its repair passes, without the
+report, in a job of its own: --kind fix), the objects written gzipped to R2 townmap/out/<id>.json.gz, the request marked done or
 failed, its progress written into it as it goes.
 
-  python tools/virtually/townmap_ci.py --reqs <folder of the requests> --work <work folder>
+  python tools/virtually/townmap_ci.py [--kind quick|fix] --reqs <folder of the requests> --work <work folder>
   (env BUCKET=s3://cn-state, R2=<endpoint>: the aws CLI's address, AWS_* as lidarmap.yml; BUCKET=file://<folder> on the PC)
 
-  python tools/virtually/townmap_ci.py --setup --reqs <folder>      (the job's first step: the queued requests marked « setup »)
+  python tools/virtually/townmap_ci.py --setup [--kind quick|fix] --reqs <folder>   (the job's first step: its queued requests
+                                                                                   marked « setup »)
+Exit 3: no request of that kind was waiting (the workflow's rounds stop).
 
 Requests and results older than 30 days are deleted. The work folder (the point clouds: hundreds of MB a km²) goes after each.
 
@@ -112,13 +115,23 @@ def make(req: dict, work: Path) -> dict:
     prog.extra = {"step": "points"}
     prog("map", 0)
 
+    fix = bool(req.get("fix"))
+    steps = STEPS_FIX if fix else STEPS
+
     def stepped(line: str):
         parts = line.split()
         if parts[0] == "@@step":
             prog.extra = {"step": parts[1]}
-            prog("map", STEPS.get(parts[1], 0), force=True)
+            prog("map", steps.get(parts[1], 0), force=True)
+        elif parts[0] == "@@pass" and fix:                          # the corrections' passes (town_map.py's markers)
+            n = int(parts[1])
+            prog.extra = {"step": "legibility", "pass": n}
+            prog("map", min(0.95, steps["legibility"] + (0.95 - steps["legibility"]) * n / FIX_PASSES), force=True)
     t0 = time.monotonic()
-    stream([PY, HERE / "town_map.py", rid, "--clip", "--no-check"], prog, "map", est=30 + w * h / 5000, on_line=stepped, env=env, cwd=HERE)
+    # a corrected map keeps legibility.py's repair passes (its report is not passed on); the others: no check at all
+    est = 30 + w * h / 5000 + (w * h * 0.0055 if fix else 0)
+    stream([PY, HERE / "town_map.py", rid, "--clip"] + ([] if fix else ["--no-check"]), prog, "map", est=est, on_line=stepped,
+           env=env, cwd=HERE)
     timing["map"] = round(time.monotonic() - t0)
     prog.extra = {}
     rd = work / rid
@@ -130,20 +143,24 @@ def make(req: dict, work: Path) -> dict:
     prog("upload", 0)
     data = gzip.compress(json.dumps(out, separators=(",", ":")).encode("utf-8"))
     ci.aws("cp", "-", f"{ci.BUCKET}/{OUT}{rid}.json.gz", "--content-type", "application/json", data=data)
-    return {"objects": len(out["objects"]), "bytes": len(data), "lidar": sorted(set(out["lidar"].values())), "s": timing}
+    return {"objects": len(out["objects"]), "bytes": len(data), "lidar": sorted(set(out["lidar"].values())), "s": timing, "fix": fix}
 
 
 # town_map.py's steps and the share of the map's time they usually start at (500 × 500 m of Gif, 2026-11-12)
 STEPS = {"points": 0.0, "photo": 0.1, "vectors": 0.12, "areas": 0.2, "enclosures": 0.35, "lines": 0.45, "contours": 0.75,
          "objects": 0.82}
+# with the corrections (on Gif they took about 100 of the map's 120 minutes): the drawing a quarter of the bar, the passes the rest
+STEPS_FIX = {k: v * 0.3 for k, v in STEPS.items()} | {"legibility": 0.25}
+FIX_PASSES = 18                                                     # the passes usually run (17 on Gif, 20 at most)
+kind_of = lambda r: "fix" if r.get("fix") else "quick"
 
 
-def setup(reqs: Path):
+def setup(reqs: Path, kind: str | None = None):
     """The job's first step: every request still waiting marked « setup » (the runner is installing Python's libraries), so that
     the page says so instead of « waiting for a server »."""
     for f in sorted(reqs.glob("*.json")):
         r = json.load(open(f, encoding="utf-8"))
-        if r.get("status") == "queued" and not r.get("progress"):
+        if r.get("status") == "queued" and not r.get("progress") and kind in (None, kind_of(r)):
             r["progress"] = {"stage": "setup", "frac": 0, "at": now_iso()}
             try:
                 ci.put_json(f"{Q}{r['id']}.json", r)
@@ -164,15 +181,19 @@ def main():
     ap.add_argument("--reqs", required=True, type=Path)
     ap.add_argument("--work", type=Path)
     ap.add_argument("--setup", action="store_true", help="only mark the waiting requests « setup »")
+    ap.add_argument("--kind", choices=["quick", "fix"], help="only the requests without / with the legibility corrections")
     a = ap.parse_args()
     if a.setup:
-        return setup(a.reqs)
+        return setup(a.reqs, a.kind)
     reqs = sorted((json.load(open(f, encoding="utf-8")) for f in a.reqs.glob("*.json")), key=lambda r: r.get("at", ""))
     sweep(reqs)
     # the queued ones, and those a run stopped short (no word of them for three hours)
     todo = [r for r in reqs if r.get("status") == "queued" and (not r.get("progress") or r["progress"].get("stage") == "setup"
-                                                              or age_days(r["progress"].get("at")) > 0.125)]
+                                                              or age_days(r["progress"].get("at")) > 0.125)
+            and a.kind in (None, kind_of(r))]
     print(len(todo), "town maps to make", flush=True)
+    if not todo:
+        sys.exit(3)
     for req in todo:
         t0 = time.monotonic()
         try:

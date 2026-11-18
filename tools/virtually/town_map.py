@@ -45,7 +45,7 @@ What each symbol comes from:
   under 600 m², no line under 40 m), cut exactly at the buildings: a contour ends at a building or the map's edge, nowhere else; 417/418 trees outside the woods, each (the LiDAR's crowns); 526 monuments,
   311 fountains (OpenStreetMap); 601 north lines.
 Also writes DATA/<race>/src/rasters.npz (the LiDAR's grids, the classes) and src/roofpts.npy (class 6 points) for town_3d.py."""
-import json, math, os, sys, time
+import json, math, os, re, sys, time
 from pathlib import Path
 
 import numpy as np
@@ -1761,7 +1761,14 @@ if "--no-check" in sys.argv:                 # a user's map: no test run (an ear
     (SRC / "legibility.json").unlink(missing_ok=True)
 else:
     step("legibility")
-    LEG = legibility.check(DOC, fix="--no-fix" not in sys.argv, frame=CLIP, log=log, decks=DECK_ALL)   # (its sides: 515, no gap)
+    _pass = [0]
+    def leg_log(s):                          # each new pass also as a marker (townmap_ci.py: « corrections, pass n »)
+        log(s)
+        m_ = re.search(r"legibility pass (\d+) ", s)
+        if m_ and int(m_.group(1)) != _pass[0]:
+            _pass[0] = int(m_.group(1))
+            print(f"@@pass {_pass[0]}", flush=True)
+    LEG = legibility.check(DOC, fix="--no-fix" not in sys.argv, frame=CLIP, log=leg_log, decks=DECK_ALL)   # (its sides: 515, no gap)
     for line in ["legibility"] + LEG.lines():
         log(line)
     legibility.write_report(LEG, SRC / "legibility.json")
