@@ -49,6 +49,7 @@ export async function render(main, { arg, query }) {
   const shown = all ? races : mineT;
   let showScores = query.scores !== "0";
   let range = query.range || "all";
+  let fromD = "", toD = "";                     // the filter's « Du » / « Au », kept when the bar is drawn again
   let calcDate = query.d || null;
   let histMethod = null, ref = "all";
   // France's runner: FFCO's licence, its départements' map, FFCO's pages; another country's numbers are Ozimut's own
@@ -143,7 +144,7 @@ export async function render(main, { arg, query }) {
       <div class="hint" id="fed-hint"></div></div></div><div id="fed-seasons"></div></section>
     </div>
     <div data-panel="carte">
-    ${chartCard({ id: "rmap", title: t("rn.map"), hint: t("rn.map.hint"), tall: true, tools: html`<span id="rmap-tools"></span>` })}
+    ${chartCard({ id: "rmap", title: t("rn.map"), hint: t("rn.map.hint"), tall: true })}
     <p class="muted" id="rmap-note" style="font-size:12.5px;margin:8px 2px 0"></p>
     </div>
     <div data-panel="reseau">${onePart(html`<div id="rn-net"></div>`)}</div>`;
@@ -165,18 +166,29 @@ export async function render(main, { arg, query }) {
   });
   drawCmp();
 
+  // the period (owner, 2026-11-18: with every discipline too) frames the CN chart, the progression and the map
   function drawFilters() {
-    if (all) { $("#filters").innerHTML = terrainField(); return; }
     $("#filters").innerHTML = html`${terrainField()}
       <div class="field"><span>${t("f.range")}</span>${seg("range",
         [["1", t("chart.12m")], ["3", t("chart.3y")], ["5", t("chart.5y")], ["all", t("chart.all")]], range)}</div>
-      <label class="field"><span>${t("f.from")}</span><input type="date" id="from"></label>
-      <label class="field"><span>${t("f.to")}</span><input type="date" id="to"></label>`;
+      <label class="field"><span>${t("f.from")}</span><input type="date" id="from" value="${fromD}"></label>
+      <label class="field"><span>${t("f.to")}</span><input type="date" id="to" value="${toD}"></label>`;
+    const changed = () => {
+      if (mapDrawn) drawMap();
+      if (all) return;
+      drawChart(); drawProgress();
+    };
     $$('[data-seg="range"]').forEach((b) => b.addEventListener("click", () => {
-      range = b.dataset.value; drawFilters(); drawChart(); drawProgress();
+      range = b.dataset.value; drawFilters(); changed();
     }));
-    $("#from").addEventListener("change", drawChart);
-    $("#to").addEventListener("change", drawChart);
+    $("#from").addEventListener("change", (e) => { fromD = e.target.value; changed(); });
+    $("#to").addEventListener("change", (e) => { toD = e.target.value; changed(); });
+  }
+  /** The period chosen, as days [from, to] (null = open), « 12 mois »… counted back from `end`. */
+  function period(end) {
+    let from = fromD || null;
+    if (!from && range !== "all" && end) from = addDays(end, -365 * Number(range));
+    return [from, toD || null];
   }
 
   /** Races that feed the chosen discipline's series (official forest + sprint pooled before 2026). */
@@ -184,6 +196,7 @@ export async function render(main, { arg, query }) {
 
   async function drawTiles() {
     const methods = store.get().methods;
+    if (all) { drawCountTiles(""); return; }
     const month = data.latestMonth();
     const { rows } = await loadRanking(methods, terrain, month);
     const me = rows.find((r) => r.lic === lic);
@@ -209,14 +222,20 @@ export async function render(main, { arg, query }) {
       }
       return tile(t("rn.best", cnWords(m)), best ? fmt(best.cn) : "—", best ? fmtDate(best.date) : "");
     });
-    const recent = mineT.filter((r) => r[R.date] > addDays(month, -365));
-    const pm = recent.filter((r) => r[R.status] === "pm").length;       // mispunches in those races (owner, 2026-10-15)
-    const podiums = mineT.filter((r) => r[R.place] && r[R.place] <= 3).length;
-    const wins = mineT.filter((r) => r[R.place] === 1).length;
     if (!$("#tiles")) return;                           // the page was left while the ranking loaded
-    $("#tiles").innerHTML = html`${tiles}${rankTiles}${bestTiles}
-      ${tile(t("rn.last12"), fmt(recent.length), `${t(`terrain.${terrain}`)}`)}
-      ${tile(t("rn.pm12"), recent.length ? pctN((100 * pm) / recent.length) : "—", recent.length ? t("rn.pm12.sub", { pm, n: recent.length }) : t(`terrain.${terrain}`))}
+    drawCountTiles(html`${tiles}${rankTiles}${bestTiles}`);
+  }
+  /** The tiles that count races (12 months, PM, podiums): the discipline's, or every discipline's under « Toutes ». */
+  function drawCountTiles(before) {
+    const month = data.latestMonth();
+    const what = all ? t("f.all") : t(`terrain.${terrain}`);
+    const recent = shown.filter((r) => r[R.date] > addDays(month, -365));
+    const pm = recent.filter((r) => r[R.status] === "pm").length;       // mispunches in those races (owner, 2026-10-15)
+    const podiums = shown.filter((r) => r[R.place] && r[R.place] <= 3).length;
+    const wins = shown.filter((r) => r[R.place] === 1).length;
+    $("#tiles").innerHTML = html`${before}
+      ${tile(t("rn.last12"), fmt(recent.length), what)}
+      ${tile(t("rn.pm12"), recent.length ? pctN((100 * pm) / recent.length) : "—", recent.length ? t("rn.pm12.sub", { pm, n: recent.length }) : what)}
       ${tile(t("rn.podiums"), fmt(podiums), plural(wins, t("rn.win"), t("rn.wins")))}`;
   }
 
@@ -237,8 +256,7 @@ export async function render(main, { arg, query }) {
 
   function zoomWindow(dates) {
     const first = dates[0], lastD = dates[dates.length - 1];
-    let from = $("#from")?.value || null, to = $("#to")?.value || null;
-    if (!from && range !== "all" && lastD) from = addDays(lastD, -365 * Number(range));
+    const [from, to] = period(lastD);
     const span = (d) => (first && lastD ? 100 * (new Date(d) - new Date(first)) / Math.max(1, new Date(lastD) - new Date(first)) : 0);
     return { start: from ? Math.max(0, span(from)) : 0, end: to ? Math.min(100, span(to)) : 100 };
   }
@@ -737,15 +755,12 @@ export async function render(main, { arg, query }) {
 
   // ---- the map: the races run in each département, whatever the discipline unless one is chosen ---------------
   // (a race is placed by its organiser: a club or a département committee gives the département; a ligue, none)
-  let mapSeason = "", mapDrawn = false;
+  // within the filter's period (owner, 2026-11-18: the map's own season box ignored it), « 12 mois »… back from the last race
+  let mapDrawn = false;
   async function drawMap() {
     mapDrawn = true;
-    const pool = shown.filter((r) => !mapSeason || r[R.date].startsWith(mapSeason));
-    const seasonsR = [...new Set(shown.map((r) => r[R.date].slice(0, 4)))].sort().reverse();
-    $("#rmap-tools").innerHTML = html`<span class="row" style="gap:10px">
-      <select id="rmap-season" aria-label="${t("f.season")}"><option value="">${t("nw.allSeasons")}</option>
-        ${seasonsR.map((s) => html`<option value="${s}" ${raw(s === mapSeason ? "selected" : "")}>${s}</option>`)}</select></span>`;
-    $("#rmap-season").addEventListener("change", (e) => { mapSeason = e.target.value; drawMap(); });
+    const [from, to] = period(shown[shown.length - 1]?.[R.date]);
+    const pool = shown.filter((r) => (!from || r[R.date] >= from) && (!to || r[R.date] <= to));
     // one race = one competition (two circuits the same day count once)
     const by = new Map();
     let unplaced = 0;
@@ -785,9 +800,8 @@ export async function render(main, { arg, query }) {
     if (mapDrawn) drawMap();
     drawHistory();
     drawFedSeasons();
-    $("#tiles").hidden = all;
-    if (all) return;
     drawTiles();
+    if (all) return;
     drawChart();
     drawCnHistory();
     drawCalc();
