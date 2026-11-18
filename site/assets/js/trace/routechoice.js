@@ -35,7 +35,7 @@ export const A = { WHITE: 0, OPEN: 1, ROUGH: 2, G1: 3, G2: 4, G3: 5, WATER: 6, S
 export const N_CLASSES = 13;
 const UNKNOWN = 255;
 // pixel kinds: the areas are their class; the inks above them; a north line's pixel taken out
-const I_PURPLE = 20, I_BLACK = 21, I_GREY = 22, I_BROWN = 23, I_BLUE = 24, I_OLIVE = 25, I_ERASED = 26, I_MIXED = 27;
+const I_PURPLE = 20, I_BLACK = 21, I_GREY = 22, I_BROWN = 23, I_BLUE = 24, I_OLIVE = 25, I_ERASED = 26, I_MIXED = 27, I_LILAC = 28;
 export const INK = { PURPLE: I_PURPLE, BLACK: I_BLACK, GREY: I_GREY, BROWN: I_BROWN, BLUE: I_BLUE, OLIVE: I_OLIVE };
 /** The path layer's kinds; BRIDGE marks the pixels drawn across a dashed path's gaps. */
 export const PATH = { SMALL: 1, PATH: 2, TRACK: 3, BRIDGE: 4 };
@@ -117,9 +117,9 @@ export function kindOf(r, g, b, ol = null) {
     return span > 50 ? I_MIXED : I_GREY;
   }
   if (hue < 36) return min > 215 ? A.WHITE : I_BROWN;
-  // a sprint map's pale lilac tint is ground (the Quiberon photo's squares and lanes, 234 187 222 once levelled: read as the
-  // overprint's out-of-bounds area, they shut both ways from the start to control 1 — 2026-11-18); the course's purple is strong
-  if (ol?.sprint && min >= 165) return A.ROUGH;
+  // a sprint map's pale lilac tint is the organisers' out-of-bounds area printed solid (the Quiberon photo's, 234 187 222 once
+  // levelled): an ink of its own, an area once thick (classify); the course's purple is strong (2026-11-18)
+  if (ol?.sprint && min >= 165) return I_LILAC;
   return I_PURPLE;                                       // pinks and violets the test above missed: the overprint's edges
 }
 
@@ -743,8 +743,15 @@ export function classify(rgba0, w, h, mpp, opt = {}, progress = () => {}) {
   // a paved area is a light brown; a dark one is ink — the course's legs on a photo that lost their purple come out dark brown,
   // blurred thick enough for the test, and were paved corridors across the gardens (the Quiberon photo, 2026-11-18)
   thickOf((v, i) => v === I_BROWN && rgba[4 * i] >= 170, () => A.PAVED);
+  // a sprint map's light pink is a street whatever its width: the 2-3 px lane past controls 16 and 15 of the Quiberon photo,
+  // too thin for the test, took the gardens' olive beside it and the runner's way was shut (2026-11-18)
+  if (sprintInk) for (let i = 0, p = 0; i < N; i++, p += 4) if (kind[i] === I_BROWN && area[i] === UNKNOWN && rgba[p] >= 200 && Math.min(rgba[p + 1], rgba[p + 2]) >= 150) area[i] = A.ROUGH;
   thickOf((v) => v === I_BLUE, (s) => (s[2] / s[0] > 150 ? A.SHALLOW : A.WATER));
   thickOf((v) => v === I_OLIVE, () => A.OOB);
+  // a sprint map's out-of-bounds tint (kindOf), the course's lines and their blends printed over it counting with it for the
+  // thickness (the lilac strip by the Quiberon photo's start), the lilac alone taking the area
+  thickOf((v, i) => v === I_LILAC || (sprintInk && (v === I_PURPLE || v === I_MIXED || (v === I_BROWN && rgba[4 * i] < 170))),
+    () => A.OOB, (v) => v === I_LILAC);
   // open land is never a line: a full yellow streak narrower than the thickness test is a blend — the course's leg printed across
   // olive comes out yellow on a photo, a passable corridor through the gardens (the Quiberon photo, 2026-11-18) — and takes its
   // neighbours' area, as a thin ink does. On a sprint map only: a forest map's open rides and rough open land are narrow or
