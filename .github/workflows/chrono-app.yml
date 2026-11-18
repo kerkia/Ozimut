@@ -29,6 +29,9 @@
 #                APPLE_ID, APPLE_APP_SPECIFIC_PASSWORD, APPLE_TEAM_ID
 #
 # No secret's value is ever printed: they only reach the steps that sign.
+#
+# GitHub sometimes finds no macOS machine for the build (« The job was not acquired by Runner », 2026-11-18): nothing is
+# published then, since the release needs all three systems. Run it again (« Re-run failed jobs », or by hand).
 
 name: chrono-app
 
