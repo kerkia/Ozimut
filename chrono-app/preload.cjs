@@ -22,6 +22,8 @@ contextBridge.exposeInMainWorld("chronoApp", {
   },
   /** Asks where, then writes `data` (text, bytes or a Blob): the path, or null when given up. */
   saveFile: async (name, data) => ipcRenderer.invoke("chrono:save", String(name), await bytes(data)),
+  /** What the next port asked for is for: "si" | "emit" | "printer" (the app then picks it, or asks the right question). */
+  portFor: (role) => ipcRenderer.invoke("chrono:portFor", String(role)),
   /** Opens the data folder in the system's file manager. */
   openFolder: () => ipcRenderer.invoke("chrono:folder"),
 });

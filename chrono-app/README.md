@@ -6,7 +6,7 @@ Ozimut's Chrono tab, plus what a browser tab cannot do:
 - **a hub** (`hub.mjs`, plain Node): it serves the page to the app's own window, to the arena's other computers and to
   phones, ties every station's log together over WebSockets, appends every operation to a journal on disk, and listens
   for radio punches (SIRAP over TCP);
-- **silent printing** (receipts, lists), a save dialog, and the card reader's serial port without a browser prompt.
+- **silent printing** (receipts, lists), a save dialog, and serial ports without a browser prompt: the page says what it connects (a SPORTident reader, an Emit reader or a receipt printer), `ports.mjs` takes the port that is surely that device or the one chosen for that use before, else asks which (tested by `tools/chrono/t_ports.mjs`).
 
 The engine and the screens are not copied here: they are the site's own modules under `../site/assets`.
 

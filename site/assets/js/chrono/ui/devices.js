@@ -11,6 +11,9 @@ const load = () => { try { return JSON.parse(localStorage.getItem(KEY) || "{}");
 const save = (v) => { try { localStorage.setItem(KEY, JSON.stringify(v)); } catch (e) { /* this visit only */ } };
 
 export const serialOk = () => typeof navigator !== "undefined" && "serial" in navigator;
+/** A port's USB ids, as Web Serial gives them. */
+const idOf = (port) => { const i = port?.getInfo?.() || {}; return { vid: i.usbVendorId ?? null, pid: i.usbProductId ?? null }; };
+const SI_IDS = { vid: 0x10C4, pid: 0x800A };
 
 /** The labels a receipt needs, from the catalogue. */
 export function receiptLabels(ev) {
@@ -33,14 +36,17 @@ export function makeDevices(on) {
     printer: { mode: "none", width: 32, auto: false, baud: 9600, name: "", ...(prefs.printer || {}) },
     printerPort: null, lastError: "",
   };
-  const keep = () => save({ ...load(), printer: D.printer, sys: D.readers.map((r) => r.sys) });
+  const keep = () => save({ ...load(), printer: D.printer, sys: undefined, readers: D.readers.map((r) => ({ sys: r.sys, kind: r.kind || "auto", ...idOf(r.port) })),
+    printerPort: D.printerPort ? idOf(D.printerPort) : null });
+  // in the app, the port asked for next is for this use: it then takes the right one, or asks the right question
+  const tellApp = async (role) => { if (window.chronoApp?.portFor) { try { await window.chronoApp.portFor(role); } catch (e) { /* an older app */ } } };
   let seq = 0;
 
   async function attach(port, sys, kind) {
     const mod = sys === "emit" ? await import("../emit/reader.js") : await import("../si/reader.js");
     const ws = await import("../si/webserial.js");
     if (sys === "emit" && kind === "auto") kind = mod.kindOfPort(port.getInfo?.());   // the first eScan is known by its USB ids
-    const r = { id: ++seq, sys, label: sys === "emit" ? "Emit" : "SPORTident", state: "opening", info: null, port, handle: null };
+    const r = { id: ++seq, sys, kind, label: sys === "emit" ? "Emit" : "SPORTident", state: "opening", info: null, port, handle: null };
     D.readers.push(r);
     on.change();
     try {
@@ -62,17 +68,35 @@ export function makeDevices(on) {
   D.connect = async (sys = "si", kind = "auto") => {
     if (!serialOk()) throw new Error("noserial");
     const ws = await import("../si/webserial.js");
+    await tellApp(sys === "emit" ? "emit" : "si");
     const port = await ws.requestPort(sys);
     if (!port) return null;
-    return attach(port, sys, kind);
+    const r = await attach(port, sys, kind);
+    keep();
+    return r;
   };
   /** The ports already allowed on this computer are opened again (after a reload). */
   D.reconnect = async () => {
-    if (!serialOk() || !prefs.sys?.length) return;
+    const want = prefs.readers || (prefs.sys || []).filter((s) => s === "si").map(() => ({ sys: "si", kind: "auto", ...SI_IDS }));
+    const printer = D.printer.mode === "escpos" ? prefs.printerPort : null;
+    if (!serialOk() || (!want.length && !printer)) return;
     try {
       const ws = await import("../si/webserial.js");
-      const ports = await ws.knownPorts();
-      for (let i = 0; i < Math.min(ports.length, prefs.sys.length); i++) if (ports[i] !== D.printerPort) await attach(ports[i], prefs.sys[i], "auto");
+      const ports = await ws.knownPorts(), used = new Set();
+      // each use takes a port of the USB ids it had; when ids are shared by two uses (an Emit reader and a printer on one
+      // kind of cable), nothing is guessed: those are connected again by hand
+      const uses = [...want.map((w) => ({ ...w, role: w.sys })), ...(printer ? [{ ...printer, role: "printer" }] : [])];
+      const same = (p, w) => w.vid != null && idOf(p).vid === w.vid && idOf(p).pid === w.pid;
+      for (const w of uses) {
+        if (w.vid == null) continue;
+        const roles = new Set(uses.filter((u) => u.vid === w.vid && u.pid === w.pid).map((u) => u.role));
+        const free = ports.filter((p) => !used.has(p) && same(p, w));
+        if (!free.length || (roles.size > 1 && free.length > 1)) continue;
+        used.add(free[0]);
+        if (w.role === "printer") { try { await free[0].open({ baudRate: D.printer.baud || 9600 }); D.printerPort = free[0]; } catch (e) { /* asked again by hand */ } }
+        else await attach(free[0], w.sys, w.kind || "auto");
+      }
+      on.change();
     } catch (e) { /* asked again by hand */ }
   };
   D.disconnect = async (id) => {
@@ -88,10 +112,12 @@ export function makeDevices(on) {
   D.setPrinter = (patch) => { Object.assign(D.printer, patch); keep(); on.change(); };
   D.pickPrinterPort = async () => {
     if (!serialOk()) throw new Error("noserial");
+    await tellApp("printer");
     const port = await navigator.serial.requestPort();
     await port.open({ baudRate: D.printer.baud || 9600 });
     D.printerPort = port;
     D.setPrinter({ mode: "escpos" });
+    keep();
     return true;
   };
   async function raw(bytes) {

@@ -81,9 +81,9 @@ jobs:
       - name: Install
         run: npm ci
 
-      - name: Hub test
+      - name: Hub and port tests
         working-directory: .
-        run: node tools/chrono/t_hub.mjs
+        run: node tools/chrono/t_hub.mjs && node tools/chrono/t_ports.mjs
 
       # ---------------------------------------------------------------- Windows
       # In two steps, so that what is inside the installer can be signed before the installer

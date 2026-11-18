@@ -1,7 +1,7 @@
 {
   "name": "ozimut-chrono",
   "productName": "Ozimut Chrono",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Orienteering race timing: Ozimut Chrono's screens on a computer, with a hub for the other stations and phones",
   "author": "Ozimut",
   "homepage": "https://ozimut.com",
@@ -33,6 +33,7 @@
       "main.mjs",
       "hub.mjs",
       "strings.mjs",
+      "ports.mjs",
       "preload.cjs",
       "www/**"
     ],

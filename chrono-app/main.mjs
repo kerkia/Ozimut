@@ -14,10 +14,10 @@ import { fileURLToPath } from "node:url";
 import { startHub, saneOps } from "./hub.mjs";
 import { strings, fill } from "./strings.mjs";
 import { fromFile } from "../site/assets/js/chrono/store.js";
+import { choosePort, portLabel, keyOf, ROLES } from "./ports.mjs";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const PORT = 8377, MORE_PORTS = 10, SIRAP_PORT = 10000;
-const SPORTIDENT = 0x10C4;                                  // the USB vendor of SPORTident's stations
 const EVENT_FILE = /\.ozchrono(\.jsonl)?$/i, JOURNAL = /^([A-Za-z0-9_-]{1,64})\.ozchrono\.jsonl$/;
 const MM = 96 / 25.4;                                       // CSS pixels in a millimetre
 
@@ -175,23 +175,30 @@ function smoke() {
   }, 250);
 }
 
-// ---- the card reader's port (Web Serial) ----
-// The page asks for a port (navigator.serial.requestPort); a browser would show its own list, Electron leaves the choice
-// to this process: the only port; of several, SPORTident's; still several, the user says which.
-const usbIds = (v) => { const s = String(v ?? ""); return [parseInt(s, 10), parseInt(s, 16)]; };     // written in decimal, or in hexadecimal
-async function choosePort(ports) {
-  if (ports.length < 2) return ports[0]?.portId || "";
-  const si = ports.filter((p) => usbIds(p.vendorId).includes(SPORTIDENT)), list = (si.length ? si : ports).slice(0, 8);
-  if (list.length === 1) return list[0].portId;
-  const label = (p) => (p.displayName && p.displayName !== p.portName ? `${p.displayName} (${p.portName})` : p.portName || p.portId);
-  const { response } = await box({ type: "question", title: S.portTitle, message: S.portAsk, buttons: [...list.map(label), S.cancel],
-    cancelId: list.length, defaultId: 0, noLink: true });
-  return response < list.length ? list[response].portId : "";
+// ---- the serial ports (Web Serial): card readers and receipt printers ----
+// The page says what it is about to connect (« chrono:portFor »: si, emit, printer); a browser would show its own list,
+// Electron leaves the choice to this process: ports.mjs takes the port when it is sure, else asks, the likely ones first,
+// and the port chosen is remembered for that use (settings.ports).
+const asking = new Map();                                   // webContents id → { role, at }
+async function pickPort(ports, wc) {
+  const a = asking.get(wc?.id);
+  asking.delete(wc?.id);
+  const role = a && Date.now() - a.at < 30000 ? a.role : "";
+  const kept = settings().ports || {};
+  const r = choosePort(ports, role, kept);
+  if (r.pick != null) return r.pick;
+  const list = r.ask;
+  const { response } = await box({ type: "question", title: role === "printer" ? S.portTitlePrinter : S.portTitle,
+    message: { si: S.portAskSi, emit: S.portAskEmit, printer: S.portAskPrinter }[role] || S.portAsk,
+    buttons: [...list.map(portLabel), S.cancel], cancelId: list.length, defaultId: 0, noLink: true });
+  if (response >= list.length) return "";
+  if (role) saveSettings({ ...settings(), ports: { ...kept, [role]: keyOf(list[response]) } });
+  return list[response].portId;
 }
 function serial(ses) {
   ses.on("select-serial-port", (event, ports, wc, done) => {
     event.preventDefault();
-    choosePort(ports || []).then((id) => done(id), () => done(""));
+    pickPort(ports || [], wc).then((id) => done(id), () => done(""));
   });
   // the hub's page may use what it asks for (serial ports among it, and those already chosen without asking again); no other page
   ses.setPermissionCheckHandler((wc, permission, requesting, details) => ours(requesting || details?.securityOrigin || wc?.getURL() || ""));
@@ -282,6 +289,7 @@ function handlers() {
   ipcMain.handle("chrono:print", (e, html, opts) => (mine(e) ? print(html, opts && typeof opts === "object" ? opts : {}) : { ok: false, error: "refused" }));
   ipcMain.handle("chrono:save", (e, name, data) => (mine(e) ? saveFile(name, data) : null));
   ipcMain.handle("chrono:folder", (e) => { if (mine(e)) shell.openPath(hub.folder); });
+  ipcMain.handle("chrono:portFor", (e, role) => { if (mine(e) && ROLES.includes(role)) asking.set(e.sender.id, { role, at: Date.now() }); return true; });
 }
 
 // ---- the menu ----
