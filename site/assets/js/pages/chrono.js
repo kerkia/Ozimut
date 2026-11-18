@@ -24,7 +24,8 @@ export async function render(panel, { event }) {
   if (running) { try { await running.stop(); } catch (e) { /* gone */ } running = null; }
   const me = auth.session();
   if (!me?.admin) { panel.innerHTML = html`<p class="note">${t("chr.adminOnly")}</p>`.toString(); return; }
-  panel.innerHTML = html`<p class="chr-beta">${t("chr.beta")}</p><div id="chrono-root" class="chr-in-tab"></div>`.toString();
+  panel.innerHTML = html`<p class="chr-beta">${t("chr.beta")} <button type="button" class="btn btn-sm" id="chrono-app-dl">${t("chr.app.get")}</button></p><div id="chrono-root" class="chr-in-tab"></div>`.toString();
+  panel.querySelector("#chrono-app-dl").addEventListener("click", async () => (await import("../chrono/ui/prepare.js")).appDialog());
   const root = panel.querySelector("#chrono-root");
   const { mountChrono } = await import("../chrono/ui/app.js");
   // the event's id in Chrono is the Orga event's: every member's browser opens the same log

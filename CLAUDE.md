@@ -799,16 +799,34 @@ who time with another tool.
   `www/index.html` (→ `chrono/ui/standalone.js`) and the site's assets, a WebSocket `/hub` linking every station to the
   event's log, a journal `<event>.ozchrono.jsonl` per event, a SIRAP listener on 10000, a key for other computers —,
   `main.mjs` / `preload.cjs` the window (`window.chronoApp`: silent printing, printers, save dialog; Web Serial allowed).
-  `node chrono-app/dev-hub.mjs [port] [folder]` runs the hub alone. **Electron itself was never run** (not installed on the
-  PC): `npm install` in `chrono-app`, then `npm start`.
+  `node chrono-app/dev-hub.mjs [port] [folder]` runs the hub alone. Electron 45 (2026-11-17): `npm install` in `chrono-app`,
+  `npm start`; `npm run smoke` starts the real app hidden on a free port and checks its page is drawn (`smoke.mjs`,
+  `--unpacked` for the built app, `--doc` for the documentation window). Only `js/**`, `chrono/**`, the two stylesheets and the
+  icons of `site/assets` are packaged (~100 MB installers, nearly all Electron). Help › Documentation (F1) opens `www/doc.html`
+  (→ `chrono/ui/appdoc.js`, the content modules `content/chronoapp.<lang>.js`, also shown in Orga's documentation).
+  **The release** `.github/workflows/chrono-app.yml` (a push to main changing `chrono-app/package.json` — bump its `version` for a
+  new release — or the workflow; or by hand): Windows, macOS (one universal dmg, ad-hoc signed), Linux; the hub test and the smoke
+  test on each; one rolling GitHub Release, tag `chrono-app`, files `Ozimut-Chrono-Setup.exe` (per user), `-Portable.exe`,
+  `Ozimut-Chrono.dmg`, `Ozimut-Chrono.AppImage`, `chrono-app.json` ({ version, files, sizes, signed }) at
+  `https://github.com/kerkia/Ozimut/releases/download/chrono-app/<file>`, which the tab's « Télécharger l'application » links
+  (`prepare.appDialog`). **Unsigned** today; the workflow signs when the owner adds secrets: SignPath (`SIGNPATH_API_TOKEN` +
+  variables; free only for an open-source project under an OSI licence — the repository has no licence), Azure Artifact Signing
+  (individuals only in the USA or Canada), Apple Developer ID (`CSC_LINK`…): `chrono-app/README.md`.
 - **Tests** (no dependency but `ws` for the hub's, `npm install --omit=dev` in `chrono-app`): `node tools/chrono/t_engine.mjs`,
-  `t_io.mjs`, `t_sync.mjs`, `t_si.mjs`, `t_emit.mjs`, `t_meos.mjs`, `t_hub.mjs` (557 checks on 2026-11-17). In a browser
+  `t_io.mjs`, `t_sync.mjs`, `t_si.mjs`, `t_emit.mjs`, `t_meos.mjs`, `t_hub.mjs`, `t_formats.mjs`, `t_lists.mjs` (~750 checks). In a browser
   (headless Edge, 2026-11-17): the hub's page through every post in a rehearsal, two stations on one event through the hub,
   imports of an IOF XML course file and a CSV of entries, and the tab inside the site on the local dev server (an
   administrator: mount, cloud sync between two browsers, the key accepted and a wrong one refused).
 - **Never tried on real equipment**: no SPORTident or Emit station, no thermal printer, no real MeOS, no file accepted by
-  FFCO yet, Electron not run. Not built: multi-day totals, knockout sprints, pairs, a list designer, invoices by club,
-  team entry screens for relays (relay judging and team results exist; teams come from an import), Emit's eScan.
+  FFCO yet, the installers never installed on another computer. **The formats** (2026-11-17, `docs/chrono/design.md` « Formats
+  beyond one individual race »): relay teams entered by hand (`ui/teams.js`: « Préparer › Équipes », a team's legs, bibs) and
+  the mass start of the late legs (`legs[i].mass`; restarted teams rank after the others; IOF XML `TeamResult`), pairs and
+  patrols (`class.team`), knockout heats (`knockout.js`: snake seeding, copies of the entries sharing their card), several
+  days (`series.js`: stages under `stage.<id>`, totals by time or points, the chase start), custom lists
+  (`print/designer.js`, under `list.<id>`) and invoices by club (`print/invoices.js`). **Emit's eScan / eScan2**: only their
+  status and emiTag passings (Emit's public eClock+ manual); a card's content is not read — its layout is only in Emit's
+  confidential eScan2 specification (`docs/chrono/emit.md`). Orga's documentation has the chapters « Chrono » and
+  « L'application Chrono » (administrators only, as the tab).
   The privacy page has « Chronométrage (Ozimut Chrono) » (17 November 2026): update it when Chrono opens beyond the
   administrators.
 

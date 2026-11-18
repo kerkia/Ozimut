@@ -39,6 +39,7 @@ export function makeDevices(on) {
   async function attach(port, sys, kind) {
     const mod = sys === "emit" ? await import("../emit/reader.js") : await import("../si/reader.js");
     const ws = await import("../si/webserial.js");
+    if (sys === "emit" && kind === "auto") kind = mod.kindOfPort(port.getInfo?.());   // the first eScan is known by its USB ids
     const r = { id: ++seq, sys, label: sys === "emit" ? "Emit" : "SPORTident", state: "opening", info: null, port, handle: null };
     D.readers.push(r);
     on.change();
@@ -57,7 +58,7 @@ export function makeDevices(on) {
     return r;
   }
 
-  /** The user picks a port; `sys`: "si" | "emit"; `kind` (Emit): "250" | "mtr4" | "auto". */
+  /** The user picks a port; `sys`: "si" | "emit"; `kind` (Emit): "250" | "mtr4" | "escan" (an eScan2: its own speed) | "auto". */
   D.connect = async (sys = "si", kind = "auto") => {
     if (!serialOk()) throw new Error("noserial");
     const ws = await import("../si/webserial.js");

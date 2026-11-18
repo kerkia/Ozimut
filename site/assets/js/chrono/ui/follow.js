@@ -2,7 +2,7 @@
 // stands; Speaker shows who just came in and who leads; Arbitre holds the record of every change made by hand and the
 // complaints; Postes tells which units are punched, by how many, and which may be at fault.
 
-import { t, tn } from "../../i18n.js";
+import { t, tn, locale } from "../../i18n.js";
 import { html, raw, icon, formDialog, values, field, opt, printHtml, openPage, download, statusTag, atClock } from "./kit.js";
 import { clock, span, parseClock } from "../times.js";
 import { opMs } from "../log.js";
@@ -10,9 +10,16 @@ import { punchesOf } from "../judge.js";
 import { resultsHtml } from "../print/lists.js";
 import { runnerDialog, readDialog, manualDialog, runnerSearch } from "./dialogs.js";
 import { listLabels } from "./prepare.js";
+import { knockoutPage, hasKnockout, seriesDialog, formatLabels } from "./formats.js";
+import { teamDialog } from "./teams.js";
+import { stagesOf } from "../series.js";
+import { savedItems } from "./designer.js";
 
 const who = (r) => `${r.given || ""} ${r.family || ""}`.trim();
-const groupsOf = (ctx) => ((ctx.ui.by || ctx.rules().resultsBy) === "course" ? ctx.view().courses : ctx.view().classes);
+/** By class or by course: what the operator chose, else the rules' habit — a relay's lists are its classes'. */
+export const byOf = (ctx) => ctx.ui.by || (ctx.st().event.type === "relay" ? "class" : ctx.rules().resultsBy);
+/** The lists shown: the classes, or the courses — followed by the classes that are no course's list (run in teams, a knockout's heats). */
+export const groupsOf = (ctx, by = byOf(ctx)) => { const v = ctx.view(); return by === "course" ? v.courses.concat(v.classes.filter((k) => k.teams || k.ko)) : v.classes; };
 
 /** A runner's race in detail: the controls with times and places; from there, the entry or the card. */
 export function runnerSheet(ctx, id) {
@@ -33,7 +40,10 @@ export function runnerSheet(ctx, id) {
 
 const follow = {
   ribbon(ctx) {
-    const by = ctx.ui.by || ctx.rules().resultsBy, L = () => listLabels(t("chr.lst.results"));
+    const by = byOf(ctx), L = () => formatLabels({ ...listLabels(t("chr.lst.results")), teams: t("chr.lst.teams") });
+    const more = [];
+    if (hasKnockout(ctx)) more.push({ icon: "swap", label: t("chr.ko.page"), tip: t("chr.ko.pageTip"), on: () => printHtml(knockoutPage(ctx, { ...L(), title: t("chr.ko.page") })) });
+    if (stagesOf(ctx.st()).length) more.push({ icon: "list", label: t("chr.ser.short"), tip: t("chr.ser.tip"), on: () => seriesDialog(ctx) });
     return [{ label: t("chr.fol.show"), items: [
       { icon: "list", label: t("chr.sta.byClass"), pressed: by !== "course", on: () => { ctx.ui.by = "class"; ctx.ui.group = null; } },
       { icon: "list", label: t("chr.sta.byCourse"), pressed: by === "course", on: () => { ctx.ui.by = "course"; ctx.ui.group = null; } },
@@ -42,12 +52,12 @@ const follow = {
       { icon: "print", label: t("chr.lst.results"), on: () => printHtml(resultsHtml(ctx.view(), groupsOf(ctx), L(), { cat: by === "course" })) },
       { icon: "print", label: t("chr.fol.splits"), on: () => printHtml(resultsHtml(ctx.view(), groupsOf(ctx), L(), { cat: by === "course", splits: true })) },
       { icon: "tv", label: t("chr.fol.screen"), tip: t("chr.fol.screenTip"), on: () => openPage(resultsHtml(ctx.view(), groupsOf(ctx), L(), { cat: by === "course", tv: true })) },
-    ] }];
+    ] }, { label: t("chr.dsg.mine"), items: savedItems(ctx) }, ...(more.length ? [{ label: t("chr.rb.formats"), items: more }] : [])];
   },
   mount(ctx, el) {
     el.innerHTML = html`<div class="chr-fol"><nav id="chr-fol-g" class="chr-fol-g"></nav><div id="chr-fol-t" class="chr-card"></div></div>`.toString();
     function draw() {
-      const groups = groupsOf(ctx).filter((g) => g.rows.length), now = ctx.now(), course = (ctx.ui.by || ctx.rules().resultsBy) === "course";
+      const groups = groupsOf(ctx).filter((g) => g.rows.length), now = ctx.now(), byCourse = (byOf(ctx)) === "course";
       if (ctx.ui.group !== "*out" && !groups.some((g) => (g.id || "") === ctx.ui.group)) ctx.ui.group = groups[0]?.id || "";
       el.querySelector("#chr-fol-g").innerHTML = groups.map((g) => { const done = g.rows.filter((r) => r.read || r.manual).length; return html`<button type="button" data-g="${g.id || ""}" aria-current="${String((g.id || "") === ctx.ui.group)}"><b>${g.name || "—"}</b><span>${done} / ${g.rows.length}</span></button>`; }).join("");
       el.querySelectorAll("#chr-fol-g button").forEach((b) => b.addEventListener("click", () => { ctx.ui.group = b.dataset.g; ctx.refresh(); }));
@@ -58,8 +68,17 @@ const follow = {
           <th class="num">${t("chr.col.card")}</th><th class="num">${t("chr.col.start")}</th><th class="num">${t("chr.fol.since")}</th></tr></thead><tbody>${out.map((r) => html`<tr data-id="${r.id}"><td>${who(r)}</td><td>${r.club}</td><td>${r.clsName}</td>
           <td class="num">${r.card ?? ""}</td><td class="num">${clock(r.start)}</td><td class="num">${r.start != null ? span(now - r.start) : ""}</td></tr>`)}</tbody></table></div>` : html`<p class="chr-empty">${t("chr.fol.noneOut")}</p>`}`.toString();
       } else {
-        const g = groups.find((x) => (x.id || "") === ctx.ui.group), c = g ? (course ? g : g.course) : null;
-        box.innerHTML = !g ? html`<p class="chr-empty">${t("chr.ent.none")}</p>`.toString() : html`<h3>${g.name || "—"} <small>${[c?.length ? `${(c.length / 1000).toFixed(1)} km` : "", c?.climb ? `${c.climb} m` : "", c?.controls?.length ? tn("chr.fol.controls", c.controls.length) : ""].filter(Boolean).join(" · ")}</small></h3>
+        const g = groups.find((x) => (x.id || "") === ctx.ui.group), course = byCourse && !!g?.controls, c = g ? (course ? g : g.course) : null;
+        const res = (r) => (r.time != null && ["ok", "nc", "mp", "ot"].includes(r.status) ? span(r.time) : r.status === "run" && r.start != null ? html`<i class="chr-dim">${span(now - r.start)}</i>` : "");
+        if (g?.teams) box.innerHTML = html`<h3>${g.name || "—"} <small>${tn("chr.team.count", g.teams.length)}</small></h3>
+          <div class="table-wrap chr-tw"><table class="data chr-t chr-teams"><thead><tr><th class="num">${t("chr.col.place")}</th><th class="num">${t("chr.col.bib")}</th><th>${t("chr.team.name")}</th><th>${t("chr.col.club")}</th>
+          <th class="num">${t("chr.col.time")}</th><th class="num">${t("chr.col.behind")}</th><th></th></tr></thead>
+          <tbody>${g.teams.map((x) => html`<tr class="chr-team-row" data-team="${x.id}"><td class="num">${x.place ?? ""}</td><td class="num">${x.bib}</td><td><b>${x.name}</b></td><td>${x.club}</td><td class="num">${x.status === "ok" ? span(x.time) : ""}</td>
+            <td class="num">${x.behind ? `+${span(x.behind)}` : ""}</td><td>${x.status === "ok" ? "" : statusTag(x.status)}${x.restart ? html` <span class="chr-chip" title="${t("chr.rst.tagTip")}">${t("chr.rst.tag")}</span>` : ""}</td></tr>
+            ${x.members.map((r, i) => (r ? html`<tr class="chr-team-mem" data-id="${r.id}"><td></td><td class="num">${x.kind === "relay" ? i + 1 : ""}</td><td colspan="2">${who(r)}</td><td class="num">${res(r)}</td><td></td>
+              <td>${r.status === "ok" || r.status === "run" || r.status === "wait" ? "" : statusTag(r.status)}${r.restart ? html` <span class="chr-chip" title="${t("chr.rst.tagTip")}">${t("chr.rst.tag")}</span>` : ""}</td></tr>`
+              : html`<tr class="chr-team-mem"><td></td><td class="num">${i + 1}</td><td colspan="5" class="chr-dim">—</td></tr>`))}`)}</tbody></table></div>`.toString();
+        else box.innerHTML = !g ? html`<p class="chr-empty">${t("chr.ent.none")}</p>`.toString() : html`<h3>${g.name || "—"} <small>${[c?.length ? `${(c.length / 1000).toFixed(1)} km` : "", c?.climb ? `${c.climb} m` : "", c?.controls?.length ? tn("chr.fol.controls", c.controls.length) : ""].filter(Boolean).join(" · ")}</small></h3>
           <div class="table-wrap chr-tw"><table class="data chr-t"><thead><tr><th class="num">${t("chr.col.place")}</th><th>${t("chr.col.name")}</th><th>${t("chr.col.club")}</th>${course ? html`<th>${t("chr.col.cls")}</th>` : ""}
           ${c?.score ? html`<th class="num">${t("chr.col.points")}</th>` : ""}<th class="num">${t("chr.col.time")}</th><th class="num">${t("chr.col.behind")}</th><th></th></tr></thead>
           <tbody>${g.rows.map((r) => html`<tr data-id="${r.id}"><td class="num">${r.place ?? ""}</td><td>${who(r)}</td><td>${r.club}</td>${course ? html`<td>${r.clsName}</td>` : ""}${c?.score ? html`<td class="num">${r.points ?? ""}</td>` : ""}
@@ -68,6 +87,7 @@ const follow = {
       }
       const tw = box.querySelector(".table-wrap"); if (tw) tw.scrollTop = keep;
       box.querySelectorAll("tr[data-id]").forEach((tr) => tr.addEventListener("click", () => runnerSheet(ctx, tr.dataset.id)));
+      box.querySelectorAll("tr[data-team]").forEach((tr) => tr.addEventListener("click", () => teamDialog(ctx, tr.dataset.team)));
     }
     draw();
     return { update: draw };
@@ -86,7 +106,7 @@ const speaker = {
       const last = Object.values(st.reads).filter((r) => r.runner && v.byRunner.get(r.runner)?.read === r.id).sort((a, b) => b.at - a.at).slice(0, 12);
       el.querySelector("#chr-spk-last").innerHTML = last.length ? last.map((rd) => { const r = v.byRunner.get(rd.runner), fresh = now - rd.at < 180000; return html`<div class="chr-spk-row ${fresh ? "fresh" : ""} ${r.place && r.place <= 3 ? "podium" : ""}"><i>${r.place ?? "—"}</i><b>${who(r)}</b>
         <span>${r.club}</span><span>${r.clsName}</span><em>${r.status === "ok" ? span(r.time) : t(`chr.st.${r.status}`)}</em><small>${r.behind ? `+${span(r.behind)}` : ""}</small></div>`; }).join("") : html`<p class="chr-empty">${t("chr.fin.noneYet")}</p>`.toString();
-      el.querySelector("#chr-spk-lead").innerHTML = v.classes.filter((k) => k.rows.some((r) => r.place)).map((k) => { const out = k.rows.filter((r) => r.status === "run").length; return html`<div class="chr-spk-k"><h4>${k.name} <small>${out ? tn("chr.spk.out", out) : t("chr.spk.done")}</small></h4>
+      el.querySelector("#chr-spk-lead").innerHTML = v.classes.map((k) => ({ name: k.name, rows: k.teams || k.rows })).filter((k) => k.rows.some((r) => r.place)).map((k) => { const out = k.rows.filter((r) => r.status === "run").length; return html`<div class="chr-spk-k"><h4>${k.name} <small>${out ? tn("chr.spk.out", out) : t("chr.spk.done")}</small></h4>
         ${k.rows.filter((r) => r.place && r.place <= 3).map((r) => html`<p><i>${r.place}</i> ${who(r)} <span>${r.club}</span> <em>${span(r.time)}</em></p>`)}</div>`; }).join("") || html`<p class="chr-empty">${t("chr.fin.noneYet")}</p>`.toString();
       const byCard = new Map(Object.values(st.runners).filter((r) => r.card).map((r) => [Number(r.card), r]));
       const radio = [...st.radio].sort((a, b) => (b.at || 0) - (a.at || 0)).slice(0, 14);
@@ -125,7 +145,7 @@ const referee = {
         onOpen(dlg) { runnerSearch(ctx, dlg.querySelector("#chr-dsq-q"), dlg.querySelector("#chr-dsq-l"), (r) => { dlg.querySelector("[name=id]").value = r.id; dlg.querySelector("#chr-dsq-n").textContent = who(r); dlg.querySelector("#chr-dsq-l").innerHTML = ""; }); },
         onOk(dlg) { const v = values(dlg); if (!v.id) return false; ctx.put("runners", v.id, { status: "dsq" }); ctx.log.add("note", { x: { kind: "decision", runner: v.id, text: v.why || "" } }, ctx.by); return true; } }) },
       { icon: "down", label: t("chr.ref.export"), on: () => {
-        const lines = journal(ctx).map((x) => [new Date(x.at).toLocaleString(), x.st, x.by, x.text].map((c) => `"${String(c).replace(/"/g, '""')}"`).join(";"));
+        const lines = journal(ctx).map((x) => [new Date(x.at).toLocaleString(locale()), x.st, x.by, x.text].map((c) => `"${String(c).replace(/"/g, '""')}"`).join(";"));
         download("journal.csv", `﻿${[t("chr.ref.when"), t("chr.ref.station"), t("chr.ref.who"), t("chr.ref.what")].join(";")}\r\n${lines.join("\r\n")}`, "text/csv");
       } },
     ] }];

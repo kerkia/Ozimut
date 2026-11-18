@@ -8,15 +8,42 @@
 //  · MTR4: 9600 baud 8N1, not XOR-ed; messages start FF FF FF FF · size (the bytes after the preamble) · type:
 //    « M » (234 bytes) one card read with the unit's clock and a package number, « S » (59 bytes) its status;
 //    commands « /ST », « /SA », « /SBxxxx », « /GBxxxx », « /NS », « /SCymdhms », « /CL », no terminator.
-// Sources: Emit's manuals (MTR4, eScan2), the protocol notes and real captures published with an open TypeScript library
-// (GPL-3: read for its facts, none of its code or structure is here), and three small readers on GitHub that agree with them.
+//  · eScan, eScan2 (and Emit's other units of the emiTag family): text messages, 02 · items separated by tabs · 03 0A 0D,
+//    each item a letter and its value — the layout Emit prints in the eClock+ manual: a status (« BS ») and an emiTag's
+//    passing (« BM »: N tag, C code, E time of day, T the tag's race time…). Only those two are read; what an eScan sends
+//    for an e-card's content is in no public document (Emit's eScan2 specification is confidential) and is not decoded.
+// Sources: Emit's manuals (MTR4, eScan, eScan2, ETS2, eClock+), the protocol notes and real captures published with an
+// open TypeScript library (GPL-3: read for its facts, none of its code or structure is here), and three small readers on
+// GitHub that agree with them.
 
 export const XOR_250 = 0xdf, LEN_250 = 217, LEN_MTR_CARD = 234, LEN_MTR_STATUS = 59, SLOTS = 50, TEXT_LEN = 56;
 /** How to open the line. A 250 sends two stop bits; one is enough to listen to it, which is what « auto » does. */
-const line = (stopBits) => ({ baud: 9600, baudRate: 9600, dataBits: 8, parity: "none", stopBits });   // both spellings of the speed
+const line = (stopBits, baud = 9600) => ({ baud, baudRate: baud, dataBits: 8, parity: "none", stopBits });   // both spellings of the speed
 export const SERIAL = { 250: line(2), mtr4: line(1), auto: line(1) };
+/**
+ * The line of the units that send text messages: 115 200 bit/s, 8 bits, no parity, 1 stop bit — what Emit's manuals give
+ * for the ETS2's USB (FTDI) port and the eClock+; taken for the eScan2 (same FTDI driver, same « Protocol » menu), whose
+ * own manual gives no speed. The first eScan is a USB CDC device: whatever speed is asked suits it.
+ */
+export const SERIAL_ESCAN = line(1, 115200);
+const LINES = { ...SERIAL, escan: SERIAL_ESCAN };
+/** The line to open for a kind of unit ("250" | "mtr4" | "escan" | "auto"); undefined for anything else. */
+export const serialOf = (kind) => LINES[kind];
 /** Both units carry an FTDI USB-serial chip: this tells them from neither each other nor any other FTDI device. */
 export const USB = { vendorId: 0x0403, productId: 0x6001 };
+/** The first eScan's own USB ids (a Texas Instruments MSP430 as a CDC serial port; Emit's driver file is « msp430_cdc »). */
+export const USB_ESCAN = { vendorId: 0x2047, productId: 0x0300 };
+/**
+ * What a port's USB ids say (`{ usbVendorId, usbProductId }`, Web Serial's `getInfo()`): "escan" for the first eScan,
+ * "ftdi" for a unit behind an FTDI chip — a 250, an MTR4, an eScan2, a time station: the ids cannot tell which —, else null.
+ */
+export function unitOfUsb(info) {
+  const v = info?.usbVendorId ?? info?.vendorId, p = info?.usbProductId ?? info?.productId;
+  if (v === USB_ESCAN.vendorId && p === USB_ESCAN.productId) return "escan";
+  return v === USB.vendorId ? "ftdi" : null;
+}
+/** Emit's serial numbers start with the product's number: the names of those its public pages give. */
+export const PRODUCTS = { 1260: "eClock+", 8572: "eScan2" };
 /** Codes a card can hold that are no course control: the start unit, a low-battery mark, the reading units (A-D). */
 export const CODE = { START: 0, LOW_BATTERY: 99, READER: 250, READER_LAST: 253 };
 export const isReaderCode = (code) => code >= CODE.READER && code <= CODE.READER_LAST;
@@ -212,18 +239,91 @@ export function readMtrCommand(b, at = 0) {
   return { name, ...(arg !== undefined && { arg }), size };
 }
 
+// ---- the text messages: the eScan, the eScan2, the eClock+, the time stations
+
+export const STX = 0x02, ETX = 0x03, MAX_TEXT = 2048;
+const secondsOf = (s) => {
+  const m = /^(\d{1,2}):(\d{2}):(\d{2})(?:[.,](\d{1,3}))?$/.exec(s ?? "");
+  return m ? Number(m[1]) * 3600 + Number(m[2]) * 60 + Number(m[3]) + (m[4] ? Number(m[4].padEnd(3, "0")) / 1000 : 0) : null;
+};
+const whole = (s) => (/^\d{1,10}$/.test(s ?? "") ? Number(s) : null);
+/** Seconds as the messages write a time: « 12:34:56.987 ». */
+export function clockText(t) {
+  const ms = Math.round(t * 1000), s = Math.floor(ms / 1000);
+  return `${two(Math.floor(s / 3600))}:${two(Math.floor(s / 60) % 60)}:${two(s % 60)}.${String(ms % 1000).padStart(3, "0")}`;
+}
+function parseText(body) {
+  let text = "";
+  for (const c of body) text += String.fromCharCode(c);
+  const items = text.split("\t").filter((s) => s.length).map((s) => { const n = /^LAP[a-z]/.test(s) ? 4 : 1; return [s.slice(0, n), s.slice(n)]; });
+  const f = {};
+  for (const [k, v] of items) if (!(k in f)) f[k] = v;
+  const unit = f.Y ?? null, named = /^(.*?)-HW(.*?)-SW(.*?)-V(.*)$/.exec(f.I ?? "");
+  const head = { kind: "text", type: "other", b: f.B ?? null, via: f.Z ?? null, unit, product: (/^\d{5,}$/.test(unit ?? "") && PRODUCTS[unit.slice(0, 4)]) || null,
+    code: whole(f.C), msg: whole(f.M), check: f.R ?? null, items };
+  if (f.B === "S") return { ...head, type: "status", id: f.I ?? null, name: named ? named[1] : f.I ?? null, hw: named?.[2] ?? null, sw: named?.[3] ?? null,
+    version: named?.[4] ?? null, clock: secondsOf(f.W), loop: f.H ?? null, power: f.A ?? null };
+  const card = whole(f.N), t = secondsOf(f.E);
+  if (f.B === "M" && card != null && head.code != null && t != null) return { ...head, type: "tag", card, t, race: secondsOf(f.T), retries: whole(f.O) };
+  return head;
+}
+/**
+ * One whole text message (02 … 03, with or without the 0A 0D that follow) → `{ kind: "text", type, b, via, unit, product,
+ * code, msg, check, items: [[key, value]…] }` — `b`: the B item (« S », « M »…), `via`: Z (« USB », « 485 »), `unit`: Y, the
+ * sending unit's serial number, `product`: its name when the number's first four digits are known, `msg`: M, a running
+ * number, `check`: R as written (its rule is not published: never verified) — and, by `type`:
+ *  "status" (B = S): `id` (I: « eClock-HW2-SW2-V1.02 »), `name`, `hw`, `sw`, `version` (its parts), `clock` (W: the unit's
+ *    time, s within the day), `loop` (H), `power` (A), as written;
+ *  "tag" (B = M with a tag, a code and a time): `card` (N: the emiTag's number), `code` (C: the unit's), `t` (E: the passing,
+ *    s within the day, to the millisecond), `race` (T: the tag's own time since its start, s), `retries` (O);
+ *  "other": anything else in that frame — an eScan's reading of a card among them: its items are given, nothing is read in them.
+ * Or `{ kind: "error", code: "sync" | "length" }`.
+ */
+export function decodeText(bytes) {
+  let end = bytes.length;
+  while (end && (bytes[end - 1] === 0x0a || bytes[end - 1] === 0x0d)) end--;
+  if (end < 3 || end - 2 > MAX_TEXT) return { kind: "error", code: "length" };
+  if (bytes[0] !== STX || bytes[end - 1] !== ETX) return { kind: "error", code: "sync" };
+  for (let i = 1; i < end - 1; i++) if (bytes[i] < 0x20 && bytes[i] !== 9) return { kind: "error", code: "sync" };
+  return parseText(bytes.subarray(1, end - 1));
+}
+/** A text message's bytes for `[[key, value]…]`: 02, the items with tabs between them, 03 0A 0D. */
+export function encodeText(items) {
+  const s = items.map(([k, v]) => `${k}${v ?? ""}`).join("\t");
+  if (/[\x00-\x1f]/.test(s.replace(/\t/g, "")) || items.some(([k, v]) => !/^[A-Z]/.test(k) || /\t/.test(`${v ?? ""}`)) || s.length > MAX_TEXT) throw fail("text");
+  const b = new Uint8Array(s.length + 4);
+  b[0] = STX;
+  for (let i = 0; i < s.length; i++) b[i + 1] = s.charCodeAt(i) & 255;
+  b.set([ETX, 0x0a, 0x0d], s.length + 1);
+  return b;
+}
+/**
+ * The status message of the eClock+ manual: `{ id?, via?, clock (s), msg?, code, unit, loop?, power?, check? }`. `check`
+ * is written as given (« 0 » by default): how Emit computes the R item is not published.
+ */
+export const encodeTextStatus = (spec) => encodeText([["I", spec.id ?? "eClock-HW2-SW2-V1.02"], ["B", "S"], ["Z", spec.via ?? "USB"], ["W", clockText(spec.clock ?? 0)],
+  ["M", int(spec.msg ?? 0, 0xffffffff, "msg")], ["C", int(spec.code ?? 0, 255, "code")], ["Y", spec.unit ?? ""], ["H", spec.loop ?? "0x000"],
+  ...(spec.power ? [["A", spec.power]] : []), ["R", spec.check ?? "0"]]);
+/** The emiTag message of the eClock+ manual: `{ via?, card, unit, msg?, code, t (s within the day), race? (s), retries?, check? }`. */
+export const encodeTextTag = (spec) => encodeText([["B", "M"], ["Z", spec.via ?? "USB"], ["N", int(spec.card, 0xffffffff, "card")], ["Y", spec.unit ?? ""],
+  ["M", int(spec.msg ?? 0, 0xffffffff, "msg")], ["C", int(spec.code, 255, "code")], ["E", clockText(spec.t)], ["T", clockText(spec.race ?? 0)],
+  ["O", int(spec.retries ?? 0, 255, "retries")], ["R", spec.check ?? "0"]]);
+
 // ---- a stream of chunks → messages
 
 /**
  * Bytes as they come, in chunks of any size, → what they carry. `push(chunk)` returns the items completed by it:
- * `{ kind: "card250", … }`, `{ kind: "mtr", type: "card" | "status", … }` (see `decodeCard250`, `decodeMtr`), and
- * `{ kind: "error", code: "checksum" | "sync", sys?, part? }` once for each run of bytes it had to skip — a frame whose
- * check bytes fail, or bytes that start no frame. After such bytes it looks for the next start one byte further on, so a
- * damaged frame costs that frame only. `kind`: "250", "mtr4", or "auto" — both tried, until the first good frame settles it.
+ * `{ kind: "card250", … }`, `{ kind: "mtr", type: "card" | "status", … }`, `{ kind: "text", type: "status" | "tag" | "other", … }`
+ * (see `decodeCard250`, `decodeMtr`, `decodeText`), and `{ kind: "error", code: "checksum" | "sync", sys?, part? }` once for
+ * each run of bytes it had to skip — a frame whose check bytes fail, or bytes that start no frame. After such bytes it
+ * looks for the next start one byte further on, so a damaged frame costs that frame only. `kind`: "250", "mtr4", "escan"
+ * (the text messages), or "auto" — all three tried, until the first good frame settles it. A text message has no check
+ * this code can verify: it is taken when it is whole — 02, a capital letter, then tabs and printable characters only
+ * (plain ASCII under « auto ») up to 03, within `MAX_TEXT` bytes; the 0A 0D between two messages are passed over.
  */
 export class Decoder {
   constructor({ kind = "auto" } = {}) {
-    if (!SERIAL[kind]) throw fail("kind");
+    if (!LINES[kind]) throw fail("kind");
     this.kind = kind; this.buf = new Uint8Array(512); this.len = 0; this.lost = false; this.frames = 0; this.skipped = 0;
   }
   /** Bytes held, waiting for the rest of a frame. */
@@ -240,11 +340,12 @@ export class Decoder {
     const out = [];
     let i = 0;
     while (i < this.len) {
+      if (this.kind === "escan" && (this.buf[i] === 0x0a || this.buf[i] === 0x0d)) { i++; continue; }   // what ends a text message
       const r = this.#at(i, this.len - i);
       if (r === WAIT) break;
       if (r.item) {
         out.push(r.item); i += r.size; this.frames++; this.lost = false;
-        if (this.kind === "auto") this.kind = r.item.kind === "mtr" ? "mtr4" : "250";
+        if (this.kind === "auto") this.kind = r.item.kind === "mtr" ? "mtr4" : r.item.kind === "text" ? "escan" : "250";
         continue;
       }
       if (!this.lost) { this.lost = true; out.push({ kind: "error", ...r }); }
@@ -255,8 +356,21 @@ export class Decoder {
   }
 
   #at(i, n) {
-    const r = (this.kind !== "250" && this.#mtr(i, n)) || (this.kind !== "mtr4" && this.#c250(i, n));
+    const k = this.kind, all = k === "auto";
+    const r = ((all || k === "mtr4") && this.#mtr(i, n)) || ((all || k === "250") && this.#c250(i, n)) || ((all || k === "escan") && this.#text(i, n, all));
     return r || { code: "sync" };
+  }
+  #text(i, n, plain) {
+    const b = this.buf;
+    if (b[i] !== STX) return null;
+    if (n < 2) return WAIT;
+    if (b[i + 1] < 0x41 || b[i + 1] > 0x5a) return null;                 // an item's letter comes first
+    for (let k = 2; k < n; k++) {
+      const c = b[i + k];
+      if (c === ETX) return { item: parseText(b.subarray(i + 1, i + k)), size: k + 1 };
+      if ((c < 0x20 && c !== 9) || (plain && c > 0x7e) || k > MAX_TEXT) return null;
+    }
+    return WAIT;
   }
   #mtr(i, n) {
     const b = this.buf;

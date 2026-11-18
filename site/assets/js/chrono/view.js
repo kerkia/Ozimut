@@ -4,6 +4,13 @@
 import { judge, readsByRunner, holders, FINAL } from "./judge.js";
 import { rulesOf } from "./rules/index.js";
 
+/** The entry a knockout round's copy stands for (itself for anyone else). */
+export function personOf(st, id) {
+  let r = st.runners[id];
+  for (let n = 0; r?.of && st.runners[r.of] && n < 30; n++) r = st.runners[r.of];
+  return r?.id ?? id;
+}
+
 const ORDER = ["ok", "nc", "mp", "dnf", "ot", "dsq", "dns", "run", "wait"];
 const byName = (a, b) => String(a.name).localeCompare(String(b.name), undefined, { numeric: true });
 
@@ -15,6 +22,7 @@ function rowOf(st, r, j) {
     cls: r.cls || null, clsName: k?.name || "", course: j.course, start: j.start, finish: j.finish, time: j.time, status: j.status, auto: j.auto,
     manual: !!r.status, adj: r.adj || 0, splits: j.splits.map((s) => ({ ...s })), missing: j.missing, extra: j.extra,
     points: j.points, gross: j.gross, penalty: j.penalty, read: j.read?.id || null, rent: r.rent || 0, leg: r.leg || 0, team: r.team || null,
+    restart: !!j.restart, of: r.of || null,
     place: null, behind: null,
   };
 }
@@ -59,23 +67,57 @@ function splitPlaces(rows) {
 const courseOut = (c) => (c ? { id: c.id, name: c.name, length: c.length ?? null, climb: c.climb ?? null, controls: (c.controls || []).map(Number), score: !!c.score } : null);
 const clone = (r) => ({ ...r, splits: r.splits.map((s) => ({ ...s })) });
 
+const teamOut = (st, tm, kind, members, f) => {
+  const club = st.clubs[tm.club];
+  return { id: tm.id, kind, name: tm.name || club?.name || "", club: club?.name || "", clubCode: club?.code || "", clubId: tm.club || null, bib: tm.bib ?? "", family: tm.name || club?.name || "", given: "",
+    legs: members, members, place: null, behind: null, ...f };
+};
+/** Places of a second group, after the first's (teams restarted together rank behind those that never were). */
+function rankAfter(first, second, opt) {
+  const a = rank(first, opt), b = rank(second, opt), n = a.filter((r) => r.place).length;
+  for (const r of b) if (r.place) { r.place += n; r.behind = null; }
+  return a.filter((r) => r.place).concat(b.filter((r) => r.place), a.filter((r) => !r.place), b.filter((r) => !r.place));
+}
+
+/** A relay class's teams: the legs' times added; a team one of whose legs left with the late teams ranks after the others. */
 function relayTeams(st, k, rowsById, opt) {
-  const legs = k.legs.length, teams = [];
+  const legs = k.legs.length, clean = [], late = [];
   for (const tm of Object.values(st.teams)) {
     if (tm.cls !== k.id) continue;
-    const members = (tm.runners || []).map((id) => rowsById.get(id) || null);
-    let status = "ok", time = 0, done = 0;
+    const members = Array.from({ length: legs }, (_, i) => rowsById.get((tm.runners || [])[i]) || null);
+    let status = "ok", time = 0, done = 0, restart = false;
     for (let i = 0; i < legs; i++) {
       const r = members[i];
       if (!r) { if (status === "ok") status = "wait"; continue; }
+      if (r.restart) restart = true;
       if (r.status === "ok" && r.time != null) { time += r.time; done++; } else if (status === "ok") status = r.status;
     }
     if (status === "ok" && done < legs) status = "run";
-    const club = st.clubs[tm.club];
-    teams.push({ id: tm.id, name: tm.name || club?.name || "", club: club?.name || "", clubCode: club?.code || "", bib: tm.bib ?? "", family: tm.name || "", given: "",
-      status, time: status === "ok" ? Math.round(time * 10) / 10 : null, done, legs: members, place: null, behind: null });
+    (restart ? late : clean).push(teamOut(st, tm, "relay", members, { status, time: status === "ok" ? Math.round(time * 10) / 10 : null, done, restart }));
   }
-  return rank(teams, opt);
+  return rankAfter(clean, late, opt);
+}
+
+const WORST = ["dsq", "mp", "dnf", "ot", "dns", "nc"];
+/**
+ * A class run in teams whose members race together (pairs, patrols): `k.team` = { size, count }. The team's time is its
+ * `count`-th member's (every member by default: the slowest); a member short of a classified result takes the team with them.
+ */
+function groupTeams(st, k, rowsById, opt, score) {
+  const out = [];
+  for (const tm of Object.values(st.teams)) {
+    if (tm.cls !== k.id) continue;
+    const members = (tm.runners || []).map((id) => rowsById.get(id)).filter(Boolean);
+    const need = Math.max(1, Math.min(k.team.count || k.team.size || members.length, k.team.size || members.length));
+    const ok = members.filter((r) => r.status === "ok" && r.time != null).sort((a, b) => a.time - b.time);
+    let status, time = null, points;
+    if (members.length >= need && ok.length >= need) { status = "ok"; time = ok[need - 1].time; if (score) points = Math.min(...ok.slice(0, need).map((r) => r.points ?? 0)); }
+    else if (members.some((r) => r.status === "run")) status = "run";
+    else if (members.length < need || members.some((r) => r.status === "wait")) status = members.some((r) => r.read) ? "run" : "wait";
+    else status = WORST.find((s) => members.some((r) => r.status === s)) || "mp";
+    out.push(teamOut(st, tm, "group", members, { status, time, points, done: ok.length }));
+  }
+  return rank(out, { ...opt, score });
 }
 
 /**
@@ -100,9 +142,11 @@ export function buildView(st, { now = null } = {}) {
   for (const k of Object.values(st.classes).sort(byName)) {
     const mine = [...rows.values()].filter((r) => r.cls === k.id);
     const course = st.courses[k.course] || null, score = !!course?.score;
-    const out = { id: k.id, name: k.name, course: courseOut(course), nc: !!k.nc, rows: rank(mine, { ...opt, score }) };
+    const out = { id: k.id, name: k.name, course: courseOut(course), nc: !!k.nc, first: k.first ?? null, rows: rank(mine, { ...opt, score }) };
     if (!k.pool?.length && !k.legs?.length && !score) splitPlaces(out.rows);
     if (k.legs?.length) out.teams = relayTeams(st, k, rows, opt);
+    else if (k.team) out.teams = groupTeams(st, k, rows, opt, score);
+    if (k.ko) out.ko = k.ko;
     classes.push(out);
   }
   const none = [...rows.values()].filter((r) => !r.cls || !st.classes[r.cls]);
@@ -117,7 +161,7 @@ export function buildView(st, { now = null } = {}) {
   }
   const all = [...rows.values()], n = (f) => all.filter(f).length;
   const counts = {
-    entries: all.length, read: n((r) => r.read), out: n((r) => r.status === "run"), wait: n((r) => r.status === "wait"),
+    entries: n((r) => !r.of), read: n((r) => r.read), out: n((r) => r.status === "run"), wait: n((r) => r.status === "wait"),
     ok: n((r) => r.status === "ok"), mp: n((r) => r.status === "mp"), dnf: n((r) => r.status === "dnf"), dns: n((r) => r.status === "dns"),
     dsq: n((r) => r.status === "dsq"), ot: n((r) => r.status === "ot"), nc: n((r) => r.status === "nc"), loose: loose.length,
     done: n((r) => FINAL.has(r.status)),
@@ -148,7 +192,8 @@ export function problems(st, view, { now = null } = {}) {
   }
   const cards = new Map();
   for (const r of Object.values(st.runners)) if (r.card) (cards.get(Number(r.card)) || cards.set(Number(r.card), []).get(Number(r.card))).push(r.id);
-  for (const [card, ids] of cards) if (ids.length > 1) out.push({ kind: "dupcard", level: "warn", card, runners: ids });
+  // one person's entries in the rounds of a knockout share their card: no doubt there
+  for (const [card, ids] of cards) if (new Set(ids.map((id) => personOf(st, id))).size > 1) out.push({ kind: "dupcard", level: "warn", card, runners: ids });
   for (const k of Object.values(st.classes)) {
     const used = rows.some((r) => r.cls === k.id);
     if (used && !k.course && !k.pool?.length && !k.legs?.length) out.push({ kind: "nocourse", level: "warn", cls: k.id });
@@ -167,8 +212,9 @@ const cs = (s) => (s == null ? null : Math.round(s * 100));
 /** The lists in the compact form « En direct » reads (liveresultat's): hundredths of a second. */
 export function toLive(view, by = "class") {
   const out = { order: [], classes: {} };
-  for (const g of by === "course" ? view.courses : view.classes) {
-    if (!g.rows.length) continue;
+  for (const g0 of by === "course" ? view.courses : view.classes) {
+    if (!g0.rows.length) continue;
+    const g = by !== "course" && g0.teams ? { ...g0, rows: g0.teams } : g0;            // a class run in teams shows its teams
     let name = g.name || "?";
     while (out.classes[name]) name += " ";
     const c = by === "course" ? g : g.course;
@@ -188,15 +234,19 @@ export function toLive(view, by = "class") {
   return out;
 }
 
-/** The view exporters take (design.md): by class, or by course with the classes merged. */
+const expRow = (r) => ({ place: r.place, family: r.family, given: r.given, club: r.club, clubCode: r.clubCode, lic: r.lic, card: r.card, cat: r.cat || r.clsName,
+  sex: r.sex, birth: r.birth, bib: r.bib, nat: r.nat, start: r.start, finish: r.finish, time: r.time, status: r.status, points: r.points,
+  splits: r.splits.map((s) => ({ code: s.code, t: s.t })), cls: r.clsName, rent: r.rent });
+
+/** The view exporters take (design.md): by class, or by course with the classes merged; a relay class also has its `teams`. */
 export function exportView(view, by = "class") {
   return {
     event: view.event,
     classes: (by === "course" ? view.courses : view.classes).filter((g) => g.rows.length).map((g) => ({
       id: g.id, name: g.name, course: by === "course" ? { name: g.name, length: g.length, climb: g.climb, controls: g.controls } : g.course,
-      rows: g.rows.map((r) => ({ place: r.place, family: r.family, given: r.given, club: r.club, clubCode: r.clubCode, lic: r.lic, card: r.card, cat: r.cat || r.clsName,
-        sex: r.sex, birth: r.birth, bib: r.bib, nat: r.nat, start: r.start, finish: r.finish, time: r.time, status: r.status, points: r.points,
-        splits: r.splits.map((s) => ({ code: s.code, t: s.t })), cls: r.clsName, rent: r.rent })),
+      rows: g.rows.map(expRow),
+      ...(by !== "course" && g.teams?.some((x) => x.kind === "relay") ? { teams: g.teams.map((x) => ({ name: x.name, club: x.club, clubCode: x.clubCode, bib: x.bib, status: x.status, time: x.time, place: x.place, behind: x.behind,
+        restart: !!x.restart, legs: x.legs.map((r) => (r ? expRow(r) : null)) })) } : {}),
     })),
   };
 }

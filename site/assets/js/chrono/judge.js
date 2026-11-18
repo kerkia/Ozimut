@@ -45,7 +45,13 @@ function startOf(st, runner, read, hint) {
   const ev = st.event, k = st.classes[runner.cls];
   const leg = k?.legs && runner.leg ? k.legs[runner.leg - 1] : null;
   if (read?.rel) return 0;
-  if (leg) return runner.start ?? leg.mass ?? hint ?? (runner.leg === 1 ? k.first ?? ev.zero : null) ?? read?.start ?? null;   // a relay leg: the handover
+  if (leg) {
+    if (runner.start != null) return runner.start;
+    if (runner.leg === 1) return leg.mass ?? k.first ?? ev.zero ?? read?.start ?? null;
+    // the handover — unless the late teams' runners of this leg were sent off together before it came
+    if (hint != null && (leg.mass == null || hint <= leg.mass)) return hint;
+    return leg.mass ?? read?.start ?? null;
+  }
   if (ev.startMode === "punch") return read?.start ?? runner.start ?? null;
   if (ev.startMode === "mass") return runner.start ?? k?.first ?? ev.zero ?? read?.start ?? null;
   return runner.start ?? read?.start ?? null;
@@ -79,7 +85,7 @@ function judgeScore(st, course, P, start, finish) {
 
 /**
  * A runner's result: `{ status, auto (the card's own verdict), time, start, finish, course, splits: [{ code, s, t, leg }],
- * missing: [codes], extra: [[code, s]], points?, read }`. `now`: seconds after midnight, to tell « out » from « not started ».
+ * missing: [codes], extra: [[code, s]], points?, restart? (a relay leg sent off with the late teams), read }`. `now`: seconds after midnight, to tell « out » from « not started ».
  */
 export function judge(st, runner, read, now = null, hint = null) {
   const out = { status: "wait", auto: null, time: null, start: null, finish: null, course: null, splits: [], missing: [], extra: [], read: read || null };
@@ -96,6 +102,8 @@ export function judge(st, runner, read, now = null, hint = null) {
   }
   out.course = course?.id || null;
   out.start = read?.ed?.start ?? startOf(st, runner, read, hint);
+  const lg = runner.leg > 1 ? st.classes[runner.cls]?.legs?.[runner.leg - 1] : null;
+  if (lg?.mass != null && runner.start == null && out.start === lg.mass && !(hint != null && hint <= lg.mass)) out.restart = true;
   if (!read) {
     out.status = runner.status || (out.start != null && now != null && now >= out.start ? "run" : "wait");
     return out;

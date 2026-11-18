@@ -27,7 +27,8 @@ export async function standalone(root) {
     <div class="chr-card"><h3>${t("chr.home.new")}</h3><form id="chr-new" class="chr-grid"><label class="chr-f"><span>${t("chr.ev.name")}</span><input name="name" required></label>
       <label class="chr-f"><span>${t("chr.ev.date")}</span><input name="date" type="date" value="${new Date().toISOString().slice(0, 10)}" required></label>
       <label class="chr-f"><span>${t("chr.ev.rules")}</span><select name="country"><option value="FR">${t("chr.rules.fr")}</option><option value="CA">${t("chr.rules.ca")}</option><option value="">${t("chr.rules.iof")}</option></select></label>
-      <button type="submit" class="btn btn-primary">${t("chr.create")}</button></form></div></div>`.toString();
+      <button type="submit" class="btn btn-primary">${t("chr.create")}</button></form></div>
+    <p class="chr-home-doc"><a href="doc.html" target="_blank" rel="noopener">${t("chr.home.doc")}</a></p></div>`.toString();
   root.querySelectorAll("[data-ev]").forEach((b) => b.addEventListener("click", () => open(b.dataset.ev)));
   root.querySelector("#chr-new").addEventListener("submit", (e) => {
     e.preventDefault();

@@ -1,6 +1,8 @@
 // The Documentation's guide to the site, in German (guide.fr.js is the reference: the same structure, the same chapters).
 // build(X) receives the page's helpers and returns « Die Website » (the documentation's home) and the guides of Arena, Coach and
 // Orga and Carto. A page is named as the German menu names it, with a link.
+import APP from "./chronoapp.de.js";
+
 export function build(X) {
   const { html, raw, subTabs, fr = true, admin = false, owner = false } = X;
   // a page of the site, as the menus name it
@@ -9,10 +11,15 @@ export function build(X) {
   const M = (mod, label) => html`<a href="#/documentation?module=${mod}">${label}</a>`;
   // a tab of the module's documentation shown (Orga: « Die Bahnlegung »)
   const D = (tab, label, goto) => html`<a href="#/documentation?onglet=${tab}${goto ? `&voir=${goto}` : ""}" data-tab-link="${tab}"${raw(goto ? ` data-goto="${goto}"` : "")}>${label}</a>`;
-  const chapters = (list, CH) => raw(subTabs(list, list[0][0]).s.replace(/<div data-subpanel="([a-z]+)"( hidden)?><\/div>/g, (m0, k, hid) =>
+  const chapters = (list, CH) => raw(subTabs(list, list[0][0]).s.replace(/<div data-subpanel="([a-z-]+)"( hidden)?><\/div>/g, (m0, k, hid) =>
     `<div data-subpanel="${k}"${hid || ""}>${CH[k]().s}</div>`));
   const slide = (kicker, title, body, id) => html`<section class="mx-slide"${raw(id ? ` id="${id}"` : "")}><p class="mx-kicker">${kicker}</p><h2>${title}</h2>${body}</section>`;
   const list = (items) => html`<ul class="mx-list">${items.filter(Boolean).map((i) => html`<li><span>${i}</span></li>`)}</ul>`;
+  // a chapter of Orga's documentation
+  const CHAP = (chapter, label) => html`<a href="#/documentation?module=orga&voir=${chapter}" data-tab-link="orga" data-goto="${chapter}">${label}</a>`;
+  // the desktop application's own documentation (content/chronoapp.*.js, which the application shows too): a slide a section
+  const appDoc = (kicker) => html`<p class="muted" style="margin:0 0 14px">${APP.lede}</p>${APP.sections.map((sec) => slide(kicker, sec.title,
+    raw(sec.html.replace(/<table>/g, '<div class="table-wrap"><table class="data compact">').replace(/<\/table>/g, "</table></div>")), `chrono-app-${sec.id}`))}`;
 
   // what each documentation says under its title
   const LEDE = {
@@ -422,7 +429,9 @@ export function build(X) {
   // Orga (« Die Bahnlegung », its other tab, is content/methods.*.js' tracerDoc)
   // ======================================================================================================
   const ORGA = [["qui", "Meine Veranstaltungen"], ["evenement", "Eine Veranstaltung anlegen"], ["trace", "Bahnlegung"], ["horaires", "Starts"],
-    ["direct", "Live"], ["resultats", "Ergebnisse"], ["analyses", "Analyse"], ["equipe", "Das Team"]];
+    ["direct", "Live"], ["resultats", "Ergebnisse"], ["analyses", "Analyse"],
+    // Chrono, the race timing: its tab is the administrators' only for now (pages/manage.js), and so are its chapters
+    ...(admin ? [["chrono", "Chrono"], ["chrono-app", "Die Chrono-Anwendung"]] : []), ["equipe", "Das Team"]];
   function orga() {
     return chapters(ORGA, {
       qui: () => html`
@@ -560,6 +569,241 @@ export function build(X) {
             abgespielt hat, ohne einen Track zu teilen — nur Zahlen, nie wer.</p>
           <p>Die Läufer finden sie in Coach („Analyse › Mit den anderen vergleichen“). Die Bahnlegung kann ihre Bahnen auch samt Karte in eine Analyse veröffentlichen (bei einem
             Wettkampf nach dem Lauf).</p>`)}`,
+      chrono: () => html`
+        ${slide("Chrono", "Einen Lauf mit Ozimut zeitmessen", html`
+          <p>Chrono ist das Zeitmess-Werkzeug von Ozimut: die Teilnehmer, die Auslosung der Startzeiten, das Auslesen der Chips im Ziel, die
+            Belege, die Ergebnisse, die Arbeit des Schiedsrichters. Es steht in ${P("#/orga", "Meine Veranstaltungen")}: Öffne eine
+            Veranstaltung, dann ihren Reiter „Chrono“, direkt vor „Team“. Die Reiter „Live“ und „Ergebnisse“ bleiben für alle, die mit einer
+            anderen Software zeitmessen. Chrono gibt es auch als Anwendung zum Installieren, um ohne Internet zu arbeiten und mehrere Computer
+            zu verbinden: siehe ${CHAP("chrono-app", "Die Chrono-Anwendung")}.</p>
+          <div class="mx-callout"><b>In der Testphase, nur für Administratoren.</b> Der Reiter „Chrono“ wird vorerst nur den Administratoren von
+            Ozimut angezeigt. Chrono wurde noch nie mit echten SPORTident- oder Emit-Stationen, einem Belegdrucker oder einem echten MeOS
+            ausprobiert, und keine seiner Dateien wurde bisher an einen Verband geschickt. Probiere es bei einem Training oder neben deiner
+            gewohnten Software aus; vertraue ihm noch keinen Wettkampf allein an.</div>
+          <p><b>Die Idee in drei Sätzen.</b> Jede Station — ein Computer oder ein Telefon, auf dem Chrono geöffnet ist — schreibt, was sie tut
+            (eine Anmeldung, ein ausgelesener Chip, eine Korrektur), als Vorgang in ein gemeinsames Protokoll, das des Laufs. Die Stationen
+            halten sich gegenseitig auf dem Stand: über die Kopie auf Ozimut, wenn es Internet gibt, über den Hub der Anwendung im lokalen
+            Netz, sonst über eine Datei, die man mitnimmt. Ohne Verbindung behält jede Station alles bei sich und arbeitet weiter: Nichts geht
+            verloren, und alles findet wieder zusammen, sobald die Verbindung zurück ist, in beliebiger Reihenfolge.</p>
+          <p><b>Der Bildschirm.</b> Oben der Name der Veranstaltung, der Zustand der Geräte und Verbindungen (Lesegeräte, Drucker, Kopie auf
+            Ozimut, Hub) und die Uhrzeit. Links die neun Stationen: Vorbereiten, Anmeldung, Start, Ziel, Übersicht, Sprecher, Schiedsrichter,
+            Posten, Abschließen (<kbd>Alt</kbd>+<kbd>1</kbd> bis <kbd>Alt</kbd>+<kbd>9</kbd>). Unter der Leiste die Schaltflächen der
+            geöffneten Station. Unten die Zähler: Teilnehmer, unterwegs, ausgelesene Chips, gewertet, zu klärende Punkte. Ein Chip, der an
+            irgendeiner Station ausgelesen wird, wird behalten, bewertet, mit einem Ton gemeldet (hoch: alles in Ordnung; tief: etwas fehlt)
+            und, wenn du es eingestellt hast, gedruckt.</p>`)}
+        ${slide("Chrono", "Vorbereiten: der Assistent in neun Schritten", html`
+          <p>Die Station „Vorbereiten“ führt die Veranstaltung von null bis startklar. Die Schritte lassen sich in beliebiger Reihenfolge
+            erledigen; ein Schritt, in dem etwas den Beginn verhindert, ist markiert.</p>
+          <div class="mx-steps">
+            <div class="mx-step"><b>Veranstaltung</b>Name, Datum, Ort, Verein; „Art des Laufs“ (Einzellauf, Score-OL, Staffel); „Regeln“ (das
+              Land); „Zeitmesssystem“ (SPORTident oder Emit); „Starts“: zur Zeit der Startliste, an der Starteinheit (freier Start) oder
+              Massenstart; „Erster Start“; „Zielschluss“, nach dem ein Läufer die Zeit überschritten hat. Im Reiter kommen Name, Datum, Ort
+              und Verein aus der Orga-Veranstaltung.</div>
+            <div class="mx-step"><b>Bahnen</b>Importiere die Datei des Bahnlegers (IOF XML) oder „Neue Bahn“: ihr Name, ihre Länge, ihre
+              Steigung und ihre Posten in der Reihenfolge, die Nummern der Einheiten durch Leerzeichen getrennt (31 32 45 100).</div>
+            <div class="mx-step"><b>Kategorien</b>„Neue Kategorie“, „Eine pro Bahn“ oder „Alterskategorien“ (die der gewählten Regeln; sie
+              brauchen dann noch eine Bahn). Jede hat ihre Bahn und, wenn gewünscht, ihren ersten Start, ihr Intervall, eine Maximalzeit, ein
+              Startgeld; „Kategorie ohne Wertung“ für Einsteiger.</div>
+            <div class="mx-step"><b>Teilnehmer</b>Eine Datei „Importieren“ oder einzeln „Neuer Läufer“. Die „Verbandsdatei“ hilft, schnell
+              anzumelden und Chipnummern zu finden (siehe unten).</div>
+            <div class="mx-step"><b>Teams</b>Nur wenn eine Kategorie im Team gelaufen wird: Staffel, Paare, Patrouillen (siehe „Die
+              Laufformate“).</div>
+            <div class="mx-step"><b>Starts</b>Die „Auslosung“ der Startzeiten, die Kontrolle der Liste, der Druck der Startlisten, der
+              IOF-XML-Export. Entfällt beim Start an der Starteinheit oder beim Massenstart.</div>
+            <div class="mx-step"><b>Geräte</b>Die Chip-Lesegeräte, der Belegdrucker und der „Probelauf“.</div>
+            <div class="mx-step"><b>Verbindungen</b>Der Name des Bedieners, die Kopie auf Ozimut, die Live-Ergebnisse, der Hub, die
+              Veranstaltungsdatei.</div>
+            <div class="mx-step"><b>Prüfen</b>Was den Beginn verhindert und was nur empfohlen ist, mit „Dorthin“ zum betroffenen Schritt;
+              dann „Station Ziel öffnen“.</div>
+          </div>
+          ${list([
+            html`<b>Importieren</b> nimmt jede Datei und sagt, was sie enthält, bevor sie hinzugefügt wird: IOF XML 3.0 (Teilnehmer,
+              Startliste, Bahnen, Kategorien, Ergebnisse), eine CSV-Tabelle — die Datei des Verbands oder von OE, erkannt an ihren
+              Spaltentiteln auf Französisch, Englisch oder Deutsch —, eine MeOS-Datei, eine Ozimut-Chrono-Datei (.ozchrono). Was schon da
+              ist, wird ergänzt, nie verdoppelt: Ein Läufer wird an seiner Lizenz erkannt, sonst an Name und Verein.`,
+            html`<b>Die Verbandsdatei</b> (Schritt „Teilnehmer“, „Datei laden“) ist die Datei der Lizenzinhaber des Verbands, auf diesem
+              Computer aufbewahrt: Tippe im Eintrag eines Läufers einen Namen oder eine Lizenznummer, und der Rest füllt sich aus. „Chips
+              ergänzen“ gibt Teilnehmern ohne Chip die Nummer, die diese Datei für sie kennt.`,
+            html`<b>Die Auslosung</b> erfolgt nach Bahn (alle Läufer einer Bahn gemischt) oder nach Kategorie, mit dem Intervall, dem „Abstand
+              zwischen Läufern eines Vereins“, „Freien Plätzen“ für Nachmeldungen und „Schon vergebene Zeiten behalten“. Der Schritt meldet
+              Läufer ohne Zeit, doppelt vergebene Zeiten auf einer Bahn und Läufer desselben Vereins, die aufeinander folgen.`,
+            html`<b>Der Probelauf</b> („Geräte“, „Probelauf starten“) lässt dich alle Stationen ausprobieren, ohne etwas zu verderben: Er
+              arbeitet auf einer Kopie des Laufs, mit „Einen erfundenen Chip auslesen“, „Zehn Chips“ und „Ein unbekannter Chip“ — manche mit
+              einem fehlenden Posten oder ohne Ziel, um ihre Klärung zu üben. Nichts wird gespeichert oder gesendet. Ohne Teilnehmer legt er
+              einen kleinen erfundenen Lauf an. „Probelauf beenden“ führt zum echten Lauf zurück.`,
+          ])}`, "chrono-preparer")}
+        ${slide("Chrono", "Am Lauftag, Station für Station", html`
+          ${list([
+            html`<b>Anmeldung</b>: einen Läufer nach Name, Verein, Lizenz, Startnr. oder Chipnummer finden. Ein leerer Chip auf dem Lesegerät
+              öffnet den Eintrag seines Trägers oder eine neue Anmeldung mit dieser Nummer. Der Eintrag enthält die Nachmeldung („Neuer
+              Läufer“), die Art der Anmeldung, „Startgeld“ und „Bezahlt“, den „Leihchip“. Daneben: Teilnehmer ohne Chip, „Offen“, die
+              „Leihchips draußen“, Teilnehmer ohne Kategorie. Das Menüband druckt die Liste „Nach Verein“ und öffnet „Rechnungen nach
+              Verein“.`,
+            html`<b>Start</b>: die Uhrzeit, der nächste Start und die Läufer Minute für Minute; für jeden „Anwesend“ (✓) oder nicht
+              angetreten (✕). „Fehlende markieren“ markiert alle, die nicht abgehakt wurden und deren Zeit seit fünf Minuten vorbei ist — nur
+              wenn überhaupt jemand abgehakt wurde. Das Menüband druckt die Liste „Minute für Minute“.`,
+            html`<b>Ziel</b>: hier werden die Chips ausgelesen. Der letzte Chip erscheint groß — der Läufer, sein Status, seine Zeit, sein
+              Rang, sein Rückstand, die fehlenden Posten — mit „Beleg“, „Chip korrigieren“, „Eintrag des Läufers“ und „Nicht dieser Läufer“.
+              Darunter die Liste „Zu klären“ und die „Zuletzt ausgelesenen Chips“. „Beleg automatisch“ druckt den Beleg gleich nach dem
+              Auslesen.`,
+            html`<b>Übersicht</b>: die laufenden Ergebnisse „Nach Kategorie“ oder „Nach Bahn“ und „Im Wald“, die gestarteten und noch nicht
+              zurückgekehrten Läufer, vom frühesten Start zum spätesten. Ein Klick auf einen Läufer zeigt seine Posten mit Zeiten und Rängen.
+              Das Menüband druckt die Ergebnisse, mit oder ohne Zwischenzeiten, und „Bildschirm“ öffnet sie in großer Schrift für eine
+              Anzeige.`,
+            html`<b>Sprecher</b>: „Zuletzt im Ziel“, „In Führung“, die „Funk-Durchgänge“; „Vollbild“.`,
+            html`<b>Schiedsrichter</b>: das „Änderungsprotokoll“ — alles, was seit dem Auslesen der Chips von Hand geändert wurde, von wem,
+              wann, an welcher Station —, die „Beschwerden und Entscheidungen“, „Disqualifizieren“ mit Begründung, „Protokoll exportieren“.`,
+            html`<b>Posten</b>: jede Einheit, wie die ausgelesenen Chips sie zeigen — wie viele sie gestempelt haben, wie viele es hätten tun
+              müssen und nicht getan haben, ihr Zustand („nie gestempelt: defekt?“, „unstimmige Zeit“, „fehlt oft“). „Posten hinzufügen“, und
+              für jeden seine Punkte (Score-OL), die „Weiteren akzeptierten Nummern“ (eine Ersatzeinheit) und „Funkposten“. „Durchgang von
+              Hand“ notiert den Durchgang eines Läufers, den ein Postenkontrolleur am Telefon meldet.`,
+            html`<b>Abschließen</b>: nach dem Lauf (siehe unten).`,
+          ])}`, "chrono-postes")}
+        ${slide("Chrono", "Im Ziel: die Liste „Zu klären“", html`
+          <p>Chrono entscheidet nie an deiner Stelle: Was einen Menschen braucht, wartet in der Liste „Zu klären“ der Station Ziel (ein roter
+            Zähler zeigt es an der Station), jede Zeile mit ihrer Schaltfläche.</p>
+          <div class="table-wrap"><table class="data compact"><thead><tr><th>Die Zeile sagt</th><th>Was das bedeutet</th><th>Was zu tun ist</th></tr></thead><tbody>
+            <tr><td>Chip n: Niemand trägt ihn</td><td>Ein ausgelesener Chip, den kein Teilnehmer gemeldet hat.</td><td>„Zuteilen“: den Läufer
+              suchen (Chrono sagt, zu welcher Bahn der Chip passt), „Neuer Läufer“ oder „Beiseitelegen“.</td></tr>
+            <tr><td>Chip n: Mehrere Läufer tragen ihn</td><td>Dieselbe Nummer ist mehreren Teilnehmern zugeteilt.</td><td>Dem richtigen Läufer „Zuteilen“.</td></tr>
+            <tr><td>Kein Zielstempel oder kein Startstempel</td><td>Der Läufer hat die Einheit nicht gestempelt, oder sie hat nicht reagiert.</td>
+              <td>„Chip ansehen“: die Zeit von Hand eingeben.</td></tr>
+            <tr><td>Posten fehlt (Nummern)</td><td>Ein Posten der Bahn ist nicht auf dem Chip: Der Läufer hat einen Fehlstempel.</td><td>„Chip
+              ansehen“, um den Stempel hinzuzufügen, wenn die Kontrolle am Posten ihn bestätigt; „Gesehen“, um zu vermerken, dass es geprüft ist.</td></tr>
+            <tr><td>Nach Zielschluss noch unterwegs</td><td>Gestartet, nie ausgelesen.</td><td>„Zieleinlauf eingeben“: ein Zieleinlauf oder ein Status von Hand.</td></tr>
+            <tr><td>Chip n-mal ausgelesen, das letzte Auslesen zählt</td><td>Der Chip wurde mehrmals ausgelesen.</td><td>„Eintrag öffnen“, wenn das nicht gewollt ist.</td></tr>
+            <tr><td>Posten: unstimmige Zeit bei n Läufern</td><td>Die Einheit ist vielleicht falsch gestellt.</td><td>Siehe die Station „Posten“.</td></tr>
+            <tr><td>Leihchip zurückzuholen, Betrag offen</td><td>Eine Erinnerung, wenn der Läufer vorbeikommt.</td><td>„Zurückgegeben“, „Bezahlt“.</td></tr>
+          </tbody></table></div>
+          ${list([
+            html`<b>Einen Chip korrigieren</b> („Inhalt des Chips“): einen Stempel entfernen oder hinzufügen, Start oder Ziel ändern, den
+              Läufer ändern. Der Inhalt des Chips selbst wird nie verändert: Die Korrektur ersetzt ihn, sie steht im Protokoll des
+              Schiedsrichters, und „Zurück zum Chip“ hebt sie auf.`,
+            html`<b>Einen Zieleinlauf eingeben</b> (Menüband, „Von Hand“): für einen Läufer, dessen Chip verloren oder unlesbar ist, seine
+              Zielzeit oder seine Laufzeit und sein Status. Auch das steht im Protokoll.`,
+            html`<b>Der Eintrag des Läufers</b>, Teil „Schiedsrichter“: Ein von Hand gewählter Status geht dem vor, was der Chip sagt, und
+              eine „Zeitkorrektur“ fügt Sekunden hinzu oder zieht sie ab.`,
+          ])}`, "chrono-traiter")}
+        ${slide("Chrono", "Die Laufformate", html`
+          ${list([
+            html`<b>Einzellauf</b>: der einfache Fall, eine Kategorie, eine Bahn. Eine Kategorie kann „Varianten“ haben (ihre Namen durch „/“
+              getrennt): Die gelaufene Variante wird beim Auslesen des Chips erkannt.`,
+            html`<b>Score-OL</b>: die Art „Score-OL“, eine Bahn mit dem Häkchen „Score-Bahn“ (die Posten werden in beliebiger Reihenfolge
+              angelaufen), das „Zeitlimit“ und die „Strafe pro angefangener Minute“ in „Veranstaltung“, die Punkte jedes Postens in „Posten“
+              (leer: ein Punkt).`,
+            html`<b>Staffel</b>: die Art „Staffel“; in jeder Kategorie die „Bahnen der Staffelstrecken“ — eine Strecke pro „;“, ihre Varianten
+              durch „/“ getrennt (A1/A2; B; C1/C2). Der Schritt „Teams“ legt die Teams an („Neues Team“: Name, Verein, Kategorie, Startnr., der
+              Läufer jeder Strecke; tippe einen Namen, Gemeldete ohne Team werden vorgeschlagen) oder importiert sie; „Nummerieren“ vergibt
+              die Startnummern, Kategorie für Kategorie („Erste Startnummer“, „Block pro Kategorie“: 100 für 1, 101, 201…).
+              <b>„Massenstart der Wartenden“</b> (Schritt „Teams“ und Station Start): Zur gewählten Zeit starten ab der angegebenen Strecke
+              die Läufer gemeinsam, deren Teamkollege noch nicht im Ziel ist; ihre Zeit läuft ab dieser Zeit, und ihr Team wird hinter denen
+              gewertet, die nicht neu gestartet wurden. „Massenstart aufheben“ macht es rückgängig.`,
+            html`<b>Paare und Patrouillen</b>: in der Kategorie „Teams zu“ (2 für Paare) und „Gewertete Läufer“ — die Zeit des Teams ist die
+              dieses Läufers im Ziel; leer zählen alle, und die Zeit ist die des Letzten.`,
+            html`<b>K.-o.-Sprint</b> (Schritt „Starts“, „K.-o.-Läufe“): Aus der Rangliste einer Qualifikation verteilt Chrono die Läufer „in
+              Schlangenlinie“ auf Läufe, damit sie gleich stark sind; jeder Lauf ist eine eigene Kategorie mit Massenstart („Anzahl Läufe“,
+              „Läufer pro Lauf“, „Start des ersten Laufs“, „Minuten zwischen zwei Läufen“). Die nächste Runde nimmt „Weiter pro Lauf“ und,
+              wenn gewünscht, „Zeitschnellste dazu“, die Schnellsten der Ausgeschiedenen. Jeder behält seinen Chip: Das nächste Auslesen
+              gehört zu seinem Lauf. Eine Runde, in der schon Chips ausgelesen wurden, lässt sich nicht neu anlegen. Das „Tableau der Läufe“
+              druckt jede Runde und dann die Schlussrangliste.`,
+            html`<b>Mehrere Tage</b> (Schritt „Starts“ und Station Abschließen): Füge die schon gelaufenen Etappen hinzu, aus einer
+              Ergebnisdatei (IOF XML, OE, MeOS oder Ozimut Chrono) oder aus einer anderen Veranstaltung dieses Computers. Die Gesamtwertung
+              addiert die Zeiten oder zählt Punkte (1000 für den Sieger jeder Etappe), über alle Etappen oder nur die besten („Gewertete
+              Etappen“). Läufer werden an ihrer Lizenz erkannt, sonst an Name und Verein. <b>„Jagdstart“</b> für den letzten Tag: Der Führende
+              der Gesamtwertung nach Zeit startet zur angegebenen Zeit, die anderen mit ihrem Rückstand; über dem „Größten Rückstand“ und für
+              alle, denen eine Etappe fehlt, Start nacheinander in festem Abstand.`,
+          ])}`, "chrono-formats")}
+        ${slide("Chrono", "Listen und Abrechnung", html`
+          ${list([
+            html`<b>Die fertigen Listen</b>: die Startliste nach Kategorie, nach Bahn, Minute für Minute (für das Startteam) und nach Verein;
+              die Ergebnisse, mit oder ohne Zwischenzeiten; der Beleg jedes Läufers.`,
+            html`<b>„Liste gestalten“</b> (Schritt „Starts“, Gruppe „Drucken“): eigene Listen von Ergebnissen, Starts oder Teilnehmern — die
+              Gruppierung (Kategorie, Bahn, Verein), die Spalten und ihre Reihenfolge, die Sortierung, die berücksichtigten Kategorien und
+              Status, nur die Ersten jeder Gruppe (3 für die Podien), Zwischenzeiten, eine Seite pro Gruppe, die Schriftgröße, die
+              Ausrichtung, Zeilen darüber und darunter. Die Vorschau zeigt die Liste, wie sie gedruckt wird; sie wird gedruckt, als
+              „CSV-Datei“ exportiert oder auf einem „Bildschirm“ geöffnet. Gespeichert (<kbd>Strg</kbd>+<kbd>S</kbd>) bleibt sie bei der
+              Veranstaltung und erscheint unter „Meine Listen“ in den Stationen Übersicht und Abschließen.`,
+            html`<b>„Rechnungen nach Verein“</b> (Stationen Anmeldung und Abschließen): was jeder Verein schuldet, Startgelder und Leihchips.
+              Du stellst den „Preis eines Leihchips“, den Titel, ein „Nummernpräfix“, den Kopf des Veranstalters und die Fußzeile
+              (Bankverbindung, Zahlungsfrist) ein; du markierst einen Verein als bezahlt; du druckst einen Verein, alle Rechnungen oder nur
+              die Vereine mit offenem Betrag; zwei CSV-Exporte, Übersicht und Einzelposten.`,
+          ])}`, "chrono-listes")}
+        ${slide("Chrono", "Nach dem Lauf: Abschließen", html`
+          ${list([
+            html`<b>„Stand des Laufs“</b>: die Läufer, die noch unterwegs sind, die nicht gestarteten Teilnehmer („Nicht Gestartete als nicht
+              angetreten markieren“), ausgelesene Chips, die niemandem zugeteilt sind, nicht zurückgegebene Leihchips, offene Beträge.`,
+            html`<b>„Vor dem Versand an den Verband“</b>: was der Datei fehlen würde — Läufer ohne Lizenz, ohne Verein oder ohne Kategorie,
+              Lizenznummern in unerwarteter Form, Kategorien ohne Bahn.`,
+            html`<b>Die Ergebnisdateien</b>: die Datei des Verbands — in Frankreich „Datei FFCO“, eine CSV im Format von OE 2003, die
+              Ergebnisse nach Bahn, so wie der Verband sie für seine Rangliste erhält; „IOF XML“ 3.0 mit Zwischenzeiten (WinSplits, Livelox,
+              andere Programme); „MeOS“, die Veranstaltung zum Wiederöffnen in MeOS; „Webseite“, die Ergebnisse und Zwischenzeiten auf einer
+              Seite zum Online-Stellen.`,
+            html`<b>„Auf Ozimut veröffentlichen“</b> schickt die Ergebnisse an Arena › Ergebnisse, als Datei des Veranstalters: nur aus dem
+              Reiter (du musst angemeldet sein), für eine Veranstaltung, die mit einem Wettkampf des Kalenders verknüpft ist. Sie ersetzen
+              die, die du dort schon hochgeladen hattest.`,
+            html`<b>Die Live-Ergebnisse</b> werden vor dem Lauf eingestellt: „Verbindungen“, „Die Ergebnisse live auf Ozimut zeigen“ — die
+              Ergebnisse erscheinen in Arena › Live, etwa alle zwanzig Sekunden aktualisiert.`,
+            html`<b>„Chips merken“</b> notiert auf diesem Computer den Chip jedes Lizenzinhabers, für die nächsten Läufe. <b>„Datei
+              speichern“</b> bewahrt den ganzen Lauf in einer .ozchrono-Datei auf, zum Archivieren.`,
+            html`<b>Eine Staffel</b> lässt sich noch nicht in „Ergebnisse“ veröffentlichen, und ihre Dateien enthalten die Ergebnisse Strecke
+              für Strecke: Eine Datei mit Teamergebnissen gibt es noch nicht. Die Rangliste der Teams steht auf dem Bildschirm und auf den
+              gedruckten Listen.`,
+          ])}`, "chrono-cloturer")}
+        ${slide("Chrono", "Die Geräte", html`
+          ${list([
+            html`<b>SPORTident-Lesegerät</b>: Schließe die Hauptstation per USB an, dann „Geräte“, „SPORTident“; der Browser bittet dich,
+              ihren Anschluss zu wählen, und merkt ihn sich. „Uhr stellen“ stellt das Lesegerät auf die Zeit des Computers. Nötig ist Chrome
+              oder Edge auf einem Computer — nicht Firefox oder Safari, kein Telefon — oder die Anwendung. Die Chips SI5 bis SI11, SIAC und
+              pCard sind vorgesehen.`,
+            html`<b>Emit</b>: Wähle Emit als „Zeitmesssystem“, dann „Emit“ für ein Lesegerät 250 oder ein MTR4. Von einem eScan oder eScan2
+              („Emit eScan“) empfängt Chrono nur seinen Status und emiTag-Durchgänge, nicht den Inhalt der Chips: Emit veröffentlicht das
+              Format nicht. Ein Lauf mit Emit-Chips lässt sich also nicht mit einem eScan auslesen; nötig ist ein 250 oder ein MTR4. Die
+              anderen Emit-Einheiten (ECU, ETS) werden nicht unterstützt.`,
+            html`<b>Belegdrucker</b>, „Drucken auf“: ein Belegdrucker an seriellem Anschluss, USB oder Bluetooth (die gängigen Modelle, Epson
+              und kompatible, erhalten den Beleg direkt: wähle Anschluss und Geschwindigkeit); der Systemdrucker mit seinem Druckdialog; und,
+              in der Anwendung, der gewählte Drucker ohne Dialog. Papier von 58 oder 80 mm, „Den Beleg drucken, sobald ein Chip ausgelesen
+              ist“, „Testbeleg“.`,
+            html`<b>Funkposten</b>: Setze das Häkchen „Funkposten“ an der Einheit (Station „Posten“). Die Durchgänge kommen über die
+              Anwendung, die auf die Funkrelais hört, oder werden mit „Durchgang von Hand“ notiert; der Sprecher zeigt sie an.`,
+          ])}`, "chrono-materiel")}
+        ${slide("Chrono", "Mehrere Stationen", html`
+          <p>Eine einzelne Station ohne Internet behält alles selbst. Sobald es mehrere gibt, oder um nicht von einem einzigen Computer
+            abzuhängen, bietet der Schritt „Verbindungen“ drei Wege, die sich kombinieren lassen; „Prüfen“ warnt, solange der Lauf nur auf
+            diesem Computer liegt.</p>
+          <div class="mx-grid">
+            <div class="mx-box" style="--c:var(--s1)"><h3>Kopie auf Ozimut</h3><p>Im Reiter wird, sobald es Internet gibt, jeder Vorgang auf
+              Ozimut kopiert: Ein anderer Computer, der dieselbe Veranstaltung öffnet, übernimmt den Lauf, und nichts geht verloren, wenn
+              dieser ausfällt. „Den anderen Stationen Zugang geben“ erzeugt einen Schlüssel, der mit dem Lauf mitreist: Stationen ohne Konto
+              (die Anwendung, ein Telefon) tauschen dann ebenfalls mit Ozimut aus, ohne etwas einzugeben.</p></div>
+            <div class="mx-box" style="--c:var(--s3)"><h3>Hub</h3><p>Die Anwendung Ozimut Chrono auf einem Computer im Wettkampfzentrum
+              verbindet die Stationen des lokalen Netzes ohne Internet. Auf demselben Computer: „Die App auf diesem Computer suchen“. Die
+              anderen Computer und die Telefone öffnen die Adresse der Anwendung in ihrem Browser (siehe
+              ${CHAP("chrono-app", "Die Chrono-Anwendung")}).</p></div>
+            <div class="mx-box" style="--c:var(--s2)"><h3>Veranstaltungsdatei</h3><p>„Datei speichern“ legt den ganzen Lauf in eine
+              .ozchrono-Datei, zum Mitnehmen auf einem USB-Stick; „Datei laden“ fügt sie dem geöffneten Lauf hinzu, ohne etwas zu verdoppeln.
+              In Chrome oder Edge schreibt „Ein Protokoll in einem Ordner führen“ jeden Vorgang zusätzlich in einen Ordner des Computers.</p></div>
+          </div>
+          <p>Der „Name des Bedieners“ (Schritt „Verbindungen“) wird bei jeder Änderung vermerkt, für das Protokoll des Schiedsrichters.</p>`, "chrono-liaisons")}
+        ${slide("Chrono", "Die Regeln nach Land und die Grenzen", html`
+          <p>Die „Regeln“ der Veranstaltung legen die Alterskategorien, die Gewohnheiten der Auslosung, die Arten der Anmeldung
+            (Lizenzinhaber, Tageslizenz, Lizenz eines anderen Verbands, ohne Lizenz) und die Datei des Verbands fest.</p>
+          <div class="table-wrap"><table class="data compact"><thead><tr><th>Regeln</th><th>Alterskategorien</th><th>Auslosung</th><th>Ergebnisse und Datei</th></tr></thead><tbody>
+            <tr><td>Frankreich (FFCO)</td><td>H und D</td><td>Nach Bahn, nie zwei Läufer eines Vereins hintereinander</td><td>Nach Bahn; „Datei FFCO“</td></tr>
+            <tr><td>Kanada (Orienteering Canada)</td><td>M und F</td><td>Nach Kategorie, ohne Vereinsregel</td><td>Nach Kategorie</td></tr>
+            <tr><td>IOF-Regeln (andere Länder)</td><td>M und W</td><td>Nach Kategorie, nie zwei Läufer eines Vereins hintereinander</td><td>Nach Kategorie</td></tr>
+          </tbody></table></div>
+          <p>Diese Gewohnheiten sind nur die vorgeschlagenen Werte: Die Auslosung und die Übersicht lassen dich nach Bahn oder nach Kategorie
+            wählen.</p>
+          <p><b>Was Chrono noch nicht kann oder noch nicht bewiesen hat</b>:</p>
+          ${list([
+            html`kein Versuch mit echten Geräten (SPORTident- oder Emit-Stationen, Belegdrucker) oder mit einem echten MeOS;`,
+            html`der Inhalt von Emit-Chips, die ein eScan oder eScan2 ausliest;`,
+            html`eine Datei mit Teamergebnissen für Staffeln und die Veröffentlichung einer Staffel in „Ergebnisse“;`,
+            html`der Reiter für andere als die Administratoren.`,
+          ])}
+          <p>Die Installation der Anwendung, der Hub, der Direktdruck und die Funkposten sind in
+            ${CHAP("chrono-app", "Die Chrono-Anwendung")} beschrieben.</p>`, "chrono-regles")}`,
+      "chrono-app": () => appDoc("Die Chrono-Anwendung"),
     });
   }
 

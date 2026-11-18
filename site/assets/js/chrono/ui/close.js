@@ -11,6 +11,10 @@ import { resultsHtml } from "../print/lists.js";
 import { toFile, eventFileName, kvGet, kvSet } from "../store.js";
 import { listLabels } from "./prepare.js";
 import { problemLine, bindProblems } from "./finish.js";
+import { seriesDialog, knockoutPage, hasKnockout, formatLabels } from "./formats.js";
+import { groupsOf } from "./follow.js";
+import { invoicesDialog } from "./invoices.js";
+import { savedItems } from "./designer.js";
 
 const slug = (s) => String(s || "chrono").normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/[^\w-]+/g, "-").replace(/^-|-$/g, "").slice(0, 50) || "chrono";
 
@@ -25,16 +29,20 @@ async function publish(ctx) {
 
 export const post = {
   ribbon(ctx) {
-    const by = ctx.rules().resultsBy, e = ctx.st().event, name = slug(e.name), L = () => listLabels(t("chr.lst.results"));
-    const groups = () => (by === "course" ? ctx.view().courses : ctx.view().classes);
+    const e = ctx.st().event, by = e.type === "relay" ? "class" : ctx.rules().resultsBy, name = slug(e.name), L = () => formatLabels({ ...listLabels(t("chr.lst.results")), teams: t("chr.lst.teams") });
+    const groups = () => groupsOf(ctx, by);
     return [{ label: t("chr.cl.files"), items: [
       { icon: "down", label: t("chr.cl.fed", { fed: ctx.rules().federation || "OE" }), primary: true, tip: t("chr.cl.fedTip"), on: () => download(`${name}.csv`, latin1(writeOeCsv(exportView(ctx.view(), by), { lang: ctx.rules().id === "fr" ? "fr" : "en" })), "text/csv") },
       { icon: "down", label: "IOF XML", tip: t("chr.cl.iofTip"), on: () => download(`${name}.xml`, writeResults(exportView(ctx.view(), "class")), "application/xml") },
       { icon: "down", label: "MeOS", tip: t("chr.cl.meosTip"), on: async () => { const m = await import("../io/meosxml.js"); download(`${name}.meosxml`, m.writeMeos(ctx.st(), exportView(ctx.view(), "class")), "application/xml"); } },
       { icon: "file", label: t("chr.cl.page"), tip: t("chr.cl.pageTip"), on: () => download(`${name}.html`, resultsHtml(ctx.view(), groups(), L(), { cat: by === "course", splits: true, final: true }), "text/html") },
       { icon: "print", label: t("chr.lst.results"), on: () => printHtml(resultsHtml(ctx.view(), groups(), L(), { cat: by === "course", final: true })) },
+    ] }, { label: t("chr.dsg.mine"), items: savedItems(ctx) }, { label: t("chr.rb.formats"), items: [
+      { icon: "list", label: t("chr.ser.short"), tip: t("chr.ser.tip"), on: () => seriesDialog(ctx) },
+      ...(hasKnockout(ctx) ? [{ icon: "swap", label: t("chr.ko.page"), tip: t("chr.ko.pageTip"), on: () => printHtml(knockoutPage(ctx, { ...L(), title: t("chr.ko.page") })) }] : []),
+      { icon: "coins", label: t("chr.inv.open"), tip: t("chr.inv.openTip"), on: () => invoicesDialog(ctx) },
     ] }, { label: "Ozimut", items: [
-      { icon: "up", label: t("chr.cl.publish"), tip: e.race ? t("chr.cl.publishTip") : t("chr.cl.publishNo"), disabled: !ctx.net.signedIn || !e.race || ctx.sandbox(), on: async () => {
+      { icon: "up", label: t("chr.cl.publish"), tip: e.race ? t("chr.cl.publishTip") : t("chr.cl.publishNo"), disabled: !ctx.net.signedIn || !e.race || e.type === "relay" || ctx.sandbox(), on: async () => {
         if (!(await confirmBox(t("chr.cl.publishAsk"), { ok: t("chr.cl.publish") }))) return;
         try { await publish(ctx); ctx.toast(t("chr.cl.published"), "ok"); } catch (err) { await alertBox(t("chr.cl.publishFail", { why: err.message })); }
       } },

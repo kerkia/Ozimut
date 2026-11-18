@@ -1,4 +1,5 @@
-// node tools/chrono/t_emit.mjs — Emit: the 250 reader's and the MTR4's bytes (codec, stream decoder), the reader, the simulator.
+// node tools/chrono/t_emit.mjs — Emit: the 250 reader's and the MTR4's bytes (codec, stream decoder), the text messages
+// of the eScan's family, the reader, the simulator.
 // No hardware: the facts of docs/chrono/emit.md, checked against the few real frames found described online —
 //  · three frames of an open TypeScript library's test captures (github.com/mikaello/emit-punch-cards-communication,
 //    src/mockdata: an MTR4's status, one card read by an MTR4 and by a 250 reader). They reached this file through a tool
@@ -6,10 +7,13 @@
 //    ends its text): those runs are written `rep(…)` below, their lengths set by the documented frame lengths — the check
 //    bytes, which are the devices' own, then hold. Device output only: none of that project's code is here.
 //  · the six head bytes quoted in its pull request 461, and the first bytes of its « history » capture;
-//  · one card as a small Node reader published it decoded (github.com/peksi/mtr-reader, sampleOutput.json).
+//  · one card as a small Node reader published it decoded (github.com/peksi/mtr-reader, sampleOutput.json);
+//  · the two example messages Emit prints in its eClock+ manual, chapter 11 (emit.no, eClock-ver.-1.02-eng.pdf), with a
+//    tab between their items as the manual says, and the serial number the eScan2 manual shows on its display.
 import { XOR_250, LEN_250, LEN_MTR_CARD, LEN_MTR_STATUS, SERIAL, CODE, isReaderCode, Decoder, encodeCard250, decodeCard250, encodeMtrCard,
-  encodeMtrStatus, decodeMtr, mtrCommand, readMtrCommand, punchesOf, raceSpan, cardText, stampOf } from "../../site/assets/js/chrono/emit/protocol.js";
-import { openReader } from "../../site/assets/js/chrono/emit/reader.js";
+  encodeMtrStatus, decodeMtr, mtrCommand, readMtrCommand, punchesOf, raceSpan, cardText, stampOf, SERIAL_ESCAN, serialOf, USB, USB_ESCAN, unitOfUsb, MAX_TEXT,
+  decodeText, encodeText, encodeTextStatus, encodeTextTag, clockText } from "../../site/assets/js/chrono/emit/protocol.js";
+import { openReader, kindOfPort } from "../../site/assets/js/chrono/emit/reader.js";
 import { simReader } from "../../site/assets/js/chrono/emit/sim.js";
 
 let fails = 0, n = 0;
@@ -233,6 +237,113 @@ console.log("-- reader: auto");
   eq(errors, [], "no error on the way");
   const ports = Object.entries(SERIAL).map(([k, v]) => `${k}:${v.baudRate}/${v.stopBits}`);
   eq([ports, stampOf(new Date(2026, 0, 2, 3, 4, 5))], [["250:9600/2", "mtr4:9600/1", "auto:9600/1"], { y: 2026, mo: 1, d: 2, h: 3, mi: 4, s: 5 }], "line settings; a Date as the MTR's clock");
+}
+
+// ---- the text messages (eScan, eScan2, eClock+): Emit's own examples
+const txt = (line) => bytes([2], Array.from(line, (c) => c.charCodeAt(0)), [3, 10, 13]);
+const MANUAL_STATUS = txt("IeClock-HW2-SW2-V1.02\tBS\tZUSB\tW10:32:07.000\tM1\tC100\tY126099999\tH0x000\tA268-487-+235-80-26\tR99");
+const MANUAL_TAG = txt("BM\tZUSB\tN4321321\tY126099999\tM1234\tC100\tE12:34:56.987\tT00:22:33.555\tO0\tR68");
+
+console.log("-- text messages: the eClock+ manual's examples");
+const ts = decodeText(MANUAL_STATUS);
+eq([ts.kind, ts.type, ts.b, ts.via, ts.id, ts.name, ts.hw, ts.sw, ts.version], ["text", "status", "S", "USB", "eClock-HW2-SW2-V1.02", "eClock", "2", "2", "1.02"], "status: product, hardware, software, version, sent by USB");
+eq([ts.clock, ts.msg, ts.code, ts.unit, ts.product, ts.loop, ts.power, ts.check], [10 * 3600 + 32 * 60 + 7, 1, 100, "126099999", "eClock+", "0x000", "268-487-+235-80-26", "99"], "status: clock, message number, code, serial number (1260: an eClock+), loop, power, R as written");
+eq(ts.items.map(([k]) => k).join(""), "IBZWMCYHAR", "status: its ten items in order");
+const tt = decodeText(MANUAL_TAG);
+eq([tt.kind, tt.type, tt.b, tt.via, tt.card, tt.unit, tt.msg, tt.code, tt.t, tt.race, tt.retries, tt.check], ["text", "tag", "M", "USB", 4321321, "126099999", 1234, 100, 45296.987, 1353.555, 0, "68"],
+  "emiTag message: tag, unit, message number, code, passing 12:34:56.987, the tag's race time 22:33.555, no retransmission");
+ok(same(encodeTextStatus({ clock: 37927, msg: 1, code: 100, unit: "126099999", power: "268-487-+235-80-26", check: "99" }), MANUAL_STATUS), "the status encoded: the manual's bytes (02 … 03 0A 0D)");
+ok(same(encodeTextTag({ card: 4321321, unit: "126099999", msg: 1234, code: 100, t: 45296.987, race: 1353.555, check: "68" }), MANUAL_TAG), "the emiTag message encoded: the manual's bytes");
+const lap = decodeText(txt("BM\tZ485\tN4321321\tY126099999\tM7\tC90\tE09:00:01.250\tT00:10:00.000\tO2\tLAPnOla Nordmann\tLAPp3\tR12"));
+eq([lap.type, lap.via, lap.t, lap.retries, lap.items.filter(([k]) => k.startsWith("LAP"))], ["tag", "485", 32401.25, 2, [["LAPn", "Ola Nordmann"], ["LAPp", "3"]]], "lap items (LAPn, LAPp) are kept beside the passing");
+eq(decodeText(txt("BS\tZUSB\tW12:49:50.000\tC250\tY857200002")).product, "eScan2", "serial number 857200002 (the eScan2 manual's display): product 8572, an eScan2");
+eq([decodeText(txt("BS\tC250\tY999900001")).product, decodeText(txt("BS\tIsomething")).name], [null, "something"], "an unknown product number names nothing; an I item of another shape is kept whole");
+eq([decodeText(txt("BD\tN503806\tC250")).type, decodeText(txt("BM\tZUSB\tC250\tE12:00:00.000")).type, decodeText(txt("BM\tN12\tC250\tEsoon")).type, decodeText(txt("Qwhatever")).b],
+  ["other", "other", "other", null], "anything else — another B, a passing without a tag or a time, no B at all — is « other »: nothing read in it");
+eq([decodeText(MANUAL_TAG.slice(0, 20)).code, decodeText(bytes([2, 66, 77, 7, 78, 49, 3])).code, decodeText(bytes([2, 3])).code, decodeText(MANUAL_TAG.slice(0, -2)).type], ["sync", "sync", "length", "tag"],
+  "no 03 at the end, a control byte inside, an empty frame: no message; the 0A 0D may be missing");
+eq([clockText(45296.987), clockText(0), clockText(86399.9996)], ["12:34:56.987", "00:00:00.000", "24:00:00.000"], "times as the messages write them");
+let refused = 0;
+for (const items of [[["N", "1\t2"]], [["N", "1\n"]], [["n", "1"]], [["A", "x".repeat(MAX_TEXT)]]]) { try { encodeText(items); } catch (e) { if (e.code === "text") refused++; } }
+eq(refused, 4, "the encoder refuses a tab or a control byte in a value, a key that is no capital letter, a message too long");
+
+console.log("-- the stream decoder: text messages");
+const OTHER = encodeText([["B", "D"], ["Z", "USB"], ["N", "503806"], ["Q", "some content this code does not know"]]);
+const kindsT = (items) => items.map((x) => (x.kind === "error" ? `error:${x.code}` : x.kind === "text" ? `text:${x.type}:${x.card ?? x.unit ?? x.b}` : `${x.kind}:${x.card ?? x.id}`));
+eq(kindsT(feed(new Decoder({ kind: "escan" }), chunks(cat(MANUAL_STATUS, MANUAL_TAG, OTHER, MANUAL_TAG), rnd, 11))), ["text:status:126099999", "text:tag:4321321", "text:other:D", "text:tag:4321321"],
+  "escan: status, passing, an unknown message, in chunks of any size; the 0A 0D between them cost nothing");
+eq(kindsT(feed(new Decoder({ kind: "escan" }), Array.from(cat(MANUAL_TAG, MANUAL_STATUS), (x) => bytes([x])))), ["text:tag:4321321", "text:status:126099999"], "escan: one byte at a time");
+eq(kindsT(feed(new Decoder({ kind: "escan" }), chunks(cat(bytes([0x55, 0xaa]), MANUAL_TAG.slice(0, 30), MANUAL_STATUS, bytes([2, 3, 2, 0x31]), MANUAL_TAG), rnd, 9))), ["error:sync", "text:status:126099999", "error:sync", "text:tag:4321321"],
+  "escan: noise, a message cut short by the next one's 02, an empty frame: said once each, in step again at the next 02");
+const long = cat(bytes([2, 66]), bytes(rep([0x41], MAX_TEXT + 5)), bytes([3]));
+eq(kindsT(feed(new Decoder({ kind: "escan" }), [long, MANUAL_TAG])), ["error:sync", "text:tag:4321321"], "escan: more than MAX_TEXT bytes without a 03 is no message");
+const accent = cat(bytes([2]), bytes(Array.from("BM\tN77\tC90\tE08:00:00.000\tLAPnJos", (c) => c.charCodeAt(0))), bytes([0xe9, 3, 10, 13]));
+eq([kindsT(feed(new Decoder({ kind: "escan" }), [accent])), kindsT(feed(new Decoder(), [accent]))], [["text:tag:77"], ["error:sync"]], "a name's accented letter passes under « escan », not under « auto » (plain ASCII there)");
+const auto3 = new Decoder();
+eq([kindsT(feed(auto3, chunks(cat(bytes([7, 7]), MANUAL_STATUS, MANUAL_TAG), rnd, 9))), auto3.kind], [["error:sync", "text:status:126099999", "text:tag:4321321"], "escan"], "auto: a text unit found, the 0A 0D passed over from then on");
+const auto4 = new Decoder();
+eq([kindsT(feed(auto4, chunks(cat(bytes([2, 66, 77, 9, 78, 1]), bytes([2, 65, 200, 3]), A, B), rnd))), auto4.kind], [["error:sync", "card250:111111", "card250:222222"], "250"], "auto: a 02 in noise does not hold up a 250's frames");
+eq(kindsT(feed(new Decoder({ kind: "250" }), [MANUAL_TAG, A])), ["error:sync", "card250:111111"], "a 250 decoder takes no text message");
+let badKind = "";
+try { new Decoder({ kind: "escan2" }); } catch (e) { badKind = e.code; }
+eq(badKind, "kind", "an unknown kind is refused");
+
+console.log("-- USB ids and lines");
+eq([unitOfUsb({ usbVendorId: 0x2047, usbProductId: 0x0300 }), unitOfUsb({ usbVendorId: 0x0403, usbProductId: 0x6001 }), unitOfUsb({ usbVendorId: 0x0403, usbProductId: 0x6015 }), unitOfUsb({ usbVendorId: 0x10c4, usbProductId: 0x800a }), unitOfUsb({}), unitOfUsb(undefined)],
+  ["escan", "ftdi", "ftdi", null, null, null], "2047:0300 is the first eScan; an FTDI chip may be a 250, an MTR4, an eScan2; a SPORTident station is neither");
+eq([kindOfPort({ usbVendorId: USB_ESCAN.vendorId, usbProductId: USB_ESCAN.productId }), kindOfPort({ usbVendorId: USB.vendorId, usbProductId: USB.productId }), kindOfPort({})], ["escan", "auto", "auto"], "the kind asked for a port: « escan » by its ids, else « auto »");
+eq([serialOf("escan"), SERIAL_ESCAN.baudRate, serialOf("auto").baud, serialOf("250").stopBits, serialOf("nothing")], [{ baud: 115200, baudRate: 115200, dataBits: 8, parity: "none", stopBits: 1 }, 115200, 9600, 2, undefined],
+  "an eScan's line: 115 200 bit/s, 8 bits, no parity, 1 stop bit; the others as before");
+
+console.log("-- reader and simulator: a unit of the text messages (eScan, eScan2)");
+{
+  let clock = new Date(2026, 10, 17, 12, 34, 50).getTime();
+  const cards = [], punches = [], states = [], errors = [];
+  const sim = simReader({ kind: "escan", unit: "857200002", code: 250, chunk: 7, now: () => clock });
+  const reader = openReader(sim.transport, { kind: "escan", now: () => clock, onCard: (r) => cards.push(r), onPunch: (p) => punches.push(p), onState: (s) => states.push(s), onError: (e) => errors.push(e) });
+  await tick();
+  eq([sim.opened.baud, sim.opened.baudRate, sim.opened.stopBits, sim.opened.parity, sim.written.length, typeof reader.setTime, typeof reader.spool], [115200, 115200, 1, "none", 0, "undefined", "undefined"],
+    "opens at 115 200 baud, 1 stop bit; writes nothing to the unit; no clock to set, no memory to ask");
+  eq([reader.info().kind, reader.info().model, reader.info().ready], ["escan", null, false], "info before anything is heard");
+  sim.status();
+  const s0 = states.find((s) => s.state === "status");
+  eq([states.map((s) => s.state), s0?.serial, s0?.product, s0?.code, s0?.clock, s0?.skew, s0?.name, s0?.version, s0?.via], [["open", "ready", "status"], "857200002", "eScan2", 250, 45290, 0, "eClock", "1.02", "USB"],
+    "its status: open, ready, then what it is — serial number, product, code, clock, no skew");
+  eq([reader.info().model, reader.info().unit?.serial, reader.info().frames], ["eScan2", "857200002", 1], "info: the model by its serial number");
+  eq(s0?.info, { model: "eScan2", serial: "857200002", code: 250, version: "1.02" }, "the status carries what a station shows of the reader: model, serial number, code");
+  clock += 4000; sim.status(); clock += 4000; sim.status();
+  eq([states.filter((s) => s.state === "status").length, reader.info().frames, reader.info().unit.clock], [1, 3, 45298], "the same status again: not told twice, its clock kept up to date");
+  sim.status({ code: 251 });
+  eq([states.filter((s) => s.state === "status").length, states[states.length - 1].code], [2, 251], "its code changed: told");
+  clock += 2000;
+  sim.tag({ card: 4161048, t: 45296.987, race: 3005 });
+  eq(punches, [{ sys: "emit", card: 4161048, code: 250, t: 45296.987, s: 45296.987, at: clock, src: "escan", race: 3005, unit: "857200002", msg: 1, retries: 0 }], "an emiTag's passing goes to onPunch: tag, the unit's code, the time of day, the tag's race time");
+  sim.tag({ card: 4161049, t: 45300.5, retries: 2 }, { repeat: 3 });
+  eq([punches.length, punches[1]?.card, punches[1]?.retries, punches[1]?.race, reader.info().repeats, reader.info().punches, cards.length], [2, 4161049, 2, 0, 2, 2, 0], "the same passing sent three times is one punch; no card read comes of a passing");
+  sim.text([["B", "D"], ["N", "503806"], ["Q", "a card's content, in a layout Emit has not published"]]);
+  sim.text([["B", "D"], ["N", "503807"], ["Q", "another"]]);
+  eq([errors.map((e) => [e.code, e.part, e.b]), reader.info().unread, cards.length, punches.length], [[["unsupported", "message", "D"]], 2, 0, 2], "a message of another kind is said once, counted, and never read: no card, no punch");
+  ok(errors[0] instanceof Error && errors[0].message === "unsupported", "that error is an Error with a code");
+  let thrown = "";
+  try { sim.insert({ card: 503806, punches: P([[0, 0], [31, 60]]) }); } catch (e) { thrown = e.code; }
+  eq(thrown, "unpublished", "the simulator makes up no card message for an eScan");
+  sim.noise(bytes([0x00, 0x7f, 0x41]));
+  eq(errors.map((e) => e.code).slice(1), ["sync"], "noise is said once");
+  await reader.close();
+  eq([sim.closed, states[states.length - 1].state], [true, "closed"], "closed");
+}
+
+console.log("-- reader: auto meets a text unit");
+{
+  const punches = [], states = [], errors = [];
+  const sim = simReader({ kind: "escan", chunk: 5 });
+  const reader = openReader(sim.transport, { onPunch: (p) => punches.push(p), onState: (s) => states.push(`${s.state}:${s.kind}`), onError: (e) => errors.push(e.code) });
+  await tick();
+  sim.status(); sim.tag({ card: 4321321, t: 100.25 });
+  eq([sim.opened.baud, reader.info().kind, reader.info().model, states.slice(0, 3), punches.length, punches[0]?.t], [9600, "escan", "eClock+", ["open:null", "ready:escan", "status:escan"], 1, 100.25],
+    "at the 250's speed (the first eScan is a USB CDC port: any speed suits it), known by its first message");
+  eq([await reader.setTime(), errors], [false, ["unsupported"]], "no clock to set on it");
+  await reader.close();
 }
 
 console.log(`${n} checks, ${fails} failed`);

@@ -75,7 +75,7 @@ export function importSet(log, set, { by = "", event = true } = {}) {
       if (filled(c.course)) p.course = courseId(c.course);
       if (Array.isArray(c.pool)) p.pool = c.pool.map((n) => courseId(n)).filter(Boolean);
       if (Array.isArray(c.legs)) p.legs = c.legs.map((l) => ({ ...(l.course ? { course: courseId(l.course) } : {}), ...(l.pool ? { pool: l.pool.map((n) => courseId(n)).filter(Boolean) } : {}), ...(filled(l.mass) ? { mass: l.mass } : {}) }));
-      for (const k of ["first", "step", "nc", "fee", "maxTime"]) if (filled(c[k])) p[k] = c[k];
+      for (const k of ["first", "step", "nc", "fee", "maxTime", "team"]) if (filled(c[k])) p[k] = c[k];
     }
     if (Object.keys(p).length) rows.push(["classes", id, p]);
     return id;

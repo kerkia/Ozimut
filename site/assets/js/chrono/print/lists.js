@@ -9,6 +9,7 @@ const CSS = `body{font:12px/1.35 system-ui,-apple-system,"Segoe UI",Roboto,sans-
 .sub{color:#555;margin:0 0 12px}h2{font-size:14px;margin:16px 0 4px;border-bottom:2px solid #e8590c;padding-bottom:2px;break-after:avoid}h2 small{font-weight:400;color:#555;margin-left:8px}
 table{border-collapse:collapse;width:100%;break-inside:auto}th{text-align:left;font-weight:600;color:#555;border-bottom:1px solid #bbb;padding:2px 6px}
 td{padding:2px 6px;border-bottom:1px solid #eee;vertical-align:top}tr{break-inside:avoid}.n{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
+.mb td{border-bottom:0;color:#333;font-size:11px;padding-top:0}.tm td{font-weight:600}.heats{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:4px 18px}.heats h3{font-size:12px;margin:8px 0 2px}.up td{font-weight:600}
 .sp{font-size:10px;color:#333}.sp b{color:#e8590c}.st{color:#b02a37;font-weight:600}.tv{font-size:20px}.tv h1{font-size:30px}.tv h2{font-size:24px}
 @media print{body{margin:0}.noprint{display:none}}`;
 
@@ -20,6 +21,7 @@ const who = (r) => `${e(r.given)} ${e(r.family)}`.trim();
 export function resultsHtml(view, groups, L, opt = {}) {
   const body = groups.filter((g) => g.rows.length).map((g) => {
     const c = g.course || (g.controls ? g : null), score = !!c?.score;
+    if (g.teams) return teamBlock(g, L, opt);
     const rows = g.rows.filter((r) => r.status !== "wait" || !opt.final).map((r) => {
       const res = r.status === "ok" || (r.status === "nc" && r.time != null) ? span(r.time) : `<span class="st">${e(L.status[r.status] || r.status)}</span>`;
       let line = `<tr><td class="n">${r.place ?? ""}</td><td>${who(r)}</td><td>${e(r.club)}</td>${opt.cat ? `<td>${e(r.clsName || r.cat)}</td>` : ""}`
@@ -33,6 +35,50 @@ export function resultsHtml(view, groups, L, opt = {}) {
       + `${opt.cat ? `<th>${e(L.cat)}</th>` : ""}${score ? `<th class="n">${e(L.points)}</th>` : ""}<th class="n">${e(L.time)}</th><th class="n">${e(L.behind)}</th></tr></thead><tbody>${rows}</tbody></table>`;
   }).join("");
   return page(`${view.event.name || ""} — ${L.title}`, [view.event.date, L.printed].filter(Boolean).join(" · "), body, opt.tv ? "tv" : "");
+}
+
+/** A class run in teams: each team's line, its members under it (a relay's legs with their times, a pair's two runners). */
+function teamBlock(g, L, opt) {
+  const res = (r) => (r.status === "ok" || (r.status === "nc" && r.time != null) ? span(r.time) : `<span class="st">${e(L.status[r.status] || r.status)}</span>`);
+  const rows = g.teams.filter((x) => x.status !== "wait" || !opt.final).map((x) => {
+    const mem = x.members.map((r, i) => (r ? `<tr class="mb"><td></td><td class="n">${x.kind === "relay" ? i + 1 : ""}</td><td>${who(r)}</td><td></td><td class="n">${r.read || r.manual ? res(r) : ""}${r.restart ? " *" : ""}</td><td></td></tr>` : "")).join("");
+    return `<tr class="tm"><td class="n">${x.place ?? ""}</td><td class="n">${e(x.bib)}</td><td>${e(x.name)}</td><td>${e(x.club)}</td><td class="n">${x.status === "run" || x.status === "wait" ? "" : res(x)}</td><td class="n">${x.behind ? `+${span(x.behind)}` : ""}</td></tr>${mem}`;
+  }).join("");
+  return `<h2>${e(g.name)}<small>${g.teams.length} ${e(L.teams || L.runners)}</small></h2><table><thead><tr><th class="n">${e(L.place)}</th><th class="n">${e(L.bib)}</th><th>${e(L.team || L.name)}</th><th>${e(L.club)}</th>`
+    + `<th class="n">${e(L.time)}</th><th class="n">${e(L.behind)}</th></tr></thead><tbody>${rows}</tbody></table>`;
+}
+
+/**
+ * A knockout: each round's heats side by side (those who go on in bold), then the final ranking.
+ * `tree`: knockout.koTree's, each with its `ranking` (knockout.koRanking's). `L` adds `heat`, `final`, `round`.
+ */
+export function koHtml(view, tree, L) {
+  const body = tree.map((b) => {
+    const rounds = b.rounds.map((r) => `<h2>${e(r.label || `${L.round} ${r.round}`)}</h2><div class="heats">${r.heats.map((h) => `<div><h3>${e(h.name)}${h.first != null ? ` · ${clock(h.first)}` : ""}</h3><table><tbody>${h.rows.map((x) =>
+      `<tr class="${x.place && x.place <= (h.ko?.up || 0) ? "up" : ""}"><td class="n">${x.place ?? ""}</td><td>${who(x)}</td><td>${e(x.club)}</td><td class="n">${x.status === "ok" ? span(x.time) : x.read || x.manual ? `<span class="st">${e(L.status[x.status] || x.status)}</span>` : ""}</td></tr>`).join("")}</tbody></table></div>`).join("")}</div>`).join("");
+    const rank = b.ranking?.length ? `<h2>${e(b.name)} — ${e(L.final)}</h2><table><tbody>${b.ranking.map((x) => `<tr><td class="n">${x.place}</td><td>${who(x)}</td><td>${e(x.club)}</td><td>${e(x.label || "")}</td></tr>`).join("")}</tbody></table>` : "";
+    return rounds + rank;
+  }).join("");
+  return page(`${view.event.name || ""} — ${L.title}`, [view.event.date, L.printed].filter(Boolean).join(" · "), body);
+}
+
+/** The totals over several days (series.totals'): a table a class, a column a stage. `L` adds `total`, `stage`, `pts`. */
+export function totalsHtml(event, tot, L) {
+  const cell = (r) => (!r ? "" : r.status !== "ok" ? `<span class="st">${e(L.status[r.status] || r.status)}</span>` : tot.mode === "points" ? `${r.pts}` : span(r.time));
+  const body = tot.classes.filter((c) => c.rows.length).map((c) => `<h2>${e(c.name)}<small>${c.rows.length} ${e(L.runners || "")}</small></h2><table><thead><tr><th class="n">${e(L.place)}</th><th>${e(L.name)}</th><th>${e(L.club)}</th>`
+    + `${tot.stages.map((s, i) => `<th class="n" title="${e(s.name)}">${e(L.stage)} ${i + 1}</th>`).join("")}<th class="n">${e(L.total)}</th><th class="n">${e(L.behind)}</th></tr></thead><tbody>${c.rows.map((r) =>
+      `<tr><td class="n">${r.place ?? ""}</td><td>${who(r)}</td><td>${e(r.club)}</td>${r.res.map((x) => `<td class="n">${cell(x)}</td>`).join("")}<td class="n"><b>${r.total == null ? "" : tot.mode === "points" ? r.total : span(r.total)}</b></td>`
+      + `<td class="n">${r.behind ? (tot.mode === "points" ? `−${r.behind}` : `+${span(r.behind)}`) : ""}</td></tr>`).join("")}</tbody></table>`).join("");
+  const sub = [tot.stages.map((s, i) => `${i + 1}. ${s.name || ""}${s.date ? ` (${s.date})` : ""}`).join(" · "), L.printed].filter(Boolean).join(" — ");
+  return page(`${event.name || ""} — ${L.title}`, sub, body);
+}
+/** The same as text, « ; » between cells. */
+export function totalsCsv(tot, L) {
+  const q = (v) => `"${String(v ?? "").replace(/"/g, '""')}"`;
+  const lines = [[L.cat || "", L.place, L.name, L.club, ...tot.stages.map((s, i) => `${L.stage} ${i + 1}`), L.total].map(q).join(";")];
+  for (const c of tot.classes) for (const r of c.rows) lines.push([c.name, r.place ?? "", `${r.given} ${r.family}`.trim(), r.club, ...r.res.map((x) => (!x ? "" : x.status !== "ok" ? (L.status[x.status] || x.status) : tot.mode === "points" ? x.pts : span(x.time))),
+    r.total == null ? "" : tot.mode === "points" ? r.total : span(r.total)].map(q).join(";"));
+  return lines.join("\r\n");
 }
 
 /** Start list, by class or course, in start order. */

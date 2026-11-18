@@ -86,7 +86,7 @@ export async function startHub({ port = 8377, sirapPort = 10000, folder, assets,
   trustLoopback = true, origins = ["https://ozimut.com"] } = {}) {
   if (!folder || !assets || !www) throw new Error("startHub: folder, assets and www are needed");
   folder = path.resolve(folder);
-  const root = path.resolve(assets), index = path.join(path.resolve(www), "index.html");
+  const root = path.resolve(assets), index = path.join(path.resolve(www), "index.html"), doc = path.join(path.resolve(www), "doc.html");
   token = String(token || crypto.randomBytes(12).toString("base64url"));
   name = String(name || os.hostname());
   fs.mkdirSync(folder, { recursive: true });
@@ -224,10 +224,10 @@ export async function startHub({ port = 8377, sirapPort = 10000, folder, assets,
       return say(res, cors.Vary ? 204 : 403, { ...cors, "Access-Control-Allow-Headers": "X-Hub-Token", "Access-Control-Allow-Private-Network": "true", "Access-Control-Max-Age": "600" });
     }
     if (req.method !== "GET" && req.method !== "HEAD") return say(res, 405, { Allow: "GET, HEAD" });
-    const page = p === "/" || p === "/index.html";
+    const page = p === "/" || p === "/index.html" || p === "/doc.html";       // doc.html: the app's documentation, for every station
     if (!allowed(req, q)) return page ? send(res, 401, "text/html" + TEXT, ASK) : send(res, 401, MIME[".json"], "{\"error\":\"token\"}", cors);
     const head = tokenOk(q.get("k")) ? { "Set-Cookie": `ozk=${encodeURIComponent(token)}; Path=/; HttpOnly; SameSite=Strict` } : {};
-    if (page) return file(req, res, index, head);
+    if (page) return file(req, res, p === "/doc.html" ? doc : index, head);
     if (p.startsWith("/assets/")) {
       const full = path.join(root, p.slice(8));
       return full.startsWith(root + path.sep) ? file(req, res, full, head) : say(res, 403);

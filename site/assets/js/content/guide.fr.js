@@ -3,6 +3,8 @@
 // helpers and returns « Le site » (the documentation's home: short, every section on one page) and the guides of Arena,
 // Coach, Orga and Carto, each a set of chapters (Stats' documentation is the methods', content/methods.*.js; Orga's « Le tracé »
 // too). Plain sentences for orienteers; a page is named as the menu names it, with a link.
+import APP from "./chronoapp.fr.js";
+
 export function build(X) {
   const { html, raw, subTabs, fr = true, admin = false, owner = false } = X;
   // a page of the site, as the menus name it
@@ -11,10 +13,15 @@ export function build(X) {
   const M = (mod, label) => html`<a href="#/documentation?module=${mod}">${label}</a>`;
   // a tab of the module's documentation shown (Orga: « Le tracé »)
   const D = (tab, label, goto) => html`<a href="#/documentation?onglet=${tab}${goto ? `&voir=${goto}` : ""}" data-tab-link="${tab}"${raw(goto ? ` data-goto="${goto}"` : "")}>${label}</a>`;
-  const chapters = (list, CH) => raw(subTabs(list, list[0][0]).s.replace(/<div data-subpanel="([a-z]+)"( hidden)?><\/div>/g, (m0, k, hid) =>
+  const chapters = (list, CH) => raw(subTabs(list, list[0][0]).s.replace(/<div data-subpanel="([a-z-]+)"( hidden)?><\/div>/g, (m0, k, hid) =>
     `<div data-subpanel="${k}"${hid || ""}>${CH[k]().s}</div>`));
   const slide = (kicker, title, body, id) => html`<section class="mx-slide"${raw(id ? ` id="${id}"` : "")}><p class="mx-kicker">${kicker}</p><h2>${title}</h2>${body}</section>`;
   const list = (items) => html`<ul class="mx-list">${items.filter(Boolean).map((i) => html`<li><span>${i}</span></li>`)}</ul>`;
+  // a chapter of Orga's documentation
+  const CHAP = (chapter, label) => html`<a href="#/documentation?module=orga&voir=${chapter}" data-tab-link="orga" data-goto="${chapter}">${label}</a>`;
+  // the desktop application's own documentation (content/chronoapp.*.js, which the application shows too): a slide a section
+  const appDoc = (kicker) => html`<p class="muted" style="margin:0 0 14px">${APP.lede}</p>${APP.sections.map((sec) => slide(kicker, sec.title,
+    raw(sec.html.replace(/<table>/g, '<div class="table-wrap"><table class="data compact">').replace(/<\/table>/g, "</table></div>")), `chrono-app-${sec.id}`))}`;
 
   // what each documentation says under its title
   const LEDE = {
@@ -420,7 +427,9 @@ export function build(X) {
   // Orga (« Le tracé », its other tab, is content/methods.*.js' tracerDoc)
   // ======================================================================================================
   const ORGA = [["qui", "Mes événements"], ["evenement", "Créer un événement"], ["trace", "Tracé"], ["horaires", "Départs"], ["direct", "Direct"],
-    ["resultats", "Résultats"], ["analyses", "Analyse"], ["equipe", "L'équipe"]];
+    ["resultats", "Résultats"], ["analyses", "Analyse"],
+    // Chrono, the race timing: its tab is the administrators' only for now (pages/manage.js), and so are its chapters
+    ...(admin ? [["chrono", "Chrono"], ["chrono-app", "L'application Chrono"]] : []), ["equipe", "L'équipe"]];
   function orga() {
     return chapters(ORGA, {
       qui: () => html`
@@ -554,6 +563,233 @@ export function build(X) {
             sans partager de trace — des nombres seulement, jamais qui.</p>
           <p>Les coureurs la trouvent dans Coach (« Analyse › Comparer avec les autres coureurs »). Le tracé peut aussi publier ses circuits, carte comprise, vers une analyse (après
             la course pour une compétition).</p>`)}`,
+      chrono: () => html`
+        ${slide("Chrono", "Chronométrer une course avec Ozimut", html`
+          <p>Chrono est l'outil de chronométrage d'Ozimut, ce que les clubs appellent la « GEC » : les inscrits, le tirage des heures de départ, la
+            lecture des puces à l'arrivée, les tickets, les résultats, l'arbitrage. Il se trouve dans ${P("#/orga", "Mes événements")} : ouvrez un
+            événement, puis son onglet « Chrono », juste avant « Équipe ». Les onglets « Direct » et « Résultats » restent là pour ceux qui
+            chronomètrent avec un autre logiciel. Chrono existe aussi en application à installer, pour travailler sans Internet et relier plusieurs
+            ordinateurs : voir ${CHAP("chrono-app", "L'application Chrono")}.</p>
+          <div class="mx-callout"><b>En test, pour les administrateurs seulement.</b> L'onglet « Chrono » ne s'affiche pour l'instant qu'aux
+            administrateurs d'Ozimut. Chrono n'a encore jamais été essayé avec de vraies stations SPORTident ou Emit, ni avec une imprimante à
+            tickets, ni avec un vrai MeOS, et aucun de ses fichiers n'a encore été envoyé à une fédération. Essayez-le sur un entraînement, ou à
+            côté de votre logiciel habituel ; ne lui confiez pas encore seul une compétition.</div>
+          <p><b>L'idée, en trois phrases.</b> Chaque poste — un ordinateur ou un téléphone où Chrono est ouvert — écrit ce qu'il fait (une
+            inscription, une puce lue, une correction) comme une opération dans un même journal, celui de la course. Les postes se tiennent à
+            jour entre eux : par la copie sur Ozimut quand il y a Internet, par le concentrateur de l'application sur un réseau local, par un
+            fichier que l'on transporte sinon. Sans liaison, chaque poste garde tout chez lui et continue : rien n'est perdu, et tout se rejoint
+            au retour de la liaison, dans n'importe quel ordre.</p>
+          <p><b>L'écran.</b> En haut, le nom de l'événement, l'état du matériel et des liaisons (lecteurs, imprimante, copie sur Ozimut,
+            concentrateur) et l'heure. À gauche, les neuf postes : Préparer, Accueil, Départ, Arrivée, Suivi, Speaker, Arbitre, Postes, Clôturer
+            (<kbd>Alt</kbd>+<kbd>1</kbd> à <kbd>Alt</kbd>+<kbd>9</kbd>). Sous la barre, les boutons du poste ouvert. En bas, les compteurs : inscrits,
+            en course, puces lues, classés, points à traiter. Une puce lue sur n'importe quel poste est gardée, jugée, annoncée par un bip (aigu :
+            tout va bien ; grave : quelque chose manque) et, si vous l'avez demandé, imprimée.</p>`)}
+        ${slide("Chrono", "Préparer : l'assistant en neuf étapes", html`
+          <p>Le poste « Préparer » mène l'événement de rien à prêt. Ses étapes se font dans l'ordre que l'on veut ; une étape où quelque chose
+            empêche de commencer est marquée.</p>
+          <div class="mx-steps">
+            <div class="mx-step"><b>Événement</b>Nom, date, lieu, club ; « Type de course » (Individuelle, Course au score, Relais) ; « Règles » (le
+              pays) ; « Système de chronométrage » (SPORTident ou Emit) ; « Départs » : à l'heure de la liste de départ, au boîtier départ (départ
+              libre) ou en masse ; « Premier départ » ; « Fermeture des circuits », après laquelle un coureur est hors délais. Dans l'onglet, le nom,
+              la date, le lieu et le club viennent de l'événement d'Orga.</div>
+            <div class="mx-step"><b>Circuits</b>Importez le fichier du traceur (IOF XML), ou « Nouveau circuit » : son nom, sa longueur, son
+              dénivelé et ses postes dans l'ordre, les numéros des boîtiers séparés par des espaces (31 32 45 100).</div>
+            <div class="mx-step"><b>Catégories</b>« Nouvelle catégorie », « Une par circuit » ou « Catégories d'âge » (celles des règles choisies ; il
+              reste à leur donner un circuit). Chacune a son circuit, et si l'on veut son premier départ, son intervalle, un temps maximal, un tarif ;
+              « Catégorie non classée » pour une découverte.</div>
+            <div class="mx-step"><b>Inscrits</b>« Importer » un fichier, ou « Nouveau coureur » un par un. Le « Fichier fédéral » aide à inscrire
+              vite et à retrouver les numéros de puce (voir plus bas).</div>
+            <div class="mx-step"><b>Équipes</b>Seulement quand une catégorie se court en équipe : relais, binômes, patrouilles (voir « Les formats
+              de course »).</div>
+            <div class="mx-step"><b>Départs</b>« Tirage » des heures, contrôle de la liste, impression des listes de départ, export IOF XML. Sans
+              objet pour un départ au boîtier ou en masse.</div>
+            <div class="mx-step"><b>Matériel</b>Les lecteurs de puces, l'imprimante des tickets, et la « Répétition ».</div>
+            <div class="mx-step"><b>Liaisons</b>Le nom de l'opérateur, la copie sur Ozimut, le direct, le concentrateur, le fichier de l'événement.</div>
+            <div class="mx-step"><b>Vérifier</b>Ce qui empêche de commencer, ce qui est seulement conseillé, avec « Y aller » vers l'étape en
+              cause ; puis « Ouvrir le poste Arrivée ».</div>
+          </div>
+          ${list([
+            html`<b>Importer</b> prend n'importe quel fichier et dit ce qu'il contient avant de l'ajouter : IOF XML 3.0 (inscrits, liste de départ,
+              circuits, catégories, résultats), tableau CSV — le fichier de la fédération ou d'OE, reconnu à ses en-têtes en français, en anglais
+              ou en allemand —, fichier de MeOS, fichier Ozimut Chrono (.ozchrono). Ce qui existe déjà est complété, jamais doublé : un coureur est
+              reconnu à sa licence, sinon à son nom et son club.`,
+            html`<b>Le fichier fédéral</b> (étape « Inscrits », « Charger le fichier ») est le fichier des licenciés de la fédération, gardé sur cet
+              ordinateur : dans la fiche d'un coureur, tapez un nom ou un numéro de licence et le reste se remplit. « Compléter les puces » donne
+              aux inscrits sans puce le numéro que ce fichier leur connaît.`,
+            html`<b>Le tirage</b> se fait par circuit (tous les coureurs d'un circuit mêlés) ou par catégorie, avec l'intervalle, l'« Écart entre
+              coureurs d'un club », des « Places libres » pour les inscriptions tardives, et « Garder les heures déjà données ». L'étape signale
+              les coureurs sans heure, les heures données deux fois sur un circuit et les coureurs d'un même club qui se suivent.`,
+            html`<b>La répétition</b> (« Matériel », « Lancer une répétition ») fait essayer tous les postes sans rien salir : elle travaille sur
+              une copie de la course, avec « Lire une puce fictive », « Dix puces » et « Une puce inconnue » — certaines avec un poste manquant
+              ou sans arrivée, pour s'exercer à les traiter. Rien n'est enregistré ni envoyé. Sans inscrits, elle crée une petite course
+              inventée. « Quitter la répétition » revient à la vraie course.`,
+          ])}`, "chrono-preparer")}
+        ${slide("Chrono", "Le jour de la course, poste par poste", html`
+          ${list([
+            html`<b>Accueil</b> : trouver un coureur par son nom, son club, sa licence, son dossard ou son numéro de puce. Une puce vierge posée
+              sur le lecteur ouvre la fiche de son porteur, ou une nouvelle inscription avec ce numéro. La fiche tient l'inscription tardive
+              (« Nouveau coureur »), le type d'inscription, le « Tarif » et « Payé », la « Puce louée ». À côté : les inscrits sans puce,
+              « À encaisser », les « Puces louées dehors », les inscrits sans catégorie. Le ruban imprime la liste « Par club » et ouvre les
+              « Factures par club ».`,
+            html`<b>Départ</b> : l'heure, le prochain départ, et les coureurs minute par minute ; pour chacun, « Présent » (✓) ou absent (✕).
+              « Marquer les absents » marque ceux qui n'ont pas été pointés et dont l'heure est passée depuis cinq minutes — seulement si
+              quelqu'un a été pointé. Le ruban imprime la liste « Minute par minute ».`,
+            html`<b>Arrivée</b> : là où se lisent les puces. La dernière puce s'affiche en grand — le coureur, son statut, son temps, sa place,
+              son écart, les postes manquants — avec « Ticket », « Corriger la puce », « Fiche du coureur » et « Ce n'est pas lui ». Dessous,
+              la liste « À traiter » et les « Dernières puces lues ». « Ticket automatique » imprime le ticket dès la lecture.`,
+            html`<b>Suivi</b> : les résultats en cours « Par catégorie » ou « Par circuit », et « En forêt », les coureurs partis et pas encore
+              revenus, du plus ancien départ au plus récent. Un clic sur un coureur montre ses postes, avec temps et places. Le ruban imprime
+              les résultats, avec ou sans les temps intermédiaires, et « Écran » les ouvre en grands caractères pour un affichage.`,
+            html`<b>Speaker</b> : les « Derniers arrivés », ceux qui sont « En tête », les « Passages radio » ; « Plein écran ».`,
+            html`<b>Arbitre</b> : le « Journal des modifications » — tout ce qui a été changé à la main depuis la lecture des puces, par qui, à
+              quelle heure, sur quel poste —, les « Réclamations et décisions », « Disqualifier » avec son motif, « Exporter le journal ».`,
+            html`<b>Postes</b> : chaque boîtier d'après les puces lues — combien l'ont poinçonné, combien auraient dû et ne l'ont pas, son état
+              (« jamais poinçonné : en panne ? », « heure incohérente », « souvent manquant »). « Ajouter un poste », et pour chacun ses points
+              (course au score), les « Autres numéros acceptés » (un boîtier de remplacement) et « Poste radio ». « Passage à la main » note le
+              passage d'un coureur qu'un contrôleur annonce au téléphone.`,
+            html`<b>Clôturer</b> : après la course (voir plus bas).`,
+          ])}`, "chrono-postes")}
+        ${slide("Chrono", "À l'arrivée : la liste « À traiter »", html`
+          <p>Chrono ne décide jamais à votre place : ce qui demande quelqu'un attend dans la liste « À traiter » du poste Arrivée (un compteur
+            rouge le signale sur le poste), chaque ligne avec son bouton.</p>
+          <div class="table-wrap"><table class="data compact"><thead><tr><th>La ligne dit</th><th>Ce que cela veut dire</th><th>Que faire</th></tr></thead><tbody>
+            <tr><td>Puce n : personne ne la porte</td><td>Une puce lue qu'aucun inscrit n'a déclarée.</td><td>« Attribuer » : chercher le coureur
+              (Chrono dit à quel circuit la puce correspond), « Nouveau coureur », ou « Mettre de côté ».</td></tr>
+            <tr><td>Puce n : plusieurs coureurs la portent</td><td>Le même numéro est donné à plusieurs inscrits.</td><td>« Attribuer » au bon coureur.</td></tr>
+            <tr><td>Pas de poinçon d'arrivée, ou de départ</td><td>Le coureur n'a pas poinçonné le boîtier, ou le boîtier n'a pas répondu.</td>
+              <td>« Voir la puce » : donner l'heure à la main.</td></tr>
+            <tr><td>Poste manquant (numéros)</td><td>Un poste du circuit n'est pas sur la puce : le coureur est PM.</td><td>« Voir la puce » pour
+              ajouter le poinçon si le contrôle du poste le confirme ; « Vu » pour noter que c'est vérifié.</td></tr>
+            <tr><td>Encore en course après la fermeture</td><td>Parti, jamais lu.</td><td>« Saisir l'arrivée » : une arrivée ou un statut à la main.</td></tr>
+            <tr><td>n lectures de puce, la dernière compte</td><td>La puce a été lue plusieurs fois.</td><td>« Ouvrir la fiche » si ce n'est pas voulu.</td></tr>
+            <tr><td>Poste : heure incohérente pour n coureurs</td><td>Le boîtier est peut-être mal réglé.</td><td>Voir le poste « Postes ».</td></tr>
+            <tr><td>Puce louée à récupérer, somme à encaisser</td><td>Un rappel au passage du coureur.</td><td>« Rendue », « Payé ».</td></tr>
+          </tbody></table></div>
+          ${list([
+            html`<b>Corriger une puce</b> (« Contenu de la puce ») : retirer ou ajouter un poinçon, changer le départ ou l'arrivée, changer le
+              coureur. Le contenu de la puce elle-même n'est jamais modifié : la correction le remplace, elle est notée au journal de l'arbitre,
+              et « Revenir à la puce » l'annule.`,
+            html`<b>Saisir une arrivée</b> (ruban, « À la main ») : pour un coureur dont la puce est perdue ou illisible, son heure d'arrivée ou
+              son temps de course, et son statut. Elle aussi est notée au journal.`,
+            html`<b>La fiche du coureur</b>, partie « Arbitrage » : un statut choisi à la main l'emporte sur ce que dit la puce, et une
+              « Correction du temps » ajoute ou retire des secondes.`,
+          ])}`, "chrono-traiter")}
+        ${slide("Chrono", "Les formats de course", html`
+          ${list([
+            html`<b>Individuelle</b> : le cas simple, une catégorie, un circuit. Une catégorie peut avoir des « Variantes » (leurs noms séparés
+              par « / ») : la variante courue est reconnue à la lecture de la puce.`,
+            html`<b>Course au score</b> : le type « Course au score », un circuit coché « Circuit au score » (les postes se prennent dans
+              n'importe quel ordre), le « Temps limite » et la « Pénalité par minute entamée » dans « Événement », les points de chaque poste
+              dans « Postes » (vide : un point).`,
+            html`<b>Relais</b> : le type « Relais » ; dans chaque catégorie, les « Circuits des relayeurs » — un relayeur par « ; », ses
+              variantes séparées par « / » (A1/A2; B; C1/C2). L'étape « Équipes » crée les équipes (« Nouvelle équipe » : son nom, son club,
+              sa catégorie, son dossard, le coureur de chaque relais ; tapez un nom, les inscrits sans équipe sont proposés) ou les importe ;
+              « Numéroter » donne les dossards, catégorie après catégorie (« Premier dossard », « Bloc par catégorie » : 100 pour 1, 101, 201…).
+              <b>« Départ en masse des attardés »</b> (étape « Équipes » et poste Départ) : à l'heure choisie, à partir du relais indiqué, les
+              relayeurs dont le coéquipier n'est pas arrivé partent ensemble ; leur temps court depuis cette heure, et leur équipe est classée
+              après celles qui n'ont pas été relancées. « Annuler le départ en masse » y revient.`,
+            html`<b>Binômes et patrouilles</b> : dans la catégorie, « Équipes de » (2 pour des binômes) et « Coureurs comptés » — le temps de
+              l'équipe est celui de ce coureur-là à l'arrivée ; vide, tous comptent et le temps est celui du dernier.`,
+            html`<b>Sprint à élimination</b> (étape « Départs », « Manches à élimination ») : à partir du classement d'une qualification, Chrono
+              répartit les coureurs en manches « en serpentin », pour des manches de force égale ; chaque manche est une catégorie à part, partie
+              en masse (« Nombre de manches », « Coureurs par manche », « Départ de la première manche », « Minutes entre deux manches »). Le tour
+              suivant prend les « Qualifiés par manche » et, si l'on veut, des « Repêchés au temps », les plus rapides des non-qualifiés. Chacun
+              garde sa puce : sa prochaine lecture va à sa manche. Un tour où des puces ont été lues ne se refait plus. Le « Tableau des
+              manches » imprime chaque tour puis le classement final.`,
+            html`<b>Plusieurs jours</b> (étape « Départs », et poste Clôturer) : ajoutez les étapes déjà courues, depuis un fichier de
+              résultats (IOF XML, OE, MeOS ou Ozimut Chrono) ou depuis un autre événement de cet ordinateur. Le classement général additionne
+              les temps, ou compte des points (1000 au vainqueur de chaque étape), sur toutes les étapes ou les meilleures seulement (« Étapes
+              comptées »). Les coureurs sont reconnus par leur licence, sinon par leur nom et leur club. <b>« Départ en chasse »</b>, pour le
+              dernier jour : le premier du général au temps part à l'heure donnée, les autres avec leur retard ; au-delà du « Retard maximal »,
+              et pour ceux à qui il manque une étape, départ à la suite à intervalle fixe.`,
+          ])}`, "chrono-formats")}
+        ${slide("Chrono", "Listes et comptes", html`
+          ${list([
+            html`<b>Les listes prêtes</b> : la liste de départ par catégorie, par circuit, minute par minute (pour l'équipe du départ) et par club ;
+              les résultats, avec ou sans temps intermédiaires ; le ticket de chaque coureur.`,
+            html`<b>« Composer une liste »</b> (étape « Départs », groupe « Imprimer ») : vos propres listes de résultats, de départ ou
+              d'inscrits — le regroupement (catégorie, circuit, club), les colonnes et leur ordre, le tri, les catégories et les statuts
+              retenus, seulement les premiers de chaque groupe (3 pour les podiums), les temps intermédiaires, une page par groupe, la taille
+              du texte, l'orientation, des lignes au-dessus et au-dessous. L'aperçu montre la liste telle qu'elle s'imprimera ; elle s'imprime,
+              s'exporte en « Fichier CSV » ou s'ouvre sur un « Écran ». Enregistrée (<kbd>Ctrl</kbd>+<kbd>S</kbd>), elle est gardée avec
+              l'événement et paraît sous « Mes listes » dans les postes Suivi et Clôturer.`,
+            html`<b>« Factures par club »</b> (postes Accueil et Clôturer) : ce que chaque club doit, droits d'inscription et puces louées. On
+              règle le « Prix d'une puce louée », le titre, un « Préfixe de numérotation », l'en-tête de l'organisateur et le pied de page
+              (coordonnées bancaires, délai) ; on marque un club payé ; on imprime un club, toutes les factures, ou seulement les clubs qui
+              doivent quelque chose ; deux exports CSV, récapitulatif et détail.`,
+          ])}`, "chrono-listes")}
+        ${slide("Chrono", "Après la course : Clôturer", html`
+          ${list([
+            html`<b>« Où en est la course »</b> : les coureurs encore en course, les inscrits pas partis (« Marquer absents ceux qui ne sont pas
+              partis »), les puces lues attribuées à personne, les puces louées pas rendues, ce qui reste à encaisser.`,
+            html`<b>« Avant l'envoi à la fédération »</b> : ce qui manquerait au fichier — coureurs sans licence, sans club ou sans catégorie,
+              numéros de licence d'une forme inattendue, catégories sans circuit.`,
+            html`<b>Les fichiers de résultats</b> : le fichier de la fédération — en France « Fichier FFCO », un CSV au format d'OE 2003, les
+              résultats par circuit, celui que la fédération reçoit pour son classement ; « IOF XML » 3.0, avec les temps intermédiaires
+              (WinSplits, Livelox, autres logiciels) ; « MeOS », l'événement à rouvrir dans MeOS ; « Page web », les résultats et les temps
+              intermédiaires en une page à mettre en ligne.`,
+            html`<b>« Publier sur Ozimut »</b> envoie les résultats à Arena › Résultats, comme fichier de l'organisateur : depuis l'onglet
+              seulement (il faut être connecté), pour un événement rattaché à une compétition du calendrier. Ils remplacent ceux que vous y
+              aviez déposés.`,
+            html`<b>Le direct</b> se règle avant la course : « Liaisons », « Diffuser les résultats en direct sur Ozimut » — les résultats
+              paraissent dans Arena › En direct, mis à jour toutes les vingt secondes environ.`,
+            html`<b>« Retenir les puces »</b> note sur cet ordinateur la puce de chaque licencié, pour les prochaines courses.
+              <b>« Enregistrer le fichier »</b> garde toute la course dans un fichier .ozchrono, à archiver.`,
+            html`<b>Un relais</b> ne se publie pas encore dans « Résultats », et ses fichiers contiennent les résultats relais par relais : il
+              n'y a pas encore de fichier de résultats par équipe. Le classement des équipes est à l'écran et sur les listes imprimées.`,
+          ])}`, "chrono-cloturer")}
+        ${slide("Chrono", "Le matériel", html`
+          ${list([
+            html`<b>Lecteur SPORTident</b> : branchez la station maîtresse en USB, puis « Matériel », « SPORTident » ; le navigateur demande de
+              choisir son port et s'en souvient. « Mettre à l'heure » règle le lecteur sur l'heure de l'ordinateur. Il faut Chrome ou Edge sur
+              un ordinateur — pas Firefox ni Safari, pas un téléphone —, ou l'application. Les puces SI5 à SI11, SIAC et pCard sont prévues.`,
+            html`<b>Emit</b> : choisissez Emit comme « Système de chronométrage », puis « Emit » pour un lecteur 250 ou un MTR4. D'un eScan ou
+              d'un eScan2 (« Emit eScan »), Chrono ne reçoit que son état et les passages d'emiTag, pas le contenu des puces : Emit n'en publie
+              pas le format. Une course aux puces Emit ne se lit donc pas avec un eScan ; il faut un 250 ou un MTR4. Les autres boîtiers d'Emit
+              (ECU, ETS) ne sont pas pris en charge.`,
+            html`<b>Imprimante des tickets</b>, « Imprimer sur » : une imprimante à tickets sur port série, USB ou Bluetooth (les modèles
+              courants, Epson et compatibles, reçoivent le ticket directement : choisissez son port et sa vitesse) ; l'imprimante du système, avec
+              sa fenêtre d'impression ; et, dans l'application, l'imprimante choisie sans fenêtre. Papier de 58 ou 80 mm, « Imprimer le ticket
+              dès qu'une puce est lue », « Ticket d'essai ».`,
+            html`<b>Postes radio</b> : cochez « Poste radio » sur le boîtier (poste « Postes »). Les passages arrivent par l'application, qui
+              écoute les relais radio, ou se notent par « Passage à la main » ; le Speaker les affiche.`,
+          ])}`, "chrono-materiel")}
+        ${slide("Chrono", "Plusieurs postes", html`
+          <p>Un poste seul, sans Internet, garde tout lui-même. Dès qu'il y en a plusieurs, ou pour ne pas dépendre d'un seul ordinateur, l'étape
+            « Liaisons » offre trois moyens, que l'on peut cumuler ; « Vérifier » prévient tant que la course n'est gardée que sur cet ordinateur.</p>
+          <div class="mx-grid">
+            <div class="mx-box" style="--c:var(--s1)"><h3>Copie sur Ozimut</h3><p>Dans l'onglet, dès qu'il y a Internet, chaque opération est
+              copiée sur Ozimut : un autre ordinateur ouvrant le même événement reprend la course, et rien n'est perdu si celui-ci tombe en
+              panne. « Donner l'accès aux autres postes » crée une clé qui voyage avec la course : les postes sans compte (l'application, un
+              téléphone) échangent alors eux aussi avec Ozimut, sans rien saisir.</p></div>
+            <div class="mx-box" style="--c:var(--s3)"><h3>Concentrateur</h3><p>L'application Ozimut Chrono, sur un ordinateur de l'arène, relie
+              les postes du réseau local sans Internet. Sur le même ordinateur : « Chercher l'application sur cet ordinateur ». Les autres
+              ordinateurs et les téléphones ouvrent l'adresse de l'application dans leur navigateur (voir
+              ${CHAP("chrono-app", "L'application Chrono")}).</p></div>
+            <div class="mx-box" style="--c:var(--s2)"><h3>Fichier de l'événement</h3><p>« Enregistrer le fichier » met toute la course dans un
+              fichier .ozchrono, à porter sur une clé ; « Reprendre un fichier » l'ajoute à la course ouverte, sans rien doubler. Dans Chrome ou
+              Edge, « Tenir un journal dans un dossier » écrit aussi chaque opération dans un dossier de l'ordinateur.</p></div>
+          </div>
+          <p>Le « Nom de l'opérateur » (étape « Liaisons ») est noté avec chaque modification, pour le journal de l'arbitre.</p>`, "chrono-liaisons")}
+        ${slide("Chrono", "Les règles par pays, et les limites", html`
+          <p>Les « Règles » de l'événement fixent les catégories d'âge, les usages du tirage, les types d'inscription (licencié, titre de
+            participation, licencié d'une autre fédération, sans licence) et le fichier de la fédération.</p>
+          <div class="table-wrap"><table class="data compact"><thead><tr><th>Règles</th><th>Catégories d'âge</th><th>Tirage</th><th>Résultats et fichier</th></tr></thead><tbody>
+            <tr><td>France (FFCO)</td><td>H et D</td><td>Par circuit, jamais deux coureurs d'un club à la suite</td><td>Par circuit ; « Fichier FFCO »</td></tr>
+            <tr><td>Canada (Orienteering Canada)</td><td>M et F</td><td>Par catégorie, sans règle de club</td><td>Par catégorie</td></tr>
+            <tr><td>Règles de l'IOF (autres pays)</td><td>M et W</td><td>Par catégorie, jamais deux coureurs d'un club à la suite</td><td>Par catégorie</td></tr>
+          </tbody></table></div>
+          <p>Ces usages ne sont que des valeurs proposées : le tirage et le Suivi laissent choisir par circuit ou par catégorie.</p>
+          <p><b>Ce que Chrono ne fait pas encore, ou n'a pas encore prouvé</b> :</p>
+          ${list([
+            html`aucun essai sur du vrai matériel (stations SPORTident ou Emit, imprimante à tickets) ni avec un vrai MeOS ;`,
+            html`le contenu des puces Emit lues par un eScan ou un eScan2 ;`,
+            html`un fichier de résultats par équipe pour les relais, et la publication d'un relais dans « Résultats » ;`,
+            html`l'onglet pour d'autres que les administrateurs.`,
+          ])}
+          <p>L'installation de l'application, le concentrateur, l'impression directe et les postes radio sont décrits dans
+            ${CHAP("chrono-app", "L'application Chrono")}.</p>`, "chrono-regles")}`,
+      "chrono-app": () => appDoc("L'application Chrono"),
     });
   }
 

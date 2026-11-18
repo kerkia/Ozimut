@@ -1,0 +1,317 @@
+# Builds Ozimut Chrono's desktop app (chrono-app/) for Windows, macOS and Linux and publishes it.
+#
+#   push to main       when chrono-app/package.json (a new version) or this file changes
+#   by hand            workflow_dispatch; from another branch than main the app is built and
+#                      tested, its files kept as the run's artifacts, and nothing is published
+#
+# Each system: the hub's test, the app built, its smoke test on the unpacked app (the app
+# started for real: its hub, its window, the page drawn — chrono-app/smoke.mjs), the installers.
+# Then one rolling GitHub Release, tag « chrono-app », whose files are replaced each time:
+#
+#   https://github.com/<owner>/<repo>/releases/download/chrono-app/Ozimut-Chrono-Setup.exe
+#   …/Ozimut-Chrono-Portable.exe   …/Ozimut-Chrono.dmg (universal)   …/Ozimut-Chrono.AppImage
+#   …/chrono-app.json    { version, date, files, sizes, signed: { win, mac } }
+#
+# Signing is optional: with none of the secrets below the app is built unsigned.
+#
+# Windows, either of:
+#   SignPath (free for open-source projects, signpath.org)
+#     secret     SIGNPATH_API_TOKEN
+#     variables  SIGNPATH_ORGANIZATION_ID, SIGNPATH_PROJECT_SLUG, SIGNPATH_SIGNING_POLICY_SLUG,
+#                SIGNPATH_ARTIFACT_CONFIGURATION_SLUG (optional: the project's default one otherwise)
+#     Two signing requests a run, each a zip of .exe files: the app's own program, then the
+#     installer and the portable program built around it (chrono-app/README.md).
+#   Azure Artifact Signing (formerly Trusted Signing), through electron-builder
+#     secrets    AZURE_TENANT_ID, AZURE_CLIENT_ID, AZURE_CLIENT_SECRET
+#     variables  AZURE_SIGN_ENDPOINT, AZURE_SIGN_ACCOUNT, AZURE_SIGN_PROFILE, AZURE_SIGN_PUBLISHER
+# macOS (Developer ID and notarization, electron-builder's own variables):
+#     secrets    CSC_LINK (the .p12 in base64), CSC_KEY_PASSWORD,
+#                APPLE_ID, APPLE_APP_SPECIFIC_PASSWORD, APPLE_TEAM_ID
+#
+# No secret's value is ever printed: they only reach the steps that sign.
+
+name: chrono-app
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths: ["chrono-app/package.json", ".github/workflows/chrono-app.yml"]
+
+concurrency:
+  group: chrono-app-${{ github.ref }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: ${{ matrix.key }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { os: windows-latest, key: win }
+          - { os: macos-latest, key: mac }
+          - { os: ubuntu-latest, key: linux }
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 90
+    permissions:
+      contents: read
+      actions: read            # SignPath reads the run's artifact it is asked to sign
+    defaults:
+      run:
+        shell: bash
+        working-directory: chrono-app
+    env:
+      # a step's `if` cannot read a secret: whether each way of signing is set up, as plain words
+      HAS_SIGNPATH: ${{ secrets.SIGNPATH_API_TOKEN != '' }}
+      HAS_AZURE: ${{ secrets.AZURE_CLIENT_SECRET != '' }}
+      HAS_APPLE: ${{ secrets.CSC_LINK != '' }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: chrono-app/package-lock.json
+
+      - name: Install
+        run: npm ci
+
+      - name: Hub test
+        working-directory: .
+        run: node tools/chrono/t_hub.mjs
+
+      # ---------------------------------------------------------------- Windows
+      # In two steps, so that what is inside the installer can be signed before the installer
+      # is made: the app unpacked, then the installer and the portable program around it.
+      - name: Build the app (Windows, unpacked)
+        if: runner.os == 'Windows'
+        env:
+          AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
+          AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
+          AZURE_CLIENT_SECRET: ${{ secrets.AZURE_CLIENT_SECRET }}
+          AZURE_SIGN_ENDPOINT: ${{ vars.AZURE_SIGN_ENDPOINT }}
+          AZURE_SIGN_ACCOUNT: ${{ vars.AZURE_SIGN_ACCOUNT }}
+          AZURE_SIGN_PROFILE: ${{ vars.AZURE_SIGN_PROFILE }}
+          AZURE_SIGN_PUBLISHER: ${{ vars.AZURE_SIGN_PUBLISHER }}
+        run: |
+          args=()
+          if [ "$HAS_AZURE" = "true" ]; then
+            args+=("-c.win.azureSignOptions.endpoint=$AZURE_SIGN_ENDPOINT"
+                   "-c.win.azureSignOptions.codeSigningAccountName=$AZURE_SIGN_ACCOUNT"
+                   "-c.win.azureSignOptions.certificateProfileName=$AZURE_SIGN_PROFILE"
+                   "-c.win.azureSignOptions.publisherName=$AZURE_SIGN_PUBLISHER")
+          fi
+          npx electron-builder --win --dir --publish never "${args[@]}"
+
+      - name: Smoke test (Windows)
+        if: runner.os == 'Windows'
+        run: node smoke.mjs --unpacked
+
+      - name: SignPath 1/2 — hand over the app's program
+        id: unsigned-app
+        if: runner.os == 'Windows' && env.HAS_SIGNPATH == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: unsigned-win-app
+          path: chrono-app/dist/win-unpacked/Ozimut Chrono.exe
+          if-no-files-found: error
+          retention-days: 1
+
+      - name: SignPath 1/2 — sign the app's program
+        if: runner.os == 'Windows' && env.HAS_SIGNPATH == 'true'
+        uses: signpath/github-action-submit-signing-request@v3
+        with:
+          api-token: ${{ secrets.SIGNPATH_API_TOKEN }}
+          organization-id: ${{ vars.SIGNPATH_ORGANIZATION_ID }}
+          project-slug: ${{ vars.SIGNPATH_PROJECT_SLUG }}
+          signing-policy-slug: ${{ vars.SIGNPATH_SIGNING_POLICY_SLUG }}
+          artifact-configuration-slug: ${{ vars.SIGNPATH_ARTIFACT_CONFIGURATION_SLUG }}
+          github-artifact-id: ${{ steps.unsigned-app.outputs.artifact-id }}
+          wait-for-completion: true
+          wait-for-completion-timeout-in-seconds: 3600     # a release is approved by hand on SignPath
+          output-artifact-directory: chrono-app/signed/app
+
+      - name: SignPath 1/2 — put the signed program back
+        if: runner.os == 'Windows' && env.HAS_SIGNPATH == 'true'
+        run: cp "signed/app/Ozimut Chrono.exe" "dist/win-unpacked/Ozimut Chrono.exe"
+
+      - name: Build the installer and the portable program (Windows)
+        if: runner.os == 'Windows'
+        env:
+          AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
+          AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
+          AZURE_CLIENT_SECRET: ${{ secrets.AZURE_CLIENT_SECRET }}
+          AZURE_SIGN_ENDPOINT: ${{ vars.AZURE_SIGN_ENDPOINT }}
+          AZURE_SIGN_ACCOUNT: ${{ vars.AZURE_SIGN_ACCOUNT }}
+          AZURE_SIGN_PROFILE: ${{ vars.AZURE_SIGN_PROFILE }}
+          AZURE_SIGN_PUBLISHER: ${{ vars.AZURE_SIGN_PUBLISHER }}
+        run: |
+          args=()
+          if [ "$HAS_AZURE" = "true" ]; then
+            args+=("-c.win.azureSignOptions.endpoint=$AZURE_SIGN_ENDPOINT"
+                   "-c.win.azureSignOptions.codeSigningAccountName=$AZURE_SIGN_ACCOUNT"
+                   "-c.win.azureSignOptions.certificateProfileName=$AZURE_SIGN_PROFILE"
+                   "-c.win.azureSignOptions.publisherName=$AZURE_SIGN_PUBLISHER")
+          fi
+          npx electron-builder --win --prepackaged dist/win-unpacked --publish never "${args[@]}"
+
+      - name: SignPath 2/2 — hand over the installer and the portable program
+        id: unsigned-setup
+        if: runner.os == 'Windows' && env.HAS_SIGNPATH == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: unsigned-win-setup
+          path: |
+            chrono-app/dist/Ozimut-Chrono-Setup.exe
+            chrono-app/dist/Ozimut-Chrono-Portable.exe
+          if-no-files-found: error
+          retention-days: 1
+
+      - name: SignPath 2/2 — sign them
+        if: runner.os == 'Windows' && env.HAS_SIGNPATH == 'true'
+        uses: signpath/github-action-submit-signing-request@v3
+        with:
+          api-token: ${{ secrets.SIGNPATH_API_TOKEN }}
+          organization-id: ${{ vars.SIGNPATH_ORGANIZATION_ID }}
+          project-slug: ${{ vars.SIGNPATH_PROJECT_SLUG }}
+          signing-policy-slug: ${{ vars.SIGNPATH_SIGNING_POLICY_SLUG }}
+          artifact-configuration-slug: ${{ vars.SIGNPATH_ARTIFACT_CONFIGURATION_SLUG }}
+          github-artifact-id: ${{ steps.unsigned-setup.outputs.artifact-id }}
+          wait-for-completion: true
+          wait-for-completion-timeout-in-seconds: 3600
+          output-artifact-directory: chrono-app/signed/setup
+
+      - name: SignPath 2/2 — put the signed files back
+        if: runner.os == 'Windows' && env.HAS_SIGNPATH == 'true'
+        run: cp signed/setup/Ozimut-Chrono-Setup.exe signed/setup/Ozimut-Chrono-Portable.exe dist/
+
+      - name: Is it signed? (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $files = "dist/Ozimut-Chrono-Setup.exe", "dist/Ozimut-Chrono-Portable.exe"
+          $states = $files | ForEach-Object { (Get-AuthenticodeSignature $_).Status }
+          $signed = @($states | Where-Object { $_ -ne "Valid" }).Count -eq 0
+          "signatures: $($states -join ', ')"
+          Set-Content -Path dist/meta-win.json -Value (@{ signed = $signed } | ConvertTo-Json -Compress) -Encoding utf8
+
+      # ---------------------------------------------------------------- macOS
+      # One universal dmg (Apple silicon and Intel). Without a Developer ID the app is signed
+      # ad hoc: it opens after « Open Anyway » in System Settings › Privacy & Security.
+      - name: Build (macOS)
+        if: runner.os == 'macOS'
+        env:
+          CSC_LINK: ${{ secrets.CSC_LINK }}
+          CSC_KEY_PASSWORD: ${{ secrets.CSC_KEY_PASSWORD }}
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        run: |
+          args=()
+          if [ "$HAS_APPLE" != "true" ]; then
+            unset CSC_LINK CSC_KEY_PASSWORD APPLE_ID APPLE_APP_SPECIFIC_PASSWORD APPLE_TEAM_ID
+            export CSC_IDENTITY_AUTO_DISCOVERY=false
+            args+=("-c.mac.identity=-")        # signed ad hoc: left unsigned, an app downloaded to Apple silicon is « damaged »
+          fi
+          npx electron-builder --mac --publish never "${args[@]}"
+
+      # not yet seen to pass on GitHub's macOS machines (a window opened without a screen):
+      # a failure here is shown in the run but does not stop the release
+      - name: Smoke test (macOS)
+        if: runner.os == 'macOS'
+        continue-on-error: true
+        run: node smoke.mjs --unpacked
+
+      - name: Is it signed? (macOS)
+        if: runner.os == 'macOS'
+        run: |
+          signed=false
+          if codesign -dv --verbose=2 "dist/mac-universal/Ozimut Chrono.app" 2>&1 | grep -q "^Authority=Developer ID Application"; then signed=true; fi
+          echo "Developer ID: $signed"
+          echo "{\"signed\":$signed}" > dist/meta-mac.json
+
+      # ---------------------------------------------------------------- Linux
+      - name: Build (Linux)
+        if: runner.os == 'Linux'
+        run: npx electron-builder --linux --publish never
+
+      - name: Smoke test (Linux)
+        if: runner.os == 'Linux'
+        run: |
+          command -v xvfb-run > /dev/null || { sudo apt-get update -q && sudo apt-get install -y -q xvfb; }
+          xvfb-run -a node smoke.mjs --unpacked
+
+      # ---------------------------------------------------------------- the files
+      - name: Keep the files
+        uses: actions/upload-artifact@v4
+        with:
+          name: chrono-${{ matrix.key }}
+          path: |
+            chrono-app/dist/Ozimut-Chrono-Setup.exe
+            chrono-app/dist/Ozimut-Chrono-Portable.exe
+            chrono-app/dist/Ozimut-Chrono.dmg
+            chrono-app/dist/Ozimut-Chrono.AppImage
+            chrono-app/dist/meta-*.json
+          if-no-files-found: error
+          retention-days: 14
+
+  release:
+    name: release
+    needs: build
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+      TAG: chrono-app
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          sparse-checkout: chrono-app/package.json
+          sparse-checkout-cone-mode: false
+
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: chrono-*
+          merge-multiple: true
+          path: out
+
+      - name: Describe the release
+        id: describe
+        run: |
+          ls -l out
+          node - <<'EOF'
+          const fs = require("fs");
+          const version = require("./chrono-app/package.json").version;
+          const files = { win: "Ozimut-Chrono-Setup.exe", winPortable: "Ozimut-Chrono-Portable.exe", mac: "Ozimut-Chrono.dmg", linux: "Ozimut-Chrono.AppImage" };
+          const sizes = {};
+          for (const [k, f] of Object.entries(files)) sizes[k] = fs.statSync(`out/${f}`).size;       // a missing file stops the release here
+          const signed = (k) => { try { return JSON.parse(fs.readFileSync(`out/meta-${k}.json`, "utf8").replace(/^[^{]*/, "")).signed === true; } catch (e) { return false; } };
+          const info = { version, date: new Date().toISOString(), files, sizes, signed: { win: signed("win"), mac: signed("mac") } };
+          fs.writeFileSync("out/chrono-app.json", JSON.stringify(info, null, 2) + "\n");
+          fs.appendFileSync(process.env.GITHUB_OUTPUT, `version=${version}\n`);
+          console.log(info);
+          EOF
+
+      - name: Publish
+        env:
+          VERSION: ${{ steps.describe.outputs.version }}
+        run: |
+          notes="Ozimut Chrono $VERSION, the desktop app, built from commit $GITHUB_SHA. The files of this release are replaced by each new build."
+          if gh release view "$TAG" > /dev/null 2>&1; then
+            # the tag follows the commit that was built
+            gh api --method PATCH "repos/$GH_REPO/git/refs/tags/$TAG" -f sha="$GITHUB_SHA" -F force=true > /dev/null || echo "the tag stays where it was"
+          else
+            gh release create "$TAG" --target "$GITHUB_SHA" --title "Ozimut Chrono $VERSION" --notes "$notes" --latest=false
+          fi
+          gh release upload "$TAG" --clobber \
+            out/Ozimut-Chrono-Setup.exe out/Ozimut-Chrono-Portable.exe out/Ozimut-Chrono.dmg out/Ozimut-Chrono.AppImage out/chrono-app.json
+          gh release edit "$TAG" --title "Ozimut Chrono $VERSION" --notes "$notes" --draft=false

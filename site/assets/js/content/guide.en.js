@@ -1,6 +1,8 @@
 // The Documentation's guide to the site, in English (guide.fr.js is the reference: the same structure, the same chapters).
 // build(X) receives the page's helpers and returns « The site » (the documentation's home) and the guides of Arena, Coach and
 // Orga and Carto. A page is named as the English menu names it, with a link.
+import APP from "./chronoapp.en.js";
+
 export function build(X) {
   const { html, raw, subTabs, fr = true, admin = false, owner = false } = X;
   // a page of the site, as the menus name it
@@ -9,10 +11,15 @@ export function build(X) {
   const M = (mod, label) => html`<a href="#/documentation?module=${mod}">${label}</a>`;
   // a tab of the module's documentation shown (Orga: « Course setting »)
   const D = (tab, label, goto) => html`<a href="#/documentation?onglet=${tab}${goto ? `&voir=${goto}` : ""}" data-tab-link="${tab}"${raw(goto ? ` data-goto="${goto}"` : "")}>${label}</a>`;
-  const chapters = (list, CH) => raw(subTabs(list, list[0][0]).s.replace(/<div data-subpanel="([a-z]+)"( hidden)?><\/div>/g, (m0, k, hid) =>
+  const chapters = (list, CH) => raw(subTabs(list, list[0][0]).s.replace(/<div data-subpanel="([a-z-]+)"( hidden)?><\/div>/g, (m0, k, hid) =>
     `<div data-subpanel="${k}"${hid || ""}>${CH[k]().s}</div>`));
   const slide = (kicker, title, body, id) => html`<section class="mx-slide"${raw(id ? ` id="${id}"` : "")}><p class="mx-kicker">${kicker}</p><h2>${title}</h2>${body}</section>`;
   const list = (items) => html`<ul class="mx-list">${items.filter(Boolean).map((i) => html`<li><span>${i}</span></li>`)}</ul>`;
+  // a chapter of Orga's documentation
+  const CHAP = (chapter, label) => html`<a href="#/documentation?module=orga&voir=${chapter}" data-tab-link="orga" data-goto="${chapter}">${label}</a>`;
+  // the desktop application's own documentation (content/chronoapp.*.js, which the application shows too): a slide a section
+  const appDoc = (kicker) => html`<p class="muted" style="margin:0 0 14px">${APP.lede}</p>${APP.sections.map((sec) => slide(kicker, sec.title,
+    raw(sec.html.replace(/<table>/g, '<div class="table-wrap"><table class="data compact">').replace(/<\/table>/g, "</table></div>")), `chrono-app-${sec.id}`))}`;
 
   // what each documentation says under its title
   const LEDE = {
@@ -403,7 +410,9 @@ export function build(X) {
   // Orga (« Course setting », its other tab, is content/methods.*.js' tracerDoc)
   // ======================================================================================================
   const ORGA = [["qui", "My events"], ["evenement", "Creating an event"], ["trace", "Course setting"], ["horaires", "Starts"], ["direct", "Live"],
-    ["resultats", "Results"], ["analyses", "Analysis"], ["equipe", "The team"]];
+    ["resultats", "Results"], ["analyses", "Analysis"],
+    // Chrono, the race timing: its tab is the administrators' only for now (pages/manage.js), and so are its chapters
+    ...(admin ? [["chrono", "Chrono"], ["chrono-app", "The Chrono application"]] : []), ["equipe", "The team"]];
   function orga() {
     return chapters(ORGA, {
       qui: () => html`
@@ -530,6 +539,222 @@ export function build(X) {
             opened it, the tracks per course, those who replayed it alone without sharing a track — counts only, never who.</p>
           <p>Runners find it in Coach (“Analysis › Compare with the other runners”). Course setting can also publish its courses, map included, to an analysis (after the race for
             a competition).</p>`)}`,
+      chrono: () => html`
+        ${slide("Chrono", "Timing a race with Ozimut", html`
+          <p>Chrono is Ozimut's race-timing tool: the entries, the start draw, reading the cards at the finish, the receipts, the results, the
+            referee's work. It is in ${P("#/orga", "My events")}: open an event, then its “Chrono” tab, just before “Team”. The “Live” and
+            “Results” tabs stay there for those who time with other software. Chrono also exists as an application to install, to work without
+            the Internet and link several computers: see ${CHAP("chrono-app", "The Chrono application")}.</p>
+          <div class="mx-callout"><b>Being tested, administrators only.</b> For now the “Chrono” tab is shown to Ozimut's administrators only.
+            Chrono has never yet been tried with real SPORTident or Emit stations, a receipt printer or a real MeOS, and none of its files has
+            yet been sent to a federation. Try it at a training session, or alongside your usual software; do not yet trust it alone with a
+            competition.</div>
+          <p><b>The idea, in three sentences.</b> Every station — a computer or a phone with Chrono open — writes what it does (an entry, a card
+            read, a correction) as an operation in one log, the race's. The stations keep each other up to date: through the copy on Ozimut
+            when there is Internet, through the application's hub on a local network, through a file carried across otherwise. Without any
+            link a station keeps everything itself and carries on: nothing is lost, and everything comes together when the link is back, in
+            whatever order.</p>
+          <p><b>The screen.</b> At the top, the event's name, the state of the equipment and the connections (readers, printer, copy on Ozimut,
+            hub) and the clock. On the left, the nine stations: Prepare, Desk, Start, Finish, Monitor, Speaker, Referee, Units, Close
+            (<kbd>Alt</kbd>+<kbd>1</kbd> to <kbd>Alt</kbd>+<kbd>9</kbd>). Under the bar, the buttons of the station in hand. At the bottom, the
+            counts: entries, running, cards read, ranked, points to deal with. A card read at any station is kept, judged, announced by a beep
+            (high: all is well; low: something is missing) and, if you asked for it, printed.</p>`)}
+        ${slide("Chrono", "Prepare: the assistant in nine steps", html`
+          <p>The “Prepare” station takes the event from nothing to ready. Its steps can be done in any order; a step where something prevents
+            starting is marked.</p>
+          <div class="mx-steps">
+            <div class="mx-step"><b>Event</b>Name, date, place, club; “Type of race” (Individual, Score event, Relay); “Rules” (the country);
+              “Timing system” (SPORTident or Emit); “Starts”: at the start list's time, at the start unit (free start) or mass start; “First
+              start”; “Courses close”, after which a runner is over time. In the tab, the name, date, place and club come from the Orga event.</div>
+            <div class="mx-step"><b>Courses</b>Import the course setter's file (IOF XML), or “New course”: its name, length, climb and controls in
+              order, the units' numbers separated by spaces (31 32 45 100).</div>
+            <div class="mx-step"><b>Classes</b>“New class”, “One per course” or “Age classes” (those of the rules chosen; they still need a
+              course). Each has its course and, if wanted, its first start, its interval, a maximum time, a fee; “Class not ranked” for
+              beginners.</div>
+            <div class="mx-step"><b>Entries</b>“Import” a file, or “New runner” one by one. The “Federation file” helps to enter people quickly
+              and to find card numbers (see below).</div>
+            <div class="mx-step"><b>Teams</b>Only when a class is run in teams: relay, pairs, patrols (see “The race formats”).</div>
+            <div class="mx-step"><b>Starts</b>The “Draw” of the start times, checks on the list, printing the start lists, IOF XML export. Not
+              needed with a start unit or a mass start.</div>
+            <div class="mx-step"><b>Equipment</b>The card readers, the receipt printer, and the “Rehearsal”.</div>
+            <div class="mx-step"><b>Connections</b>The operator's name, the copy on Ozimut, the live results, the hub, the event file.</div>
+            <div class="mx-step"><b>Check</b>What prevents starting and what is only advised, with “Go there” to the step concerned; then
+              “Open the Finish station”.</div>
+          </div>
+          ${list([
+            html`<b>Import</b> takes any file and says what it holds before adding it: IOF XML 3.0 (entries, start list, courses, classes,
+              results), a CSV table — the federation's or OE's file, known by its headings in French, English or German —, a MeOS file, an
+              Ozimut Chrono file (.ozchrono). What exists already is completed, never doubled: a runner is recognised by their licence, else by
+              their name and club.`,
+            html`<b>The federation file</b> (step “Entries”, “Load the file”) is the federation's file of licence holders, kept on this
+              computer: in a runner's record, type a name or a licence number and the rest fills in. “Fill in the cards” gives the entries
+              without a card the number that file knows for them.`,
+            html`<b>The draw</b> is made by course (all the runners of a course mixed) or by class, with the interval, the “Gap between runners
+              of a club”, “Vacant places” for late entries, and “Keep the times already given”. The step points out the runners without a
+              time, the times given twice on a course and the runners of one club following each other.`,
+            html`<b>The rehearsal</b> (“Equipment”, “Start a rehearsal”) lets you try every station without spoiling anything: it works on a
+              copy of the race, with “Read a made-up card”, “Ten cards” and “An unknown card” — some with a missing control or no finish,
+              to practise dealing with them. Nothing is saved or sent. With no entries it makes a small invented race. “Leave the rehearsal”
+              goes back to the real race.`,
+          ])}`, "chrono-preparer")}
+        ${slide("Chrono", "Race day, station by station", html`
+          ${list([
+            html`<b>Desk</b>: find a runner by name, club, licence, bib or card number. A blank card put on the reader opens its holder's
+              record, or a new entry with that number. The record holds the late entry (“New runner”), the kind of entry, the “Fee” and
+              “Paid”, the “Hired card”. Beside it: the entries without a card, “To collect”, the “Hired cards still out”, the entries without
+              a class. The ribbon prints the list “By club” and opens “Invoices by club”.`,
+            html`<b>Start</b>: the clock, the next start, and the runners minute by minute; for each, “Present” (✓) or did not start (✕).
+              “Mark as DNS” marks those who were not ticked and whose time passed five minutes ago — only if someone was ticked. The ribbon
+              prints the list “Minute by minute”.`,
+            html`<b>Finish</b>: where the cards are read. The last card is shown large — the runner, their status, time, place, time behind,
+              the missing controls — with “Receipt”, “Correct the card”, “Runner's record” and “Not this runner”. Under it, the list “To
+              deal with” and the “Latest cards read”. “Automatic receipt” prints the receipt as soon as the card is read.`,
+            html`<b>Monitor</b>: the results as they stand “By class” or “By course”, and “In the forest”, the runners who started and are not
+              back, from the earliest start to the latest. A click on a runner shows their controls, with times and places. The ribbon prints
+              the results, with or without split times, and “Screen” opens them in large type for a display.`,
+            html`<b>Speaker</b>: the “Latest finishers”, those “Leading”, the “Radio punches”; “Full screen”.`,
+            html`<b>Referee</b>: the “Log of changes” — everything changed by hand since the cards were read, by whom, at what time, at
+              which station —, the “Complaints and decisions”, “Disqualify” with its reason, “Export the log”.`,
+            html`<b>Units</b>: each unit as the cards read show it — how many punched it, how many should have and did not, its state
+              (“never punched: out of order?”, “inconsistent time”, “often missing”). “Add a control”, and for each its points (score
+              event), the “Other numbers accepted” (a replacement unit) and “Radio control”. “Punch by hand” notes a runner's passing that a
+              controller reports by phone.`,
+            html`<b>Close</b>: after the race (see below).`,
+          ])}`, "chrono-postes")}
+        ${slide("Chrono", "At the finish: the list “To deal with”", html`
+          <p>Chrono never decides in your place: what needs someone waits in the list “To deal with” of the Finish station (a red count shows
+            it on the station), each line with its button.</p>
+          <div class="table-wrap"><table class="data compact"><thead><tr><th>The line says</th><th>What it means</th><th>What to do</th></tr></thead><tbody>
+            <tr><td>Card n: no runner has it</td><td>A card read that no entry declared.</td><td>“Assign”: look for the runner (Chrono says
+              which course the card fits), “New runner”, or “Set aside”.</td></tr>
+            <tr><td>Card n: several runners have it</td><td>The same number is given to several entries.</td><td>“Assign” to the right runner.</td></tr>
+            <tr><td>No finish punch, or no start punch</td><td>The runner did not punch the unit, or the unit did not answer.</td>
+              <td>“View the card”: give the time by hand.</td></tr>
+            <tr><td>Missing control (numbers)</td><td>A control of the course is not on the card: the runner is MP.</td><td>“View the card” to
+              add the punch if the control's own check confirms it; “Seen” to note that it was checked.</td></tr>
+            <tr><td>Still out after the courses closed</td><td>Started, never read.</td><td>“Enter the finish”: a finish or a status by hand.</td></tr>
+            <tr><td>Card read n times, the last read counts</td><td>The card was read several times.</td><td>“Open the record” if that was not meant.</td></tr>
+            <tr><td>Control: inconsistent time for n runners</td><td>The unit may be set to the wrong time.</td><td>See the “Units” station.</td></tr>
+            <tr><td>Hired card to get back, fee to collect</td><td>A reminder as the runner comes by.</td><td>“Returned”, “Paid”.</td></tr>
+          </tbody></table></div>
+          ${list([
+            html`<b>Correcting a card</b> (“Card contents”): remove or add a punch, change the start or the finish, change the runner. The
+              card's own content is never changed: the correction replaces it, it is noted in the referee's log, and “Back to the card”
+              undoes it.`,
+            html`<b>Entering a finish</b> (ribbon, “By hand”): for a runner whose card is lost or unreadable, their finish time or their race
+              time, and their status. It too is noted in the log.`,
+            html`<b>The runner's record</b>, part “Refereeing”: a status chosen by hand overrides what the card says, and a “Time correction”
+              adds or removes seconds.`,
+          ])}`, "chrono-traiter")}
+        ${slide("Chrono", "The race formats", html`
+          ${list([
+            html`<b>Individual</b>: the simple case, a class, a course. A class may have “Variations” (their names separated by “/”): the
+              variation run is recognised when the card is read.`,
+            html`<b>Score event</b>: the type “Score event”, a course ticked “Score course” (the controls are taken in any order), the “Time
+              limit” and the “Penalty per minute started” in “Event”, each control's points in “Units” (empty: one point).`,
+            html`<b>Relay</b>: the type “Relay”; in each class, the “Courses of the relay legs” — one leg per “;”, its variations separated
+              by “/” (A1/A2; B; C1/C2). The “Teams” step creates the teams (“New team”: its name, club, class, bib, the runner of each leg;
+              type a name, the entries that are in no team are offered) or imports them; “Number” gives the bibs, class after class (“First
+              bib”, “Block per class”: 100 for 1, 101, 201…). <b>“Mass start of the late legs”</b> (step “Teams” and Start station): at the
+              time chosen, from the leg given on, the runners whose team-mate has not come in leave together; their time runs from that time,
+              and their team is ranked after those that were not restarted. “Cancel the mass start” goes back.`,
+            html`<b>Pairs and patrols</b>: in the class, “Teams of” (2 for pairs) and “Runners counted” — the team's time is that runner's at
+              the finish; empty, all count and the time is the last runner's.`,
+            html`<b>Knockout sprint</b> (step “Starts”, “Knockout heats”): from a qualification's ranking, Chrono spreads the runners over
+              heats “in a snake”, for heats of equal strength; each heat is a class of its own, started together (“Number of heats”, “Runners
+              per heat”, “First heat's start”, “Minutes between two heats”). The next round takes those “Through per heat” and, if wanted,
+              “Fastest losers”, the fastest of those not through. Everyone keeps their card: its next read goes to their heat. A round where
+              cards were read cannot be made again. The “Heats table” prints each round, then the final ranking.`,
+            html`<b>Several days</b> (step “Starts”, and Close station): add the stages already run, from a results file (IOF XML, OE, MeOS
+              or Ozimut Chrono) or from another event of this computer. The overall ranking adds up the times, or counts points (1000 to each
+              stage's winner), over all the stages or the best ones only (“Stages counted”). Runners are recognised by their licence, else by
+              their name and club. <b>“Chase start”</b>, for the last day: the leader of the overall ranking by time leaves at the time given,
+              the others behind by their deficit; beyond the “Largest deficit”, and for those who lack a stage, a start one after the other at
+              a fixed interval.`,
+          ])}`, "chrono-formats")}
+        ${slide("Chrono", "Lists and accounts", html`
+          ${list([
+            html`<b>The ready-made lists</b>: the start list by class, by course, minute by minute (for the start team) and by club; the
+              results, with or without split times; each runner's receipt.`,
+            html`<b>“Compose a list”</b> (step “Starts”, group “Print”): your own lists of results, starts or entries — the grouping (class,
+              course, club), the columns and their order, the sorting, the classes and statuses kept, only the first of each group (3 for the
+              podiums), split times, one page per group, the text size, the orientation, lines above and below. The preview shows the list
+              as it will print; it is printed, exported as a “CSV file” or opened on a “Screen”. Once saved (<kbd>Ctrl</kbd>+<kbd>S</kbd>) it
+              is kept with the event and appears under “My lists” at the Monitor and Close stations.`,
+            html`<b>“Invoices by club”</b> (Desk and Close stations): what each club owes, entry fees and hired cards. You set the “Price of
+              a hired card”, the title, a “Numbering prefix”, the organiser's heading and the footer (bank details, payment terms); you mark
+              a club paid; you print one club, all the invoices, or only the clubs that owe something; two CSV exports, summary and details.`,
+          ])}`, "chrono-listes")}
+        ${slide("Chrono", "After the race: Close", html`
+          ${list([
+            html`<b>“Where the race stands”</b>: the runners still out, the entries who did not start (“Mark those who did not start as
+              DNS”), the cards read that are assigned to nobody, the hired cards not returned, what is still to collect.`,
+            html`<b>“Before sending to the federation”</b>: what the file would lack — runners without a licence, a club or a class, licence
+              numbers of an unexpected form, classes without a course.`,
+            html`<b>The results files</b>: the federation's file — in France “FFCO file”, a CSV in OE 2003's layout, the results by course,
+              the one the federation receives for its ranking; “IOF XML” 3.0, with split times (WinSplits, Livelox, other software); “MeOS”,
+              the event to reopen in MeOS; “Web page”, the results and split times in one page to put online.`,
+            html`<b>“Publish on Ozimut”</b> sends the results to Arena › Results, as the organiser's file: from the tab only (you must be
+              signed in), for an event tied to a competition of the calendar. They replace those you uploaded there before.`,
+            html`<b>The live results</b> are set before the race: “Connections”, “Show the results live on Ozimut” — the results appear in
+              Arena › Live, updated about every twenty seconds.`,
+            html`<b>“Remember the cards”</b> notes on this computer each licence holder's card, for the next races. <b>“Save the file”</b>
+              keeps the whole race in an .ozchrono file, to archive.`,
+            html`<b>A relay</b> cannot yet be published in “Results”, and its files hold the results leg by leg: there is no team results
+              file yet. The teams' ranking is on the screen and on the printed lists.`,
+          ])}`, "chrono-cloturer")}
+        ${slide("Chrono", "The equipment", html`
+          ${list([
+            html`<b>SPORTident reader</b>: plug the master station in by USB, then “Equipment”, “SPORTident”; the browser asks you to choose
+              its port and remembers it. “Set the clock” sets the reader to the computer's time. It needs Chrome or Edge on a computer — not
+              Firefox or Safari, not a phone —, or the application. Cards SI5 to SI11, SIAC and pCard are provided for.`,
+            html`<b>Emit</b>: choose Emit as the “Timing system”, then “Emit” for a 250 reader or an MTR4. From an eScan or an eScan2 (“Emit
+              eScan”) Chrono receives only its status and emiTag passings, not the cards' content: Emit does not publish its format. So a race
+              with Emit cards cannot be read out with an eScan; it takes a 250 or an MTR4. Emit's other units (ECU, ETS) are not supported.`,
+            html`<b>Receipt printer</b>, “Print on”: a receipt printer on a serial port, USB or Bluetooth (the common models, Epson and
+              compatibles, receive the receipt directly: choose its port and speed); the system's printer, with its print dialog; and, in the
+              application, the printer chosen without a dialog. 58 or 80 mm paper, “Print the receipt as soon as a card is read”, “Test
+              receipt”.`,
+            html`<b>Radio controls</b>: tick “Radio control” on the unit (“Units” station). The punches come in through the application,
+              which listens to the radio relays, or are noted with “Punch by hand”; the Speaker shows them.`,
+          ])}`, "chrono-materiel")}
+        ${slide("Chrono", "Several stations", html`
+          <p>A station alone, without the Internet, keeps everything itself. As soon as there are several, or so as not to depend on one
+            computer, the “Connections” step offers three means, which can be combined; “Check” warns as long as the race is kept on this
+            computer only.</p>
+          <div class="mx-grid">
+            <div class="mx-box" style="--c:var(--s1)"><h3>Copy on Ozimut</h3><p>In the tab, as soon as there is Internet, every operation is
+              copied to Ozimut: another computer opening the same event takes the race over, and nothing is lost if this one breaks down.
+              “Give the other stations access” makes a key that travels with the race: the stations without an account (the application, a
+              phone) then exchange with Ozimut too, with nothing to type.</p></div>
+            <div class="mx-box" style="--c:var(--s3)"><h3>Hub</h3><p>The Ozimut Chrono application, on a computer of the arena, links the
+              stations of the local network without the Internet. On the same computer: “Look for the app on this computer”. The other
+              computers and the phones open the application's address in their browser (see
+              ${CHAP("chrono-app", "The Chrono application")}).</p></div>
+            <div class="mx-box" style="--c:var(--s2)"><h3>Event file</h3><p>“Save the file” puts the whole race in an .ozchrono file, to carry
+              on a USB stick; “Load a file” adds it to the race in hand, doubling nothing. In Chrome or Edge, “Keep a log in a folder” also
+              writes every operation into a folder of the computer.</p></div>
+          </div>
+          <p>The “Operator's name” (“Connections” step) is noted with every change, for the referee's log.</p>`, "chrono-liaisons")}
+        ${slide("Chrono", "The rules by country, and the limits", html`
+          <p>The event's “Rules” set the age classes, the habits of the draw, the kinds of entry (licence holder, day licence, member of
+            another federation, no licence) and the federation's file.</p>
+          <div class="table-wrap"><table class="data compact"><thead><tr><th>Rules</th><th>Age classes</th><th>Draw</th><th>Results and file</th></tr></thead><tbody>
+            <tr><td>France (FFCO)</td><td>H and D</td><td>By course, never two runners of a club one after the other</td><td>By course; “FFCO file”</td></tr>
+            <tr><td>Canada (Orienteering Canada)</td><td>M and F</td><td>By class, no club rule</td><td>By class</td></tr>
+            <tr><td>IOF rules (other countries)</td><td>M and W</td><td>By class, never two runners of a club one after the other</td><td>By class</td></tr>
+          </tbody></table></div>
+          <p>These habits are only the values offered: the draw and Monitor let you choose by course or by class.</p>
+          <p><b>What Chrono does not do yet, or has not yet proved</b>:</p>
+          ${list([
+            html`no trial on real equipment (SPORTident or Emit stations, a receipt printer) or with a real MeOS;`,
+            html`the content of Emit cards read by an eScan or an eScan2;`,
+            html`a team results file for relays, and publishing a relay in “Results”;`,
+            html`the tab for others than the administrators.`,
+          ])}
+          <p>Installing the application, the hub, direct printing and radio controls are described in
+            ${CHAP("chrono-app", "The Chrono application")}.</p>`, "chrono-regles")}`,
+      "chrono-app": () => appDoc("The Chrono application"),
     });
   }
 

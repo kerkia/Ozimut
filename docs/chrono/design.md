@@ -87,6 +87,41 @@ Exporters take a **view** (`view.js`): `{ event, classes: [{ id, name, course: {
 rows: [{ place, family, given, club, clubCode, lic, card, cat, sex, birth, bib, start, finish, time, status, splits:
 [{ code, t }], points? }] }] }` with `status` one of `ok mp dnf dns dsq ot nc run wait`.
 
+## Formats beyond one individual race
+
+Everything below is state of the same log — no new operation kind; `t_formats.mjs` checks it.
+
+- **Relay** — a class with `legs: [{ course | pool, mass? }]`; a team `teams[id] = { name, club, cls, bib, runners: [ids by leg, null for a leg
+  without a runner] }`, its runners carry `team` and `leg`. A leg starts at the handover (the finish of the leg before, `hint` in
+  `judge`), the first at the class's `first` (or its own `mass`). **The mass start of the late legs**: `legs[i].mass` (seconds) on a
+  leg after the first sends every runner of that leg off at that time unless their handover came before it; such a result
+  carries `restart`, and the team (`teams[].restart`) ranks after every team that was never restarted (`view.rankAfter`). A
+  team's time is the sum of its legs' times. `io/iofxml.writeResults` writes a relay class as `TeamResult` /
+  `TeamMemberResult` (the last leg's `OverallResult` carries the team's place).
+- **Pairs and patrols** — a class with `team: { size, count? }`: its teams' members race together on the class's course, each
+  with their own card. The team's time is its `count`-th member's (all by default: the slowest); a member who is not classified
+  takes the team with them. The draw gives a team one start time (`draw`), and two team-mates on one minute are no fault
+  (`checkStarts`). The view's class has `teams` (kind "group"); the individual rows stay.
+- **Knockout** (`knockout.js`) — a round's heat is a class `ko: { base (the class the knockout started from), round, heat, up
+  (how many go on), label }` with `first` = its mass start; its runners are **copies** of the entries (`of` = the entry, same
+  card, `start` = the heat's): a card read goes to the one of its holders who has no read yet (`judge.ownerOf`), so each round's
+  read finds its heat; `view.personOf` follows `of` (the duplicate-card checks count persons). `planRound` spreads a ranking
+  over the heats in a snake; `qualified` takes a qualification's classified runners, or the first `up` of each heat of the round
+  before plus the fastest losers; `koRanking` is the final order (the round reached, the heat's place, the time);
+  `dropRound` refuses once a card was read in the round.
+- **Several days** (`series.js`) — each other day is a stage kept on the event under the key `stage.<id>` = `{ name, date,
+  classes: [{ name, rows: [{ k (the person's key: licence, else name and club), family, given, club, lic?, status, time?,
+  points? }] }] }` (one event key a stage, so two stations adding stages never overwrite each other); the settings under
+  `series = { mode "time" | "points", best (0: all), cur (the event's own race is the last stage unless false) }`. `totals`
+  adds the stages class by class (by time: a runner short of a stage after the others; by points: 1000 × winner's time ÷
+  time, the best stages); a person seen with a licence one day and without the next is one person. `chaseStarts` gives the
+  last day's start times from the totals before it: the leader at `first`, the others behind by their deficit, beyond `cap`
+  one after the other.
+- **Lists and invoices** — a custom list's definition is kept under the event key `list.<id>` (`print/designer.js`: kind,
+  grouping, columns, sort, filters; `normalise` on reading, definitions come from other stations); the invoices' settings
+  under `inv = { rent, title, num, head, foot, skipDns }` (`print/invoices.js`: a runner's fee, else their class's; `paid`
+  on the runner). A knockout copy (`of`) is never billed.
+
 ## Sync
 
 Each station holds the whole log. `sync.js`: `hello { ev, station, have: { station: n } }` → the other side sends the
@@ -98,7 +133,8 @@ WebSocket to the app's hub (`ws://<hub>/hub`), HTTP to the cloud (`POST /api/chr
 `chrono-app/` is an Electron app. Its main process runs **the hub** (`chrono-app/hub.mjs`, plain Node, no Electron inside:
 testable alone), which holds one `Log` per event and is a station like any other:
 
-- HTTP on port 8377 (all interfaces): `GET /` the standalone page (`chrono-app/www/index.html`), `GET /assets/*` the site's
+- HTTP on port 8377 (all interfaces): `GET /` the standalone page (`chrono-app/www/index.html`), `GET /doc.html` the app's
+  documentation (`www/doc.html` → `chrono/ui/appdoc.js`; same token rule as the page), `GET /assets/*` the site's
   assets (the repository's `site/assets` in development, a bundled copy once packaged), `GET /hub/info` →
   `{ name, version, events: [{ ev, name, date, ops }] }`.
 - `WS /hub?ev=<event id>&k=<token>`: JSON text frames, the messages of `sync.js` (`hello`, `ops`, `ready`, `no`). The hub
@@ -125,3 +161,4 @@ Nothing French in the engine.
 ## Tests
 
 `node tools/chrono/t_<name>.mjs` — no dependency, each prints its checks and exits 1 on a failure.
+- `t_formats.mjs`: relay restarts, pairs and patrols, knockout rounds, totals over several days, the chase start, the relay's IOF XML. `t_lists.mjs`: the list designer and the invoices.

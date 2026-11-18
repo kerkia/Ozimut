@@ -21,8 +21,13 @@ const SPORTIDENT = 0x10C4;                                  // the USB vendor of
 const EVENT_FILE = /\.ozchrono(\.jsonl)?$/i, JOURNAL = /^([A-Za-z0-9_-]{1,64})\.ozchrono\.jsonl$/;
 const MM = 96 / 25.4;                                       // CSS pixels in a millimetre
 
-let S = strings("en"), hub = null, win = null, origin = "", assets = "";
+// `--smoke` (or CHRONO_SMOKE=1): the launch checked without anyone watching — see smoke() below
+const SMOKE_DOC = process.argv.includes("--smoke-doc");      // the same, then Help › Documentation's window opened and drawn
+const SMOKE = SMOKE_DOC || process.argv.includes("--smoke") || process.env.CHRONO_SMOKE === "1", SMOKE_S = 60;
+
+let S = strings("en"), hub = null, win = null, docWin = null, origin = "", assets = "";
 let waiting = null;                                         // a file asked for (macOS) before the hub is up
+let smokeDir = "";
 
 // ---- settings: the hub's token, the data folder when it is not the usual one, where files were last saved ----
 const settingsFile = () => path.join(app.getPath("userData"), "settings.json");
@@ -45,12 +50,14 @@ async function start() {
   if (!set.token) { set.token = crypto.randomBytes(12).toString("base64url"); saveSettings(set); }
   let docs;
   try { docs = app.getPath("documents"); } catch (e) { docs = app.getPath("home"); }
-  const folder = set.folder || path.join(docs, "Ozimut Chrono");
+  // a smoke run keeps away from the user's events and from the ports of an app that is open: its own folder, any free port
+  const folder = SMOKE ? path.join(smokeDir, "events") : set.folder || path.join(docs, "Ozimut Chrono");
   assets = app.isPackaged ? path.join(process.resourcesPath, "site", "assets") : path.join(here, "..", "site", "assets");
   try {
-    hub = await startHub({ port: PORT, tries: MORE_PORTS + 1, sirapPort: SIRAP_PORT, folder, assets, www: path.join(here, "www"),
+    hub = await startHub({ port: SMOKE ? 0 : PORT, tries: MORE_PORTS + 1, sirapPort: SMOKE ? null : SIRAP_PORT, folder, assets, www: path.join(here, "www"),
       token: set.token, name: os.hostname(), version: app.getVersion() });
   } catch (e) {
+    if (SMOKE) return smokeEnd([`hub: ${e?.stack || e}`]);
     dialog.showErrorBox(S.startTitle, e.code === "EADDRINUSE" ? fill(S.startPorts, { a: PORT, b: PORT + MORE_PORTS }) : `${fill(S.startFolder, { folder })}\n${e.message}`);
     app.exit(1);
     return;
@@ -58,34 +65,114 @@ async function start() {
   origin = `http://127.0.0.1:${hub.port}`;
   menu();
   handlers();
-  createWindow(fileIn(process.argv) || waiting);
+  createWindow(SMOKE ? null : fileIn(process.argv) || waiting);
+  if (SMOKE) smoke();
 }
 
-function createWindow(file) {
-  win = new BrowserWindow({
-    width: 1360, height: 860, minWidth: 720, minHeight: 480, title: "Ozimut Chrono", backgroundColor: "#f9f9f7",
+/** A window on the hub's pages: it stays on them, any other address opens in the computer's browser. */
+function hubWindow(o) {
+  const w = new BrowserWindow({
+    minWidth: 720, minHeight: 480, title: "Ozimut Chrono", backgroundColor: "#f9f9f7", show: !SMOKE, ...o,
     ...(process.platform === "darwin" ? {} : { icon: path.join(assets, "icon-512.png") }),
     webPreferences: { preload: path.join(here, "preload.cjs"), contextIsolation: true, nodeIntegration: false, sandbox: true,
       additionalArguments: [`--chrono-version=${app.getVersion()}`] },
   });
-  serial(win.webContents.session);
-  win.on("closed", () => { win = null; });
-  // the window stays on the hub's page: any other address opens in the computer's browser
-  win.webContents.setWindowOpenHandler(({ url }) => {
+  w.webContents.setWindowOpenHandler(({ url }) => {
     if (ours(url)) return { action: "allow" };
     if (web(url)) shell.openExternal(url);
     return { action: "deny" };
   });
-  win.webContents.on("will-navigate", (e, url) => {
+  w.webContents.on("will-navigate", (e, url) => {
     if (ours(url)) return;
     e.preventDefault();
     if (web(url)) shell.openExternal(url);
   });
+  return w;
+}
+
+function createWindow(file) {
+  win = hubWindow({ width: 1360, height: 860 });
+  serial(win.webContents.session);
+  win.on("closed", () => { win = null; if (docWin) docWin.close(); });
   if (file) openFile(file); else go();
 }
 /** The window on the hub's page, on an event when one is named. */
 function go(ev = "") {
   if (win) win.loadURL(`${origin}/${ev ? `?ev=${encodeURIComponent(ev)}` : ""}`).catch(() => { /* the window shows what failed */ });
+}
+
+/** The documentation (www/doc.html, served by the hub as the page is), in a window of its own beside the timing. */
+function openDoc() {
+  if (docWin) { if (docWin.isMinimized()) docWin.restore(); docWin.show(); docWin.focus(); return; }
+  docWin = hubWindow({ width: 980, height: 820, title: `Ozimut Chrono — ${S.doc}` });
+  docWin.setMenuBarVisibility(false);
+  docWin.on("closed", () => { docWin = null; });
+  docWin.loadURL(`${origin}/doc.html`).catch(() => { /* the window shows what failed */ });
+}
+
+// ---- the smoke test: `electron . --smoke`, or the packaged app with `--smoke` ----
+// The hub on a free port with a folder of its own, the window hidden. Passed once the page has drawn its home
+// (standalone.js: `.chr-home`), the preload has given it `chronoApp` with the app's version and the main process has
+// answered it, with no error of the page and no file refused by the hub. Prints « SMOKE OK <version> » and exits 0,
+// or what went wrong and exits 1 (after SMOKE_S seconds at most). CHRONO_SMOKE_OUT names a file that gets the same
+// lines: a packaged Windows app has no console to print to.
+let smokeOver = false;
+function smokeEnd(errors, notes = []) {
+  if (smokeOver) return;
+  smokeOver = true;
+  const ok = !errors.length;
+  const lines = [...notes.map((n) => `note: ${n}`), ...errors.map((e) => `error: ${e}`), ok ? `SMOKE OK ${app.getVersion()}` : `SMOKE FAILED ${app.getVersion()}`];
+  const text = lines.join("\n") + "\n";
+  try { if (process.env.CHRONO_SMOKE_OUT) fs.writeFileSync(process.env.CHRONO_SMOKE_OUT, text); } catch (e) { /* the console has it */ }
+  try { process.stdout.write(text); } catch (e) { /* no console */ }
+  const h = hub;
+  hub = null;
+  Promise.resolve(h?.close()).catch(() => {}).finally(() => {
+    try { if (smokeDir) fs.rmSync(smokeDir, { recursive: true, force: true }); } catch (e) { /* the temp folder's sweep will */ }
+    app.exit(ok ? 0 : 1);
+  });
+}
+function smoke() {
+  const errors = [], notes = [], t0 = Date.now();
+  let done = false, failedAt = 0, busy = false, doc = false;
+  const end = () => { if (done) return; done = true; clearInterval(tick); smokeEnd(errors, notes); };
+  const watch = (wc, what) => {
+    wc.on("console-message", (e) => { if (e.level === "error") errors.push(`${what}: ${e.message}${e.sourceId ? ` (${e.sourceId}:${e.lineNumber})` : ""}`); });
+    wc.on("did-fail-load", (e, code, why, url, main) => { if (main) errors.push(`${what}: ${why} (${code}) ${url}`); });
+    wc.on("preload-error", (e, file, err) => errors.push(`${what}'s preload: ${err?.message || err}`));
+    wc.on("render-process-gone", (e, d) => { errors.push(`${what}: renderer gone (${d.reason})`); end(); });
+  };
+  watch(win.webContents, "page");
+  const ses = win.webContents.session;
+  ses.webRequest.onCompleted((d) => { if (d.statusCode >= 400 && ours(d.url)) errors.push(`${d.statusCode} ${d.url}`); });
+  ses.webRequest.onErrorOccurred((d) => { if (ours(d.url)) errors.push(`${d.error} ${d.url}`); });
+  const look = `(async () => ({ home: !!document.querySelector(".chr-home"), app: typeof window.chronoApp, version: window.chronoApp?.version || "",
+    port: (await window.chronoApp?.hub?.())?.port || 0, modules: performance.getEntriesByType("resource").filter((r) => /\\.js(\\?|$)/.test(r.name)).length }))()`;
+  const ask = async (wc, js) => { try { return wc.isLoading() ? null : await wc.executeJavaScript(js); } catch (e) { return null; } };      // null: between two pages
+  const tick = setInterval(async () => {
+    if (done || busy) return;
+    if (Date.now() - t0 > SMOKE_S * 1000) { errors.push(`timeout: ${doc ? "the documentation was not drawn" : "no home page"} after ${SMOKE_S} s`); return end(); }
+    if (errors.length && !failedAt) failedAt = Date.now();
+    if (failedAt && Date.now() - failedAt > 5000) return end();     // what failed will not mend: no need to wait the minute out
+    busy = true;
+    if (!doc) {
+      const s = await ask(win.webContents, look);
+      if (s?.home) {
+        if (s.app !== "object") errors.push("preload: window.chronoApp is missing");
+        else if (s.version !== app.getVersion()) errors.push(`preload: chronoApp.version is « ${s.version} », the app's ${app.getVersion()}`);
+        else if (s.port !== hub.port) errors.push(`ipc: chronoApp.hub() gave port ${s.port}, the hub listens on ${hub.port}`);
+        notes.push(`${app.isPackaged ? "packaged" : "development"} app, Electron ${process.versions.electron}, hub on ${origin}, ${s.modules} modules loaded in ${Date.now() - t0} ms`);
+        if (!SMOKE_DOC) return setTimeout(end, 300);       // an error just raised has the time to be heard
+        doc = true;
+        openDoc();
+        watch(docWin.webContents, "documentation");
+      }
+    } else if (await ask(docWin.webContents, `document.getElementById("doc")?.childElementCount > 0`)) {
+      notes.push(`documentation drawn after ${Date.now() - t0} ms`);
+      return setTimeout(end, 300);
+    }
+    busy = false;
+  }, 250);
 }
 
 // ---- the card reader's port (Web Serial) ----
@@ -223,8 +310,23 @@ function menu() {
       { role: "zoomIn", label: S.zoomIn }, { role: "zoomOut", label: S.zoomOut }, { role: "resetZoom", label: S.zoomReset }, line,
       { role: "togglefullscreen", label: S.fullScreen }, { role: "toggleDevTools", label: S.devTools },
     ] },
-    { label: S.help, submenu: [{ label: S.about, click: () => { about(); } }] },
+    { label: S.help, submenu: [
+      { label: S.doc, accelerator: "F1", click: () => { openDoc(); } },
+      line,
+      { label: S.about, click: () => { about(); } },
+    ] },
   ]));
+}
+
+if (SMOKE) {
+  // nothing of the user's is read or written: settings in a folder of its own, which also keeps this run apart from an
+  // app that is open (the single-instance lock goes by that folder)
+  smokeDir = fs.mkdtempSync(path.join(os.tmpdir(), "ozimut-chrono-smoke-"));
+  app.setPath("userData", path.join(smokeDir, "user"));
+  app.disableHardwareAcceleration();                       // a build machine has no graphics card to count on
+  setTimeout(() => smokeEnd([`timeout: the app was not ready after ${SMOKE_S + 15} s`]), (SMOKE_S + 15) * 1000);
+  process.on("uncaughtException", (e) => smokeEnd([`main: ${e?.stack || e}`]));
+  process.on("unhandledRejection", (e) => smokeEnd([`main: ${e?.stack || e}`]));
 }
 
 // ---- one app at a time: a second launch (a file double-clicked) is handed to the first ----
@@ -241,5 +343,9 @@ else {
     hub = null;
     h.close().catch(() => {}).finally(() => app.quit());
   });
-  app.whenReady().then(start).catch((e) => { dialog.showErrorBox(S.startTitle, String(e?.message || e)); app.exit(1); });
+  app.whenReady().then(start).catch((e) => {
+    if (SMOKE) return smokeEnd([`start: ${e?.stack || e}`]);
+    dialog.showErrorBox(S.startTitle, String(e?.message || e));
+    app.exit(1);
+  });
 }

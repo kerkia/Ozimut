@@ -43,7 +43,19 @@ export function draw(st, opt = {}) {
   const wanted = new Set(opt.classes?.length ? opt.classes : Object.keys(st.classes));
   const classes = Object.values(st.classes).filter((k) => wanted.has(k.id) && !k.legs?.length)
     .sort((a, b) => String(a.name).localeCompare(String(b.name), undefined, { numeric: true }));
-  const of = (k) => Object.values(st.runners).filter((r) => r.cls === k.id && r.status !== "dns" && !(opt.keep && r.start != null));
+  // the members of a pair or a patrol leave together: one of them is drawn, the others take their time
+  const mates = new Map();
+  const of = (k) => {
+    const all = Object.values(st.runners).filter((r) => r.cls === k.id && r.status !== "dns" && !(opt.keep && r.start != null));
+    if (!k.team) return all;
+    const seen = new Map(), out = [];
+    for (const r of all.sort((a, b) => (a.leg || 0) - (b.leg || 0))) {
+      const lead = r.team && st.teams[r.team] ? seen.get(r.team) : null;
+      if (lead) mates.get(lead.id).push(r.id);
+      else { out.push(r); mates.set(r.id, []); if (r.team) seen.set(r.team, r); }
+    }
+    return out;
+  };
   const rows = [], blocks = [];
   const byCourse = new Map();
   for (const k of classes) { const c = k.course || `-${k.id}`; (byCourse.get(c) || byCourse.set(c, []).get(c)).push(k); }
@@ -58,7 +70,7 @@ export function draw(st, opt = {}) {
       if (!list.length && !vacant) return;
       const first = t;
       let end = t;
-      for (const r of separate(list, gap, rand)) { end = next(); rows.push(["runners", r.id, { start: end }]); }
+      for (const r of separate(list, gap, rand)) { end = next(); rows.push(["runners", r.id, { start: end }]); for (const id of mates.get(r.id) || []) rows.push(["runners", id, { start: end }]); }
       t += vacant * step;
       blocks.push({ name, first, last: end, n: list.length });
       if (end > last) last = end;
@@ -76,6 +88,7 @@ export function checkStarts(st, { gap = 1 } = {}) {
     const k = st.classes[r.cls];
     if (!k || k.legs?.length || r.status === "dns") continue;
     if (r.start == null) { out.push({ kind: "none", runners: [r.id] }); continue; }
+    if (k.team && r.team && st.teams[r.team]?.runners?.[0] !== r.id && st.runners[st.teams[r.team].runners[0]]?.start === r.start) continue;   // beside their team-mate
     const c = r.course || k.course || `-${k.id}`;
     (byCourse.get(c) || byCourse.set(c, []).get(c)).push(r);
   }

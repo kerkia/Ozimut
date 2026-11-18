@@ -10,15 +10,18 @@
   "main": "main.mjs",
   "scripts": {
     "start": "electron .",
-    "dist": "electron-builder",
+    "smoke": "node smoke.mjs",
+    "smoke:unpacked": "node smoke.mjs --unpacked",
+    "pack": "electron-builder --dir --publish never",
+    "dist": "electron-builder --publish never",
     "test": "node ../tools/chrono/t_hub.mjs"
   },
   "dependencies": {
-    "ws": "^8.23.0"
+    "ws": "8.23.0"
   },
   "devDependencies": {
-    "electron": "^45.3.3",
-    "electron-builder": "^26.18.0"
+    "electron": "45.3.4",
+    "electron-builder": "26.18.0"
   },
   "build": {
     "appId": "com.ozimut.chrono",
@@ -36,7 +39,17 @@
     "extraResources": [
       {
         "from": "../site/assets",
-        "to": "site/assets"
+        "to": "site/assets",
+        "filter": [
+          "js/**",
+          "chrono/**",
+          "app.css",
+          "chrono.css",
+          "favicon.svg",
+          "icon-192.png",
+          "icon-512.png",
+          "apple-touch-icon.png"
+        ]
       }
     ],
     "fileAssociations": [
@@ -50,21 +63,64 @@
     "icon": "../site/assets/icon-512.png",
     "win": {
       "target": [
-        "nsis",
-        "portable"
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        },
+        {
+          "target": "portable",
+          "arch": [
+            "x64"
+          ]
+        }
       ]
     },
     "mac": {
       "target": [
-        "dmg"
+        {
+          "target": "dmg",
+          "arch": [
+            "universal"
+          ]
+        }
       ],
-      "category": "public.app-category.sports"
+      "category": "public.app-category.sports",
+      "hardenedRuntime": true,
+      "entitlements": "build/entitlements.mac.plist",
+      "entitlementsInherit": "build/entitlements.mac.plist"
     },
     "linux": {
       "target": [
-        "AppImage"
+        {
+          "target": "AppImage",
+          "arch": [
+            "x64"
+          ]
+        }
       ],
       "category": "Sports"
+    },
+    "electronLanguages": [
+      "en-US",
+      "fr",
+      "de",
+      "es"
+    ],
+    "nsis": {
+      "artifactName": "Ozimut-Chrono-Setup.${ext}",
+      "differentialPackage": false
+    },
+    "portable": {
+      "artifactName": "Ozimut-Chrono-Portable.${ext}"
+    },
+    "dmg": {
+      "artifactName": "Ozimut-Chrono.${ext}",
+      "writeUpdateInfo": false
+    },
+    "appImage": {
+      "artifactName": "Ozimut-Chrono.${ext}"
     }
   }
 }

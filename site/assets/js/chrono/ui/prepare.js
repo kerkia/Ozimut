@@ -1,7 +1,7 @@
 // « Préparer »: the assistant that takes an event from nothing to ready — the event, its courses, its classes, the entries,
 // the start times, the equipment, the links, a last check. Each step is a panel; the ribbon holds the step's commands.
 
-import { t, tn } from "../../i18n.js";
+import { t, tn, locale } from "../../i18n.js";
 import { confirmBox, alertBox } from "../../askbox.js";
 import { html, raw, icon, formDialog, values, field, opt, pickFiles, download, printHtml, table, bindTable, statusTag, atClock } from "./kit.js";
 import { clock, span, parseClock } from "../times.js";
@@ -16,9 +16,24 @@ import { decodeText } from "../xml.js";
 import { fromFile, toFile, eventFileName, kvSet } from "../store.js";
 import { startsHtml, minutesHtml, clubsHtml } from "../print/lists.js";
 import { runnerDialog } from "./dialogs.js";
+import { teamsPanel, teamDialog, numberTeams, restartDialog, hasTeams } from "./teams.js";
+import { knockoutDialog, seriesDialog, chaseDialog } from "./formats.js";
+import { personOf } from "../view.js";
 import { fakeRead, serialOk } from "./devices.js";
 
-const STEPS = ["event", "courses", "classes", "entries", "starts", "kit", "net", "check"];
+const STEPS = ["event", "courses", "classes", "entries", "teams", "starts", "kit", "net", "check"];
+/** The steps of this event: « Équipes » only where a class is run in teams. */
+const stepsOf = (ctx) => STEPS.filter((s) => s !== "teams" || hasTeams(ctx.st()));
+
+/** Where the desktop application is downloaded: the files the release workflow publishes (.github/workflows/chrono-app.yml). */
+const APP_BASE = "https://github.com/kerkia/Ozimut/releases/download/chrono-app/";
+const APP_FILES = [["win", "Windows", "Ozimut-Chrono-Setup.exe"], ["winp", "Windows", "Ozimut-Chrono-Portable.exe"], ["mac", "macOS", "Ozimut-Chrono.dmg"], ["linux", "Linux", "Ozimut-Chrono.AppImage"]];
+export function appDialog() {
+  const ua = navigator.userAgent, mine = /Windows/.test(ua) ? "win" : /Mac OS X|Macintosh/.test(ua) ? "mac" : /Linux|X11/.test(ua) && !/Android/.test(ua) ? "linux" : "";
+  return formDialog({ title: t("chr.app.title"), ok: "", cancel: t("chr.close"),
+    body: html`<p>${t("chr.app.lede")}</p><ul class="chr-app-dl">${APP_FILES.map(([k, os, file]) => html`<li><a class="btn ${k === mine ? "btn-primary" : ""}" href="${APP_BASE}${file}" rel="noopener" download>${icon("down", 14)} ${os}</a>
+      <span>${t(`chr.app.f.${k}`)}</span></li>`)}</ul><p class="chr-dim">${t("chr.app.warn")}</p><p class="chr-dim">${t("chr.app.doc")}</p>` });
+}
 const byName = (a, b) => String(a.name).localeCompare(String(b.name), undefined, { numeric: true });
 const who = (r) => `${r.family || ""} ${r.given || ""}`.trim();
 
@@ -27,7 +42,7 @@ export function listLabels(title) {
   const st = {};
   for (const s of ["ok", "mp", "dnf", "dns", "dsq", "ot", "nc", "run", "wait"]) st[s] = t(`chr.st.${s}`);
   return { title, place: t("chr.col.place"), name: t("chr.col.name"), club: t("chr.col.club"), cat: t("chr.col.cls"), time: t("chr.col.time"), behind: t("chr.col.behind"), start: t("chr.col.start"),
-    card: t("chr.col.card"), bib: t("chr.col.bib"), status: st, runners: t("chr.lst.runners"), km: "km", climb: "m", controls: t("chr.lst.controls"), printed: t("chr.lst.printed", { at: new Date().toLocaleString() }), points: t("chr.col.points") };
+    card: t("chr.col.card"), bib: t("chr.col.bib"), status: st, runners: t("chr.lst.runners"), km: "km", climb: "m", controls: t("chr.lst.controls"), printed: t("chr.lst.printed", { at: new Date().toLocaleString(locale()) }), points: t("chr.col.points") };
 }
 
 /** Any file a timing tool may be given: what it is, what it holds, then — once agreed — into the log. */
@@ -145,6 +160,7 @@ function classesPanel(ctx, S) {
     { key: "first", label: t("chr.cls.first"), num: 1, get: (k) => clock(k.first), sort: (k) => k.first },
     { key: "step", label: t("chr.cls.step"), num: 1, get: (k) => (k.step ? span(k.step) : "") },
     { key: "fee", label: t("chr.run.fee"), num: 1, get: (k) => k.fee ?? "" },
+    { key: "team", label: t("chr.prep.teams"), get: (k) => (k.legs?.length ? t("chr.cls.relayOf", { n: k.legs.length }) : k.team ? t("chr.cls.teamOf", { n: k.team.size }) : k.ko ? t("chr.ko.heat") : "") },
     { key: "nc", label: t("chr.st.nc"), get: (k) => (k.nc ? "✓" : "") },
   ], rows, { state: S.classes, empty: t("chr.cls.none") })}</div>`;
 }
@@ -160,15 +176,17 @@ function classDialog(ctx, id) {
       ${field(t("chr.cls.pool"), html`<input name="pool" value="${names(k.pool)}" placeholder="AB/BA">`, t("chr.cls.poolHint"))}
       ${relay ? field(t("chr.cls.legs"), html`<input name="legs" value="${(k.legs || []).map((l) => names(l.pool || [l.course])).join(" ; ")}" placeholder="A1/A2; B; C1/C2">`, t("chr.cls.legsHint")) : ""}
       ${field(t("chr.cls.first"), html`<input name="first" value="${clock(k.first)}" placeholder="10:00:00">`)}${field(t("chr.cls.step"), html`<input name="step" data-num value="${k.step ?? ""}">`, t("chr.cls.stepHint"))}
-      ${field(t("chr.cls.maxTime"), html`<input name="maxTime" data-num value="${k.maxTime ? k.maxTime / 60 : ""}">`)}${field(t("chr.run.fee"), html`<input name="fee" data-num value="${k.fee ?? ""}">`)}</div>
+      ${field(t("chr.cls.maxTime"), html`<input name="maxTime" data-num value="${k.maxTime ? k.maxTime / 60 : ""}">`)}${field(t("chr.run.fee"), html`<input name="fee" data-num value="${k.fee ?? ""}">`)}
+      ${k.ko ? "" : html`${field(t("chr.cls.teamSize"), html`<input name="teamSize" data-num value="${k.team?.size ?? ""}">`, t("chr.cls.teamSizeHint"))}${field(t("chr.cls.teamCount"), html`<input name="teamCount" data-num value="${k.team?.count ?? ""}">`, t("chr.cls.teamCountHint"))}`}</div>
       <label class="chr-check"><input type="checkbox" name="nc" ${k.nc ? raw("checked") : ""}> ${t("chr.cls.nc")}</label>`,
     onOpen(dlg) { dlg.querySelector("[data-del]")?.addEventListener("click", async () => { if (await confirmBox(t("chr.cls.delAsk", { name: k.name }), { ok: t("chr.delete") })) { ctx.put("classes", id, null); dlg.end(null); } }); },
     onOk(dlg) {
       const v = values(dlg), first = v.first ? parseClock(v.first) : null;
       if (!v.name) return false;
       if (v.first && first == null) { dlg.fail(t("chr.badTime")); return false; }
-      const pool = ids(v.pool || ""), legs = relay && v.legs ? v.legs.split(";").map((x) => ids(x)).filter((a) => a.length).map((a) => (a.length > 1 ? { pool: a } : { course: a[0] })) : [];
-      ctx.put("classes", id || newId(), { name: v.name, course: v.course || null, pool: pool.length ? pool : null, legs: legs.length ? legs : null, first, step: v.step, maxTime: v.maxTime ? v.maxTime * 60 : null, fee: v.fee, nc: v.nc ? 1 : null });
+      const pool = ids(v.pool || ""), legs = relay && v.legs ? v.legs.split(";").map((x) => ids(x)).filter((a) => a.length).map((a, i) => ({ ...(a.length > 1 ? { pool: a } : { course: a[0] }), ...(k.legs?.[i]?.mass != null ? { mass: k.legs[i].mass } : {}) })) : [];
+      ctx.put("classes", id || newId(), { name: v.name, course: v.course || null, pool: pool.length ? pool : null, legs: legs.length ? legs : null, first, step: v.step, maxTime: v.maxTime ? v.maxTime * 60 : null, fee: v.fee, nc: v.nc ? 1 : null,
+        ...(k.ko ? {} : { team: !legs.length && v.teamSize > 1 ? { size: Math.round(v.teamSize), ...(v.teamCount > 0 && v.teamCount < v.teamSize ? { count: Math.round(v.teamCount) } : {}) } : null }) });
       return true;
     } });
 }
@@ -239,7 +257,7 @@ function kitPanel(ctx) {
   return html`<div class="chr-card"><h3>${t("chr.kit.readers")}</h3>
     ${serialOk() ? "" : html`<p class="chr-note chr-warn">${t("chr.dev.noSerial")}</p>`}
     ${D.readers.length ? html`<ul class="chr-devs">${D.readers.map((r) => html`<li><b>${r.label}</b> <span class="chr-chip ${r.state === "error" ? "bad" : "ok"}">${t(`chr.dev.st.${["opening", "error", "card", "reading"].includes(r.state) ? r.state : "ready"}`)}</span>
-      ${r.info ? html`<span class="chr-dim">${[r.info.model, r.info.serial && `n° ${r.info.serial}`, r.info.mode, r.info.code != null && `code ${r.info.code}`].filter(Boolean).join(" · ")}</span>` : ""}${r.error ? html`<span class="chr-warn">${r.error}</span>` : ""}
+      ${r.info ? html`<span class="chr-dim">${[r.info.model, ["string", "number"].includes(typeof r.info.serial) && r.info.serial !== "" && `n° ${r.info.serial}`, r.info.mode, r.info.code != null && `code ${r.info.code}`].filter(Boolean).join(" · ")}</span>` : ""}${r.error ? html`<span class="chr-warn">${r.error}</span>` : ""}
       <button type="button" class="btn btn-sm" data-clockset="${r.id}">${t("chr.kit.setClock")}</button><button type="button" class="btn btn-sm" data-off="${r.id}">${t("chr.kit.unplug")}</button></li>`)}</ul>` : html`<p class="chr-dim">${t("chr.kit.noReader")}</p>`}
     <p class="chr-dim">${t("chr.kit.readerHint")}</p></div>
   <div class="chr-card"><h3>${t("chr.kit.printer")}</h3><div class="chr-grid" data-form="printer">
@@ -293,7 +311,8 @@ function netPanel(ctx) {
   <div class="chr-card"><h3>${t("chr.net.hub")}</h3><p>${t(`chr.hub.long.${N.hub.state}`)} ${N.hub.url ? html`<code>${N.hub.url.replace(/\?.*$/, "")}</code>` : ""}</p>
     <p>${N.hub.state === "off" ? html`<button type="button" class="btn" id="chr-hub-find">${icon("search", 14)} ${t("chr.net.findApp")}</button> ` : html`<button type="button" class="btn" id="chr-hub-off">${t("chr.net.leaveHub")}</button> `}
     <input id="chr-hub-url" class="chr-in-l" placeholder="192.168.1.20:8377" value=""> <input id="chr-hub-key" class="chr-in-m" placeholder="${t("chr.net.key")}" value=""> <button type="button" class="btn" id="chr-hub-join">${t("chr.net.join")}</button></p>
-    <p class="chr-dim">${t("chr.net.hubHint")}</p></div>
+    <p class="chr-dim">${t("chr.net.hubHint")}</p>
+    ${window.chronoApp ? "" : html`<p><button type="button" class="btn" id="chr-app-dl">${icon("down", 14)} ${t("chr.app.get")}</button> <span class="chr-dim">${t("chr.app.getHint")}</span></p>`}</div>
   <div class="chr-card"><h3>${t("chr.net.file")}</h3><p><button type="button" class="btn" id="chr-file-out">${icon("down", 14)} ${t("chr.net.fileOut")}</button>
     <button type="button" class="btn" id="chr-file-in">${icon("up", 14)} ${t("chr.net.fileIn")}</button>${"showDirectoryPicker" in window ? html` <button type="button" class="btn" id="chr-journal">${icon("file", 14)} ${ctx.ui.journal ? t("chr.net.journalOn") : t("chr.net.journal")}</button>` : ""}</p>
     <p class="chr-dim">${t("chr.net.fileHint")}</p></div>`;
@@ -308,6 +327,7 @@ function bindNet(ctx, el, store) {
   el.querySelector("#chr-live")?.addEventListener("change", (e) => ctx.setEvent({ live: e.target.checked ? 1 : null }));
   el.querySelector("#chr-hub-find")?.addEventListener("click", async () => { const info = await N.findApp(); if (info) N.joinHub(`ws://127.0.0.1:${info.port}/hub`); else ctx.toast(t("chr.net.noApp"), "warn"); });
   el.querySelector("#chr-hub-off")?.addEventListener("click", () => N.leaveHub());
+  el.querySelector("#chr-app-dl")?.addEventListener("click", () => appDialog());
   el.querySelector("#chr-hub-join")?.addEventListener("click", () => { const v = el.querySelector("#chr-hub-url").value.trim().replace(/^(ws|http)s?:\/\//, "").replace(/\/.*$/, ""); const k = el.querySelector("#chr-hub-key").value.trim(); if (v) N.joinHub(`ws://${v}/hub${k ? `?k=${encodeURIComponent(k)}` : ""}`); });
   el.querySelector("#chr-file-out")?.addEventListener("click", () => download(eventFileName(ctx.log, ctx.ev), toFile(ctx.log, ctx.ev), "application/json"));
   el.querySelector("#chr-file-in")?.addEventListener("click", async () => importFiles(ctx, await pickFiles(".ozchrono,.jsonl")));
@@ -320,7 +340,8 @@ function bindNet(ctx, el, store) {
 function checks(ctx) {
   const st = ctx.st(), R = Object.values(st.runners), K = Object.values(st.classes), C = Object.values(st.courses), list = st.event.startMode !== "mass" && st.event.startMode !== "punch";
   const usedK = K.filter((k) => R.some((r) => r.cls === k.id));
-  const dup = new Map(); for (const r of R) if (r.card) dup.set(r.card, (dup.get(r.card) || 0) + 1);
+  const held = new Map(); for (const r of R) if (r.card) (held.get(r.card) || held.set(r.card, new Set()).get(r.card)).add(personOf(st, r.id));
+  const dup = new Map([...held].map(([card, who]) => [card, who.size]));
   const n = (f) => R.filter(f).length;
   return [
     { step: "event", ok: !!(st.event.name && st.event.date), text: t("chr.chk.event") },
@@ -330,6 +351,8 @@ function checks(ctx) {
     { step: "entries", ok: !n((r) => !r.card), warn: true, text: tn("chr.chk.noCard", n((r) => !r.card)) },
     { step: "entries", ok: ![...dup.values()].some((x) => x > 1), warn: true, text: tn("chr.chk.dupCard", [...dup.values()].filter((x) => x > 1).length) },
     ...(list ? [{ step: "starts", ok: !n((r) => r.start == null && r.status !== "dns" && !st.classes[r.cls]?.legs), text: tn("chr.chk.noStart", n((r) => r.start == null && r.status !== "dns" && !st.classes[r.cls]?.legs)) }] : []),
+    ...(hasTeams(st) ? [{ step: "teams", ok: !Object.values(st.teams).some((tm) => { const k = st.classes[tm.cls]; return !k || (tm.runners || []).filter((id) => st.runners[id]).length < (k.legs?.length || k.team?.size || 1); }), warn: true,
+      text: tn("chr.chk.teams", Object.values(st.teams).filter((tm) => { const k = st.classes[tm.cls]; return !k || (tm.runners || []).filter((id) => st.runners[id]).length < (k.legs?.length || k.team?.size || 1); }).length) }] : []),
     { step: "kit", ok: ctx.devices.readers.some((r) => r.state !== "error"), warn: true, text: t("chr.chk.reader") },
     { step: "kit", ok: ctx.devices.printer.mode !== "none", warn: true, text: t("chr.chk.printer") },
     { step: "net", ok: ctx.net.cloud.state === "ok" || ctx.net.hub.state === "on" || !!ctx.ui.journal, warn: true, text: t("chr.chk.copy") },
@@ -378,27 +401,38 @@ export const post = {
           ctx.toast(tn("chr.arch.filled", rows.length), "ok");
         } }] },
         { label: t("chr.rb.export"), items: [{ icon: "down", label: "IOF XML", tip: t("chr.exp.entries"), on: () => download("entries.xml", writeEntries(v()), "application/xml") }] }],
+      teams: [{ label: t("chr.prep.teams"), items: [{ icon: "plus", label: t("chr.team.new"), primary: true, on: () => teamDialog(ctx, null) }, imp,
+        { icon: "list", label: t("chr.team.number"), tip: t("chr.team.numberTip"), on: () => numberTeams(ctx) }] },
+        ...(Object.values(ctx.st().classes).some((k) => k.legs?.length > 1) ? [{ label: t("chr.ev.type.relay"), items: [{ icon: "clock", label: t("chr.rst.title"), tip: t("chr.rst.tip"), on: () => restartDialog(ctx) }] }] : [])],
       starts: [{ label: t("chr.prep.starts"), items: [{ icon: "dice", label: t("chr.sta.draw"), primary: true, disabled: (ctx.st().event.startMode || "list") !== "list", on: () => drawDialog(ctx) },
         { icon: "trash", label: t("chr.sta.clear"), on: async () => { if (!(await confirmBox(t("chr.sta.clearAsk"), { ok: t("chr.sta.clear") }))) return; const rows = Object.values(ctx.st().runners).filter((r) => r.start != null).map((r) => ["runners", r.id, { start: null }]); if (rows.length) ctx.log.add("many", { rows }, ctx.by); } }] },
         { label: t("chr.rb.print"), items: [
           { icon: "print", label: t("chr.sta.prClass"), on: () => printHtml(startsHtml(ctx.view(), ctx.view().classes, listLabels(t("chr.lst.starts")))) },
           { icon: "print", label: t("chr.sta.prCourse"), on: () => printHtml(startsHtml(ctx.view(), ctx.view().courses, listLabels(t("chr.lst.starts")), { cat: true })) },
           { icon: "clock", label: t("chr.sta.prMinute"), tip: t("chr.sta.prMinuteTip"), on: () => printHtml(minutesHtml(ctx.view(), listLabels(t("chr.lst.minutes")))) },
-          { icon: "users", label: t("chr.sta.prClub"), on: () => printHtml(clubsHtml(ctx.view(), listLabels(t("chr.lst.clubs")))) }] },
+          { icon: "users", label: t("chr.sta.prClub"), on: () => printHtml(clubsHtml(ctx.view(), listLabels(t("chr.lst.clubs")))) },
+          { icon: "edit", label: t("chr.dsg.open"), tip: t("chr.dsg.openTip"), on: async () => (await import("./designer.js")).designerDialog(ctx) }] },
+        { label: t("chr.rb.formats"), items: [
+          { icon: "swap", label: t("chr.ko.title"), tip: t("chr.ko.tip"), on: () => knockoutDialog(ctx) },
+          { icon: "list", label: t("chr.ser.short"), tip: t("chr.ser.tip"), on: () => seriesDialog(ctx) },
+          { icon: "go", label: t("chr.cha.title"), tip: t("chr.cha.tip"), on: () => chaseDialog(ctx) }] },
         { label: t("chr.rb.export"), items: [{ icon: "down", label: "IOF XML", tip: t("chr.exp.starts"), on: () => download("startlist.xml", writeStarts(v()), "application/xml") }] }],
-      kit: [{ label: t("chr.kit.readers"), items: [{ icon: "plug", label: "SPORTident", primary: true, tip: t("chr.kit.plugTip"), on: () => ctx.devices.connect("si") }, { icon: "plug", label: "Emit", tip: t("chr.kit.plugTip"), on: () => ctx.devices.connect("emit") }] }],
+      kit: [{ label: t("chr.kit.readers"), items: [{ icon: "plug", label: "SPORTident", primary: true, tip: t("chr.kit.plugTip"), on: () => ctx.devices.connect("si") }, { icon: "plug", label: "Emit", tip: t("chr.kit.plugTip"), on: () => ctx.devices.connect("emit") },
+        { icon: "plug", label: "Emit eScan", tip: t("chr.kit.escanTip"), on: () => ctx.devices.connect("emit", "escan") }] }],
       net: [], check: [],
     };
     return groups[s] || [];
   },
   mount(ctx, el) {
-    const S = { courses: {}, classes: {}, entries: {}, starts: {}, q: "" };
+    const S = { courses: {}, classes: {}, entries: {}, teams: {}, starts: {}, q: "", tq: "" };
     el.innerHTML = html`<ol class="chr-steps" id="chr-steps"></ol><div id="chr-panel" class="chr-panel"></div>`.toString();
     const panel = el.querySelector("#chr-panel");
     const go = (s) => { ctx.ui.prepStep = s; drawAll(true); ctx.refresh(); };
     function drawSteps() {
+      const steps = stepsOf(ctx);
+      if (!steps.includes(ctx.ui.prepStep)) ctx.ui.prepStep = "event";
       const cur = ctx.ui.prepStep || "event", bad = new Set(checks(ctx).filter((c) => !c.ok && !c.warn).map((c) => c.step));
-      el.querySelector("#chr-steps").innerHTML = STEPS.map((s, i) => html`<li><button type="button" data-step="${s}" aria-current="${s === cur ? raw("step") : raw("false")}" class="${bad.has(s) ? "todo" : ""}"><i>${i + 1}</i>${t(`chr.prep.${s}`)}</button></li>`).join("");
+      el.querySelector("#chr-steps").innerHTML = steps.map((s, i) => html`<li><button type="button" data-step="${s}" aria-current="${s === cur ? raw("step") : raw("false")}" class="${bad.has(s) ? "todo" : ""}"><i>${i + 1}</i>${t(`chr.prep.${s}`)}</button></li>`).join("");
       el.querySelectorAll("#chr-steps button").forEach((b) => b.addEventListener("click", () => go(b.dataset.step)));
     }
     function drawAll(force = false) {
@@ -406,7 +440,7 @@ export const post = {
       const a = document.activeElement;
       if (!force && panel.contains(a) && /^(INPUT|SELECT|TEXTAREA)$/.test(a.tagName)) return;            // never under someone's typing
       const s = ctx.ui.prepStep || "event", keep = panel.querySelector(".table-wrap")?.scrollTop || 0;
-      panel.innerHTML = String({ event: eventPanel, courses: (c) => coursesPanel(c, S), classes: (c) => classesPanel(c, S), entries: (c) => entriesPanel(c, S), starts: (c) => startsPanel(c, S), kit: kitPanel, net: netPanel, check: checkPanel }[s](ctx));
+      panel.innerHTML = String({ event: eventPanel, courses: (c) => coursesPanel(c, S), classes: (c) => classesPanel(c, S), entries: (c) => entriesPanel(c, S), teams: (c) => teamsPanel(c, S), starts: (c) => startsPanel(c, S), kit: kitPanel, net: netPanel, check: checkPanel }[s](ctx));
       const tw = panel.querySelector(".table-wrap"); if (tw) tw.scrollTop = keep;
       if (s === "event") bindEvent(ctx, panel);
       if (s === "courses") bindTable(panel, S.courses, () => drawAll(true), (id) => courseDialog(ctx, id));
@@ -415,6 +449,11 @@ export const post = {
         bindTable(panel, S.entries, () => drawAll(true), (id) => runnerDialog(ctx, id));
         const q = panel.querySelector("#chr-ent-q");
         q.addEventListener("input", () => { S.q = q.value; const at = q.selectionStart; drawAll(true); const n = panel.querySelector("#chr-ent-q"); n.focus(); n.setSelectionRange(at, at); });
+      }
+      if (s === "teams") {
+        bindTable(panel, S.teams, () => drawAll(true), (id) => teamDialog(ctx, id));
+        const q = panel.querySelector("#chr-team-q");
+        q.addEventListener("input", () => { S.tq = q.value; const at = q.selectionStart; drawAll(true); const n = panel.querySelector("#chr-team-q"); n.focus(); n.setSelectionRange(at, at); });
       }
       if (s === "starts") bindTable(panel, S.starts, () => drawAll(true), (id) => runnerDialog(ctx, id));
       if (s === "kit") bindKit(ctx, panel);

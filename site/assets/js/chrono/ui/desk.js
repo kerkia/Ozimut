@@ -18,6 +18,8 @@ const desk = {
     return [{ label: t("chr.post.desk"), items: [
       { icon: "plus", label: t("chr.run.new"), primary: true, on: () => runnerDialog(ctx, null) },
       { icon: "users", label: t("chr.sta.prClub"), tip: t("chr.desk.clubTip"), on: () => printHtml(clubsHtml(ctx.view(), listLabels(t("chr.lst.clubs")))) },
+      ...(Object.values(ctx.st().classes).some((k) => k.legs?.length || k.team) ? [{ icon: "users", label: t("chr.team.new"), on: async () => (await import("./teams.js")).teamDialog(ctx, null) }] : []),
+      { icon: "coins", label: t("chr.inv.open"), tip: t("chr.inv.openTip"), on: async () => (await import("./invoices.js")).invoicesDialog(ctx) },
     ] }];
   },
   /** A card shown at the desk: an empty one finds its holder (or starts an entry); one that ran goes to the race as usual. */
@@ -70,6 +72,7 @@ const start = {
         if (!gone.length || !(await confirmBox(tn("chr.go.absentAsk", gone.length), { ok: t("chr.go.absent") }))) return;
         ctx.log.add("many", { rows: gone.map((r) => ["runners", r.id, { status: "dns" }]) }, ctx.by);
       } },
+      ...(Object.values(ctx.st().classes).some((k) => k.legs?.length > 1) ? [{ icon: "clock", label: t("chr.rst.title"), tip: t("chr.rst.tip"), on: async () => (await import("./teams.js")).restartDialog(ctx) }] : []),
     ] }];
   },
   mount(ctx, el) {

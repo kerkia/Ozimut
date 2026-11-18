@@ -130,9 +130,28 @@ const courseX = (c) => (c ? x("Course", [x("Name", c.name), c.length != null ? x
 /** A view (design.md) as an IOF XML ResultList; `status`: "Complete" | "Snapshot". */
 export function writeResults(view, opt = {}) {
   const day = view.event.date, tz = opt.tz;
+  const splitsX = (r) => r.splits.map((s) => (s.t == null ? x("SplitTime", { status: "Missing" }, [x("ControlCode", s.code)]) : x("SplitTime", [x("ControlCode", s.code), x("Time", Math.round(s.t))])));
+  // a relay: each team with its legs; a leg's overall result is the team's so far, the last leg's carries the team's place
+  const teamX = (tm) => {
+    let sum = 0, fine = true;
+    return x("TeamResult", [x("Name", tm.name || ""), tm.club ? x("Organisation", [tm.clubCode ? x("Id", tm.clubCode) : null, x("Name", tm.club)]) : null,
+      tm.bib !== "" && tm.bib != null ? x("BibNumber", tm.bib) : null,
+      ...tm.legs.map((r, i) => {
+        if (!r) { fine = false; return null; }
+        if (r.status === "ok" && r.time != null) sum += r.time; else fine = false;
+        const last = i === tm.legs.length - 1;
+        return x("TeamMemberResult", [personX(r), x("Result", [x("Leg", i + 1),
+          r.start != null ? x("StartTime", isoOf(r.start, day, tz)) : null, r.finish != null ? x("FinishTime", isoOf(r.finish, day, tz)) : null,
+          r.time != null ? x("Time", Math.round(r.time)) : null, x("Status", STATUS_OUT[r.status] || "Inactive"),
+          x("OverallResult", [fine ? x("Time", Math.round(sum)) : null, last && tm.status === "ok" && tm.behind != null ? x("TimeBehind", Math.round(tm.behind)) : null,
+            last && tm.place ? x("Position", tm.place) : null, x("Status", fine ? "OK" : STATUS_OUT[last ? tm.status : r.status] || "Inactive")]),
+          ...splitsX(r), r.card ? x("ControlCard", r.card) : null])]);
+      })]);
+  };
   return head("ResultList", { ...opt, attrs: { status: opt.status || "Complete" } }, [eventX(view.event), ...view.classes.map((k) => x("ClassResult", [
-    x("Class", [x("Name", k.name)]), courseX(k.course),
-    ...k.rows.map((r) => x("PersonResult", [personX(r), orgX(r), x("Result", [
+    x("Class", [x("Name", k.name)]), k.teams ? null : courseX(k.course),
+    ...(k.teams ? k.teams.map(teamX) : []),
+    ...(k.teams ? [] : k.rows).map((r) => x("PersonResult", [personX(r), orgX(r), x("Result", [
       r.bib !== "" && r.bib != null ? x("BibNumber", r.bib) : null,
       r.start != null ? x("StartTime", isoOf(r.start, day, tz)) : null, r.finish != null ? x("FinishTime", isoOf(r.finish, day, tz)) : null,
       r.time != null ? x("Time", Math.round(r.time)) : null,

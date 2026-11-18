@@ -96,7 +96,7 @@ export async function mountChrono(root, opt) {
       return done;
     },
   };
-  ctx.devices = makeDevices({ card: (rawRead, rd) => ctx.card(rawRead, rd), punch: (p) => ctx.log.add("punch", { p: { ...p, src: "reader" } }, ctx.by), change: () => ctx.refresh() });
+  ctx.devices = makeDevices({ card: (rawRead, rd) => ctx.card(rawRead, rd), punch: (p) => ctx.log.add("punch", { p: { ...p, s: p.s ?? p.t ?? null, src: p.src || "reader" } }, ctx.by), change: () => ctx.refresh() });
   ctx.net = makeNet(ctx, { session: !!opt.session, base: opt.base || "", hubUrl: opt.hubUrl || "", name: ctx.by });
   function bindLog() { off?.(); off = ctx.log.on(() => ctx.refresh()); cache = null; }
   bindLog();

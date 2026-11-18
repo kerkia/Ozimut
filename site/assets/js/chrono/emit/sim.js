@@ -9,21 +9,28 @@
 // As a card does, `insert` adds the unit's own punch (its code, `lag` seconds after the card's last one) unless `spec.raw`.
 // A 250 sends the frame `repeat` times (it repeats a card for as long as it lies there); an MTR sends it once, keeps it,
 // and answers /ST, /SA, /SBxxxx, /GBxxxx, /NS, /SCymdhms and /CL.
+//
+// `kind: "escan"` is a unit of the text messages (an eScan, an eScan2, an eClock+): `status()` and `tag(spec)` send the two
+// messages Emit's eClock+ manual prints, `text(items)` any other. It has no `insert`: what an eScan sends for a card's
+// content is not published, and nothing is made up here. It listens to nothing.
 
-import { encodeCard250, encodeMtrCard, encodeMtrStatus, readMtrCommand, stampOf, cardText } from "./protocol.js";
+import { encodeCard250, encodeMtrCard, encodeMtrStatus, encodeText, encodeTextStatus, encodeTextTag, readMtrCommand, stampOf, cardText } from "./protocol.js";
 
 /**
- * Options: `kind` "250" | "mtr4"; `code` the unit's code (250); `lag` (s); `repeat` (frames a card on a 250);
+ * Options: `kind` "250" | "mtr4" | "escan"; `code` the unit's code (250); `lag` (s); `repeat` (frames a card on a 250);
  * `chunk`: how the bytes arrive — a size, or `(bytes) => [chunks]` (whole messages by default); `id` (an MTR's serial
- * number); `now` (a clock); `lowBattery`.
+ * number); `now` (a clock); `lowBattery`; for "escan": `unit` (its serial number) and `name` (its I item) — the eClock+
+ * manual's examples by default.
  * Returns `{ transport, insert(spec, how?), noise(bytes), opened, written, commands, stored }` — `how`: `{ repeat, tick
  * (s added to the unit's punch at each repeat), corrupt (which copy is damaged: a number, or "all"), cut (bytes of the
- * first copy that get through) }`.
+ * first copy that get through) }` — and, for "escan", `{ status(over?), tag(spec, how?), text(items) }`.
  */
-export function simReader({ kind = "250", code = 250, lag = 5, repeat = 2, chunk = 0, id = 1, now = Date.now, lowBattery = false } = {}) {
+export function simReader({ kind = "250", code = 250, lag = 5, repeat = 2, chunk = 0, id = 1, now = Date.now, lowBattery = false,
+  unit = "126099999", name = "eClock-HW2-SW2-V1.02" } = {}) {
   const subs = [], pendingCmd = [];
   const sim = { opened: null, closed: false, written: [], commands: [], stored: [] };
   let recent = 0, sessions = [1], offset = 0;                 // an MTR's package counter, session starts, clock offset (ms)
+  let msg = 0;                                                // a text unit's running message number
 
   const split = (bytes) => {
     if (typeof chunk === "function") return chunk(bytes);
@@ -85,6 +92,7 @@ export function simReader({ kind = "250", code = 250, lag = 5, repeat = 2, chunk
       if (how.cut != null && k === 0) b = b.slice(0, how.cut);
       sent.push(b); emit(b);
     };
+    if (kind === "escan") throw Object.assign(new Error("unpublished"), { code: "unpublished" });   // a card's content on an eScan: no public layout
     if (kind === "mtr4") {
       const pack = ++recent, bytes = encodeMtrCard({ id, stamp: spec.stamp ?? clock(), pack, ...content(spec) });
       sim.stored.push({ pack, bytes });
@@ -95,6 +103,19 @@ export function simReader({ kind = "250", code = 250, lag = 5, repeat = 2, chunk
     }
     return sent;
   };
+  if (kind === "escan") {
+    const dayClock = () => { const c = clock(); return c.h * 3600 + c.mi * 60 + c.s; };
+    /** The unit says its status; `over`: fields of `encodeTextStatus` to change. Returns the bytes sent. */
+    sim.status = (over = {}) => { const b = encodeTextStatus({ id: name, clock: dayClock(), msg, code, unit, ...over }); emit(b); return b; };
+    /** An emiTag passes: `{ card, t? (s within the day: the unit's clock by default), race?, retries? }`; `how.repeat` copies (a tag not acknowledged). */
+    sim.tag = (spec, how = {}) => {
+      const b = encodeTextTag({ unit, code, t: dayClock(), ...spec, msg: ++msg });
+      for (let k = 0; k < (how.repeat ?? 1); k++) emit(b);
+      return b;
+    };
+    /** Any text message, by its items `[[key, value]…]` — one the reader cannot read, for instance. Returns the bytes sent. */
+    sim.text = (items) => { const b = encodeText(items); emit(b); return b; };
+  }
   /** Bytes that are no frame (a bad contact, another device). */
   sim.noise = (bytes) => emit(bytes);
   return sim;
