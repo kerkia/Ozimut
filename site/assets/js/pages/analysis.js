@@ -486,18 +486,9 @@ export async function render(main, { query = {}, route } = {}) {
       ${f?.note ? html`<div class="notice" style="margin-top:4px">${f.note}</div>` : ""}</td></tr>`;
     const iof = files.iof;
     const courseSel = iof?.data?.courses?.length > 1 ? html` <select id="an-iof-course" style="margin-left:8px">${iof.data.courses.map((c, i) => html`<option value="${i}" ${raw(i === iofIndex ? "selected" : "")}>${c.name || `#${i + 1}`}${c.length ? ` · ${fmt(c.length / 1000, 1)} km` : ""}</option>`)}</select>` : "";
+    // the drop area last, right above the map (owner, 2026-11-18: dropped at the card's top, the files were read out of sight — the
+    // reading's progress bar sits beside the map)
     $("#an-files").innerHTML = html`<div class="card-body">
-      ${touchScreen()
-        // a phone (owner, 2026-11-06): a button opens its file picker — nothing is dropped there; on the organiser's map a trace
-        // only, so no photos (traceAccept)
-        ? html`<label class="btn btn-primary an-pick" id="an-drop"><input type="file" id="an-in" multiple hidden accept="${orgaMode ? traceAccept() : fileAccept(ACCEPT)}">${t(orgaMode ? "an.orga.pick" : "an.pick")}</label>
-          <p class="muted an-pick-hint">${t(orgaMode ? "an.orga.drop.hint" : "an.drop.hint")}</p>`
-        : html`<label class="dropzone an-drop" id="an-drop"><input type="file" id="an-in" multiple hidden accept="${orgaMode ? traceAccept() : fileAccept(ACCEPT)}">
-        <strong>${t(orgaMode ? "an.orga.drop" : "an.drop")}</strong><span class="muted">${t(orgaMode ? "an.orga.drop.hint" : "an.drop.hint")}</span></label>`}
-      ${matchMedia("(pointer: coarse)").matches && !orgaMode ? html`<div class="an-cam-row"><label class="btn btn-primary an-cam"><input type="file" id="an-cam" accept="image/*" capture="environment" hidden>${t("an.cam")}</label>
-        <span class="muted">${t("an.cam.hint")}</span></div>` : ""}
-      ${phone.offered() ? html`<div class="an-cam-row">${phone.button("an-phone")}<span class="muted">${t(orgaMode ? "ph.hint.trace" : "ph.hint.any")}</span></div>` : ""}
-      <p class="hint an-fit-tip">${t("an.fitTip")}</p>
       <table class="data compact an-filelist"><tbody>
         ${row("map", files.map)}${row("trace", files.trace)}${orgaMode ? "" : html`${row("geo", files.geo || files.world, files.world && files.prj ? html` <span class="muted">+ ${files.prj.name}</span>` : "")}${row("iof", files.iof, courseSel)}`}${files.vector ? row("vector", files.vector) : ""}
       </tbody></table>
@@ -510,6 +501,19 @@ export async function render(main, { query = {}, route } = {}) {
         ${(files.map && !orgaMode) || files.trace ? html` <button type="button" class="btn btn-sm" id="an-forget" style="margin-left:8px">${t("an.forget")}</button>` : ""}</p>
       <details class="an-formats" ${raw(orgaMode ? "hidden" : "")}><summary>${t("an.formats")}</summary><ul>
         <li>${t("an.formats.map")}</li><li>${t("an.formats.trace")}</li><li>${t("an.formats.geo")}</li><li>${t("an.formats.iof")}</li><li>${t("an.formats.ocad")}</li></ul></details>
+      <div class="an-drop-row">
+      ${matchMedia("(pointer: coarse)").matches && !orgaMode ? html`<div class="an-cam-row"><label class="btn btn-primary an-cam"><input type="file" id="an-cam" accept="image/*" capture="environment" hidden>${t("an.cam")}</label>
+        <span class="muted">${t("an.cam.hint")}</span></div>` : ""}
+      ${phone.offered() ? html`<div class="an-cam-row">${phone.button("an-phone")}<span class="muted">${t(orgaMode ? "ph.hint.trace" : "ph.hint.any")}</span></div>` : ""}
+      <p class="hint an-fit-tip">${t("an.fitTip")}</p>
+      ${touchScreen()
+        // a phone (owner, 2026-11-06): a button opens its file picker — nothing is dropped there; on the organiser's map a trace
+        // only, so no photos (traceAccept)
+        ? html`<label class="btn btn-primary an-pick" id="an-drop"><input type="file" id="an-in" multiple hidden accept="${orgaMode ? traceAccept() : fileAccept(ACCEPT)}">${t(orgaMode ? "an.orga.pick" : "an.pick")}</label>
+          <p class="muted an-pick-hint">${t(orgaMode ? "an.orga.drop.hint" : "an.drop.hint")}</p>`
+        : html`<label class="dropzone an-drop" id="an-drop"><input type="file" id="an-in" multiple hidden accept="${orgaMode ? traceAccept() : fileAccept(ACCEPT)}">
+        <strong>${t(orgaMode ? "an.orga.drop" : "an.drop")}</strong><span class="muted">${t(orgaMode ? "an.orga.drop.hint" : "an.drop.hint")}</span></label>`}
+      </div>
       </div>`;
     $("#an-in").addEventListener("change", (e) => { take([...e.target.files]); e.target.value = ""; });
     bindKeepBox($("#an-files"));

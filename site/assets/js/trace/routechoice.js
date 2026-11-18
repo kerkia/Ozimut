@@ -65,9 +65,9 @@ export const DEFAULTS = {
 export const CROSS_PACE = 0.36;
 
 // ---- 1. pixels ---------------------------------------------------------------------------------------------------------
-/** A colour's kind: an area (A.*) or an ink (INK.*). oliveFrom: the hue from which a dark yellow-green is olive (oliveFrom()'s,
- *  for a photo or a scan; 0, every one: a map's own colours). */
-export function kindOf(r, g, b, oliveFrom = 0) {
+/** A colour's kind: an area (A.*) or an ink (INK.*). ol: the image's olive and yellow (oliveModel()'s, for a photo or a scan;
+ *  null: a map's own colours, every dark yellow-green olive). */
+export function kindOf(r, g, b, ol = null) {
   const max = r > g ? (r > b ? r : b) : (g > b ? g : b), min = r < g ? (r < b ? r : b) : (g < b ? g : b), span = max - min;
   // the course's purple, as trace/course.js reads it (the dark plum of a photo included)
   if (max >= 40 && g === min && span) {
@@ -84,13 +84,22 @@ export function kindOf(r, g, b, oliveFrom = 0) {
     return t < 0.12 ? A.WHITE : t < 0.36 ? A.G1 : t < 0.52 ? A.G2 : A.G3;
   }
   if (hue >= 36 && hue < 70) {
-    // olive green (out of bounds: an area once thick): a dark colour of the olive's hue on that image (oliveFrom); a darker one of
+    // olive green (out of bounds: an area once thick): a dark colour of the olive's hue on that image (oliveModel's from); a darker one of
     // a lower hue is a blend — olive against a street's pink, the course's purple over olive — which its neighbours decide
     // (I_MIXED, an ink no area claims: as olive it narrowed every street and lane by a cell each side, 2026-11-17). A photo lights
     // one part of the map and not another, so a lit olive is told from yellow by its hue, 50-60° where yellow's is 38-46° (the
     // Auray sprint photo: olive 52-55° up to 214 bright, read as open land; the Fougères photo's white balance puts its olive at
     // 42-44°, dark: the hue decides only among the brighter pixels); the brightest stay yellow whatever their hue (lemon yellow)
-    if (span > 50 && (max < 200 ? hue >= oliveFrom : max < 225 && hue >= 50)) return I_OLIVE;
+    // When the image shows both olive and yellow, a coloured pixel is the one whose colour it is nearer — hue weighing a 4° step
+    // as much as 40 of brightness (2026-11-18: the Quiberon photo's lit olive, 53° and 231 bright once the paper is levelled,
+    // was read as open land by the rule below, and its routes ran through the gardens).
+    if (span > 50 && span >= 0.45 * max && ol?.oh) {      // strong colours only: a pale lit street has olive's hue too
+      const dO = ((hue - ol.oh) / 4) ** 2 + ((max - ol.om) / 40) ** 2, dY = ((hue - ol.yh) / 4) ** 2 + ((max - ol.ym) / 40) ** 2;
+      if (dO < dY) return max < 200 && hue < ol.oh - 6 ? I_MIXED : I_OLIVE;
+      if (max >= 200) { const y = (max - b) / max; return y > 0.55 ? A.OPEN : y > 0.15 ? A.ROUGH : A.WHITE; }
+      return I_MIXED;
+    }
+    if (span > 50 && (max < 200 ? hue >= (ol?.from || 0) : max < 225 && hue >= 50)) return I_OLIVE;
     if (max >= 200) { const y = (max - b) / max; return y > 0.55 ? A.OPEN : y > 0.15 ? A.ROUGH : A.WHITE; }
     return span > 50 ? I_MIXED : I_GREY;
   }
@@ -99,25 +108,46 @@ export function kindOf(r, g, b, oliveFrom = 0) {
 }
 
 /**
- * The hue from which a dark yellow-green is olive on this image: 6° under the peak of the dark, coloured pixels of 36-70°
- * (olive's, wherever the white balance put it: 52° on the Auray photo, 43° on the Fougères one, 51° on the Gif scan); 0 (every
- * one) when the image has too few of them to tell.
+ * The image's olive and yellow: { from } — 6° under the peak of the dark, coloured pixels of 36-70° (olive's, wherever the white
+ * balance put it: 52° on the Auray photo, 43° on the Fougères one, 51° on the Gif scan; 0, every one, when too few) — and, when
+ * the coloured pixels of 30-72° fall in two groups, a darker one (olive, under 205 bright) and a brighter one 40 above it
+ * (yellow), their centres { oh, om, yh, ym } (hue, brightness; 2-means, a 6° step of hue weighing as 30 of brightness). The three
+ * Morbihan photos: yellow 39-41° 235, olive 51-52° 156-164; Fougères 41° 212 and 47° 135; the Gif scan 47° 244 and 50° 171;
+ * Purple Pen's SampleEvent one group only (no olive).
  */
-function oliveFrom(rgba, w, h) {
+function oliveModel(rgba, w, h) {
   const hist = new Float64Array(72), step = Math.max(1, Math.floor(Math.sqrt((w * h) / 400000)));
+  const H = [], M = [];
   let n = 0, all = 0;
   for (let y = 0; y < h; y += step) for (let x = 0; x < w; x += step) {
     const p = 4 * (y * w + x), r = rgba[p], g = rgba[p + 1], b = rgba[p + 2];
     all++;
     const max = Math.max(r, g, b), min = Math.min(r, g, b), span = max - min;
-    if (max >= 200 || span <= 50 || b === max) continue;
+    if (span <= 50 || b === max) continue;
     const hue = max === r ? 60 * ((g - b) / span) : 60 * ((b - r) / span + 2);
+    if (hue >= 30 && hue < 72) { H.push(hue); M.push(max); }
+    if (max >= 200) continue;
     if (hue >= 36 && hue < 70) { hist[Math.floor(hue)]++; n++; }
   }
-  if (n < 0.005 * all) return 0;
-  let best = 0, peak = 0;
-  for (let k = 38; k < 68; k++) { const v = hist[k - 2] + hist[k - 1] + hist[k] + hist[k + 1] + hist[k + 2]; if (v > best) { best = v; peak = k; } }
-  return Math.max(36, peak - 6);
+  const out = { from: 0 };
+  if (n >= 0.005 * all) {
+    let best = 0, peak = 0;
+    for (let k = 38; k < 68; k++) { const v = hist[k - 2] + hist[k - 1] + hist[k] + hist[k + 1] + hist[k + 2]; if (v > best) { best = v; peak = k; } }
+    out.from = Math.max(36, peak - 6);
+  }
+  if (H.length < 0.01 * all) return out;
+  let c = [[45, 240, 0], [55, 170, 0]];
+  for (let it = 0; it < 30; it++) {
+    const s = [[0, 0, 0], [0, 0, 0]];
+    for (let i = 0; i < H.length; i++) {
+      const d0 = ((H[i] - c[0][0]) / 6) ** 2 + ((M[i] - c[0][1]) / 30) ** 2, d1 = ((H[i] - c[1][0]) / 6) ** 2 + ((M[i] - c[1][1]) / 30) ** 2, k = d0 <= d1 ? 0 : 1;
+      s[k][0] += H[i]; s[k][1] += M[i]; s[k][2]++;
+    }
+    c = s.map((q, k) => (q[2] ? [q[0] / q[2], q[1] / q[2], q[2]] : c[k]));
+  }
+  const [y, o] = c[0][1] >= c[1][1] ? c : [c[1], c[0]];
+  if (o[1] < 205 && y[1] - o[1] >= 40 && o[2] >= 0.1 * H.length && y[2] >= 0.1 * H.length) Object.assign(out, { oh: o[0], om: o[1], yh: y[0], ym: y[1] });
+  return out;
 }
 
 /**
@@ -646,7 +676,7 @@ export function classify(rgba0, w, h, mpp, opt = {}, progress = () => {}) {
   const rgba = opt.flat === false ? rgba0 : flatten(rgba0, w, h, mpp);
   progress(0.2);
   const kind = new Uint8Array(N);
-  const ol = oliveFrom(rgba, w, h);
+  const ol = oliveModel(rgba, w, h);
   for (let i = 0, p = 0; i < N; i++, p += 4) kind[i] = rgba[p + 3] < 128 ? A.WHITE : kindOf(rgba[p], rgba[p + 1], rgba[p + 2], ol);
   progress(0.3);
   const north = new Uint8Array(N), nlines = northLines(kind, rgba, w, h, mpp, north);
@@ -680,6 +710,16 @@ export function classify(rgba0, w, h, mpp, opt = {}, progress = () => {}) {
   thickOf((v) => v === I_BROWN, () => A.PAVED);
   thickOf((v) => v === I_BLUE, (s) => (s[2] / s[0] > 150 ? A.SHALLOW : A.WATER));
   thickOf((v) => v === I_OLIVE, () => A.OOB);
+  // open land is never a line: a full yellow streak narrower than the thickness test is a blend — the course's leg printed across
+  // olive comes out yellow on a photo, a passable corridor through the gardens (the Quiberon photo, 2026-11-18) — and takes its
+  // neighbours' area, as a thin ink does. On a sprint map only: a forest map's open rides and rough open land are narrow or
+  // dotted (Lincoln Park lost a third of its open land to the test)
+  if (opt.map === "sprint") {
+    const m = new Uint8Array(N);
+    for (let i = 0; i < N; i++) if (area[i] === A.OPEN) m[i] = 1;      // full yellow: a pale street reads as rough open
+    const open = morph(morph(m, w, h, k, true), w, h, k, false);
+    for (let i = 0; i < N; i++) if (m[i] && !open[i]) area[i] = UNKNOWN;
+  }
   progress(0.6);
   // the thin black lines: the paths' network (and also fences, walls, long cliffs — what they are is the settings' choice)
   const thin = new Uint8Array(N), black = new Uint8Array(N);

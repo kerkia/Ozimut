@@ -1524,6 +1524,7 @@ h1 .beta-tag { font-size: 12px; position: relative; top: -2px; }
 .dep-steps li.done b { background: var(--accent-wash); border-color: var(--focus); color: var(--ink); }
 /* « Analyse »: a GPS trace on one's map */
 .an-drop { min-height: 84px; justify-content: center; margin-bottom: 10px; }
+.an-drop-row { margin-top: 12px; }                              /* the drop area last in the files card, right above the map */
 .an-dropall { position: fixed; inset: 12px; z-index: 50; display: flex; align-items: center; justify-content: center; pointer-events: none;
   border: 3px dashed var(--flag); border-radius: var(--radius); background: color-mix(in srgb, var(--surface) 82%, transparent); font-size: 18px; font-weight: 600; color: var(--ink); }
 .an-dropall[hidden] { display: none; }
