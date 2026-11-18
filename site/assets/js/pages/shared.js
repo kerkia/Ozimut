@@ -2682,6 +2682,14 @@ async function replay(box, { A, id, course, race, init = {}, traces, allTraces =
   // the map's pixels to metres and to longitude and latitude, from its georeference
   const geoInv = (() => { const g = course.geo, det = g.a * g.e - g.b * g.d; return (x, y) => { const u = x - g.c, v = y - g.f; return [(g.e * u - g.b * v) / det, (g.a * v - g.d * u) / det]; }; })();
   const rcmFrame = runners[0]?.fit || (() => { const [lon, lat] = geoInv(image.width / 2, image.height / 2); return fitFromGeo(course.geo, frameAt(lat, lon)); })();
+  // the map's kind from its control circles' size on the ground (as analysis.js rcKind: under 17 m of radius a sprint map, 6 mm
+  // at 1:4 000 or 1:5 000), else the race's name — a training never names it, and a sprint read as a forest map lets the routes
+  // through its gardens and buildings (2026-11-18)
+  if (course.r && (course.controls || []).length >= 3) {
+    const a = toM(rcmFrame, 0, 0), b = toM(rcmFrame, 1, 0), c = toM(rcmFrame, 0, 1);
+    const mpp = Math.sqrt(Math.abs((b[0] - a[0]) * (c[1] - a[1]) - (b[1] - a[1]) * (c[0] - a[0])));
+    if (mpp > 0) rcm.s.map = course.r * mpp < 17 ? "sprint" : "forest";
+  }
   const rcmPace = () => RC.paceOf(rcm.s, rcm.auto[leg]);
   const rcmStatus = (text, frac = null) => {
     rcm.status = text; rcm.prog = frac; RC.setStatus(text, frac);

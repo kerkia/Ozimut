@@ -2703,9 +2703,23 @@ export async function render(main, { query = {}, route } = {}) {
     const T = throughGeo(v, (lat, lon) => toPx(fit, ...toLocal(track, lat, lon)));
     return T && cover(v, T, map.width, map.height) >= 0.2 ? { v, T } : null;
   }
+  /** The map's kind for the computed routes, unless chosen by hand: told by the control circles' size on the ground when they
+   *  were read — 6 mm at 1:4 000 or 1:5 000 is 12-15 m of radius on a sprint map, 5 mm at 1:7 500 or 1:10 000 is 19-25 m on a
+   *  forest map —, else by the race's name. A solo analysis without a race was always read as a forest map (2026-11-18: the
+   *  Auray sprint photo's routes then cut through the private gardens and the buildings, olive being read as an area only when
+   *  9 px thick and the black lines as paths). */
+  function rcKind() {
+    const read = orgaMode ? files.orga?.r : (course?.controls || []).length >= 3 ? circleR() : null;
+    if (read && fit) {
+      const a = toM(fit, 0, 0), b = toM(fit, 1, 0), c = toM(fit, 0, 1);
+      const mpp = Math.sqrt(Math.abs((b[0] - a[0]) * (c[1] - a[1]) - (b[1] - a[1]) * (c[0] - a[0])));
+      if (mpp > 0) return read * mpp < 17 ? "sprint" : "forest";
+    }
+    return RC.isSprint(race) || /sprint/i.test(klass()?.name || "") ? "sprint" : "forest";
+  }
   async function rcStart() {
     if (!rcs.on || !calibrated || !fit || !map) return;
-    if (!rcs.mapSet) { rcs.s.map = !perso && RC.isSprint(race) ? "sprint" : "forest"; const sel = $("#rc-map"); if (sel) sel.value = rcs.s.map; }
+    if (!rcs.mapSet) { rcs.s.map = rcKind(); const sel = $("#rc-map"); if (sel) sel.value = rcs.s.map; }
     const my = ++rcs.token;
     const vr = rcVector();
     const sig = [map.width, map.height, fit.m11, fit.m12, fit.m21, fit.m22, fit.tx, fit.ty].map((v) => Number(v).toFixed(5)).join(",") + (vr ? `|${vr.name || vr.v.name}` : "");
