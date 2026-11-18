@@ -698,21 +698,13 @@ export function classify(rgba0, w, h, mpp, opt = {}, progress = () => {}) {
   for (let i = 0, p = 0; i < N; i++, p += 4) kind[i] = rgba[p + 3] < 128 ? A.WHITE : kindOf(rgba[p], rgba[p + 1], rgba[p + 2], ol);
   progress(0.3);
   const north = new Uint8Array(N), nlines = northLines(kind, rgba, w, h, mpp, north);
+  // a dark brown read on the levelled photo is told from a wall on the photo as taken: the levelling lifts a wall's 51 above the
+  // course ink's threshold (kindOf), and the walls of the Auray MD photo came out course ink, with gaps the routes went through
+  if (rgba !== rgba0) for (let i = 0, p = 0; i < N; i++, p += 4) if (kind[i] === I_BROWN && Math.max(rgba0[p], rgba0[p + 1], rgba0[p + 2]) < 70) kind[i] = I_BLACK;
   // a sprint map's buildings (grey) photographed under a cold light come out bluish grey, flecked with « blue » that made water
   // and shallow water (passable) inside them: on a sprint map a blue with little colour is grey (after the north lines, which
   // take any bluish pixel)
   if (opt.map === "sprint") for (let i = 0, p = 0; i < N; i++, p += 4) if (kind[i] === I_BLUE && Math.max(rgba[p], rgba[p + 1], rgba[p + 2]) - Math.min(rgba[p], rgba[p + 1], rgba[p + 2]) < 36) kind[i] = I_GREY;
-  // a photographed sprint map's buildings, told on the photo as taken: the levelling takes the brightest neutral pixels of a block
-  // for its paper, and in a town without white those are the lit roofs — levelled to white, runnable (the houses round control 3
-  // of the Quiberon photo, 2026-11-18). A neutral colour (no channel 10 % above another), neither black nor paper-white, is a
-  // building there; the streets are warm (pink, beige), the paper brighter
-  if (opt.map === "sprint" && rgba !== rgba0) {
-    for (let i = 0, p = 0; i < N; i++, p += 4) {
-      if (kind[i] === I_PURPLE || kind[i] === I_ERASED || kind[i] === I_BLACK) continue;
-      const r = rgba0[p], g = rgba0[p + 1], b = rgba0[p + 2], mx = Math.max(r, g, b);
-      if (mx >= 95 && mx < 210 && mx - Math.min(r, g, b) <= Math.max(14, 0.1 * mx)) kind[i] = I_GREY;
-    }
-  }
   const over = overprint(rgba, kind, w, h, mpp, opt.map === "sprint" ? SPRINT_SCALE : 1);
   progress(0.45);
   const lw = lineWidth(kind, w, h, I_BLACK);
@@ -827,6 +819,16 @@ export function classify(rgba0, w, h, mpp, opt = {}, progress = () => {}) {
   const darkGrey = (i) => { const p = 4 * i, mx = Math.max(rgba[p], rgba[p + 1], rgba[p + 2]); return mx < 170 && mx - Math.min(rgba[p], rgba[p + 1], rgba[p + 2]) < 24; };
   for (let i = 0; i < N; i++) if ((kind[i] === I_BLACK || (kind[i] === I_GREY && darkGrey(i))) && !darkThick[i] && area[i] === UNKNOWN) { thin[i] = 1; black[i] = kind[i] === I_BLACK ? 1 : 0; }
   const path = new Uint8Array(N), lines = lineNetwork(thin, black, w, h, mpp, path);
+  // a sprint map's walls and fences are its black lines however short: the network keeps the pieces that chain 30 m (a forest's
+  // paths), and the short walls and fences of a town were no obstacle at all — routes went through them (the Auray MD photo's
+  // 8-9, 9-10, 11-12: 2026-11-18). Any thin black piece 3 m long at least is one (dots and short ticks are not)
+  if (opt.map === "sprint") {
+    const blk = new Uint8Array(N);
+    for (let i = 0; i < N; i++) if (thin[i] && black[i]) blk[i] = 1;
+    const { lab, comps } = components(blk, w, h), minL = 3 / mpp;
+    const keep = comps.map((c) => !!c && Math.hypot(c.x1 - c.x0 + 1, c.y1 - c.y0 + 1) >= minL);
+    for (let i = 0; i < N; i++) if (lab[i] && keep[lab[i]] && !path[i]) path[i] = PATH.SMALL;
+  }
   progress(0.85);
   const blue = new Uint8Array(N);
   for (let i = 0; i < N; i++) if (kind[i] === I_BLUE && area[i] === UNKNOWN) blue[i] = 1;
@@ -846,6 +848,21 @@ export function classify(rgba0, w, h, mpp, opt = {}, progress = () => {}) {
   // since near the course's controls the overprint is the course's own circles and lines (releaseAround) and the ground under them,
   // kept here, is what counts (2026-11-17: it was overwritten, so a released cell became runnable forest: the routes of the Auray
   // sprint photo ran straight through the buildings and gardens round every control)
+  // a sprint map's black lines are walls, but the outline round a building, an out-of-bounds area or water is no wall of its own:
+  // what it bounds is closed already, and in every cell beside it a lane 2-3 m wide between two outlined houses read as a wall —
+  // the lanes the runners of the Auray photo took were shut (2026-11-18). A line pixel within 2 px of such an area is its outline
+  if (opt.map === "sprint") {
+    const closed = (v) => v === A.GREY || v === A.BUILDING || v === A.OOB || v === A.WATER;
+    const R = 2, drop = [];
+    for (let y = R; y < h - R; y++) for (let x = R; x < w - R; x++) {
+      const i = y * w + x;
+      if (!path[i]) continue;
+      let near = false;
+      for (let dy = -R; dy <= R && !near; dy++) for (let dx = -R; dx <= R; dx++) if (Math.abs(dx) + Math.abs(dy) <= R && closed(area[i + dy * w + dx])) { near = true; break; }
+      if (near) drop.push(i);
+    }
+    for (const i of drop) path[i] = 0;
+  }
   progress(1);
   return { area, path, blue, north, over, lw, k, lines, northLines: nlines, olive: ol, ms: Date.now() - t0 };
 }
