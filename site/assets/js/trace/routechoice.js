@@ -63,8 +63,10 @@ export const DEFAULTS = {
 /** The pace (s/m of white forest on the flat, 6:00 min/km) at which a crossing takes `cross` seconds: the model's times are in
  *  metres of white forest, a runner's pace scales them all, the crossings with them. */
 export const CROSS_PACE = 0.36;
-/** The time multiplier under the course's own printed lines on an image (G.inkBand): crossed, not followed. */
-export const INK_SLOW = 3;
+/** The time multipliers under the course's own printed lines on an image (G.inkBand): crossed, not followed — a circle's [1]
+ *  more than a leg's [2], a route through another control's circle being the blend's way through its gardens (the Quiberon
+ *  photo's control 3), a leg's line crossed by every route along a street. */
+export const INK_SLOW = [1, 5, 2];
 
 // ---- 1. pixels ---------------------------------------------------------------------------------------------------------
 /** A colour's kind: an area (A.*) or an ink (INK.*). ol: the image's olive and yellow (oliveModel()'s, for a photo or a scan;
@@ -76,6 +78,11 @@ export function kindOf(r, g, b, ol = null) {
     const hue = max === r ? 360 - (60 * (b - g)) / span : max === b ? 240 + (60 * (r - g)) / span : 0;
     if (hue >= 255 && hue <= 345 && ((max >= 60 && span >= 0.3 * max) || (max <= 150 && r - g >= 12 && b - g >= 6 && r - g >= 0.2 * max))) return I_PURPLE;
   }
+  // a dark reddish brown is ink of the course (a photo whose purple went dark: the Quiberon and Auray sprint photos, 90-130 at
+  // their brightest) or a contour, never a black wall or path: read as black, the course's legs and circles were walls that cut
+  // the streets, and opening the black under them opened the fences and walls they cross (2026-11-18). The same photos print the
+  // walls and fences darker (under 60), with the same red cast
+  if (max >= 75 && max < 140 && r === max && r - (g > b ? g : b) > 0.3 * max) return I_BROWN;
   if (max < 95 && span < 60) return I_BLACK;
   if (span < 24) return min > 220 ? A.WHITE : max < 95 ? I_BLACK : I_GREY;
   let hue = max === r ? 60 * ((g - b) / span) : max === g ? 60 * ((b - r) / span + 2) : 60 * ((r - g) / span + 4);
@@ -759,13 +766,14 @@ export function classify(rgba0, w, h, mpp, opt = {}, progress = () => {}) {
   // the overprint's white outline (round the control numbers, the course's texts) is ink, not white forest: its pixels take
   // their neighbours' area as the purple does — in the gardens of the Quiberon photo each number left a white island by its
   // control, which the release round the controls opened (2026-11-18)
+  let inkNear = null;
   {
     const m = new Uint8Array(N);
     let any = 0;
     for (let i = 0; i < N; i++) if (kind[i] === I_PURPLE) { m[i] = 1; any = 1; }
     if (any) {
-      const near = morph(m, w, h, 2, false);
-      for (let i = 0; i < N; i++) if (near[i] && (area[i] === A.WHITE || area[i] === A.OPEN || area[i] === A.ROUGH)) area[i] = UNKNOWN;
+      inkNear = morph(m, w, h, 2, false);
+      for (let i = 0; i < N; i++) if (inkNear[i] && (area[i] === A.WHITE || area[i] === A.OPEN || area[i] === A.ROUGH)) area[i] = UNKNOWN;
     }
   }
   // a photographed sprint map's paper — its margin, the legend's box — is no white forest: the routes of the Quiberon photo ran
@@ -782,6 +790,29 @@ export function classify(rgba0, w, h, mpp, opt = {}, progress = () => {}) {
     const { lab, comps } = components(shut, w, h);
     const out = comps.map((c, id) => id && (c.n >= 0.03 * N || c.x0 === 0 || c.y0 === 0 || c.x1 === w - 1 || c.y1 === h - 1) && c.n >= 0.002 * N);
     for (let i = 0; i < N; i++) if (lab[i] && out[lab[i]]) area[i] = A.OOB;
+  }
+  // on a sprint map the overprint's ink (and its outline) takes the ground found on both sides of it — left and right, else above
+  // and below — before the nearest: a control's number printed across a narrow street (the Quiberon photo's 4) filled from the
+  // gardens above and the house below shut the street; the ground on both sides of a line is what lies under it (2026-11-18)
+  if (sprintInk && inkNear) {
+    const D = Math.max(8, Math.round(30 / mpp)), fill = [];
+    const look = (x, y, dx, dy) => {
+      for (let t = 1; t <= D; t++) {
+        const X = x + dx * t, Y = y + dy * t;
+        if (X < 0 || Y < 0 || X >= w || Y >= h) return -1;
+        const v = area[Y * w + X];
+        if (v !== UNKNOWN) return v;
+      }
+      return -1;
+    };
+    for (let i = 0; i < N; i++) {
+      if (!inkNear[i] || area[i] !== UNKNOWN || (kind[i] !== I_PURPLE && kind[i] >= 20)) continue;   // a wall beside it stays a line
+      const x = i % w, y = (i - x) / w, l = look(x, y, -1, 0), r = look(x, y, 1, 0);
+      if (l >= 0 && l === r) { fill.push(i, l); continue; }
+      const u = look(x, y, 0, -1), d = look(x, y, 0, 1);
+      if (u >= 0 && u === d) fill.push(i, u);
+    }
+    for (let j = 0; j < fill.length; j += 2) area[fill[j]] = fill[j + 1];
   }
   progress(0.6);
   // the thin black lines: the paths' network (and also fences, walls, long cliffs — what they are is the settings' choice)
@@ -897,7 +928,7 @@ export function costs(G, s, mpc) {
   const bm = G.vector ? "paths" : blackMode(s);                          // a vector map's paths are paths
   const FP = [1, inv(sp.small), inv(sp.path), inv(sp.track)], FS = [1, inv(sp.slow1), inv(sp.slow2), inv(sp.slow3)];
   const f = new Float32Array(M), hand = new Uint8Array(M), isPath = new Uint8Array(M);
-  const ov = G.over, rel = G.release, ink = G.courseInk;
+  const ov = G.over, rel = G.release;
   // the overprint's areas out of bounds (near a control it is the course's own circle or number: the ground under it counts)
   const oob = (k) => ov?.[k] === 1 && rel?.[k] !== 1;
   for (let k = 0; k < M; k++) {
@@ -910,14 +941,13 @@ export function costs(G, s, mpc) {
     // a vector map's path crosses water or a building (a bridge, a passage), never an area out of bounds nor an impassable wall or
     // fence (its crossing points are holes in it: trace/vectorroutes.js); on an image a line read as a path opens nothing impassable
     // (the black edge of a building, of an area out of bounds), nor does a gap bridged
-    // the course printed in black (a photo whose purple went dark): its circles and legs are neither paths nor walls
-    if (bm === "paths" && path[k] && !ink?.[k] && cls[k] !== A.OOB && !shut && !G.block?.[k] && (G.vector ? raw[k] || v < Infinity : v < Infinity)) { v = Math.min(v, G.pspeed?.[k] ? 100 / G.pspeed[k] : FP[path[k]]); isPath[k] = 1; }
-    else if (bm === "obstacles" && raw[k] && !ink?.[k]) v = Infinity;
+    if (bm === "paths" && path[k] && cls[k] !== A.OOB && !shut && !G.block?.[k] && (G.vector ? raw[k] || v < Infinity : v < Infinity)) { v = Math.min(v, G.pspeed?.[k] ? 100 / G.pspeed[k] : FP[path[k]]); isPath[k] = 1; }
+    else if (bm === "obstacles" && raw[k]) v = Infinity;
     // under the course's own lines on a photo (courseInk's band one pixel wider: the line and its blend) a way is crossed, not
     // followed: the line blended with the olive and the roofs reads as open ground, and leg 1-2's route of the Quiberon photo ran
     // along control 3's circle between a house and a garden (2026-11-18). Closing such cells when closed ground lies on both sides
     // sealed the controls standing in a lane that leaves their circle aslant, and lanes a leg is drawn along
-    if (G.inkBand?.[k] && v < Infinity) v *= INK_SLOW;
+    if (G.inkBand?.[k] && v < Infinity) v *= INK_SLOW[G.inkBand[k]];
     // a forbidden route is crossed, not followed: slow along it, its path no handrail
     if (ov?.[k] === 2 && !rel?.[k]) { v = Math.max(v, FORBIDDEN_ROUTE); isPath[k] = 0; }
     f[k] = v;
@@ -926,7 +956,7 @@ export function costs(G, s, mpc) {
   const groupOf = (k) => (oob(k) ? GROUP[A.OOB] : GROUP[cls[k]]);
   for (let j = 0; j < ny; j++) for (let i = 0; i < nx; i++) {
     const k = j * nx + i;
-    if (isPath[k] || (raw[k] && !oob(k) && !ink?.[k]) || G.blue[k] > 25 || G.hand?.[k] || G.block?.[k]) { hand[k] = 1; continue; }
+    if (isPath[k] || (raw[k] && !oob(k)) || G.blue[k] > 25 || G.hand?.[k] || G.block?.[k]) { hand[k] = 1; continue; }
     const g = groupOf(k);
     if ((i < nx - 1 && groupOf(k + 1) !== g) || (j < ny - 1 && groupOf(k + nx) !== g)) { hand[k] = 1; if (i < nx - 1) hand[k + 1] = 1; if (j < ny - 1) hand[k + nx] = 1; }
   }
@@ -1008,21 +1038,22 @@ export function releaseAround(G, em, pts, radius = 75) {
 }
 
 /**
- * The cells the course's own lines cover, when its purple came out dark on a photo (the Quiberon sprint photo, 2026-11-18: its
- * circles and legs read as black lines, walls on a sprint map, sealed control 8 in and cut the streets the legs crossed): the
- * rings round the controls (pts, map px, in the course's order; r the circles' radius, px) and the straight legs between them,
- * as wide as the overprint's line (0.35 mm against a circle of 5-6 mm) and the photo's blur. costs() takes no black line there
- * for a path or a wall. Null without a radius.
+ * The cells the course's own lines cover on a photo: the rings round the controls (pts, map px, in the course's order; r the
+ * circles' radius, px) and the straight legs between them, as wide as the overprint's line (0.35 mm against a circle of 5-6 mm)
+ * and the photo's blur, `wider` px more. costs() slows them (G.inkBand, INK_SLOW): the line blended with the gardens and roofs
+ * reads as open ground, a way to be crossed, not followed. (2026-11-18, the Quiberon sprint photo; until the same day the black
+ * there was no wall either, which opened the fences and walls the circles and legs cross: the course's dark ink is told by its
+ * colour instead, kindOf.) Null without a radius.
  */
 export function courseInk(G, pts, r, wider = 0) {
   if (!(r > 0) || !pts?.length) return null;
   const { nx, ny, cs } = G, out = new Uint8Array(nx * ny), half = 0.1 * r + 1.5 + wider;
-  const mark = (x0, y0, x1, y1, test) => {
+  const mark = (x0, y0, x1, y1, test, v) => {
     for (let j = Math.max(0, Math.floor(y0 / cs)); j <= Math.min(ny - 1, Math.floor(y1 / cs)); j++)
-      for (let i = Math.max(0, Math.floor(x0 / cs)); i <= Math.min(nx - 1, Math.floor(x1 / cs)); i++) if (test((i + 0.5) * cs, (j + 0.5) * cs)) out[j * nx + i] = 1;
+      for (let i = Math.max(0, Math.floor(x0 / cs)); i <= Math.min(nx - 1, Math.floor(x1 / cs)); i++) if (test((i + 0.5) * cs, (j + 0.5) * cs) && out[j * nx + i] !== 1) out[j * nx + i] = v;
   };
   const reach = half + 0.5 * cs * Math.SQRT2;
-  for (const [x, y] of pts) mark(x - r - reach, y - r - reach, x + r + reach, y + r + reach, (u, v) => Math.abs(Math.hypot(u - x, v - y) - r) <= reach);
+  for (const [x, y] of pts) mark(x - r - reach, y - r - reach, x + r + reach, y + r + reach, (u, v) => Math.abs(Math.hypot(u - x, v - y) - r) <= reach, 1);
   for (let n = 0; n + 1 < pts.length; n++) {
     const [ax, ay] = pts[n], [bx, by] = pts[n + 1], L = Math.hypot(bx - ax, by - ay);
     if (L <= 2 * r) continue;
@@ -1030,7 +1061,7 @@ export function courseInk(G, pts, r, wider = 0) {
     mark(Math.min(ax, bx) - reach, Math.min(ay, by) - reach, Math.max(ax, bx) + reach, Math.max(ay, by) + reach, (u, v) => {
       const t = (u - ax) * ux + (v - ay) * uy;
       return t >= r && t <= L - r && Math.abs((u - ax) * uy - (v - ay) * ux) <= reach;
-    });
+    }, 2);
   }
   return out;
 }
@@ -1259,6 +1290,30 @@ function near(X, path, r, into) {
   }
 }
 
+/**
+ * A control's own cells made passable for a search (saved: the cells and their costs, to put back): those within 3 cells, when
+ * the control stands on what reads as impassable (a boulder, a wall's corner, a house's) or is shut in a few cells (a small
+ * feature's outline). A control on open ground beside a fence keeps the fence (the Quiberon photo's 6, on the beach side of
+ * one, 5 px from it: every route stepped over it — 2026-11-18).
+ */
+function freeAround(X, k0, saved) {
+  const { nx, ny } = X.G, f = X.C.f;
+  if (f[k0] < Infinity) {
+    // a way out to 6 cells, through passable cells
+    const i0 = k0 % nx, j0 = (k0 - i0) / nx, seen = new Set([k0]), q = [k0];
+    for (let h = 0; h < q.length; h++) {
+      const k = q[h], i = k % nx, j = (k - i) / nx;
+      if (Math.abs(i - i0) >= 6 || Math.abs(j - j0) >= 6) return;
+      for (const [di, dj] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+        const I = i + di, J = j + dj, m = J * nx + I;
+        if (I < 0 || J < 0 || I >= nx || J >= ny || seen.has(m) || !(f[m] < Infinity)) continue;
+        seen.add(m); q.push(m);
+      }
+    }
+  }
+  near(X, [k0], 3, (k) => { if (!(f[k] < Infinity)) { saved.push([k, f[k]]); f[k] = 2; } });
+}
+
 /** The metres between two cells. */
 function cellMetres(X, a, b) {
   const { nx } = X.G, ai = a % nx, bi = b % nx, di = bi - ai, dj = (b - bi) / nx - (a - ai) / nx;
@@ -1306,7 +1361,7 @@ export function legSearch(X, pa, pb) {
   const reg = ellipse(X, a, b, 0.75 * L + 150);
   // the controls' own cells always passable: a control on a boulder, by a wall
   const saved = [];
-  for (const k0 of [a, b]) near(X, [k0], 3, (k) => { if (!(X.C.f[k] < Infinity)) { saved.push([k, X.C.f[k]]); X.C.f[k] = 2; } });
+  for (const k0 of [a, b]) freeAround(X, k0, saved);
   try {
     const wantN = Math.max(1, Math.min(4, X.s.variants ?? DEFAULTS.variants)), extra = 1 + (X.s.extra ?? DEFAULTS.extra) / 100;
     const F = tree(X, a, reg, false), B = tree(X, b, reg, true), loc = F.loc;
@@ -1483,7 +1538,7 @@ export function matchRoute(X, pa, pb, pts, tolM, routes = []) {
     for (let s = 0; s <= n; s++) { const k = cell([x0 + ((x1 - x0) * s) / n, y0 + ((y1 - y0) * s) / n]); if (line[line.length - 1] !== k) line.push(k); }
   }
   const saved = [];
-  for (const k0 of [a, b]) near(X, [k0], 3, (k) => { if (!(X.C.f[k] < Infinity)) { saved.push([k, X.C.f[k]]); X.C.f[k] = 2; } });
+  for (const k0 of [a, b]) freeAround(X, k0, saved);
   let q = null;
   try {
     // the corridor, widened once if the trace crosses what the model takes for impassable
@@ -1537,7 +1592,7 @@ function around(X, path, r) {
 /** The cells within 3 cells of each given cell made passable for a while (a control on a boulder, by a wall); returns the undo. */
 export function freeCells(X, list) {
   const saved = [];
-  for (const k0 of list) near(X, [k0], 3, (k) => { if (!(X.C.f[k] < Infinity)) { saved.push([k, X.C.f[k]]); X.C.f[k] = 2; } });
+  for (const k0 of list) freeAround(X, k0, saved);
   return () => { for (let i = saved.length - 1; i >= 0; i--) X.C.f[saved[i][0]] = saved[i][1]; };
 }
 /** A map pixel's cell. */

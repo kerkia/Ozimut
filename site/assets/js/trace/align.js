@@ -137,14 +137,20 @@ export function visitOrder(track, fit, pts, tol = 20, { leg = null, ordered = fa
     const linked = (a, b) => {
       if (a < 0 || b < 0) return 0;
       const key = a < b ? `${a},${b}` : `${b},${a}`;
-      if (!memo.has(key)) memo.set(key, leg([pts[a].x, pts[a].y], [pts[b].x, pts[b].y]) >= 0.6 ? 1 : 0);
+      // its ink kept too (below)
+      if (!memo.has(key)) { const v = leg([pts[a].x, pts[a].y], [pts[b].x, pts[b].y]); memo.set(key, v >= 0.6 ? v : 0); }
       return memo.get(key);
     };
+    // the legs counted, then how well inked they are (controls all but in line — the Quiberon photo's 9, 10, 11 — make the way
+    // from the first to the third a « leg » too, and the order 9, 11, 10, 12, the trace by 11 on the way to 10, counted as many
+    // as 9, 10, 11, 12: 2026-11-18), then the passes' cost (a pass 15 m off, run by on another leg, against one through the
+    // circle: the photo's 16, its circle crossed by the leg 12-13)
     const value = (choice) => {
       const seq = cands.map((c, j) => [c.list[choice[j]].t, c.i]).sort((a, b) => a[0] - b[0]).map((x) => x[1]);
-      let v = seq.length ? linked(si0, seq[0]) + linked(seq[seq.length - 1], fi0) : 0;
-      for (let j = 1; j < seq.length; j++) v += linked(seq[j - 1], seq[j]);
-      return v - 1e-4 * cands.reduce((s, c, j) => s + cost(c.list[choice[j]]), 0);
+      const add = (x) => (x > 0 ? 1 + 0.1 * x : 0);
+      let v = seq.length ? add(linked(si0, seq[0])) + add(linked(seq[seq.length - 1], fi0)) : 0;
+      for (let j = 1; j < seq.length; j++) v += add(linked(seq[j - 1], seq[j]));
+      return v - 1e-3 * cands.reduce((s, c, j) => s + cost(c.list[choice[j]]), 0);
     };
     let cur = value(pick);
     for (let round = 0, better = true; better && round < 10; round++) {
