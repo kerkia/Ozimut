@@ -977,7 +977,23 @@ export function sprintObjects(P, w, h, mpp, rgba = null) {
     for (let k = 0; k < line.length; k++) for (const off of [2, 3]) { const i = beside(line, k, sgn, off); if (i < 0) continue; n++; if (closed(P.area[i])) c++; }
     return n ? c / n : 0;
   };
+  // a line's width, where the image shows it: ISSprOM draws the impassable wall, fence and line feature 0.40 mm wide (515, 518,
+  // 529), the passable ones 0.21 mm (513, 516), a building's outline 0.14 mm, a paving's edge 0.10 mm — at 1:4000, 1.6 m on the
+  // ground against 0.84, 0.56 and 0.40 m. A phone's photo of the map (about a metre a pixel) draws them all a pixel or two wide;
+  // a 300 dpi scan (a third of a metre) draws them 5, 2-3 and 1-2 px wide, and its thin lines (passable walls, kerbs, steps, the
+  // outlines a fill does not reach) shut the controls in when taken for walls (2026-11-19: 12 legs without a route on the three
+  // Morbihan scans). Read where an impassable line is 4 px wide or more: a free line under 1.15 m is passable (1:3000's
+  // impassable is 1.2 m, its passable 0.63 m)
+  const WIDE = 1.15, widthTold = 1.6 / mpp >= 4;
+  const across = (line, k) => {
+    const a = line[Math.max(0, k - 3)], b = line[Math.min(line.length - 1, k + 3)], dx = b[0] - a[0], dy = b[1] - a[1], L = Math.hypot(dx, dy) || 1;
+    let wd = 1;
+    for (const sg of [1, -1]) for (let e = 1; e <= 12; e++) { const x = Math.round(line[k][0] - (sg * dy * e) / L), y = Math.round(line[k][1] + (sg * dx * e) / L); if (x < 0 || y < 0 || x >= w || y >= h || kind[y * w + x] !== I_BLACK) break; wd++; }
+    return wd;
+  };
+  const widthOf = (line) => { const v = []; for (let k = 0; k < line.length; k += 2) v.push(across(line, k)); v.sort((p, q) => p - q); return v[v.length >> 1] * mpp; };
   const walls = [], toArea = [], minLen = 2 / mpp;
+  let thinLines = 0;
   for (const line of lines) {
     const L = side(line, 1), R = side(line, -1);
     if (Math.max(L, R) >= 0.5) {
@@ -987,12 +1003,13 @@ export function sprintObjects(P, w, h, mpp, rgba = null) {
       continue;
     }
     if (ext[comp[line[0][1] * w + line[0][0]]] < minLen) continue;
+    if (widthTold && widthOf(line) < WIDE) { thinLines++; continue; }
     let red = 0;
     for (const [x, y] of line) { const i = y * w + x; if (P.redInk?.[i] || P.redInk?.[i + 1] || P.redInk?.[i - 1] || P.redInk?.[i + w] || P.redInk?.[i - w]) red++; }
     walls.push({ pts: line, red: red / line.length });
   }
   for (let j = 0; j < toArea.length; j += 2) area[toArea[j]] = toArea[j + 1];
-  return { w, h, mpp, area, walls, warm: rgba ? warm : null };
+  return { w, h, mpp, area, walls, thinLines, warm: rgba ? warm : null };
 }
 
 /**
@@ -1043,8 +1060,21 @@ export function sprintLayers(O, P, pts = [], r = 0) {
       if (d < 1 || d > gap || (dx * a.ux + dy * a.uy) / d < cos30 || (-dx * b.ux - dy * b.uy) / d < cos30) continue;
       if (!best || d < best.d) best = { b, d };
     }
-    if (best) bridges.push([[a.x, a.y], [best.b.x, best.b.y]]);
+    if (best) bridges.push([[a.x, a.y], [best.b.x, best.b.y], a.id, best.b.id]);
   }
+  // a dashed line is a path (ISSprOM 505, 506: black dashes 2-3 mm long, 0.25-0.5 mm apart), not a wall: three short pieces or
+  // more chained end to end across short gaps, none longer than 3 mm of the map (12 m at 1:4000), are left out with their joins.
+  // Where the image tells a line's width a dash is wide enough to read as a wall (2026-11-19: the Auray scan's control 8 shut in
+  // by its path's dashes, joined into one wall)
+  const lenOf = (l) => { let s = 0; for (let k = 1; k < l.length; k++) s += Math.hypot(l[k][0] - l[k - 1][0], l[k][1] - l[k - 1][1]); return s * mpp; };
+  const up = walls.map((_, i) => i), root = (i) => (up[i] === i ? i : (up[i] = root(up[i])));
+  for (const [, , a, b] of bridges) up[root(a)] = root(b);
+  const size = new Map(), longest = new Map();
+  walls.forEach((l, i) => { const r0 = root(i), L = lenOf(l); size.set(r0, (size.get(r0) || 0) + 1); longest.set(r0, Math.max(longest.get(r0) || 0, L)); });
+  const dashed = (i) => size.get(root(i)) >= 3 && longest.get(root(i)) <= 12;
+  const keep = walls.map((_, i) => !dashed(i));
+  for (let i = walls.length - 1; i >= 0; i--) if (!keep[i]) walls.splice(i, 1);
+  for (let i = bridges.length - 1; i >= 0; i--) if (!keep[bridges[i][2]]) bridges.splice(i, 1);
   const block = new Uint8Array(N);
   const draw = (x0, y0, x1, y1) => {
     const n = Math.max(1, Math.ceil(Math.hypot(x1 - x0, y1 - y0) * 2));

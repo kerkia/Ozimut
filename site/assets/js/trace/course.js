@@ -39,10 +39,13 @@
 const RADII = [6, 7, 8, 9, 10, 11, 12, 13, 15, 17, 19, 21, 23, 26, 29, 32, 36, 40, 45, 50];
 /** The reading's version, kept with a calibration: one made by an earlier reading says a better one exists. 2026-10-31:
  *  the ink; 2026-11-01: the course's order and the controls found along the legs; 2026-11-17: the colour-blind reading;
- *  2026-11-18: the passes chosen by how well their legs are inked (align.visitOrder). */
-export const READER = 4;
+ *  2026-11-18: the passes chosen by how well their legs are inked (align.visitOrder); 2026-11-19: clean scans (a channel its
+ *  background absorbs left out of the colour tests, the control radius weighed by size, the description table's boxes). */
+export const READER = 5;
 const ANGLES = 24, STRIDE = 4;
 const DARK_T = 0.4, IN_DARK = 0.45, LEG = 0.75;
+/** A channel whose background is under this level (of 256) is already absorbed there: blue over yellow or olive green. */
+const DIM = 40;
 
 /** The page given the time to draw: after its next frame when it is in view (a timer would be slowed to one a second
  *  in a tab left in the background, where nothing is drawn anyway: a message then). */
@@ -185,6 +188,19 @@ async function readCourse(image, { maxSide = 1800, debug = false, dark = false, 
       }
     }
   }
+  if (!dark) {
+    // a table's boxes: four sides, or three beside another box of three in the same row or column
+    const sides = controls.map((c) => boxed(ink, w, h, c.x, c.y, c.r, tInk)), tan6 = Math.tan((6 * Math.PI) / 180);
+    const row = (a, b) => { const dx = Math.abs(a.x - b.x), dy = Math.abs(a.y - b.y); return Math.hypot(dx, dy) <= 3 * Math.max(a.r, b.r) && Math.min(dx, dy) <= tan6 * Math.max(dx, dy); };
+    controls = controls.filter((c, i) => sides[i] < 3 || (sides[i] === 3 && !controls.some((o, j) => j !== i && sides[j] >= 3 && row(c, o))));
+  }
+  controls = offTables(controls);
+  // the course's own colour, for the probes: the controls' median density ratios
+  let courseCol = null;
+  if (!dark && controls.length >= 5) {
+    const med = (v) => [...v].sort((p, q) => p - q)[v.length >> 1], cs0 = controls.filter((c) => c.cr != null);
+    if (cs0.length >= 5) courseCol = { cr: med(cs0.map((c) => c.cr)), cb: med(cs0.map((c) => c.cb)) };
+  }
   if (!controls.length) start = null;                                    // no course on this map
   const back = (p) => (p ? { ...p, x: p.x / s, y: p.y / s, r: p.r != null ? p.r / s : undefined } : null);
   /** A ring of the control's size near an image point (within `radius` px), or null. For the page: once the trace is
@@ -195,7 +211,11 @@ async function readCourse(image, { maxSide = 1800, debug = false, dark = false, 
     const x0 = X * s, y0 = Y * s, R = Math.max(4, radius * s);
     // the course's ink, empty inside, no line across it; for a click, a faint ring only right under it — two
     // overlapping circles cut where they meet (the Fougères photo's 15 and 16, 2026-10-31) took a click 18 px away
+    // and, once five controls say what the course looks like, of their colour and no table's box (a clean scan's town: a corner
+    // where the trace turns took 13 rings that were not controls, 2026-11-19)
+    const ofCourse = (c) => { if (!courseCol) return true; const q = ringColour(ink, dens, w, h, c.x, c.y, c.r); return q.cr == null || (Math.abs(q.cr - courseCol.cr) <= 0.3 && Math.abs(q.cb - courseCol.cb) <= 0.3); };
     const plain = (c, v) => coloured({ x: c.x, y: c.y, r: c.r }) && inkInside(ink, w, h, c.x, c.y, c.r, tInk) <= IN && lineAcross(ink, w, h, c.x, c.y, c.r, tInk) < 0.8
+      && (loose || (ofCourse(c) && boxed(ink, w, h, c.x, c.y, c.r, tInk) < 3))
       && (!loose || v >= 1.1 || Math.hypot(c.x - x0, c.y - y0) <= 0.5 * rStar);
     let best = null;
     if (dark) {                                                           // colour-blind: an all but complete ring only
@@ -712,11 +732,50 @@ async function findCircles(mask, dil, w, h, lw, genuine, dark = false, said = ()
   // controls, and fewer once weighed by their size
   const strict = dark ? (c) => c.score >= 0.9 && c.raw >= 0.7
     : (c) => ((c.score >= 0.8 && c.raw >= 0.3) || (c.score >= 0.55 && c.raw >= 0.5)) && c.inner <= 0.3 && c.outer <= 0.4;
-  const kept = suppress(found.filter(strict)).filter(genuine);
-  const rStar = controlRadius(kept, dark);
+  const kept = offTables(suppress(found.filter(strict)).filter(genuine));
+  // the control radius weighed by size in colour too: a clean scan's black outlines leave small rings of colour fringe along
+  // the buildings, many more than the controls (2026-11-19: r* half the controls' on the Quiberon scan)
+  const rStar = controlRadius(kept, true);
   if (!rStar || dark) return { circles: kept, rStar, found };
   const more = found.filter((c) => !strict(c) && c.score >= 0.85 && c.raw >= 0.6 && c.outer <= 0.6 && c.inner <= 0.75 && c.r >= 0.75 * rStar && c.r <= 1.8 * rStar);
-  return { circles: suppress([...kept, ...more]), rStar, found };
+  return { circles: offTables(suppress([...kept, ...more])), rStar, found };
+}
+/** The circles of a table left out: the control descriptions printed in the course's colour (a grid of 6 mm boxes, its
+ *  symbols' circles and the finish's double circle in them) read as a hundred controls on a clean scan (2026-11-19, the Auray
+ *  scan). Circles of one size 1.5 to 2.6 radii apart along the page's axes (within 6°), five or more joined so, are a table's
+ *  (before the control radius is chosen, which the table's hundred circles would decide; and again once the rings the ink
+ *  field shows are added): a course's controls are never in rows and columns. */
+function offTables(circles) {
+  const n = circles.length, up = circles.map((_, i) => i), root = (i) => (up[i] === i ? i : (up[i] = root(up[i])));
+  const tan6 = Math.tan((6 * Math.PI) / 180);
+  for (let i = 0; i < n; i++) for (let j = i + 1; j < n; j++) {
+    const dx = Math.abs(circles[j].x - circles[i].x), dy = Math.abs(circles[j].y - circles[i].y), d = Math.hypot(dx, dy), r = (circles[i].r + circles[j].r) / 2;
+    if (Math.abs(circles[i].r - circles[j].r) > 0.3 * r || d < 1.5 * r || d > 2.6 * r || Math.min(dx, dy) > tan6 * Math.max(dx, dy)) continue;
+    up[root(i)] = root(j);
+  }
+  const size = new Map();
+  for (let i = 0; i < n; i++) size.set(root(i), (size.get(root(i)) || 0) + 1);
+  return circles.filter((_, i) => size.get(root(i)) < 5);
+}
+/** How many sides of a ring are a box's (the control descriptions' cells, read as rings on a clean scan): a straight line of ink
+ *  along a side, parallel to the page, within 0.85-1.35 r of the centre and inked over 80 % of 1.6 r. A course's circle has its
+ *  legs leaving it, and rarely more than two straight lines beside it. */
+function boxed(M, w, h, x, y, r, t) {
+  let sides = 0;
+  for (const [ax, ay] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+    let best = 0;
+    for (let k = 0.85; k <= 1.35; k += 0.05) {
+      let n = 0, on = 0;
+      for (let u = -0.8 * r; u <= 0.8 * r; u += 1) {
+        const X = Math.round(x + ax * k * r - ay * u), Y = Math.round(y + ay * k * r + ax * u);
+        if (X < 0 || Y < 0 || X >= w || Y >= h) continue;
+        n++; if (M[Y * w + X] >= t / 2) on++;
+      }
+      if (n && on / n > best) best = on / n;
+    }
+    if (best >= 0.8) sides++;
+  }
+  return sides;
 }
 /** One circle per place: the best-scoring of those within 0.6 r of each other with radii within 15 % (the finish's
  *  two circles differ by 35 %). */
@@ -867,25 +926,32 @@ function blur(a, w, h, tmp) {
  *  the ink (green absorbed beyond the mean of red and blue), `t` the mask's level, `m` the mask. */
 function inkMask(data, w, h) {
   const K = 4, T = 0.1, n = w * h;
-  const a = new Float32Array(n), tmp = new Float32Array(n), bg = new Float32Array(n), D = [];
+  const a = new Float32Array(n), tmp = new Float32Array(n), bg = new Float32Array(n), D = [], lit = [];
   for (let c = 0; c < 3; c++) {
     for (let i = 0; i < n; i++) a[i] = data[4 * i + c] + 1;
     closing(a, w, h, K, tmp, bg);
     const d = new Float32Array(n);
     for (let i = 0; i < n; i++) d[i] = bg[i] > a[i] ? Math.log(bg[i] / a[i]) : 0;
     D.push(d);
+    if (c !== 1) { const l = new Uint8Array(n); for (let i = 0; i < n; i++) l[i] = bg[i] >= DIM; lit.push(l); }
   }
   const M = new Float32Array(n), hist = new Uint32Array(400);
   let cnt = 0;
-  for (let i = 0; i < n; i++) { const v = (M[i] = D[1][i] - 0.5 * (D[0][i] + D[2][i])); if (v > T) { hist[Math.min(399, (v * 100) | 0)]++; cnt++; } }
+  for (let i = 0; i < n; i++) {
+    const r = lit[0][i], b = lit[1][i], ref = r && b ? 0.5 * (D[0][i] + D[2][i]) : r ? D[0][i] : b ? D[2][i] : D[1][i];
+    const v = (M[i] = D[1][i] - ref); if (v > T) { hist[Math.min(399, (v * 100) | 0)]++; cnt++; }
+  }
   let t = T;                                                              // a tenth and a half of the strongest ink
   for (let k = 399, acc = 0; k >= 0; k--) { acc += hist[k]; if (acc >= 0.05 * cnt) { t = Math.max(T, 0.15 * (k / 100)); break; } }
   // red and blue absorbed alike, read a little blurred: a phone's lens and the JPEG shift the channels by a pixel
-  for (let i = 0; i < n; i++) a[i] = D[2][i] - D[0][i];
+  // a channel its background already absorbs says nothing (blue over yellow or olive green: its density is the noise of a
+  // few levels; a clean scan's overprint over olive was refused for it, 2026-11-19): only the channels with light compared
+  for (let i = 0; i < n; i++) a[i] = lit[0][i] && lit[1][i] ? D[2][i] - D[0][i] : 0;
   blur(a, w, h, tmp);
   bg.set(D[1]); blur(bg, w, h, tmp);
   const m = new Uint8Array(n);
   for (let i = 0; i < n; i++) if (M[i] > t && Math.abs(a[i]) < 0.45 * bg[i]) m[i] = 1;
+  D.lit = lit;
   return { m, M, t, D };
 }
 
@@ -984,14 +1050,20 @@ function ringColour(M, D, w, h, x, y, r) {
       const i = Y * w + X;
       if (M[i] > bv) { bv = M[i]; bi = i; }
     }
-    if (bi >= 0 && D[1][bi] > 0.05) { A.push(D[0][bi] / D[1][bi]); B.push(D[2][bi] / D[1][bi]); }
+    if (bi < 0 || D[1][bi] <= 0.05) continue;
+    // a channel its background absorbs already (blue over olive green) takes the other's ratio: it says nothing itself
+    const r0 = !D.lit || D.lit[0][bi], b0 = !D.lit || D.lit[1][bi];
+    if (!r0 && !b0) continue;
+    const ra = D[0][bi] / D[1][bi], rb = D[2][bi] / D[1][bi];
+    A.push(r0 ? ra : rb); B.push(b0 ? rb : ra);
   }
   const med = (v) => { if (!v.length) return null; v.sort((p, q) => p - q); return v[v.length >> 1]; };
   return { cr: med(A), cb: med(B) };
 }
-/** The overprint's colour: red and blue let through alike (their density ratios within 0.3 of each other), and both
- *  absorbed less than green. A grey building on olive green, a brown knoll or red text are not. */
-function purpleRing(c) { return c.cr == null || (Math.abs(c.cr - c.cb) <= 0.3 && Math.max(c.cr, c.cb) <= 1); }
+/** The overprint's colour: red and blue let through alike (their density ratios within 0.4 of each other — a printer's purple
+ *  absorbs a little more blue than red: 0.3 to 0.35 apart on the Morbihan scans, 2026-11-19), and both absorbed less than green.
+ *  A grey building on olive green, a brown knoll or red text are not. */
+function purpleRing(c) { return c.cr == null || (Math.abs(c.cr - c.cb) <= 0.4 && Math.max(c.cr, c.cb) <= 1); }
 /** The share of a circle's inside (within 0.7 r, on a grid of about 60 points) inked at half the mask's level: a control's
  *  circle is empty inside, a hatching or a grid of lines is not. */
 function inkInside(M, w, h, x, y, r, t) {

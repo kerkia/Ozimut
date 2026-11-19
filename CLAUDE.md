@@ -3980,6 +3980,25 @@ Every multiple-choice game was played through to its score page at phone size, w
   laid (42 with the pixel reading alone), 63 dark lines crossed (89), 126 m of olive (246). The tracks not laid are mostly the
   track 10-18 m off a street (the photos' calibration), not the reading. New maps with tracks (full-resolution photos, scans)
   go into it as the owner provides them.
+  **The organiser's maps scanned at 300 dpi** (owner, 2026-11-19: the same three races, `scan<n>.pdf`, A4 pages, about 2.9 px a
+  metre against 1.1 for the photos): in the gate since that day (`route-bench/scans/`: the true controls carried from the kept
+  analyses by a photo → scan transform — ORB features, RANSAC — and checked by eye, each FIT laid by the controls' places,
+  median 2-3 m; `gate.mjs --scans` the scans alone). A scan shows what a photo blurs: the print's dots, every thin line crisp.
+  The live engine left 12 of the 59 legs without a route there and laid 23 tracks: building outlines, kerbs, passable walls
+  and dashed paths read as walls shut the controls in. Since then, **where the image tells a line's width** (an impassable
+  0.40 mm line 4 px wide or more: a scan, not a photo, which stays as it was) a free black line under 1.15 m on the ground is
+  passable — ISSprOM's impassable wall, fence and line feature are 0.40 mm (1.6 m at 1:4000), the passable ones 0.21, an
+  outline 0.14, a paving's edge 0.10 —, and **a dashed line is a path**, not a wall (three short pieces or more, none over
+  12 m, chained across their gaps: ISSprOM 505/506): no leg without a route, 43 tracks laid. The gate measures a scan's dark
+  lines crossed only where 1 m of dark is crossed (the passable lines may be). **The course reader on scans** (`course.js`,
+  READER 5): its colour tests left out a channel its background already absorbs (blue over olive green: its noise refused
+  every circle over olive), the control radius weighed by size in colour too (the outlines' colour fringes made small rings),
+  the purple test 0.4 apart (a printer's purple absorbs a little more blue), the description table's boxes left out (`boxed`:
+  four sides, or three beside another such box; `offTables`: five circles or more in rows and columns), and the probes where
+  the trace turns kept to the controls' own colour once five are read. Scan 1 from none to 20 of 24 controls, scan 2 13 of
+  18 (its course faint), scan 3 from none to 14 of 17; every earlier test map read as before (`route-bench/course/`: `ceval.mjs`,
+  cases from the earlier sessions plus the scans). In the page a scan still gets false controls where the trace turns (scan 1:
+  15 beside 20 true): checking the calibration by hand is advised.
 - **Languages: French, English, German and Spanish** (owner, 2026-10-17 French and English, open to everyone since 2026-10-18,
   `i18n.OPEN` true; **German and Spanish since 2026-11-01**: `i18n.LANGS`, catalogues `i18n/de.js`, `es.js`, `tracer.de.js`,
   `tracer.es.js`, long texts `content/<name>.de.js` / `.es.js`, e-mails in `_lib/templates.js`, `manifest.de|es.webmanifest`;
