@@ -3960,6 +3960,26 @@ Every multiple-choice game was played through to its score page at phone size, w
   them (the panel: « Carte OCAD de l'organisateur »), a file dropped in « Calcul » still winning; the publication's progress window
   has a step per circuit for them. Measured on the Desquinemarre « très court »: drawn in 0.4 s, the planner ready in 0.9 s against
   3.2 s for the image, leg 39 → 31 A 6:19 / 389 m nearly straight (no route at all from the colours before the brown fix).
+  **Sprint photos read as an OCAD map is, and the gate** (owner, 2026-11-18/19: « make sure the fixes are generic, so the same
+  issues don't happen again and again, on different maps »; after a day of fixes for one photo that broke another). On a sprint
+  map (the kind told by the circles' size on the ground, `analysis.js rcKind`, `shared.js`) the photo is read by colour
+  (`classify`), then as objects (`routechoice.js` 1b, `sprintObjects` once a reading, `sprintLayers` per course in the worker):
+  every thin black line traced (skeleton, polylines), told by its two sides — a building's, olive's, water's or an out-of-bounds
+  area's outline is merged into it; a line on the course's legs, circles, start triangle or finish circles and mostly in its
+  reddish ink is the course; else a wall or fence —, walls joined across 2.5 m breaks, given to the engine as a vector map's
+  layers (`block`); lanes of 1-2 px of warm ground between closed ground keep their 2-px cell open (`lane`; a seam between two
+  houses is neutral grey); olive read at a metre's half-width; the darkest green impassable (ISSprOM 410/411). Symbols cannot be
+  named on a photo of ~1 px a metre (a wall 1.5 px, a fence 0.6): every free line is a wall; « Calcul » says when a photo is too
+  coarse (`rc.warn.coarse`: under 1.5 px a metre on a sprint map, 0.6 on a forest map). **Before pushing any change to
+  `trace/routechoice.js` or `trace/routeworker.js`, run the gate**: `node C:\kerkia\Ozimut\work\route-bench\gate.mjs
+  <working copy>` (outside git: the photos and the owner's tracks are not to be published). It reads the three Morbihan sprint
+  photos as the worker does and searches their 59 legs against the owner's own tracks — legs without a route, tracks the
+  engine lays on the map, dark lines crossed squarely by the best routes, olive crossed — and four forest maps' class shares; it
+  fails (exit 1) on any regression beyond a small tolerance; `--accept` writes a new `baseline.json` only for a change judged
+  better on all of them, `--sprint` is a quick partial run. Figures on 2026-11-19: no leg without a route, 48 of 59 tracks
+  laid (42 with the pixel reading alone), 63 dark lines crossed (89), 126 m of olive (246). The tracks not laid are mostly the
+  track 10-18 m off a street (the photos' calibration), not the reading. New maps with tracks (full-resolution photos, scans)
+  go into it as the owner provides them.
 - **Languages: French, English, German and Spanish** (owner, 2026-10-17 French and English, open to everyone since 2026-10-18,
   `i18n.OPEN` true; **German and Spanish since 2026-11-01**: `i18n.LANGS`, catalogues `i18n/de.js`, `es.js`, `tracer.de.js`,
   `tracer.es.js`, long texts `content/<name>.de.js` / `.es.js`, e-mails in `_lib/templates.js`, `manifest.de|es.webmanifest`;

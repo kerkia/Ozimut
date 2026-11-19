@@ -1052,6 +1052,8 @@ export function sprintLayers(O, P, pts = [], r = 0) {
   };
   for (const l of walls) for (let k = 1; k < l.length; k++) draw(l[k - 1][0], l[k - 1][1], l[k][0], l[k][1]);
   for (const [[x0, y0], [x1, y1]] of bridges) draw(x0, y0, x1, y1);
+  // the darkest green as a line (a hedge, ISSprOM 411): a pixel wide, it would lose its cell to the ground beside it
+  for (let i = 0; i < N; i++) if (O.area[i] === A.G3) block[i] = 1;
   // the lanes: open ground a pixel or two wide between closed ground on both sides (across, along or slantwise), which a cell
   // of two pixels would lose to the houses beside it (the narrow path north of control 4 on the Auray photo: 1 px, 2026-11-19)
   const lane = new Uint8Array(N), ar = O.area;
@@ -1159,6 +1161,9 @@ export function costs(G, s, mpc) {
   F[A.WHITE] = 1; F[A.OPEN] = inv(sp.open); F[A.ROUGH] = inv(sp.rough); F[A.G1] = inv(sp.g1); F[A.G2] = inv(sp.g2); F[A.G3] = inv(sp.g3);
   F[A.WATER] = Infinity; F[A.SHALLOW] = inv(sp.shallow); F[A.PAVED] = inv(sp.paved); F[A.OOB] = Infinity; F[A.BUILDING] = Infinity;
   F[A.GREY] = s.map === "sprint" ? Infinity : inv(sp.grey); F[A.MARSH] = inv(sp.marsh);
+  // a sprint map's darkest green is ISSprOM's 411, impassable vegetation (a hedge), or 410, fight (under 20 % of the running speed):
+  // shut either way (2026-11-19; the hedge by control 16 of the Auray MD photo)
+  if (s.map === "sprint") F[A.G3] = Infinity;
   const bm = G.vector ? "paths" : blackMode(s);                          // a vector map's paths are paths
   const FP = [1, inv(sp.small), inv(sp.path), inv(sp.track)], FS = [1, inv(sp.slow1), inv(sp.slow2), inv(sp.slow3)];
   const f = new Float32Array(M), hand = new Uint8Array(M), isPath = new Uint8Array(M);
