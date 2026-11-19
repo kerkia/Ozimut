@@ -610,7 +610,11 @@ def _once(doc, fix, frame, log, what, areas_only=False, decks=None):
             x0, y0, x1, y1 = g.bounds
             for tx in range(int((x1 - x0) // 25) + 1):
                 for ty in range(int((y1 - y0) // 25) + 1):
-                    q = shapely.clip_by_rect(g, x0 + tx * 25, y0 + ty * 25, x0 + (tx + 1) * 25, y0 + (ty + 1) * 25)
+                    r_ = (x0 + tx * 25, y0 + ty * 25, x0 + (tx + 1) * 25, y0 + (ty + 1) * 25)
+                    try:
+                        q = shapely.clip_by_rect(g, *r_)
+                    except shapely.errors.GEOSException:          # (GEOS's fast clip left a ring of three points)
+                        q = shapely.make_valid(g).intersection(shapely.box(*r_))
                     tiles += [(f, x) for x in as_polys(q)]
         else:
             tiles.append((f, g))
@@ -1462,11 +1466,15 @@ def _once(doc, fix, frame, log, what, areas_only=False, decks=None):
         BARR = BARR.difference(_opens)
     _free = shapely.make_valid(frame.difference(BARR))
     _Bb = shapely.make_valid(cover["521"]).buffer(0.4) if not cover["521"].is_empty else Polygon()
+    _Wb = shapely.make_valid(cover["301"]).buffer(0.5) if "301" in cover and not cover["301"].is_empty else None
     _ol, _bf = [], []
     for q in as_polys(_free):
         if q.area < 0.5 or q.distance(frame.exterior) <= 1.0:
             continue
         L_ = q.exterior.length
+        # an island: water bounds most of its edge (the owner, 2026-11-18: « nothing in OSM says it is olive »), as the generator
+        if _Wb is not None and L_ > 0 and q.exterior.intersection(_Wb).length >= 0.6 * L_:
+            continue
         to_b = L_ > 0 and not _Bb.is_empty and q.exterior.intersection(_Bb).length >= 0.85 * L_
         if fix:
             (_bf if to_b else _ol).append(q)

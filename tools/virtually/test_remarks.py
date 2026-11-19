@@ -262,9 +262,9 @@ def t2(M):
     return [m for m in out if m]
 
 
-@test(3, "an unpaved path loses its edges inside another path's band (x, y flag 4): junctions open")
+@test(3, "an unpaved path loses each edge inside another path's band (x flag 4 left, y flag 4 right): junctions open")
 def t3(M):
-    half = 0.31                                                     # town_map.py's DBL_HALF, mm
+    half, edge = 0.31, 0.25                                         # town_map.py's DBL_HALF and DBL_EDGE, mm
     ps = [o for o, _ in M.objs("505") if o["otp"] == 2]
     lines = [LineString(o["rings"][0]) for o in ps]
     tree = shapely.STRtree(lines) if lines else None
@@ -273,12 +273,19 @@ def t3(M):
         near = [j for j in tree.query(lines[i].buffer(half)) if j != i]
         if not near:
             continue
-        band = unary_union([lines[j].buffer(half) for j in near])
+        # each edge on its own (the owner, 2026-11-18: at a narrow fork the outer edges had gone with the inner ones); the other
+        # paths' bands with flat ends, as the generator's
+        band = unary_union([lines[j].buffer(half, cap_style="flat") for j in near])
         an = anchors(o)
         for (x0, y0, fx, fy, _, _), (x1, y1, *_r) in zip(an, an[1:]):
-            seg = LineString([(x0, y0), (x1, y1)])
-            if seg.length > 0.05 and band.contains(seg.interpolate(0.5, normalized=True)) and not (fx & 4 and fy & 4):
-                bad.append(Point(M.cx + (x0 + x1) / 2 * M.k, M.cy + (y0 + y1) / 2 * M.k))
+            L_ = math.hypot(x1 - x0, y1 - y0)
+            if L_ <= 0.05:
+                continue
+            mx, my = (x0 + x1) / 2, (y0 + y1) / 2; nx, ny = -(y1 - y0) / L_, (x1 - x0) / L_
+            left_in = band.contains(Point(mx + nx * edge, my + ny * edge))
+            right_in = band.contains(Point(mx - nx * edge, my - ny * edge))
+            if (left_in and not fx & 4) or (right_in and not fy & 4):
+                bad.append(Point(M.cx + mx * M.k, M.cy + my * M.k))
     return [m for m in [fail_list(bad, "505 segments inside another path's band with their edges drawn")] if m]
 
 
@@ -364,8 +371,10 @@ def runnable(M):
 @test(6, "ground enclosed by uncrossable features is 520 (or part of the building)")
 def t6(M):
     R = runnable(M)
+    W = M.union("301").buffer(0.5)
+    # an island (water bounds most of its edge) stays as it is: the owner, 2026-11-18, « nothing in OSM says it is olive »
     bad = [rp(p) for p in getattr(R, "geoms", [R]) if p.geom_type == "Polygon" and p.area > 2.0
-           and p.distance(M.box.exterior) > 1.0]
+           and p.distance(M.box.exterior) > 1.0 and p.exterior.intersection(W).length < 0.6 * p.exterior.length]
     return [m for m in [fail_list(bad, "pieces of ground no street or open space reaches")] if m]
 
 
@@ -462,16 +471,21 @@ STRAIGHT = ["521", "521.9", "522", "522.9", "513.1", "513.2", "515", "516", "518
 @test(14, "lines and outlines are Bézier curves (no angle on water, contours, vegetation); man-made features stay straight")
 def t14(M):
     flat, curved = [], []
+    # a sports ground's outline keeps its corners, in open land too (the owner, 2026-11-18: « terrains de sport en ellipse »)
+    sp = M.src("sports.json") or []
+    SPE = unary_union([shapely.make_valid(Polygon(q[0], q[1:])).boundary for s in sp for q in s["polys"]] or [Polygon()]).buffer(0.6)
+    on_sport = lambda a: not SPE.is_empty and SPE.contains(Point(a[0] * M.k + M.cx, a[1] * M.k + M.cy))
     for c in SMOOTH:
         for o, g in M.objs(c):
             if o["otp"] == 1 or len(o["rings"][0]) < 4:
                 continue
             b = o.get("bez")
-            if not b or not any(len(p) > 2 and p[2] in (1, 2) for p in b[0]):
-                flat.append(rp(g))
-                continue
             an = anchors(o)
-            hard = [a for a in an[1:-1] if not a[4] and not a[5]]
+            if not b or not any(len(p) > 2 and p[2] in (1, 2) for p in b[0]):
+                if not all(on_sport(a) for a in an):                # (a pitch: straight sides, kept corners)
+                    flat.append(rp(g))
+                continue
+            hard = [a for a in an[1:-1] if not a[4] and not a[5] and not on_sport(a)]
             if len(hard) > max(1, len(an) // 4):
                 flat.append(rp(g))
     for c in STRAIGHT:

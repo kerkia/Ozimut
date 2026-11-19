@@ -1,8 +1,10 @@
 """A sprint map (ISSprOM 2019-2, 1:4000) of a town from open data, for « Virtually » (town_fetch.py first):
 
-  py town_map.py <race> [--clip] [--no-fix | --no-check]    DATA/<race>/map_objects.json, then  node --import ../mapper/shim.mjs mkocd.mjs … map.ocd
+  py town_map.py <race> [--clip] [--fix | --no-check]    DATA/<race>/map_objects.json, then  node --import ../mapper/shim.mjs mkocd.mjs … map.ocd
 
---no-check: no legibility check at all (neither its repairs nor its report) — the maps made for a user (Cartographier's « Plan de
+The legibility check reports (src/legibility.json) and repairs nothing unless --fix (the owner, 2026-11-18: its repairs widened
+narrow strips into paving, turned an island into olive and cut the tunnels' sides; what it finds is to be fixed in this
+generator). --no-check: no legibility check at all (neither its repairs nor its report) — the maps made for a user (Cartographier's « Plan de
 ville », townmap_ci.py; owner, 2026-11-18): the check and test_remarks.py are the developer's extensive tests, run on Pixel's
 town races (town_all.py) to keep improving the generator, and a user would not know what to do with their outcome.
 
@@ -629,7 +631,32 @@ NO_ENTRY = ("tennis", "padel")
 # standard »); a multi-sport court is paving with its edge, like the track, fenced only where the LiDAR sees a fence
 HATCHED = ()
 SPORT_NAME = lambda s: "rugby" if s.startswith("rugby") else "athletics" if s in ("athletics", "running") else s
+def stadium(g):
+    """An athletics track's outline as the shape it is built to — two straights, two half circles — fitted to the drawn oval
+    (the owner, 2026-11-18: « c'est si dur que ça de faire une ligne droite ? »: OpenStreetMap's oval, traced node by node,
+    wobbled): the minimum rotated rectangle's long axis, the radius half its width; kept only if it differs from the drawn
+    outline by under 10 % of its area."""
+    shell = Polygon(g.exterior) if g.geom_type == "Polygon" else g
+    rr = shell.minimum_rotated_rectangle
+    c = list(rr.exterior.coords)[:4]
+    e = [math.dist(c[i], c[(i + 1) % 4]) for i in range(4)]
+    i = 0 if e[0] >= e[1] else 1                                     # the long side c[i] → c[i+1]
+    L, W = e[i], e[(i + 1) % 4]
+    if L <= W * 1.05:
+        return g
+    ux, uy = (c[i + 1][0] - c[i][0]) / L, (c[i + 1][1] - c[i][1]) / L
+    m = shell.centroid; h = L / 2 - W / 2
+    fit = LineString([(m.x - ux * h, m.y - uy * h), (m.x + ux * h, m.y + uy * h)]).buffer(W / 2, quad_segs=32)
+    if fit.symmetric_difference(shell).area > 0.1 * shell.area:
+        return g
+    if g.geom_type == "Polygon" and g.interiors:                     # (a drawn infield: the lanes' width kept)
+        lane = max(1.0, (shell.area - Polygon(g.interiors[0]).area) / shell.length)
+        return fit.difference(fit.buffer(-lane))
+    return fit
+
+
 sports = []
+INFIELDS = []                       # a filled oval track's infield: open land, cut exactly to the lanes (SP_OPEN)
 for e in osm:
     t = tags(e)
     if t.get("leisure") not in ("pitch", "track") or e["type"] == "node" or t.get("indoor") == "yes":
@@ -638,6 +665,13 @@ for e in osm:
     if g is None or g.is_empty or not g.geom_type.endswith("Polygon") or not g.intersects(frame):
         continue
     sp = SPORT_NAME((t.get("sport") or ("athletics" if t.get("leisure") == "track" else "multi")).split(";")[0])
+    if sp == "athletics" and g.geom_type == "Polygon":
+        g = stadium(g)
+    if sp == "athletics" and g.geom_type == "Polygon" and not g.interiors and g.buffer(-9).area > 0:
+        # a filled oval (the owner, 2026-11-18: the track's inner edge was the LiDAR's cells): its lanes, ~7, as BD TOPO's below;
+        # the infield is then cut exactly to their inner edge
+        INFIELDS.append(g.buffer(-8.5))
+        g = g.difference(g.buffer(-8.5))
     sports.append({"sport": sp, "surface": SPORT_SURF.get(t.get("surface", ""), SPORT_DEFAULT.get(sp, "sand")), "g": g, "src": "osm"})
 BD_SPORT = {"terrain de rugby": "rugby", "terrain de football": "soccer", "terrain de tennis": "tennis", "stade d'athlétisme": "athletics",
             "piste de sport": "athletics", "terrain de basket-ball": "basketball", "terrain de handball": "handball"}
@@ -649,6 +683,8 @@ for f in bdtopo("terrain_de_sport"):
     if any(s["g"].intersection(g).area > 0.5 * min(g.area, s["g"].area) for s in sports):
         continue                                                      # OpenStreetMap has it, with its surface
     sp = BD_SPORT.get((p.get("nature_detaillee") or p.get("nature") or "").lower(), "multi")
+    if sp == "athletics" and g.geom_type == "Polygon":
+        g = stadium(g)
     if sp == "athletics" and g.buffer(-9).area > 0:
         g = g.difference(g.buffer(-8.5))                              # a filled oval: its track, ~7 lanes
     sports.append({"sport": sp, "surface": SPORT_DEFAULT.get(sp, "sand"), "g": g, "src": "bdtopo"})
@@ -843,7 +879,16 @@ AREA_SYM = {"forest": None, "open": S(401), "open_t": S(402), "slow": S(406), "w
 from rasterio.features import shapes as _shapes
 from rasterio.transform import from_origin as _from_origin
 _cov, _val = [], []
-for geo, v in _shapes(cl, transform=_from_origin(X0, Y1, R, R)):
+# the classes generalised before they become areas, as a mapper draws them (the owner, 2026-11-18: « le bord … toujours aussi
+# dégueu » — the photograph's paving and lawns met along a ragged line, meandering over 5-10 m): each class's presence
+# blurred over 1.5 m (Gaussian), each cell the strongest (ties to its own) — at 1:4000 a millimetre is 4 m; what has a
+# vector source is cut exactly afterwards. cl itself stays as read, for the other rules and build.py
+_vals = np.unique(cl)
+_best = np.full(cl.shape, -1.0, np.float32); cl_v = cl.copy()
+for _v in _vals:
+    _c = gaussian_filter((cl == _v).astype(np.float32), 1.5 / R, mode="nearest") + (cl == _v) * 1e-3
+    _m = _c > _best; cl_v[_m] = _v; _best[_m] = _c[_m]
+for geo, v in _shapes(cl_v, transform=_from_origin(X0, Y1, R, R)):
     _cov.append(shape(geo)); _val.append(int(v))
 log("coverage", len(_cov), "pieces")
 _cov = shapely.coverage_simplify(np.array(_cov, dtype=object), tolerance=1.2)
@@ -857,7 +902,7 @@ HEDGE_G = unary_union([h.buffer(0.7, cap_style="flat") for h in hedges]) if hedg
 HEDGE_G = HEDGE_G.difference(PRIVATE.buffer(-1.0))          # a hedge inside the ground not to be entered says nothing: left out
 OPEN_R = unary_union([g for g, v in zip(_cov, _val) if KNAME.get(v) == "open"])
 GREEN_PUB = OPEN_R.intersection(PUBLIC) if not PUBLIC.is_empty else Polygon()
-SP_OPEN = unary_union([s["g"] for s in sports if s["sport"] not in NO_ENTRY and s["surface"] in ("grass", "turf")] or [Polygon()])
+SP_OPEN = unary_union([s["g"] for s in sports if s["sport"] not in NO_ENTRY and s["surface"] in ("grass", "turf")] + INFIELDS or [Polygon()])
 SP_PAVED = unary_union([s["g"] for s in sports if s["sport"] in NO_ENTRY or s["surface"] not in ("grass", "turf")] or [Polygon()])
 def along(line, arr, step=0.5):
     pts = [line.interpolate(d) for d in np.arange(0, line.length + 1e-6, step)]
@@ -943,7 +988,7 @@ _gates = unary_union([osm_geom(e).buffer(1.5) for e in osm if e["type"] == "node
 _lines_bar = unary_union(_imp + [h.buffer(0.5, cap_style="flat") for h in hedges]
                          + ([RAIL_L.buffer(2.0)] if not RAIL_L.is_empty else []) or [Polygon()]).difference(_gates)
 burn(_lines_bar, 1, bar)
-burn(water, 1, bar)
+burn(water, 3, bar)                     # (3: water — an island is left as it is, below)
 free = bar == 0
 lab, nlab = label(free)
 seed = np.zeros((NY, NX), bool)
@@ -970,6 +1015,10 @@ if encl.any():
         ring = binary_dilation(m) & ~m
         nb = bar[sl2][ring]
         frac_b = float((nb == 2).sum()) / max(1, int((nb > 0).sum()))
+        # an island: water bounds most of it (the owner, 2026-11-18: an island in a pond, its statue, came out olive —
+        # « nothing in OSM says it is »)
+        if float((nb == 3).sum()) / max(1, int((nb > 0).sum())) >= 0.6:
+            continue
         for geo, v in _shapes(m.astype(np.uint8), mask=m, transform=_from_origin(X0 + sl2[1].start * R, Y1 - sl2[0].start * R, R, R)):
             g = shape(geo).buffer(0.3).buffer(-0.3)                # the cells' staircase smoothed a little
             (ENCL_BUILD if frac_b >= 0.85 else ENCL_OLIVE).append(g)
@@ -1241,10 +1290,15 @@ _free = _poly(shapely.difference(CLIP, BARR, grid_size=0.01))
 _edge = CLIP.exterior
 U_OL, U_BF = [], []
 _Bb = B.buffer(0.4)
+_Wb = GEOM["water"].buffer(0.5) if "water" in GEOM and not GEOM["water"].is_empty else None
 for q in getattr(_free, "geoms", [_free]):
     if q.geom_type != "Polygon" or q.area < 0.5 or q.distance(_edge) <= 1.0:
         continue
     L = q.exterior.length
+    # an island (the owner, 2026-11-18: an island in a pond, its statue, came out olive — « nothing in OSM says it is »): ground
+    # water bounds for most of its edge stays as it is; ground closed by a pond and the olive together still goes to the olive
+    if _Wb is not None and L > 0 and q.exterior.intersection(_Wb).length >= 0.6 * L:
+        continue
     (U_BF if L > 0 and q.exterior.intersection(_Bb).length >= 0.85 * L else U_OL).append(q)
 if U_OL or U_BF:
     _U = unary_union(U_OL + U_BF)
@@ -1435,9 +1489,43 @@ step("lines")
 
 wall_out = []
 zo_cache = None
+B_EDGE = B.boundary if not B.is_empty else None
+
+
+def off_building_edges(l, near=1.0, run=2.5, step=0.5):
+    """The line less its stretches running along a building's outline (within `near` m over `run` m or more): there the
+    building's own edge is the barrier (the owner, 2026-11-18: a fence drawn on a building's edge). A wall meeting a building
+    end-on keeps its end (under `run` m near the outline)."""
+    if B_EDGE is None or l.length < run or l.distance(B_EDGE) > near:
+        return l
+    n = max(2, int(math.ceil(l.length / step)))
+    d = [l.interpolate(i / n, normalized=True) for i in range(n + 1)]
+    close = [d[i].distance(B_EDGE) <= near and d[i + 1].distance(B_EDGE) <= near for i in range(n)]
+    seg = l.length / n
+    keep, i = [], 0
+    while i < n:
+        j = i
+        while j < n and close[j] == close[i]:
+            j += 1
+        if not (close[i] and (j - i) * seg >= run):
+            keep.append(shapely.ops.substring(l, i * seg, j * seg))
+        i = j
+    out = linemerge_ok(keep)
+    return out
+
+
+def linemerge_ok(parts):
+    parts = [q for q in parts if not q.is_empty and q.length > 0]
+    if not parts:
+        return LineString()
+    return merge_lines(unary_union(parts))
+
+
 for g, kind, ret in walls:
     for l in getattr(g, "geoms", [g]):
         l = l.difference(B.buffer(0.3))
+        l = unary_union([off_building_edges(q) for q in getattr(l, "geoms", [l]) if q.geom_type == "LineString" and not q.is_empty]
+                        or [LineString()])
         for piece in getattr(l, "geoms", [l]):
             if piece.is_empty or piece.length < 2:
                 continue
@@ -1591,7 +1679,10 @@ for g in streams:
 for g in ditches:
     add_line(g.difference(water.buffer(0.5)).difference(B).difference(OLIVE_IN), S(306), 3, curve=True)
 if not RAIL.is_empty:
-    add_line(RAIL.intersection(CLIP), S(509, 1), 3)
+    # the tracks cut over every underpass (IOF, ISSprOM 509: « the upper railway line should always be cut over underpasses to
+    # make the underpass more visible to the runners »; the owner, 2026-11-18)
+    _under = unary_union(PASS) if PASS else Polygon()
+    add_line(RAIL.intersection(CLIP).difference(_under) if not _under.is_empty else RAIL.intersection(CLIP), S(509, 1), 3)
 
 # contours: every 2.5 m from the LiDAR's ground, smoothed, through the buildings, square across the streets, cut at the stairways
 step("contours")
@@ -1768,7 +1859,7 @@ else:
         if m_ and int(m_.group(1)) != _pass[0]:
             _pass[0] = int(m_.group(1))
             print(f"@@pass {_pass[0]}", flush=True)
-    LEG = legibility.check(DOC, fix="--no-fix" not in sys.argv, frame=CLIP, log=leg_log, decks=DECK_ALL)   # (its sides: 515, no gap)
+    LEG = legibility.check(DOC, fix="--fix" in sys.argv, frame=CLIP, log=leg_log, decks=DECK_ALL)   # (its sides: 515, no gap)
     for line in ["legibility"] + LEG.lines():
         log(line)
     legibility.write_report(LEG, SRC / "legibility.json")
@@ -1815,37 +1906,70 @@ for i_, o in enumerate(_pl):
     _pg[i_] = LineString(cs)
 log("path ends joined after the check", n_join)
 # the unpaved paths' junctions (the owner, 2026-11-13: « the intersections are still wrong »): 505 is a double line (black edges over
-# a brown 30 % fill, the black printed above), so at a junction each path's edges cross the other's fill. A path loses its edges
-# wherever it runs inside another path's band — OCAD's « no left line / no right line » flags (x and y flag 4) on those segments,
-# a point inserted where it enters and leaves the band
+# a brown 30 % fill, the black printed above), so at a junction each path's edges cross the other's fill. Each edge is left out
+# wherever it lies inside another path's band — OCAD's « no left line » (x flag 4) and « no right line » (y flag 4), side by side
+# on its own (the owner, 2026-11-18: at a narrow fork both edges went where the centre line ran in the other band, the outer ones
+# too), points inserted where an edge enters or leaves a band
 DBL_HALF = 0.31                                                      # 505's half width, mm: half its 0.38 mm gap and one 0.12 mm edge
+DBL_EDGE = 0.25                                                      # an edge's middle, mm from the centre line
 _dbl = [o for o in objects if o["sym"] == S(505) and o["otp"] == 2 and len(o["rings"][0]) >= 2]
 _dl = [LineString(o["rings"][0]) for o in _dbl]
 _dtree = shapely.STRtree(_dl) if _dl else None
 n_cut = 0
 for i, o in enumerate(_dbl):
     l = _dl[i]
-    near_ = [j for j in _dtree.query(l.buffer(DBL_HALF)) if j != i]
-    if not near_:
+    near_ = [j for j in _dtree.query(l.buffer(DBL_HALF + DBL_EDGE)) if j != i]
+    if not near_ or l.length <= 0:
         continue
-    band = unary_union([_dl[j].buffer(DBL_HALF) for j in near_])
-    if not l.intersects(band):
+    # (flat ends: a path that ends at a fork covers nothing beyond its end — the owner, 2026-11-18: a gap on the fork's outer side)
+    band = shapely.prepared.prep(unary_union([_dl[j].buffer(DBL_HALF, cap_style="flat") for j in near_]))
+    vd = [l.project(Point(c)) for c in l.coords]                      # the vertices' distances along the line
+    STEP = 0.05                                                      # mm (0.2 m)
+
+    def state(d0, d1):
+        """(left edge inside a band, right edge inside a band) over the stretch d0 … d1 (its middle)."""
+        dm = (d0 + d1) / 2
+        a, b = l.interpolate(max(0.0, dm - 0.01)), l.interpolate(min(l.length, dm + 0.01))
+        tx, ty = b.x - a.x, b.y - a.y; tn = math.hypot(tx, ty)
+        if tn < 1e-9:
+            return (False, False)
+        nx, ny = -ty / tn, tx / tn                                   # the left normal (y up)
+        m = l.interpolate(dm)
+        return (band.contains(Point(m.x + nx * DBL_EDGE, m.y + ny * DBL_EDGE)),
+                band.contains(Point(m.x - nx * DBL_EDGE, m.y - ny * DBL_EDGE)))
+
+    ds = sorted(set(vd) | {min(l.length, k * STEP) for k in range(int(l.length / STEP) + 1)} | {l.length})
+    sts = [state(ds[k], ds[k + 1]) for k in range(len(ds) - 1)]
+    if not any(a or b for a, b in sts):
         continue
-    parts = shapely.ops.split(l, band.boundary) if not band.boundary.is_empty else shapely.GeometryCollection([l])
-    pts, cut = [], []
-    for q in parts.geoms:
-        if q.geom_type != "LineString" or q.length == 0:
-            continue
-        inside = band.contains(q.interpolate(0.5, normalized=True))
-        cs = list(q.coords)
-        if pts:
-            cs = cs[1:]
-            cut[-1] = inside                                         # the segment from the shared point on lies in this part
-        for k, c in enumerate(cs):
-            pts.append(c); cut.append(inside if k < len(cs) - 1 else False)
-    if len(pts) >= 2 and any(cut):
-        o["rings"][0] = [[round(x, 3), round(y, 3)] for x, y in pts]; o["nolr"] = cut; n_cut += 1
+    keep = [0]                                                       # the vertices kept: every original one, and each change of state
+    vset = set(round(v, 6) for v in vd)
+    for k in range(1, len(ds) - 1):
+        if round(ds[k], 6) in vset or sts[k] != sts[k - 1]:
+            keep.append(k)
+    keep.append(len(ds) - 1)
+    pts = [l.interpolate(ds[k]) for k in keep]
+    side = [sts[keep[q]] if q < len(keep) - 1 else (False, False) for q in range(len(keep))]
+    o["rings"][0] = [[round(q.x, 3), round(q.y, 3)] for q in pts]; o["nolr"] = side; n_cut += 1
 log("unpaved paths opened at their junctions", n_cut)
+# a paved area's edge (501.1) stops where an unpaved path's band covers it (the owner, 2026-11-18: a paved footway's edge ran up
+# into the path it joins and turned round its end, a U drawn over the path)
+_dband = unary_union([q.buffer(DBL_HALF, cap_style="flat") for q in _dl]) if _dl else Polygon()
+n_ecut = 0
+if not _dband.is_empty:
+    _dbp = shapely.prepared.prep(_dband)
+    for o in [o for o in objects if o["sym"] == S(501, 1) and o["otp"] == 2 and len(o["rings"][0]) >= 2]:
+        l = LineString(o["rings"][0])
+        if not _dbp.intersects(l):
+            continue
+        rest = l.difference(_dband)
+        parts = [q for q in getattr(rest, "geoms", [rest]) if q.geom_type == "LineString" and q.length >= 0.3]
+        o["rings"] = [[[round(x, 3), round(y, 3)] for x, y in parts[0].coords]] if parts else []
+        for q in parts[1:]:
+            objects.append({"sym": S(501, 1), "otp": 2, "rings": [[[round(x, 3), round(y, 3)] for x, y in q.coords]]})
+        n_ecut += 1
+    objects[:] = [o for o in objects if not (o["sym"] == S(501, 1) and o["otp"] == 2 and not o["rings"])]
+log("paved edges cut under unpaved paths", n_ecut)
 
 # ---- curves (the owner's mapper, 2026-11-12: « polylines not turned into curves, as OOM does and as I said last time »): every
 # line and every area's outline becomes Bézier curves through its points (Catmull-Rom tangents), as OpenOrienteering Mapper's
@@ -1880,6 +2004,8 @@ SMOOTH = {S(101), S(102), S(103), S(305), S(306), S(301), S(301, 9), S(302), S(3
 PRIO = [S(301), S(301, 9), S(302), S(305), S(306), S(101), S(102), S(103), S(308), S(411), S(410), S(408), S(406), S(401), S(402),
         S(403), S(415)]
 VT = {}                                                  # point → (corner?, unit tangent)
+import shapely.prepared
+SPORT_EDGE = shapely.prepared.prep(unary_union([s_["g"].boundary for s_ in sports]).buffer(0.6)) if sports else None
 for o in sorted([o for o in objects if o["otp"] != 1 and o["sym"] not in STRAIGHT],
                 key=lambda o: PRIO.index(o["sym"]) if o["sym"] in PRIO else len(PRIO)):
     sm = o["sym"] in SMOOTH
@@ -1893,7 +2019,9 @@ for o in sorted([o for o in objects if o["otp"] != 1 and o["sym"] not in STRAIGH
                 VT[kk] = (True, (0.0, 0.0)); continue
             a, c = pts[(i - 1) % n], pts[(i + 1) % n]
             tx, ty = c[0] - a[0], c[1] - a[1]; tn = math.hypot(tx, ty)
-            VT[kk] = ((not sm and _turn(a, b, c) >= 50) or tn < 1e-9, (tx / tn, ty / tn) if tn > 1e-9 else (0.0, 0.0))
+            on_sport = SPORT_EDGE is not None and SPORT_EDGE.contains(Point(b[0] * SCALE / 1000 + CX, b[1] * SCALE / 1000 + CY))
+            ang = _turn(a, b, c)
+            VT[kk] = ((not sm and ang >= 50) or (on_sport and ang >= 30) or tn < 1e-9, (tx / tn, ty / tn) if tn > 1e-9 else (0.0, 0.0))
 
 
 def _bez(r, closed, smooth=False, nolr=None):
@@ -1918,8 +2046,10 @@ def _bez(r, closed, smooth=False, nolr=None):
     # an angle of 30° or more is an OCAD corner point (y flag 1): a line's pattern (ticks, triangles, dashes) starts again from it
     # rather than falling on it (the owner, 2026-11-13: « nothing should be on the corner »)
     cp = [cor[i] and (closed or 0 < i < n - 1) and _turn(pts[(i - 1) % n], pts[i], pts[(i + 1) % n]) >= 30 for i in range(n)]
-    cut = [bool(nolr and i < len(nolr) and nolr[i]) for i in range(n)]      # (no edge on the segment from this point: x, y flag 4)
-    A = lambda j: [pts[j][0], pts[j][1], 4 if cut[j] else 0, (1 if cp[j] else 0) | (4 if cut[j] else 0)]
+    # (no left / right edge on the segment from this point: x flag 4, y flag 4)
+    cl_ = [bool(nolr and i < len(nolr) and nolr[i][0]) for i in range(n)]
+    cr_ = [bool(nolr and i < len(nolr) and nolr[i][1]) for i in range(n)]
+    A = lambda j: [pts[j][0], pts[j][1], 4 if cl_[j] else 0, (1 if cp[j] else 0) | (4 if cr_[j] else 0)]
     out = [A(0)]
     for i in range(n if closed else n - 1):
         j = (i + 1) % n

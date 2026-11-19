@@ -130,7 +130,7 @@ def make(req: dict, work: Path) -> dict:
     t0 = time.monotonic()
     # a corrected map keeps legibility.py's repair passes (its report is not passed on); the others: no check at all
     est = 30 + w * h / 5000 + (w * h * 0.0055 if fix else 0)
-    stream([PY, HERE / "town_map.py", rid, "--clip"] + ([] if fix else ["--no-check"]), prog, "map", est=est, on_line=stepped,
+    stream([PY, HERE / "town_map.py", rid, "--clip"] + (["--fix"] if fix else ["--no-check"]), prog, "map", est=est, on_line=stepped,
            env=env, cwd=HERE)
     timing["map"] = round(time.monotonic() - t0)
     prog.extra = {}
