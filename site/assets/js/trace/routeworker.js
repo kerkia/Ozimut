@@ -7,11 +7,13 @@
 // and boundaries, kept over a new reading), tour (the costs from each control to its nearest ones), path (one leg's best route).
 
 import { classify, cells, costs, context, legSearch, lineRoute, matchRoute, picture, decisionPicture, releaseAround, DEFAULTS,
-  freeCells, cellOf, costsFrom, bestPath, forbidCells, courseInk, SPRINT_SCALE } from "./routechoice.js";
+  freeCells, cellOf, costsFrom, bestPath, forbidCells, courseInk, sprintObjects, sprintLayers, SPRINT_SCALE } from "./routechoice.js";
 import { heightAt } from "./terrain.js";
 
 let G = null, h = null, em = null, mpc = 1, cs = 1, W = 0, H = 0, settings = { ...DEFAULTS }, X = null;
 let image = null, mppRead = 1, kindRead = "forest", facts = null, ctrlPts = [], ctrlR = 0;
+let sprintRead = null;                               // a sprint photo's reading and its objects (sprintObjects): its layers made
+                                                     // again when the course's controls come (its lines are no walls)
 let forbidden = null, tourCells = [];                // the setter's objects (map px of the image read), a tour's controls (cells)
 const scratch = {};                                  // costsFrom's arrays, kept between its calls
 const decisions = new Map();                         // the last legs' decision maps, by their points
@@ -47,8 +49,13 @@ function finish(px) {
 }
 function rebuild() { decisions.clear(); if (G) X = context(G, costs(G, settings, mpc), h, em, settings); }
 function read(id) {
-  return finish(classify(image, W, H, mppRead, { map: kindRead }, (f) => postMessage({ id, progress: f })));
+  const P = classify(image, W, H, mppRead, { map: kindRead }, (f) => postMessage({ id, progress: f }));
+  sprintRead = null;
+  // a sprint photo read as an OCAD map is (routechoice.js 1b): its lines as objects, given to the engine as a vector map's
+  if (kindRead === "sprint") { sprintRead = { P, O: sprintObjects(P, W, H, mppRead, image) }; return finish(sprintPx()); }
+  return finish(P);
 }
+const sprintPx = () => sprintLayers(sprintRead.O, sprintRead.P, ctrlPts, ctrlR);
 
 const ops = {
   init({ id, rgba, w, h: hh, J, map }) {
@@ -127,7 +134,12 @@ const ops = {
     const undo = freeCells(X, tourCells.length ? tourCells : [cellOf(X, a), cellOf(X, b)]);
     try { return { route: bestPath(X, a, b) }; } finally { undo(); }
   },
-  controls({ pts, r }) { ctrlPts = pts || []; ctrlR = r || 0; if (G) { G.release = released(); G.inkBand = inked(); rebuild(); } return {}; },
+  controls({ pts, r }) {
+    ctrlPts = pts || []; ctrlR = r || 0;
+    if (sprintRead && image) { finish(sprintPx()); return {}; }
+    if (G) { G.release = released(); G.inkBand = inked(); rebuild(); }
+    return {};
+  },
 };
 
 self.onmessage = (e) => {

@@ -713,10 +713,10 @@ export function classify(rgba0, w, h, mpp, opt = {}, progress = () => {}) {
   const area = new Uint8Array(N).fill(UNKNOWN);
   for (let i = 0; i < N; i++) if (kind[i] < 20) area[i] = kind[i];
   // the thick parts of each ink: areas of their own
-  const thickOf = (test, decide, keep = null) => {        // keep: the kinds that take the area (default: all the test's)
+  const thickOf = (test, decide, keep = null, kk = k) => {   // keep: the kinds that take the area (default: all the test's)
     const m = new Uint8Array(N);
     for (let i = 0; i < N; i++) if (test(kind[i], i)) m[i] = 1;
-    const open = morph(morph(m, w, h, k, true), w, h, k, false);
+    const open = morph(morph(m, w, h, kk, true), w, h, kk, false);
     for (let i = 0; i < N; i++) open[i] &= m[i];
     const { lab, comps } = components(open, w, h);
     const stats = comps.map(() => [0, 0, 0, 0]);
@@ -739,7 +739,9 @@ export function classify(rgba0, w, h, mpp, opt = {}, progress = () => {}) {
   // too thin for the test, took the gardens' olive beside it and the runner's way was shut (2026-11-18)
   if (sprintInk) for (let i = 0, p = 0; i < N; i++, p += 4) if (kind[i] === I_BROWN && area[i] === UNKNOWN && rgba[p] >= 200 && Math.min(rgba[p + 1], rgba[p + 2]) >= 150) area[i] = A.ROUGH;
   thickOf((v) => v === I_BLUE, (s) => (s[2] / s[0] > 150 ? A.SHALLOW : A.WATER));
-  thickOf((v) => v === I_OLIVE, () => A.OOB);
+  // on a sprint map a garden is olive however narrow: a wedge cut by a road and the course's line (the Quiberon photo's control
+  // 3) failed the 2 m test, read open land, and the routes crossed the gardens; a metre's half-width (2026-11-19)
+  thickOf((v) => v === I_OLIVE, () => A.OOB, null, opt.map === "sprint" ? Math.max(1, Math.round(1 / mpp)) : k);
   // a sprint map's out-of-bounds tint (kindOf), the course's lines and their blends printed over it counting with it for the
   // thickness (the lilac strip by the Quiberon photo's start), the lilac alone taking the area
   thickOf((v, i) => v === I_LILAC || (sprintInk && (v === I_PURPLE || v === I_MIXED || (v === I_BROWN && rgba[4 * i] < 170))),
@@ -864,7 +866,209 @@ export function classify(rgba0, w, h, mpp, opt = {}, progress = () => {}) {
     for (const i of drop) path[i] = 0;
   }
   progress(1);
-  return { area, path, blue, north, over, lw, k, lines, northLines: nlines, olive: ol, ms: Date.now() - t0 };
+  // the course's reddish ink (sprintObjects: the course's own lines are no walls)
+  let redInk = null;
+  if (opt.map === "sprint") { redInk = new Uint8Array(N); for (let i = 0; i < N; i++) if (kind[i] === I_PURPLE || (kind[i] === I_BROWN && rgba[4 * i] < 170)) redInk[i] = 1; }
+  return { area, path, blue, north, over, kind, redInk, lw, k, lines, northLines: nlines, olive: ol, ms: Date.now() - t0 };
+}
+
+// ---- 1b. a sprint photo as objects (2026-11-19) ----------------------------------------------------------------------------
+// A photographed sprint map read as an OCAD map is: its black lines traced into objects, each told by what lies on its two sides
+// — the outline of a building, olive, water or an out-of-bounds area (it is that area's), the course's own leg or circle (on the
+// course, in its reddish ink: nothing), else a wall or a fence —, walls whose ends face each other across a break joined, and the
+// walls given to the route engine as a vector map's are (`block`: impassable lines, handrails), the lanes between houses kept
+// (`lane`: a cell of two pixels keeps the open pixel of a 1-2 px lane). Measured on the three Morbihan sprint photos against the
+// runners' 59 legs (work/route-bench): every leg a route; the runner's track laid on the map on 48 legs against 42 with the pixel
+// reading; dark lines crossed squarely by the best routes 63 against 89; olive crossed 126 m against 246. Lines a pixel or two
+// wide cannot be told one symbol
+// from another (an impassable wall is 1.4 m wide at 1:4 000, a fence 0.6 m: 1.5 and 0.6 px on those photos), so every free line
+// is a wall; a scan's 3 px a metre would let the symbols be named.
+
+const D8 = [[1, 0], [1, 1], [0, 1], [-1, 1], [-1, 0], [-1, -1], [0, -1], [1, -1]];
+/** Zhang-Suen thinning of a binary mask (a copy). */
+function thin1(m, w, h) {
+  const s = m.slice(), del = [];
+  for (let changed = true; changed;) {
+    changed = false;
+    for (const pass of [0, 1]) {
+      del.length = 0;
+      for (let y = 1; y < h - 1; y++) for (let x = 1; x < w - 1; x++) {
+        const i = y * w + x;
+        if (!s[i]) continue;
+        const p0 = s[i - w], p1 = s[i - w + 1], p2 = s[i + 1], p3 = s[i + w + 1], p4 = s[i + w], p5 = s[i + w - 1], p6 = s[i - 1], p7 = s[i - w - 1];
+        const B = p0 + p1 + p2 + p3 + p4 + p5 + p6 + p7;
+        if (B < 2 || B > 6) continue;
+        const A2 = (!p0 && p1) + (!p1 && p2) + (!p2 && p3) + (!p3 && p4) + (!p4 && p5) + (!p5 && p6) + (!p6 && p7) + (!p7 && p0);
+        if (A2 !== 1) continue;
+        if (pass === 0 ? (p0 && p2 && p4) || (p2 && p4 && p6) : (p0 && p2 && p6) || (p0 && p4 && p6)) continue;
+        del.push(i);
+      }
+      for (const i of del) s[i] = 0;
+      if (del.length) changed = true;
+    }
+  }
+  return s;
+}
+/** A skeleton's polylines, traced from each end or junction to the next (closed loops too): [[x, y], …]. */
+function skeletonLines(s, w, h) {
+  const deg = new Uint8Array(w * h);
+  for (let y = 1; y < h - 1; y++) for (let x = 1; x < w - 1; x++) {
+    const i = y * w + x;
+    if (!s[i]) continue;
+    let n = 0;
+    for (const [dx, dy] of D8) if (s[i + dy * w + dx]) n++;
+    deg[i] = n;
+  }
+  const used = new Set(), out = [], key = (a, b) => (a < b ? a * 4194304 + b : b * 4194304 + a);
+  const walk = (start, next) => {
+    const line = [start, next];
+    used.add(key(start, next));
+    let prev = start, cur = next;
+    while (deg[cur] === 2) {
+      let nx = -1;
+      for (const [dx, dy] of D8) { const j = cur + dy * w + dx; if (s[j] && j !== prev && !used.has(key(cur, j))) { nx = j; break; } }
+      if (nx < 0) break;
+      used.add(key(cur, nx)); line.push(nx); prev = cur; cur = nx;
+    }
+    return line;
+  };
+  for (const loops of [false, true]) for (let i = 0; i < w * h; i++) {
+    if (!s[i] || (deg[i] === 2) !== loops) continue;
+    for (const [dx, dy] of D8) { const j = i + dy * w + dx; if (s[j] && !used.has(key(i, j))) { out.push(walk(i, j)); if (loops) break; } }
+  }
+  return out.map((l) => l.map((i) => [i % w, (i - (i % w)) / w]));
+}
+
+/**
+ * The objects of a sprint photo read by classify(): its area with the outlines merged into what they bound, and the candidate
+ * walls (the free black lines, each with the share of its pixels in the course's reddish ink). The course is not known here:
+ * sprintLayers() leaves its lines out.
+ */
+export function sprintObjects(P, w, h, mpp, rgba = null) {
+  const N = w * h, area = P.area.slice(), kind = P.kind;
+  // the warm ground of the photo as taken (a street's or a lane's pink and beige), sprintLayers' lanes: the light seam between two
+  // houses is a neutral grey
+  const warm = new Uint8Array(N);
+  if (rgba) for (let i = 0, p = 0; i < N; i++, p += 4) if (rgba[p] >= rgba[p + 2] + 12 && rgba[p] >= 150) warm[i] = 1;
+  const closed = (v) => v === A.GREY || v === A.BUILDING || v === A.OOB || v === A.WATER;
+  const m = new Uint8Array(N);
+  for (let i = 0; i < N; i++) if (kind[i] === I_BLACK && !closed(area[i])) m[i] = 1;
+  const sk = thin1(m, w, h), lines = skeletonLines(sk, w, h);
+  // each skeleton piece's extent: a wall cut into short branches by its junctions is as long as its whole piece
+  const comp = new Int32Array(N), ext = [0], st = [];
+  for (let i = 0, id = 0; i < N; i++) {
+    if (!sk[i] || comp[i]) continue;
+    id++; let x0 = w, y0 = h, x1 = 0, y1 = 0; comp[i] = id; st.push(i);
+    while (st.length) {
+      const j = st.pop(), x = j % w, y = (j - x) / w;
+      if (x < x0) x0 = x; if (x > x1) x1 = x; if (y < y0) y0 = y; if (y > y1) y1 = y;
+      for (const [dx, dy] of D8) { const X = x + dx, Y = y + dy; if (X < 0 || Y < 0 || X >= w || Y >= h) continue; const q = Y * w + X; if (sk[q] && !comp[q]) { comp[q] = id; st.push(q); } }
+    }
+    ext[id] = Math.hypot(x1 - x0 + 1, y1 - y0 + 1);
+  }
+  // a point beside the line: `off` px to its left (sgn 1) or right (-1)
+  const beside = (line, k, sgn, off) => {
+    const a = line[Math.max(0, k - 2)], b = line[Math.min(line.length - 1, k + 2)], dx = b[0] - a[0], dy = b[1] - a[1], L = Math.hypot(dx, dy) || 1;
+    const x = Math.round(line[k][0] - (sgn * dy * off) / L), y = Math.round(line[k][1] + (sgn * dx * off) / L);
+    return x < 0 || y < 0 || x >= w || y >= h ? -1 : y * w + x;
+  };
+  const side = (line, sgn) => {
+    let c = 0, n = 0;
+    for (let k = 0; k < line.length; k++) for (const off of [2, 3]) { const i = beside(line, k, sgn, off); if (i < 0) continue; n++; if (closed(P.area[i])) c++; }
+    return n ? c / n : 0;
+  };
+  const walls = [], toArea = [], minLen = 2 / mpp;
+  for (const line of lines) {
+    const L = side(line, 1), R = side(line, -1);
+    if (Math.max(L, R) >= 0.5) {
+      // an outline belongs to what it bounds: its centreline takes that area (read 2-4 px off it, on the closed side)
+      const sgn = L >= R ? 1 : -1;
+      for (let k = 0; k < line.length; k++) for (const off of [2, 3, 4]) { const i = beside(line, k, sgn, off); if (i >= 0 && closed(P.area[i])) { toArea.push(line[k][1] * w + line[k][0], P.area[i]); break; } }
+      continue;
+    }
+    if (ext[comp[line[0][1] * w + line[0][0]]] < minLen) continue;
+    let red = 0;
+    for (const [x, y] of line) { const i = y * w + x; if (P.redInk?.[i] || P.redInk?.[i + 1] || P.redInk?.[i - 1] || P.redInk?.[i + w] || P.redInk?.[i - w]) red++; }
+    walls.push({ pts: line, red: red / line.length });
+  }
+  for (let j = 0; j < toArea.length; j += 2) area[toArea[j]] = toArea[j + 1];
+  return { w, h, mpp, area, walls, warm: rgba ? warm : null };
+}
+
+/**
+ * The layers of a sprint photo for cells(), as a vector map's: the objects' area and walls, the course's own lines left out
+ * (pts: the course's controls in its order, start and finish included, map px; r: their circles' radius — a wall on a ring, a
+ * straight leg, the start's triangle or the finish's circles, mostly in the course's reddish ink, is the course), the walls' facing ends joined across breaks of 2.5 m, the overprint as read.
+ */
+export function sprintLayers(O, P, pts = [], r = 0) {
+  const { w, h, mpp } = O, N = w * h, near = 0.1 * r + 2.5;
+  const last = pts.length - 1;
+  const onCourse = (x, y) => {
+    for (let q = 0; q < pts.length; q++) {
+      const d = Math.hypot(x - pts[q][0], y - pts[q][1]);
+      if (Math.abs(d - r) <= near) return true;
+      // the start's triangle (7 mm against a 6 mm circle) and the finish's two circles (5 and 7 mm) lie within 1.3 r of them
+      if ((q === 0 || q === last) && d <= 1.3 * r + near) return true;
+      if (q + 1 < pts.length) {
+        const [ax, ay] = pts[q], [bx, by] = pts[q + 1], L2 = (bx - ax) ** 2 + (by - ay) ** 2;
+        const t = L2 ? ((x - ax) * (bx - ax) + (y - ay) * (by - ay)) / L2 : 0;
+        if (t > 0 && t < 1 && Math.hypot(x - ax - t * (bx - ax), y - ay - t * (by - ay)) <= near) return true;
+      }
+    }
+    return false;
+  };
+  const walls = O.walls.filter((l) => {
+    if (!(r > 0) || l.red < 0.3) return true;
+    let oc = 0;
+    for (const [x, y] of l.pts) if (onCourse(x, y)) oc++;
+    return oc < 0.6 * l.pts.length;
+  }).map((l) => l.pts);
+  // the walls' facing ends joined: an end, the way it leaves, another wall's end within 2.5 m ahead of it (30°), facing it
+  const ends = [];
+  walls.forEach((l, id) => {
+    if (l.length < 3) return;
+    for (const [e, f] of [[0, Math.min(3, l.length - 1)], [l.length - 1, Math.max(0, l.length - 4)]]) {
+      const [x, y] = l[e], [fx, fy] = l[f], L = Math.hypot(x - fx, y - fy) || 1;
+      ends.push({ id, x, y, ux: (x - fx) / L, uy: (y - fy) / L });
+    }
+  });
+  const gap = 2.5 / mpp, cos30 = Math.cos(Math.PI / 6), bridges = [];
+  const grid = new Map(), ck = (x, y) => Math.floor(x / gap) * 65536 + Math.floor(y / gap);
+  for (const e of ends) { const k = ck(e.x, e.y); if (!grid.has(k)) grid.set(k, []); grid.get(k).push(e); }
+  for (const a of ends) {
+    let best = null;
+    for (let gx = -1; gx <= 1; gx++) for (let gy = -1; gy <= 1; gy++) for (const b of grid.get(ck(a.x + gx * gap, a.y + gy * gap)) || []) {
+      if (b.id === a.id) continue;
+      const dx = b.x - a.x, dy = b.y - a.y, d = Math.hypot(dx, dy);
+      if (d < 1 || d > gap || (dx * a.ux + dy * a.uy) / d < cos30 || (-dx * b.ux - dy * b.uy) / d < cos30) continue;
+      if (!best || d < best.d) best = { b, d };
+    }
+    if (best) bridges.push([[a.x, a.y], [best.b.x, best.b.y]]);
+  }
+  const block = new Uint8Array(N);
+  const draw = (x0, y0, x1, y1) => {
+    const n = Math.max(1, Math.ceil(Math.hypot(x1 - x0, y1 - y0) * 2));
+    for (let t = 0; t <= n; t++) { const x = Math.round(x0 + ((x1 - x0) * t) / n), y = Math.round(y0 + ((y1 - y0) * t) / n); if (x >= 0 && y >= 0 && x < w && y < h) block[y * w + x] = 1; }
+  };
+  for (const l of walls) for (let k = 1; k < l.length; k++) draw(l[k - 1][0], l[k - 1][1], l[k][0], l[k][1]);
+  for (const [[x0, y0], [x1, y1]] of bridges) draw(x0, y0, x1, y1);
+  // the lanes: open ground a pixel or two wide between closed ground on both sides (across, along or slantwise), which a cell
+  // of two pixels would lose to the houses beside it (the narrow path north of control 4 on the Auray photo: 1 px, 2026-11-19)
+  const lane = new Uint8Array(N), ar = O.area;
+  const shut = (i) => ar[i] === A.GREY || ar[i] === A.BUILDING || ar[i] === A.OOB || ar[i] === A.WATER || block[i];
+  for (let y = 3; y < h - 3; y++) for (let x = 3; x < w - 3; x++) {
+    const i = y * w + x;
+    if (shut(i) || (O.warm && !O.warm[i])) continue;
+    for (const [dx, dy] of [[1, 0], [0, 1], [1, 1], [1, -1]]) {
+      let a = 0, b = 0;
+      for (let t = 1; t <= 3 && !a; t++) if (shut(i - t * (dy * w + dx))) a = t;
+      for (let t = 1; t <= 3 && !b; t++) if (shut(i + t * (dy * w + dx))) b = t;
+      if (a && b && a + b <= 3) { lane[i] = 1; break; }
+    }
+  }
+  const z = () => new Uint8Array(N);
+  return { area: O.area, path: z(), blue: P.blue, over: P.over, north: P.north, block, hand: block.slice(), cross: z(), slow: z(), lane,
+    lw: P.lw, ms: P.ms, lines: P.lines, northLines: P.northLines, objects: { walls: walls.length, bridges: bridges.length } };
 }
 
 // ---- 2. cells -----------------------------------------------------------------------------------------------------------
@@ -900,6 +1104,12 @@ export function cells(px, w, h, cs) {
     }
     let best = 0;
     for (let c = 1; c < N_CLASSES; c++) if (count[c] > count[best]) best = c;
+    if (px.lane && (best === A.GREY || best === A.BUILDING || best === A.OOB || best === A.WATER)) {
+      // a lane through the cell (sprintLayers): the cell is its ground
+      let open = -1;
+      for (let y = j * cs; y < Math.min(h, (j + 1) * cs) && open < 0; y++) for (let x = i * cs; x < Math.min(w, (i + 1) * cs); x++) if (px.lane[y * w + x]) { open = px.area[y * w + x]; break; }
+      if (open >= 0) best = open;
+    }
     const k = j * nx + i;
     cls[k] = best; path[k] = p; raw[k] = r; blue[k] = Math.round((255 * b) / Math.max(1, n)); north[k] = no;
     over[k] = oa * 2 >= n ? 1 : ob ? 2 : 0;
