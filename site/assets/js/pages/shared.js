@@ -138,13 +138,21 @@ const later = (a) => !!a?.draft && !!a.openAt;
 export const fmtWhen = (iso) => dateFormat({ weekday: "short", day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" }).format(new Date(iso));
 export const stateText = (a) => (later(a) ? t("sh.m.state.later", { when: fmtWhen(a.openAt) }) : t(a?.draft ? "sh.m.state.draft" : "sh.m.state.live"));
 export const stateClass = (a) => (later(a) ? "sh-m-later" : a?.draft ? "sh-m-draft" : "sh-m-live");
-/** The opening's field: the one set, else the analysis's day at 20:00 if still to come, else empty. */
+/** The opening's day and time (owner, 2026-11-19: two fields, the time always in sight — one « date and time » field read as a
+ *  date): the one set, else the analysis's day if 20:00 on it is still to come, and 20:00. */
 const atValue = (a) => {
   const pad = (n) => String(n).padStart(2, "0");
-  const loc = (d) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
-  if (a.openAt) return loc(new Date(a.openAt));
+  const day = (d) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`, hm = (d) => `${pad(d.getHours())}:${pad(d.getMinutes())}`;
+  if (a.openAt) { const d = new Date(a.openAt); return { day: day(d), time: hm(d) }; }
   const d = new Date(`${a.date}T20:00`);
-  return d.getTime() > Date.now() ? loc(d) : "";
+  return { day: d.getTime() > Date.now() ? day(d) : "", time: "20:00" };
+};
+/** A time as typed — « 20:30 », « 20h30 », « 20h », « 2030 », « 8.30 », « 20 » — as "HH:MM", else "". */
+export const parseTime = (s) => {
+  const m = /^\s*(\d{1,2})(?:\s*[:hH.]\s*(\d{2})?|(\d{2}))?\s*$/.exec(String(s || ""));
+  if (!m) return "";
+  const h = Number(m[1]), mi = Number(m[2] || m[3] || 0);
+  return h <= 23 && mi <= 59 ? `${String(h).padStart(2, "0")}:${String(mi).padStart(2, "0")}` : "";
 };
 const errText = (e) => t(`sh.err.${e?.code}`) !== `sh.err.${e?.code}` ? t(`sh.err.${e.code}`) : `${t("sh.err.other")} (${e?.code || e?.message || ""})`;
 
@@ -921,7 +929,9 @@ async function managePage(main, id, data, race, embed = false) {
       ${A.draft ? html`<div class="sh-s-actions">
           <button type="button" class="btn btn-primary" id="sh-s-pubnow" ${raw(ready ? "" : "disabled")}>${t("sh.m.saveNow")}</button>
           <div class="sh-s-later"><button type="button" class="btn" id="sh-s-publater" ${raw(ready ? "" : "disabled")}>${t("sh.m.saveLater")}</button>
-            <input type="datetime-local" id="sh-s-at" value="${atValue(A)}" aria-label="${t("sh.m.at")}" title="${t("sh.m.at")}"></div>
+            <span class="sh-s-at"><input type="date" id="sh-s-at" value="${atValue(A).day}" aria-label="${t("sh.m.atDay")}" title="${t("sh.m.atDay")}">
+              <span>${t("sh.m.atJoin")}</span>
+              <input type="text" id="sh-s-attime" class="sh-s-time" value="${atValue(A).time}" inputmode="numeric" autocomplete="off" maxlength="5" placeholder="${t("df.ph.time")}" aria-label="${t("sh.m.atTime")}" title="${t("sh.m.atTime")}"></span></div>
           <button type="button" class="btn btn-sm" id="sh-s-save">${t("sh.m.saveDraft")}</button>
           <span class="muted" id="sh-s-note"></span></div>`
         : html`<div class="row sh-s-saverow"><button type="button" class="btn btn-sm" id="sh-s-save">${t("sh.save")}</button><span class="muted" id="sh-s-note"></span></div>`}</div>`;
@@ -970,9 +980,14 @@ async function managePage(main, id, data, race, embed = false) {
     $("#sh-s-publater")?.addEventListener("click", () => {
       const b = settings();
       if (!b) return;
-      const v = $("#sh-s-at").value, at = v ? new Date(v) : null;
-      if (!at || !(at.getTime() > Date.now())) { $("#sh-s-note").textContent = t("sh.m.atFuture"); $("#sh-s-at").focus(); return; }
+      const day = $("#sh-s-at").value, time = parseTime($("#sh-s-attime").value), at = day && time ? new Date(`${day}T${time}`) : null;
+      if (!at || !(at.getTime() > Date.now())) { $("#sh-s-note").textContent = t("sh.m.atFuture"); $(day ? "#sh-s-attime" : "#sh-s-at").focus(); return; }
       put({ ...b, draft: true, openAt: at.toISOString() }, "#sh-s-note");
+    });
+    // the time written again as "HH:MM" once left (« 20h30 » → 20:30), or marked when it is no time
+    $("#sh-s-attime")?.addEventListener("blur", (e) => {
+      const v = parseTime(e.target.value);
+      if (v) { e.target.value = v; e.target.removeAttribute("aria-invalid"); } else if (e.target.value.trim()) e.target.setAttribute("aria-invalid", "true");
     });
     dateWords($("#sh-s-date"));
     $("#sh-s-vis").addEventListener("change", (e) => {

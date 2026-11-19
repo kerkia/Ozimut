@@ -2744,10 +2744,10 @@ Every multiple-choice game was played through to its score page at phone size, w
   one chosen beside them, its course drawn; « Publication et accès » (title, date, access, password, visitors); « Ce que les coureurs
   peuvent faire » (switches saved at once); « Fréquentation »; deletion. The circuit editor and the OCAD import take the page's width
   while open (`editing`). **Drafts**: every analysis created since then is `draft` until « Publier » (a circuit at least): its
-  organisers alone list and open it (API 403 `draft`, out of the visitors' list); « Repasser en brouillon » hides it again, the traces
+  organisers alone list and open it (API 403 `draft`, out of the visitors' list), in Orga only: Coach's « Analyse » lists no draft, not even to its organisers or an administrator (owner, 2026-11-19; `mapanalysis.js`); « Repasser en brouillon » hides it again, the traces
   kept; analyses of before have no `draft` and stay published. **Three ways to save a draft** (owner, 2026-11-16; « Publier » and
   « Enregistrer » before): « Enregistrer sans publier » (stays a draft, an opening set dropped), « Enregistrer et publier », and
-  « Enregistrer et publier plus tard, le » with a date-and-time field: `openAt` (ISO, PUT `{ draft: true, openAt }`, a time to come
+  « Enregistrer et publier plus tard, le » with a day field and a time field beside it (« à 20:00 », always shown, typed « 21h30 » too: `shared.js` `parseTime`; owner, 2026-11-19 — one « date and time » field read as a date): `openAt` (ISO, PUT `{ draft: true, openAt }`, a time to come
   within 400 days) keeps it a draft until then, and it is published by itself at that time — every read decides with `draftNow` /
   `isDraft` (the list's custom metadata carries `openAt`), nothing has to run; the head, the Gérer chip and the page say « Ouverture
   le … ». A published one has « Enregistrer » and « Repasser en brouillon ». **The OCAD import has no « Ajouter » of its own**: the

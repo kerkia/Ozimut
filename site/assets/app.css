@@ -2032,6 +2032,9 @@ table.data.ma-two .ma-name .ma-l2 { white-space: nowrap; overflow: hidden; text-
 .sh-s-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 10px; margin-top: 12px; }
 .sh-s-later { display: inline-flex; align-items: center; gap: 6px; flex-wrap: wrap; }
 .sh-s-later input { width: auto; }
+.sh-s-at { display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; }
+.sh-s-later input.sh-s-time { width: 4.5em; text-align: center; font-variant-numeric: tabular-nums; }
+.sh-s-later input.sh-s-time[aria-invalid="true"] { border-color: var(--bad); }
 .sh-m-table tbody tr { cursor: pointer; }
 .sh-m-table tr.sel td { background: color-mix(in srgb, var(--course) 10%, var(--surface)); }
 .sh-m-table tr.sel td:first-child { box-shadow: inset 3px 0 0 var(--course); }

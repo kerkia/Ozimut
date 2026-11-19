@@ -78,12 +78,14 @@ export async function render(main, r) {
   const raceOf = (k) => (k ? races.find((x) => x.key === k) || null : null);
   let data = null;
   try { data = await api(""); } catch (e) { $("#ma-table").innerHTML = html`<div class="empty">${t("ma.err")}</div>`; return { title: t("ma.title") }; }
-  const all = data.analyses.filter((a) => a.courses > 0).map((a) => {
+  // a draft is never listed here, not even to its organisers or an administrator (owner, 2026-11-19: Orga's list is where they
+  // see it; an analysis taken back to draft leaves Coach's list at once)
+  const all = data.analyses.filter((a) => a.courses > 0 && !a.draft).map((a) => {
     const rc = raceOf(a.race);
     return { key: a.id, a, name: a.title, date: a.date, kind: a.kind, place: rc?.place || "", pos: a.pos || rc?.pos || null,
       cc: a.cc || (rc ? country.of(rc) : ""), org: a.orgSet ? a.orgName || "" : a.orgName || rc?.org || "",       // (as the organisers set it, none included)
       courses: a.courses, runners: a.runners || 0,
-      locked: a.access === "locked", clubOnly: a.vis === "club", draft: !!a.draft, organiser: !!a.organiser, thumb: a.thumb ?? null,
+      locked: a.access === "locked", clubOnly: a.vis === "club", organiser: !!a.organiser, thumb: a.thumb ?? null,
       // a club's analysis this account is not a member of (owner, 2026-11-07: listed to all, its code asked of its organiser)
       shut: a.access === "club", code: !!a.code };
   });
@@ -159,7 +161,7 @@ export async function render(main, r) {
         <th class="r">${t("sh.col.courses")}<div class="ma-l2" title="${t("ma.col.runners.tip")}">${t("ma.col.runners")}</div></th></tr></thead>
       <tbody>${shown.map((e) => html`<tr data-key="${e.key}" tabindex="0" class="${e.key === selected ? "sel" : ""}">
         <td class="num ma-when">${fmtDate(e.date, "short")}<div class="ma-l2"><span class="tag">${t(`ma.kind.${e.kind}`)}</span></div></td>
-        <td class="ma-name"><b class="ma-ev">${e.name}</b>${e.locked ? html` <span title="${t("ma.locked")}">🔒</span>` : ""}${clubTag(e)}${e.draft ? html` <span class="tag sh-m-draft" title="${t("sh.m.draft.tip")}">${t("sh.m.state.draft")}</span>` : ""}<div class="muted ma-sub ma-l2">${[e.place, clubName(e.org)].filter(Boolean).join(" · ") || "—"}</div></td>
+        <td class="ma-name"><b class="ma-ev">${e.name}</b>${e.locked ? html` <span title="${t("ma.locked")}">🔒</span>` : ""}${clubTag(e)}<div class="muted ma-sub ma-l2">${[e.place, clubName(e.org)].filter(Boolean).join(" · ") || "—"}</div></td>
         <td class="r num">${e.courses ?? "—"}<div class="ma-l2 muted">${e.runners ?? "—"}</div></td></tr>`)}</tbody></table>`
       : html`<div class="empty">${t(items.length ? "ra.emptyFilter" : "ma.events.none")}</div>`;
     // where an event comes from (named, not linked: no page leads into another module)
