@@ -240,6 +240,10 @@ log("buildings", len(buildings), "canopies", 0 if canopy.is_empty else len(getat
 
 PAVED_SURF = {"asphalt", "paving_stones", "concrete", "sett", "paved", "concrete:plates", "cobblestone", "unhewn_cobblestone", "metal", "wood", "bricks"}
 UNPAVED_SURF = {"gravel", "fine_gravel", "ground", "dirt", "compacted", "grass", "earth", "mud", "sand", "unpaved", "pebblestone", "woodchips"}
+# a firm surface is paving whatever its material (ISSprOM 501: « a firm surface such as asphalt, hard gravel, tiles, concrete »; the
+# owner, 2026-11-19: a 3 m compacted track along the Yvette drawn as a thin path, « reduced to a line, which makes no sense »):
+# compacted and fine gravel, and OSM's grade1 tracks, at their width
+FIRM_SURF = {"compacted", "fine_gravel"}
 paved, path_lines, small_lines, steps, rail = [], [], [], [], []
 PUBLIC_WAYS = []                                           # OSM's unpaved paths open to all: a right of way through any olive
 # what one source has exists, the other is incomplete (the owner's mapper, 2026-11-12): BD TOPO's paths and stairs are kept
@@ -267,18 +271,22 @@ def put_way(g, hw, t, is_area):
     if hw == "steps":
         steps.append((g, width_of(t, 2.0))); return
     surf = t.get("surface", "")
+    firm = surf in FIRM_SURF or t.get("tracktype") == "grade1"
     if t.get("footway") in ("sidewalk", "crossing", "traffic_island") or t.get("cycleway") == "sidewalk":
         paved.append(g.buffer(1.0, cap_style="flat", join_style="round")); return
     if is_area and g.geom_type.endswith("Polygon"):
-        if surf not in UNPAVED_SURF:
+        if surf not in UNPAVED_SURF or firm:
             paved.append(g)
         return
-    if surf in UNPAVED_SURF or (hw in ("path", "track", "bridleway") and surf not in PAVED_SURF):
+    if not firm and (surf in UNPAVED_SURF or (hw in ("path", "track", "bridleway") and surf not in PAVED_SURF)):
         (small_lines if hw == "path" and t.get("informal") == "yes" else path_lines).append(g)
         if t.get("access") not in ("private", "no") and t.get("foot") not in ("private", "no"):
             PUBLIC_WAYS.append(g)
-    elif hw in ("footway", "path", "cycleway", "bridleway"):
-        paved_paths.append((g, width_of(t, 2.0)))
+    elif hw in ("footway", "path", "cycleway", "bridleway", "track"):
+        paved_paths.append((g, width_of(t, 3.0 if hw == "track" else 2.0)))
+        # (the owner, 2026-11-19: a public footway along a housing estate lay under its olive for 110 m)
+        if t.get("access") not in ("private", "no") and t.get("foot") not in ("private", "no"):
+            PUBLIC_WAYS.append(g)
     else:
         paved.append(g.buffer({"service": 2.2, "living_street": 2.5, "pedestrian": 2.5, "track": 1.5}.get(hw, 1.1), cap_style="flat", join_style="round"))
 
@@ -324,6 +332,23 @@ for e in osm:
         g = osm_geom(e, area=True)
         if g is not None and g.geom_type.endswith("Polygon") and t.get("parking") not in ("underground", "multi-storey"):
             paved.append(g)
+# OpenStreetMap's streets where BD TOPO has no road within 4 m (what one source has exists — the owner's mapper, 2026-11-12; the
+# owner, 2026-11-19: a residential street of OSM lay under open land, BD TOPO lacking it): paved at their width, piece by piece
+_bd_roads = unary_union([g.buffer(4) for gs in carr_lines.values() for g in gs] or [Polygon()])
+n_osm_st = 0
+for e in osm:
+    t = tags(e); hw = t.get("highway")
+    if e["type"] != "way" or hw not in ("motorway", "trunk", "primary", "secondary", "tertiary", "unclassified", "residential") \
+            or t.get("bridge") not in (None, "no") or is_lower(t) or t.get("area") == "yes" or t.get("access") in ("private", "no"):
+        continue
+    g = osm_geom(e)
+    if g is None or g.geom_type != "LineString":
+        continue
+    for q in getattr(g.difference(_bd_roads), "geoms", [g.difference(_bd_roads)]):
+        if q.geom_type == "LineString" and q.length >= 5:
+            paved.append(q.buffer(width_of(t, {"motorway": 12, "trunk": 10, "primary": 9, "secondary": 8, "tertiary": 7}.get(hw, 6.0)) / 2,
+                                  cap_style="round", join_style="round")); n_osm_st += 1
+log("OSM streets BD TOPO lacks", n_osm_st)
 for f in bdtopo("equipement_de_transport"):
     p = f["properties"]
     if "parking" in (p.get("nature") or "").lower():
@@ -526,7 +551,10 @@ for g in bd_steps:
 STREET = unary_union([c.buffer(1.8 if urb else 0.3) for c, _, urb in carr] or [Polygon()]).buffer(0.2)
 PAVED = unary_union(paved).intersection(frame)
 RAIL = unary_union(rail) if rail else LineString()
-water = unary_union([geom2d(f["geometry"]).buffer(0) for f in bdtopo("surface_hydrographique")] or [Polygon()])
+# (the owner, 2026-11-19: « OSM information needs to be preserved »: BD TOPO's « Retenue » west of the town, intermittent, 10 ha,
+# covered OpenStreetMap's grassland and cut the cycle path crossing it between its two bridges)
+water = unary_union([geom2d(f["geometry"]).buffer(0) for f in bdtopo("surface_hydrographique")
+                     if (f["properties"].get("persistance") or "").lower() not in ("intermittent", "sec")] or [Polygon()])
 streams = [geom2d(f["geometry"]) for f in bdtopo("troncon_hydrographique")
            if not (f["properties"].get("position_par_rapport_au_sol") or "0").startswith("-")]
 # what one source has exists (the owner's mapper, 2026-11-12): OpenStreetMap's water areas join BD TOPO's — not a basin that is
@@ -1329,6 +1357,16 @@ log("slivers merged into a neighbour", n_bits)
 # the through roads (BD TOPO's importance 1-3: the départementales) as paved area with heavy traffic (the owner's mapper,
 # 2026-11-12: OpenOrienteering Mapper's 501 / 501.10, each with its edge)
 PAVED_ALL = shapely.make_valid(unary_union(COVER.get("paved", []))).buffer(0)
+# two pieces of paving a hairline apart are one (2026-11-19, remark 2's test: a compacted footway, now paving, and a footbridge's
+# deck 6 mm apart drew two edges crossing at their junction): closed by 5 cm, the strip taken from whatever lay in it
+if not PAVED_ALL.is_empty:
+    _pc = PAVED_ALL.buffer(0.05, join_style="mitre").buffer(-0.05, join_style="mitre")
+    _add = _pc.difference(PAVED_ALL)
+    if not _add.is_empty:
+        PAVED_ALL = _pc
+        COVER["paved"] = [PAVED_ALL]
+        for k_ in [k_ for k_ in COVER if k_ != "paved"]:
+            COVER[k_] = [shapely.make_valid(unary_union(COVER[k_])).difference(_add)]
 HEAVY = unary_union([c for c, imp, _ in carr if imp <= 3] or [Polygon()]).intersection(PAVED_ALL).buffer(0)
 if not HEAVY.is_empty:
     COVER["paved"] = [PAVED_ALL.difference(HEAVY)]
@@ -1395,6 +1433,18 @@ mouths, n_side, SIDES = [], 0, []
 # no 515 where a passage comes out from under the bridge (the owner's mapper, 2026-11-12: a stream and a path under one street)
 PASS_MOUTH = unary_union([p[0].buffer(p[1] / 2 + 1.5) for p in passages] or [Polygon()])
 LOW_W = unary_union([WATER_ALL] + [g.buffer(1.0) for g in streams + ditches if g is not None and not g.is_empty])
+# a way joining a bridge at an angle is not cut by its sides (the owner, 2026-11-19, picture 22: the track reaching the Yvette's
+# footbridge « cut by water and a wall »): the sides stop at the joining ways' bands (flat ends: a way's own continuation onto
+# the bridge ends where the deck begins)
+_join = []
+for e in osm:
+    t = tags(e); hw = t.get("highway")
+    if e["type"] != "way" or not hw or t.get("bridge") not in (None, "no") or is_lower(t) or t.get("area") == "yes":
+        continue
+    g = osm_geom(e)
+    if g is not None and g.geom_type == "LineString" and g.intersects(DECK_ALL.buffer(3)):
+        _join.append(g.buffer(width_of(t, ROAD_W.get(hw, 3.0)) / 2 + 0.3, cap_style="flat"))
+JOIN = unary_union(_join) if _join else Polygon()
 for d in decks:                                            # a deck's sides over water, a stream or the railway beneath
     low = unary_union([LOW_W] + ([RAIL_L.buffer(4)] if d["kind"] != "rail" else [])).intersection(d["g"].buffer(2))
     if low.is_empty:
@@ -1404,7 +1454,7 @@ for d in decks:                                            # a deck's sides over
             ln = d["axis"].offset_curve(side)
         except Exception:
             continue
-        for pc in pieces_in(ln.difference(PASS_MOUTH).difference(OLIVE_IN), low.buffer(1.0)):   # a bridge one cannot pass beneath: its sides 515 (ISSprOM 512.1's text)
+        for pc in pieces_in(ln.difference(PASS_MOUTH).difference(OLIVE_IN).difference(JOIN), low.buffer(1.0)):   # a bridge one cannot pass beneath: its sides 515 (ISSprOM 512.1's text)
             SIDES.append(pc)
 PASS = []
 if passages:
@@ -2003,7 +2053,7 @@ SMOOTH = {S(101), S(102), S(103), S(305), S(306), S(301), S(301, 9), S(302), S(3
           S(410), S(411), S(415)}
 PRIO = [S(301), S(301, 9), S(302), S(305), S(306), S(101), S(102), S(103), S(308), S(411), S(410), S(408), S(406), S(401), S(402),
         S(403), S(415)]
-VT = {}                                                  # point → (corner?, unit tangent)
+VT = {}                                                  # point → (corner?, unit tangent, the symbol that set it)
 import shapely.prepared
 SPORT_EDGE = shapely.prepared.prep(unary_union([s_["g"].boundary for s_ in sports]).buffer(0.6)) if sports else None
 for o in sorted([o for o in objects if o["otp"] != 1 and o["sym"] not in STRAIGHT],
@@ -2016,12 +2066,42 @@ for o in sorted([o for o in objects if o["otp"] != 1 and o["sym"] not in STRAIGH
             if kk in VT:
                 continue
             if not cl_ and (i == 0 or i == n - 1) or n < 3:
-                VT[kk] = (True, (0.0, 0.0)); continue
+                VT[kk] = (True, (0.0, 0.0), o["sym"]); continue
             a, c = pts[(i - 1) % n], pts[(i + 1) % n]
             tx, ty = c[0] - a[0], c[1] - a[1]; tn = math.hypot(tx, ty)
             on_sport = SPORT_EDGE is not None and SPORT_EDGE.contains(Point(b[0] * SCALE / 1000 + CX, b[1] * SCALE / 1000 + CY))
             ang = _turn(a, b, c)
-            VT[kk] = ((not sm and ang >= 50) or (on_sport and ang >= 30) or tn < 1e-9, (tx / tn, ty / tn) if tn > 1e-9 else (0.0, 0.0))
+            VT[kk] = ((not sm and ang >= 50) or (on_sport and ang >= 30) or tn < 1e-9, (tx / tn, ty / tn) if tn > 1e-9 else (0.0, 0.0),
+                      o["sym"])
+# (the owner, 2026-11-19: « a lot of information that is clean in OSM becomes wrongly distorted »; measured on v24: paving edges
+# bent up to 5 m off their own straight segments, olive 8 m, open land 14 m, the Yvette's outline bulging onto its footbridge)
+# a man-made angle is an angle in every object through it: a point where a paving, a path, an olive area, a building… turns by 50°
+# or more is a corner even when a lawn or a wood set its tangent first — water apart, which keeps its curve; and a point where an
+# area was cut (a bridge's deck, the map's edge) is a corner in every object
+WATERS = {S(301), S(301, 9), S(302), S(305), S(306)}
+_CUT = shapely.prepared.prep(unary_union([DECK_ALL.boundary, frame.boundary]).buffer(0.03))
+MM = set()                                               # the points of a man-made object (what is not SMOOTH)
+for o in objects:
+    if o["otp"] == 1 or o["sym"] in SMOOTH or o["sym"] in (S(990), S(991), S(993)):
+        continue
+    for r in _rings(o):
+        cl_ = o["otp"] == 3 or _closed(r); pts = r[:-1] if cl_ and _K(r[0]) == _K(r[-1]) else r; n = len(pts)
+        for i, b in enumerate(pts):
+            kk = _K(b); MM.add(kk)
+            v = VT.get(kk)
+            if v is None or v[0] or v[2] in WATERS or n < 3 or (not cl_ and (i == 0 or i == n - 1)):
+                continue
+            if _turn(pts[(i - 1) % n], b, pts[(i + 1) % n]) >= 50:
+                VT[kk] = (True, v[1], v[2])
+n_cutc = 0
+for kk, v in list(VT.items()):
+    if not v[0] and _CUT.contains(Point(kk[0] * SCALE / 1000 + CX, kk[1] * SCALE / 1000 + CY)):
+        VT[kk] = (True, v[1], v[2]); n_cutc += 1
+log("curve points made corners where an area was cut", n_cutc)
+# how far a curve may stray from the straight line between its two points, mm on the map: 0.075 (0.3 m) where both points belong
+# to a man-made object, 0.25 elsewhere (contours, woods, water); a handle is shortened to keep within it (a cubic Bézier strays
+# at most 3/4 of its handles' distance from the chord)
+TOL_MM, TOL_NAT_MM = 0.075, 0.25
 
 
 def _bez(r, closed, smooth=False, nolr=None):
@@ -2040,8 +2120,16 @@ def _bez(r, closed, smooth=False, nolr=None):
         if cor[i]:
             return pts[i]
         tx, ty = VT[_K(pts[i])][1]; L = math.dist(pts[i], pts[j]) / 3
-        sg = 1 if (pts[j][0] - pts[i][0]) * tx + (pts[j][1] - pts[i][1]) * ty >= 0 else -1
-        return (pts[i][0] + sg * tx * L, pts[i][1] + sg * ty * L)
+        cx_, cy_ = pts[j][0] - pts[i][0], pts[j][1] - pts[i][1]
+        sg = 1 if cx_ * tx + cy_ * ty >= 0 else -1
+        hx, hy = sg * tx * L, sg * ty * L
+        cn = math.hypot(cx_, cy_)
+        if cn > 1e-9:                                      # (the same on both objects that share the segment: it depends on the segment alone)
+            lim = (TOL_MM if _K(pts[i]) in MM and _K(pts[j]) in MM else TOL_NAT_MM) / 0.75
+            perp = abs(hx * cy_ - hy * cx_) / cn
+            if perp > lim:
+                hx, hy = hx * lim / perp, hy * lim / perp
+        return (pts[i][0] + hx, pts[i][1] + hy)
 
     # an angle of 30° or more is an OCAD corner point (y flag 1): a line's pattern (ticks, triangles, dashes) starts again from it
     # rather than falling on it (the owner, 2026-11-13: « nothing should be on the corner »)

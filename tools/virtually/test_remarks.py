@@ -409,6 +409,10 @@ def t9(M):
     if not st:
         return ["no stream drawn by the tennis courts (E 636130 N 6844650)"]
     pav = M.local(["501"], zone).intersection(unary_union([g.buffer(2.5) for g in st])).intersection(zone)
+    # an OSM way drawn there is no public-space strip (2026-11-19: the compacted footway along the stream is paving at its width)
+    ways = osm_lines(M, lambda t: t.get("highway") is not None) or []
+    if ways:
+        pav = pav.difference(unary_union([g.buffer(2.0) for g in ways if g.intersects(zone.buffer(5))] or [Polygon()]))
     return [f"{pav.area:.0f} m² of paving within 2.5 m of the Mérantaise by the tennis courts"] if pav.area > 2 else []
 
 
@@ -475,9 +479,24 @@ def t14(M):
     sp = M.src("sports.json") or []
     SPE = unary_union([shapely.make_valid(Polygon(q[0], q[1:])).boundary for s in sp for q in s["polys"]] or [Polygon()]).buffer(0.6)
     on_sport = lambda a: not SPE.is_empty and SPE.contains(Point(a[0] * M.k + M.cx, a[1] * M.k + M.cy))
+    # a corner a man-made outline turns at is a corner of whatever shares it (2026-11-19: a straight canal between pavings, a
+    # lawn strip in a square: « clean in OSM » means its angles kept)
+    # — and so is a point where an area was cut square on a man-made outline (water at a bridge's deck)
+    mmk = {(round(p[0], 3), round(p[1], 3)) for c in M.by if c not in SMOOTH and c not in ("990", "991", "993") for o, _ in M.by[c] if o["otp"] != 1
+           for r in o.get("rings", []) for p in r}
+    _mml = [g.boundary if g.geom_type in ("Polygon", "MultiPolygon") else g for c in M.by if c not in SMOOTH
+            and c not in ("990", "991", "993") for o, g in M.by[c] if o["otp"] != 1]
+    _mmt = shapely.STRtree(_mml) if _mml else None
+    def on_mm(a):
+        if (round(a[0], 3), round(a[1], 3)) in mmk:
+            return True
+        q = Point(a[0] * M.k + M.cx, a[1] * M.k + M.cy)
+        return _mmt is not None and len(_mmt.query(q, predicate="dwithin", distance=0.4)) > 0
     for c in SMOOTH:
         for o, g in M.objs(c):
             if o["otp"] == 1 or len(o["rings"][0]) < 4:
+                continue
+            if (g.area < 30 if o["otp"] == 3 else g.length < 20):    # (a scrap — water between two decks — has no shape to keep)
                 continue
             b = o.get("bez")
             an = anchors(o)
@@ -485,7 +504,7 @@ def t14(M):
                 if not all(on_sport(a) for a in an):                # (a pitch: straight sides, kept corners)
                     flat.append(rp(g))
                 continue
-            hard = [a for a in an[1:-1] if not a[4] and not a[5] and not on_sport(a)]
+            hard = [a for a in an[1:-1] if not a[4] and not a[5] and not on_sport(a) and not on_mm(a)]
             if len(hard) > max(1, len(an) // 4):
                 flat.append(rp(g))
     for c in STRAIGHT:
@@ -842,6 +861,103 @@ def t35(M):
     P = M.local(["501"], z, pad=10)
     off = sum(g.difference(P.buffer(0.3)).length for g in st)
     return [f"the long stairway: {off:.1f} m off paving"] if off > 1.0 else []
+
+
+# the owner, 2026-11-19: « a lot of information that is clean in OSM becomes wrongly distorted in this map … at a minimum, OSM
+# information needs to be preserved, even if drawn with IOF symbols instead »
+NATURAL = {"101", "102", "103", "301", "301.9", "302", "305", "306", "308", "401", "402", "403", "406", "408", "410", "411", "415"}
+
+
+@test(36, "curves stay on their lines: a Bézier segment within 0.3 m of its chord on man-made features, 1 m on natural ones")
+def t36(M):
+    bad = []
+    for o in M.doc["objects"]:
+        tol = 1.05 if code(o["sym"]) in NATURAL else 0.35
+        for r in o.get("bez") or []:
+            i = 0
+            while i + 3 < len(r):
+                if len(r[i + 1]) > 2 and r[i + 1][2] == 1:
+                    a, b, c, e = (np.asarray(q[:2], float) for q in r[i:i + 4])
+                    ch = e - a; L = float(np.hypot(*ch))
+                    t = np.linspace(0, 1, 17)[1:-1, None]; u = 1 - t
+                    pts = u**3 * a + 3 * u * u * t * b + 3 * u * t * t * c + t**3 * e
+                    if L > 1e-9:
+                        q = np.clip(((pts - a) @ ch) / (L * L), 0, 1)[:, None]
+                        dv = float(np.max(np.hypot(*(pts - a - q * ch).T))) * M.k
+                    else:
+                        dv = float(np.max(np.hypot(*(pts - a).T))) * M.k
+                    if dv > tol:
+                        bad.append(Point(*(a * M.k + (M.cx, M.cy))))
+                    i += 3
+                else:
+                    i += 1
+    return [m for m in [fail_list(bad, f"curve segments straying off their chord")] if m]
+
+
+@test(37, "OpenStreetMap's ways are on the map with a fitting symbol: 98 % of their length, each kind 95 %")
+def t37(M):
+    d = M.src("osm.json")
+    if d is None:
+        raise Skip("no src/osm.json")
+    from l93 import transformer
+    tr = transformer(4326, 2154)
+    paved_s = {"asphalt", "paved", "concrete", "paving_stones", "sett", "cobblestone", "concrete:plates", "metal", "wood",
+               "unhewn_cobblestone", "bricks", "compacted", "fine_gravel"}
+    pave = shapely.make_valid(unary_union(M.gs("501", "501.3", "501.4", otp=3) + [g.buffer(0.8) for g in M.gs("501.1", otp=2)]))
+    path = unary_union([pave] + [g.buffer(0.8) for g in M.gs("505", "506", "507", "508", otp=2)])
+    stair = unary_union([pave] + [g.buffer(0.5) for c in [f"532.{i}" for i in range(1, 7)] for g in M.gs(c)])
+    wall = unary_union([g.buffer(0.8) for g in M.gs("513", "513.1", "513.2", "515", "516", "517", "518", "519", otp=2)]
+                       + [M.union("521").buffer(0.8)])
+    hedge = unary_union([M.union("520"), M.union("411")] + [g.buffer(0.8) for g in M.gs("411", otp=2)])
+    water = unary_union([M.union("301").buffer(4.0)] + [g.buffer(6.0) for g in M.gs("305", "306", otp=2)])   # (BD TOPO's lie metres off OSM's)
+    for g_ in (pave, path, stair, wall, hedge, water):
+        shapely.prepare(g_)
+    frame = M.box.buffer(-5)
+    res, worst = {}, []
+    for e in d.get("elements", []):
+        t = e.get("tags") or {}; geo = e.get("geometry")
+        if e.get("type") != "way" or not geo or len(geo) < 2:
+            continue
+        if t.get("tunnel") in ("yes", "culvert", "building_passage") or t.get("covered") == "yes" \
+                or str(t.get("layer", "0")).startswith("-") or t.get("area") == "yes" or t.get("indoor") == "yes" \
+                or t.get("access") in ("private", "no"):
+            continue
+        hw, bar, ww = t.get("highway"), t.get("barrier"), t.get("waterway")
+        if hw == "steps":
+            kind, ok = "steps", stair
+        elif hw in ("footway", "path", "cycleway", "bridleway", "track", "pedestrian", "service", "residential", "living_street",
+                    "unclassified", "tertiary", "secondary", "primary", "trunk"):
+            p = t.get("surface") in paved_s or t.get("tracktype") == "grade1" or (t.get("surface") is None and hw not in ("path", "track", "bridleway"))
+            kind, ok = ("paved " if p else "unpaved ") + ("way" if hw in ("footway", "path", "cycleway", "bridleway", "track", "pedestrian") else "street"), pave if p else path
+        elif bar in ("wall", "retaining_wall", "fence", "city_wall"):
+            kind, ok = "wall or fence", wall
+        elif bar == "hedge":
+            kind, ok = "hedge", hedge
+        elif ww in ("stream", "river", "ditch", "drain", "canal"):
+            kind, ok = "watercourse", water
+        else:
+            continue
+        xs, ys = tr.transform([p["lon"] for p in geo], [p["lat"] for p in geo])
+        L = LineString(list(zip(xs, ys))).intersection(frame)
+        if L.is_empty or L.length < 1:
+            continue
+        okl = shapely.clip_by_rect(ok, *L.buffer(3).bounds)
+        shown = L.intersection(okl).length
+        r = res.setdefault(kind, [0.0, 0.0]); r[0] += L.length; r[1] += shown
+        if L.length - shown > 5:
+            miss = L.difference(okl)
+            worst.append((L.length - shown, kind, miss.representative_point() if not miss.is_empty else L.centroid))
+    msgs = []
+    tot, sh = sum(v[0] for v in res.values()), sum(v[1] for v in res.values())
+    if tot and sh / tot < 0.98:
+        msgs.append(f"{100 * sh / tot:.1f} % of OSM's ways shown (98 % at least)")
+    for k_, (ln, s_) in sorted(res.items()):
+        if ln > 100 and s_ / ln < 0.95:
+            msgs.append(f"{k_}: {100 * s_ / ln:.1f} % of {ln:.0f} m shown")
+    if msgs:
+        worst.sort(key=lambda w: -w[0])
+        msgs.append("most missing: " + "; ".join(f"{k_} {m:.0f} m at E {p.x:.0f} N {p.y:.0f}" for m, k_, p in worst[:5]))
+    return msgs
 
 
 def run(M, only=None):
