@@ -2325,6 +2325,7 @@ export default {
   "sh.trace.drawn": "Diese Route wurde von Hand gezeichnet: sie lässt sich nicht zu „Mit den anderen vergleichen“ hinzufügen, wo der Vergleich mit den GPS-Tracks der anderen nicht fair wäre. Analysiere sie in der Einzelanalyse.",
   "sh.score": "Score: Posten in beliebiger Reihenfolge",
   "sh.score.hint": "Eine Score-Bahn: jeder Läufer wählt die Reihenfolge seiner Posten. Keine Teilstrecken; jeder Posten wird dort gestempelt, wo der Läufer ihn passiert, und eine Tabelle zeigt die Reihenfolge jedes Läufers.",
+  "sh.score.event": "Die Veranstaltung ist ein Score-Training oder -Wettkampf: alle ihre Bahnen sind Score-Bahnen (Orga › Meine Veranstaltungen › ✎ Bearbeiten, um das zu ändern).",
   "sh.score.n": "{n} von {m} Posten",
   "sh.score.view.hint": "Score-Bahn: die Posten jedes Läufers in der gelaufenen Reihenfolge, mit ihrer Zeit ab dem Start. Die meisten Posten zuerst, dann die Schnellsten.",
   "sh.score.col.n": "Posten",

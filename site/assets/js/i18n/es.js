@@ -2325,6 +2325,7 @@ export default {
   "sh.trace.drawn": "Esta ruta se dibujó a mano: no se puede añadir a «Comparar con los demás corredores», donde compararla con los tracks GPS de los demás no sería justo. Analízala en el análisis individual.",
   "sh.score": "Score: controles en cualquier orden",
   "sh.score.hint": "Un recorrido score: cada corredor elige el orden de sus controles. Sin tramos; cada control se cronometra allí donde pasa el corredor, y una tabla muestra el orden de cada uno.",
+  "sh.score.event": "El evento es un entrenamiento o una competición score: todos sus recorridos lo son (Orga › Mis eventos › ✎ Modificar para cambiarlo).",
   "sh.score.n": "{n} controles de {m}",
   "sh.score.view.hint": "Recorrido score: los controles de cada corredor en el orden en que los tomó, con su tiempo desde la salida. Primero los de más controles, luego los más rápidos.",
   "sh.score.col.n": "Controles",

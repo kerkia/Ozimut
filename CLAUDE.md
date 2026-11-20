@@ -2862,7 +2862,11 @@ Every multiple-choice game was played through to its score page at phone size, w
   has its own « d<id> » as an unlinked competition (start list, live, results, mirrored to R2 `declared/` with `type` = the form and
   `kind`; `cn` 0, outside the rankings) and is never linked to the calendar; a club training holds none (race key NULL). A change of
   kind: to a club training refused while linked (`linked`) or once something was published under its key (`type published`); from a
-  club training it gets its « d<id> ». Tabs (`manage.js` `tabsOf`): Tracé, Départs — the booking and the start list —, Direct — and
+  club training it gets its « d<id> ». **A score event's map analysis is all score** (owner, 2026-11-20: a track run with the second
+  loop first lost its first controls, the analysis matching them in printed order): `_lib/events.js` `scoreEvent` (the event whose
+  `analysis` it is, else the one holding its competition) and `withScore`, applied when `/api/analyses/<id>` (and `/v/<id>`) is
+  read — every circuit `score`, the analysis `eventScore` (the circuit editor's « Score » box ticked and locked, `sh.score.event`) —, so
+  a later change of the event's type follows. Tabs (`manage.js` `tabsOf`): Tracé, Départs — the booking and the start list —, Direct — and
   the GPS link —, Résultats, Analyse, Équipe; a relay Tracé, Direct, Analyse, Équipe — « Résultats » leaves relays out, see the plan's
   relay proposal —; a club training Tracé, Analyse, Équipe. No « Aperçu » tab
   and no « Réglages »: the list of events is the way in (Arena's look: periods, months, today's line, each row's tabs as chips with

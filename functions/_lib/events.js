@@ -96,6 +96,22 @@ export async function teamIndex(env, user) {
   return { held, mine };
 }
 
+/**
+ * Is the map analysis held by a score / rogaine event (owner, 2026-11-20: the event's variant decides; a track run in another
+ * order than the circuit's printed one lost its first controls in the analysis)? Its event: the one whose `analysis` it is,
+ * else the one holding its competition. Read each time the analysis is read, so a change of the event's type follows.
+ */
+export async function scoreEvent(env, meta) {
+  if (!meta?.id || !(await ready(env))) return false;
+  try {
+    let ev = await env.DB.prepare("SELECT type FROM events WHERE analysis = ? AND status = 'active'").bind(meta.id).first();
+    if (!ev && meta.race) ev = await env.DB.prepare("SELECT type FROM events WHERE race_key = ? AND status = 'active'").bind(meta.race).first();
+    return !!ev && formOf(ev.type) === "score";
+  } catch (e) { return false; }
+}
+/** The analysis's circuits as read: every one a score course when its event is (scoreEvent). */
+export const withScore = (meta, score) => (score ? { ...meta, courses: (meta.courses || []).map((c) => ({ ...c, score: true })), eventScore: true } : meta);
+
 /** Is an event's race key a calendar competition (not its own « d<id> »)? */
 export const linked = (key) => !!key && !/^d/.test(key);
 

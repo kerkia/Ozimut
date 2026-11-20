@@ -1656,6 +1656,7 @@ export default {
   "sh.trace.drawn": "Cet itinéraire a été dessiné à la main : il ne s'ajoute pas à « Comparer avec les autres coureurs », où le comparer aux traces GPS des autres ne serait pas juste. Analysez-le dans l'Analyse solo.",
   "sh.score": "Score : postes dans n'importe quel ordre",
   "sh.score.hint": "Un circuit au score : chaque coureur choisit l'ordre de ses postes. Pas d'inter-postes ; chaque poste est daté là où le coureur y passe, et un tableau montre l'ordre de chacun.",
+  "sh.score.event": "L'événement est un entraînement ou une compétition au score : tous ses circuits le sont (Orga › Mes événements › ✎ Modifier pour changer).",
   "sh.score.n": "{n} postes sur {m}",
   "sh.score.view.hint": "Circuit au score : les postes de chaque coureur dans l'ordre où il les a pris, avec leur temps depuis le départ. Les plus de postes d'abord, puis les plus rapides.",
   "sh.score.col.n": "Postes",

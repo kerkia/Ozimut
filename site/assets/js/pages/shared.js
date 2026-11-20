@@ -1321,7 +1321,7 @@ async function editor(box, ctx) {
     <div class="filters" style="align-items:flex-end">
       <label class="field"><span>${t("sh.course.name")}</span><input id="sh-e-name" value="${st.name}" style="width:200px" maxlength="60"></label>
       ${circuits.length ? html`<label class="field"><span>${t("sh.course.circuit")}</span><select id="sh-e-circuit"><option value="">—</option>${circuits.map((c) => html`<option ${raw(c === st.circuit ? "selected" : "")}>${c}</option>`)}</select></label>` : ""}
-      <label class="an-opt" title="${t("sh.score.hint")}"><input type="checkbox" id="sh-e-score" ${raw(course?.score ? "checked" : "")}> ${t("sh.score")}</label></div>
+      <label class="an-opt" title="${t(A.eventScore ? "sh.score.event" : "sh.score.hint")}"><input type="checkbox" id="sh-e-score" ${raw(course?.score || A.eventScore ? "checked" : "")} ${raw(A.eventScore ? "disabled" : "")}> ${t("sh.score")}</label></div>
     <label class="dropzone an-drop" id="sh-e-drop"><input type="file" id="sh-e-in" multiple hidden accept=".png,.jpg,.jpeg,.webp,.gif,.bmp,.pdf,.kmz,.kml,.jgw,.pgw,.tfw,.gfw,.wld,.prj,.xml,.gpx,.tcx,.fit,.ocd,.omap,.xmap,image/*,application/pdf">
       <strong>${t("sh.e.drop")}</strong><span class="muted">${t("sh.e.drop.hint")}</span></label>
     ${phone.offered() ? html`<div class="an-cam-row">${phone.button("sh-e-phone")}<span class="muted">${t("ph.hint.any")}</span></div>` : ""}

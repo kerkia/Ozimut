@@ -2249,6 +2249,7 @@ export default {
   "sh.trace.drawn": "This route was drawn by hand: it cannot be added to “Compare with the other runners”, where comparing it with the others' GPS traces would not be fair. Analyse it in Solo analysis.",
   "sh.score": "Score: controls in any order",
   "sh.score.hint": "A score course: each runner chooses the order of their controls. No legs; each control is timed wherever the runner passes it, and a table shows everyone's order.",
+  "sh.score.event": "The event is a score training or competition: all its circuits are score courses (Orga › My events › ✎ Edit to change it).",
   "sh.score.n": "{n} controls of {m}",
   "sh.score.view.hint": "Score course: each runner's controls in the order they took them, with their time from the start. The most controls first, then the fastest.",
   "sh.score.col.n": "Controls",

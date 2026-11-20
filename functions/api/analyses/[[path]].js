@@ -64,7 +64,7 @@ import { allow, isAdmin, json, readBody, withUser, nowIso } from "../../_lib/api
 import { showModule } from "../../_lib/modules.js";
 import { hashPassword, checkPassword, b64url, randomBytes } from "../../_lib/crypto.js";
 import { clubOf, clubLabel, findRace, orgCode, organises } from "../../_lib/club.js";
-import { strict, teamIndex } from "../../_lib/events.js";
+import { scoreEvent, strict, teamIndex, withScore } from "../../_lib/events.js";
 
 const META = "analyses-meta/";
 const DATA = "analyses/";
@@ -306,7 +306,7 @@ async function visitors(ctx, parts) {
     if (new URL(request.url).searchParams.get("poll") === "1") return json({ traces });
     const { owner, ownerName, pw, ...rest } = meta;
     ctx.waitUntil?.(countGuest(env, id));
-    return json({ analysis: { ...rest, opts: optsOf(meta) }, traces, you: { uid: 0, organiser: false, visitor: true } });
+    return json({ analysis: withScore({ ...rest, opts: optsOf(meta) }, await scoreEvent(env, meta)), traces, you: { uid: 0, organiser: false, visitor: true } });
   }
   if (parts.length !== 3 || !Number.isInteger(n) || !(meta.courses || []).some((c) => c.n === n)) return json({ error: "not found" }, 404);
   if (parts[1] === "map" || parts[1] === "thumb" || parts[1] === "layers") {
@@ -503,7 +503,7 @@ const forUsers = withUser(async (ctx, user) => {
       if (!organiser && new URL(request.url).searchParams.get("for") !== "solo") ctx.waitUntil?.(countUse(env, id, "view", user.id));
       // the administrators: the e-mail of the account that opened it
       const creator = isAdmin(env, user) ? (await withEmails(env, [{ owner: meta.owner }]))[0] : null;
-      return json({ analysis: publicMeta(meta), traces, you: { uid: user.id, organiser }, ...(thumbs ? { thumbs } : {}), ...(creator?.ownerEmail ? { ownerEmail: creator.ownerEmail } : {}) });
+      return json({ analysis: withScore(publicMeta(meta), await scoreEvent(env, meta)), traces, you: { uid: user.id, organiser }, ...(thumbs ? { thumbs } : {}), ...(creator?.ownerEmail ? { ownerEmail: creator.ownerEmail } : {}) });
     }
     if (!organiser) return json({ error: "forbidden" }, 403);
     if (method === "PUT") {
