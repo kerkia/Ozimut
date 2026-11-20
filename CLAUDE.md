@@ -4015,7 +4015,20 @@ Every multiple-choice game was played through to its score page at phone size, w
   scan 3 15 of 17 and none false; every earlier test map read as before, in both of the bench's ways of shrinking (`ceval.mjs`;
   `run.mjs BROWSER=1` shrinks as a browser does — the degraded test photo loses one of its 11 controls that way). The start is
   rarely read on a scan: the page then places it where the trace waits. `window.anDebug().course.first`: the colour reading's
-  figures when the colour-blind one was tried.
+  figures when the colour-blind one was tried. **Every control, READER 7** (owner, the same evening: « the identification of the
+  controls does not work as it did before … that should be quite possible »: missing circles broke the matching of the routes
+  run with the computed ones): the ink field (`M`) shows every circle whole where the mask's vote sees pieces, so once five
+  controls say what the course looks like, a ring all but whole there (`ridgeRing` 0.85 and arcs 0.6) is judged by the course's
+  colour alone — not redder than it, its blue within 0.3 — and a line across it is allowed (a black line, a crossing leg); on a
+  sharp image every control must then be such a ring (score + arcs 1.55: the false ones 1.44-1.59, the true 1.63 and up), and
+  one under 1.75 must be drawn with the course's line, measured on a crop at the image's own resolution (`ringWidth`: a
+  contour's loop 2 px wide where the course is 3.5-4); a start no leg leaves is dropped after them (the description sheet's);
+  a control inside a second ring is the finish's inner circle, as is one where the page finds the finish (`analysis.js`); a
+  solid colour reading without a start is ordered back from the finish as the colour-blind one (`chainBack`, the circles a
+  leg crosses left out of its ink). In the page: scan 1 24/24, scan 2 18/18, scan 3 17/17, none false, all in the printed
+  order; the photos as before. The bench's truth had the Quiberon course's 10 and 11 swapped (its numbers printed beside the
+  circles say otherwise; fixed in `cases.json`). Still: the start is not read on scans 1 and 3 (its leg also points at a
+  control, which `probeStart` refuses), so the race clock starts with the trace.
 - **Languages: French, English, German and Spanish** (owner, 2026-10-17 French and English, open to everyone since 2026-10-18,
   `i18n.OPEN` true; **German and Spanish since 2026-11-01**: `i18n.LANGS`, catalogues `i18n/de.js`, `es.js`, `tracer.de.js`,
   `tracer.es.js`, long texts `content/<name>.de.js` / `.es.js`, e-mails in `_lib/templates.js`, `manifest.de|es.webmanifest`;

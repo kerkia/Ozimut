@@ -41,8 +41,9 @@ const RADII = [6, 7, 8, 9, 10, 11, 12, 13, 15, 17, 19, 21, 23, 26, 29, 32, 36, 4
  *  the ink; 2026-11-01: the course's order and the controls found along the legs; 2026-11-17: the colour-blind reading;
  *  2026-11-18: the passes chosen by how well their legs are inked (align.visitOrder); 2026-11-19: clean scans (a channel its
  *  background absorbs left out of the colour tests, the control radius weighed by size, the description table's boxes);
- *  2026-11-20: on a solid colour reading only the circles a printed leg reaches, and the probes likewise. */
-export const READER = 6;
+ *  2026-11-20: on a solid colour reading only the circles a printed leg reaches, and the probes likewise; then every ring all
+ *  but whole on the ink field in the course's colour, and on a sharp image only those. */
+export const READER = 7;
 const ANGLES = 24, STRIDE = 4;
 const DARK_T = 0.4, IN_DARK = 0.45, LEG = 0.75;
 /** A channel whose background is under this level (of 256) is already absorbed there: blue over yellow or olive green. */
@@ -91,9 +92,9 @@ async function readCourse(image, { maxSide = 1800, debug = false, dark = false, 
   let s = Math.min(1, maxSide / Math.max(W, H)), w, h, full, lw, lum, ink, tInk, dens, pix;
   // a sharp, large image — read at under 0.6 of its size: a 300 dpi scan — gets the tests a phone's blur would fail
   const sharp = s <= 0.6;
+  const canvas = (cw, ch) => (typeof OffscreenCanvas !== "undefined" ? new OffscreenCanvas(cw, ch) : Object.assign(document.createElement("canvas"), { width: cw, height: ch }));
   const read = () => {
     w = Math.max(1, Math.round(W * s)); h = Math.max(1, Math.round(H * s));
-    const canvas = (cw, ch) => (typeof OffscreenCanvas !== "undefined" ? new OffscreenCanvas(cw, ch) : Object.assign(document.createElement("canvas"), { width: cw, height: ch }));
     // shrunk by halves to within twice the size, then once: a browser's drawImage samples rather than averages, and a
     // scan's print dots shrunk 2.3 times at once came out as noise — ten false controls on the Quiberon scan (2026-11-20)
     let src = image, sw = W, sh = H;
@@ -204,8 +205,15 @@ async function readCourse(image, { maxSide = 1800, debug = false, dark = false, 
         const c = bestRidge(ink, w, h, c0.x, c0.y, rStar, tInk);
         if (!free(c) || c.score < 0.55 || c.arcs < 0.4 || c.score + c.arcs < 1.3) continue;
         Object.assign(c, ringColour(ink, dens, w, h, c.x, c.y, c.r));
-        const ok = coloured(c) && (dark || (Math.abs(c.cr - cr) <= 0.3 && Math.abs(c.cb - cb) <= 0.3))
-          && inkInside(ink, w, h, c.x, c.y, c.r, tInk) <= IN && lineAcross(ink, w, h, c.x, c.y, c.r, tInk) < 0.8;
+        // a ring all but whole on the ink field, once five controls say what the course looks like, is judged by their colour
+        // alone, and a line across it is allowed: a black line or a crossing leg cuts a control's circle, and a ring's
+        // own colour over olive green or a grey building is no printer's purple (the Morbihan scans, 2026-11-20: four of
+        // their 59 circles — all four found here with near-perfect rings — refused for it). Not redder than the course's,
+        // whose blue it shares: a brown contour absorbs red and green alike, and blue
+        const fine = controls.length >= 5 && c.score >= 0.85 && c.arcs >= 0.6;
+        const ok = (fine || coloured(c))
+          && (dark || (fine ? c.cr <= cr + 0.2 && Math.abs(c.cb - cb) <= 0.3 : Math.abs(c.cr - cr) <= 0.3 && Math.abs(c.cb - cb) <= 0.3))
+          && inkInside(ink, w, h, c.x, c.y, c.r, tInk) <= IN && (lineAcross(ink, w, h, c.x, c.y, c.r, tInk) < 0.8 || (fine && c.score >= 0.9 && c.arcs >= 0.65));
         if (debug) added.push({ ...c, ok });
         if (ok) { known.push(c); controls.push({ x: c.x, y: c.y, r: c.r, score: c.score, raw: c.arcs, ridge: true }); }
       }
@@ -444,12 +452,17 @@ async function readCourse(image, { maxSide = 1800, debug = false, dark = false, 
    *  overprint, within a pixel and a half of the line: a leg printed from one to the other comes near 1 (ISOM cuts it
    *  here and there), two symbols no leg joins near 0. For the page: the legs say which controls follow each other. */
   const leg = (A, B) => (rStar ? legIn(A[0] * s, A[1] * s, B[0] * s, B[1] * s, 1.3 * rStar, 1.3 * rStar) : 0);
-  function legIn(ax, ay, bx, by, ma, mb) {
+  function legIn(ax, ay, bx, by, ma, mb, skip = null) {
     const L = Math.hypot(bx - ax, by - ay);
     if (L < ma + mb + 4) return 0;
     const ux = (bx - ax) / L, uy = (by - ay) / L;
     let n = 0, on = 0;
-    for (let u = ma; u <= L - mb; u += 1) { n++; if (inkNear(ax + u * ux, ay + u * uy, ux, uy)) on++; }
+    for (let u = ma; u <= L - mb; u += 1) {
+      const x = ax + u * ux, y = ay + u * uy;
+      // (`skip`: other symbols the way crosses — ISOM cuts a leg where it passes through another circle)
+      if (skip && skip.some((q) => Math.hypot(q.x - x, q.y - y) < 1.3 * q.r)) continue;
+      n++; if (inkNear(x, y, ux, uy)) on++;
+    }
     return n ? on / n : 0;
   }
   // ink at a point of a straight way, within a pixel and a half across it
@@ -473,6 +486,32 @@ async function readCourse(image, { maxSide = 1800, debug = false, dark = false, 
     return others.some((b) => b !== a && Math.hypot(b.x - a.x, b.y - a.y) > 0.5 * rStar && legIn(a.x, a.y, b.x, b.y, 1.3 * rStar, 1.3 * rStar) >= q)
       || (finish && legIn(a.x, a.y, finish.x, finish.y, 1.3 * rStar, 1.1 * finish.r2) >= q);
   }
+  const med = (v) => (v.length ? [...v].sort((p, q) => p - q)[v.length >> 1] : null);
+  /** The width of a ring's line in the image's own pixels (x, y, r too): the ink across it at 72 points, read on a crop at full
+   *  resolution — the width where the ink stays over half its peak, the median of the rays that cross a line; null when
+   *  under a third of them do. */
+  function ringWidth(x, y, r) {
+    const R = Math.ceil(r + 12), x0 = Math.max(0, Math.round(x - R)), y0 = Math.max(0, Math.round(y - R));
+    const cw = Math.min(W - x0, 2 * R), ch = Math.min(H - y0, 2 * R);
+    if (cw < R || ch < R) return null;
+    const g = canvas(cw, ch).getContext("2d", { willReadFrequently: true });
+    g.drawImage(image, x0, y0, cw, ch, 0, 0, cw, ch);
+    const { M, t } = inkMask(g.getImageData(0, 0, cw, ch).data, cw, ch), cx = x - x0, cy = y - y0, out = [];
+    const at = (X, Y) => { X = Math.round(X); Y = Math.round(Y); return X >= 0 && Y >= 0 && X < cw && Y < ch ? M[Y * cw + X] : 0; };
+    for (let k = 0; k < 72; k++) {
+      const a = (2 * Math.PI * k) / 72, c = Math.cos(a), sn = Math.sin(a), v = [];
+      for (let d = r - 9; d <= r + 9; d += 0.5) v.push(at(cx + d * c, cy + d * sn));
+      let p = 0;
+      for (let j = 1; j < v.length; j++) if (v[j] > v[p]) p = j;
+      if (v[p] < t) continue;
+      let a0 = p, b0 = p;
+      while (a0 > 0 && v[a0 - 1] >= 0.5 * v[p]) a0--;
+      while (b0 < v.length - 1 && v[b0 + 1] >= 0.5 * v[p]) b0++;
+      if (a0 === 0 || b0 === v.length - 1) continue;                   // a broad patch, no line
+      out.push((b0 - a0 + 1) * 0.5);
+    }
+    return out.length >= 24 ? med(out) : null;
+  }
   const nRead = controls.length;
   if (!dark && rStar && controls.length) {
     const nl = controls.filter((c) => joinedByLeg(c, LEG)).length;
@@ -482,17 +521,38 @@ async function readCourse(image, { maxSide = 1800, debug = false, dark = false, 
       // 0.35 mm — its loops passed for circles on the Auray scan (2026-11-20); the ink across the ring against the joined ones'
       const joined = controls.filter((c) => joinedByLeg(c, LEG)), ref = joined.map((c) => ringInk(ink, w, h, c.x, c.y, c.r)).sort((p, q) => p - q)[joined.length >> 1];
       controls = controls.filter((c) => joinedByLeg(c) && ringInk(ink, w, h, c.x, c.y, c.r) >= 0.55 * ref);
+      if (sharp) {
+        // a sharp image's controls are rings all but whole on the ink field: its circles read here and there by the mask's vote
+        // that are not — a pink area's edge beside a leg, brown contours over olive green, an olive edge (one on each Morbihan
+        // scan, 2026-11-20) — score 1.44 to 1.59 where the true ones score 1.63 at least (1.68 on a blurred phone photo)
+        const ridge = controls.map((c) => { const q = bestRidge(ink, w, h, Math.round(c.x), Math.round(c.y), Math.round(rStar), tInk); return q.score + q.arcs; });
+        // and, short of a ring all but perfect, drawn with the course's line, read at the image's own resolution: over olive
+        // green a brown contour (0.14 mm) is the course's colour, and at the reading's scale both lines are under 2 px; on a
+        // 300 dpi scan the overprint is 4 px wide, a contour under 2 (the Auray scan's contour loop beside two legs, 2026-11-20;
+        // a control's circle over yellow, cut by a fence, reads 2 px wide too, and its ring 1.86)
+        const wid = controls.map((c) => ringWidth(c.x / s, c.y / s, c.r / s)), ref = med(wid.filter((v, i) => v != null && ridge[i] >= 1.75));
+        controls = controls.filter((c, i) => ridge[i] >= 1.55 && (ridge[i] >= 1.75 || !ref || wid[i] == null || wid[i] >= 0.65 * ref));
+      }
+      // a control read inside a second ring, 1.25 to 1.6 times larger, is the finish's inner circle (the Auray scan's finish,
+      // its outer ring cut by a fence and missed by the vote, 2026-11-20)
+      if (!finish) for (const c of controls) {
+        let o = null;
+        for (const k of [1.3, 1.4, 1.5]) { const q = bestRidge(ink, w, h, Math.round(c.x), Math.round(c.y), Math.round(k * c.r), tInk); if (!o || q.v > o.v) o = q; }
+        if (o.score + o.arcs >= 1.4) { finish = { x: (c.x + o.x) / 2, y: (c.y + o.y) / 2, r1: c.r, r2: o.r, score: o.score }; controls = controls.filter((q) => q !== c); break; }
+      }
+      // a start no leg leaves is a symbol of the description sheet (the Auray scan's)
+      if (start && !controls.some((c) => legIn(start.x, start.y, c.x, c.y, 1.1 * start.R, 1.3 * rStar) >= 0.5)) start = null;
     }
   }
   await step(0.95);
-  const sequence = rStar && controls.length >= 2 ? (start ? followCourse(finish) : dark ? chainBack(finish) : null) : null;
+  const sequence = rStar && controls.length >= 2 ? (start ? followCourse(finish) : dark || solid ? chainBack(finish) : null) : null;
   // the controls a printed leg joins to another one (or to the finish): a course's circles are, a texture's rings are not
   const legged = !rStar ? 0 : controls.filter((a) => controls.some((b) => b !== a && legIn(a.x, a.y, b.x, b.y, 1.3 * rStar, 1.3 * rStar) >= LEG)
     || (finish && legIn(a.x, a.y, finish.x, finish.y, 1.3 * rStar, 1.1 * finish.r2) >= LEG)).length;
   /** The course's order again, with a finish placed by the page (where the trace ends: a finish over water is not read
    *  from the map) — `finish` [x, y] in the image's pixels. */
   const order = ({ finish: F = null } = {}) => {
-    if (!rStar || controls.length < 2 || (!start && !dark)) return null;
+    if (!rStar || controls.length < 2 || (!start && !dark && !solid)) return null;
     const q = (start ? followCourse : chainBack)(F ? { x: F[0] * s, y: F[1] * s, r2: finish?.r2 ?? 1.4 * rStar } : finish);
     return q ? { ...q, points: q.points.map(back) } : null;
   };
@@ -507,7 +567,10 @@ async function readCourse(image, { maxSide = 1800, debug = false, dark = false, 
       // the leg inked the most (a chance run of a town's lines joins two controls at 0.75, a printed leg near 1);
       // between two alike, the nearer; no leg is drawn between two symbols that all but touch (the last control
       // beside the finish)
-      const joined = left.map((q) => ({ q, d: Math.hypot(q.x - p.x, q.y - p.y), v: legIn(p.x, p.y, q.x, q.y, (p.kind === "control" ? 1.3 : 1.1) * p.r, 1.3 * q.r) }))
+      // (the circles the way crosses left out: ISOM cuts a leg where it passes through another control's circle)
+      const others = (q) => [...controls.map((c) => ({ x: c.x, y: c.y, r: rStar })), { x: fin.x, y: fin.y, r: fin.r2 ?? 1.4 * rStar }]
+        .filter((o) => Math.hypot(o.x - p.x, o.y - p.y) > 0.5 * rStar && Math.hypot(o.x - q.x, o.y - q.y) > 0.5 * rStar);
+      const joined = left.map((q) => ({ q, d: Math.hypot(q.x - p.x, q.y - p.y), v: legIn(p.x, p.y, q.x, q.y, (p.kind === "control" ? 1.3 : 1.1) * p.r, 1.3 * q.r, others(q)) }))
         .map((z) => (z.d < 2.2 * rStar + p.r ? { ...z, v: 1 } : z)).filter((z) => z.v >= LEG);
       const top = Math.max(0, ...joined.map((z) => z.v));
       joined.splice(0, joined.length, ...joined.filter((z) => z.v >= top - 0.08).sort((a, b) => a.d - b.d).map((z) => z.q));

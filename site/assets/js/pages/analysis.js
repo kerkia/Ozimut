@@ -1167,7 +1167,8 @@ export async function render(main, { query = {}, route } = {}) {
       const sc = geometry.scale || Math.sqrt(Math.abs(geometry.m11 * geometry.m22 - geometry.m12 * geometry.m21));
       const hit = ex >= 0 && ey >= 0 && ex <= map.width && ey <= map.height ? course.probeFinish(ex, ey, 50 * sc) : null;
       if (hit) {
-        for (let i = pts.length - 1; i >= 0; i--) if (pts[i].kind === "finish") pts.splice(i, 1);
+        // (a control read where the finish is was its inner circle: the Auray scan's, its outer ring cut, 2026-11-20)
+        for (let i = pts.length - 1; i >= 0; i--) if (pts[i].kind === "finish" || (pts[i].kind === "control" && pts[i].pos && Math.hypot(pts[i].pos[0] - hit.x, pts[i].pos[1] - hit.y) < 0.6 * (r || 20))) pts.splice(i, 1);
         pts.push({ kind: "finish", code: "", pos: [hit.x, hit.y], probed: true });
         located = pts.filter((p) => p.pos);
         notes.push(t("an.st.finishFound"));
@@ -1293,7 +1294,8 @@ export async function render(main, { query = {}, route } = {}) {
     if (!seq || seq.points.filter((q) => q.kind === "control").length < 2) return null;
     const r0 = course.r || 20;
     const take = (q) => located.find((p) => p.kind === q.kind && Math.hypot(p.pos[0] - q.x, p.pos[1] - q.y) < 1.2 * r0) || { kind: q.kind, code: "", pos: [q.x, q.y], legs: true };
-    let list = seq.points.map(take);
+    // (not a control where the finish is: its inner circle, read as one when its outer ring is cut)
+    let list = seq.points.filter((q) => !(q.kind === "control" && fin && Math.hypot(q.x - fin.pos[0], q.y - fin.pos[1]) < 0.6 * r0)).map(take);
     if (seq.reversible) {
       const rev = [...list.filter((p) => p.kind === "start"), ...list.filter((p) => p.kind === "control").reverse(), ...list.filter((p) => p.kind === "finish")];
       const a = passesInOrder(track, geometry, ptsOf(list), TOL), b = passesInOrder(track, geometry, ptsOf(rev), TOL);
