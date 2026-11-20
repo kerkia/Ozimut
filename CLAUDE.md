@@ -3997,8 +3997,21 @@ Every multiple-choice game was played through to its score page at phone size, w
   four sides, or three beside another such box; `offTables`: five circles or more in rows and columns), and the probes where
   the trace turns kept to the controls' own colour once five are read. Scan 1 from none to 20 of 24 controls, scan 2 13 of
   18 (its course faint), scan 3 from none to 14 of 17; every earlier test map read as before (`route-bench/course/`: `ceval.mjs`,
-  cases from the earlier sessions plus the scans). In the page a scan still gets false controls where the trace turns (scan 1:
-  15 beside 20 true): checking the calibration by hand is advised.
+  cases from the earlier sessions plus the scans). **Then, in the page** (2026-11-20, READER 6; the page itself checked on the
+  three scans with their FITs, not only the bench): the map shrunk by halves before it is read (a browser's drawImage samples,
+  and a scan's print dots shrunk 2.3 times at once came out as noise); on a **solid** colour reading (ten controls or more, half
+  of those read, joined by a printed leg) only the circles a leg reaches are kept and only those as thick in ink as the joined
+  ones (`ringInk`); on a **sharp** image (read at under 0.6 of its size: a scan) one-pixel lines are left out of the mask
+  (`open2`: over olive green a scan's brown contours are the purple's colour, 0.14 mm against 0.35), no ring is probed where
+  the trace turns nor added along a leg, and a start triangle must be empty in its middle (a purple hatching makes triangles);
+  a start at a circle's centre needs a whole triangle (0.88); the description table's boxes and start symbol are left out by
+  the grid lines running on beside them (`inGrid`, on the mask before the thinning), before the control radius is chosen too;
+  when both readings are tried the one with more controls joined by legs is kept. Page results: scan 1 21 of 24 controls and
+  1 false (15 false the day before), scan 2 16 of 18 and 5 false (the map turned 28° the day before, 94° now as the truth),
+  scan 3 15 of 17 and none false; every earlier test map read as before, in both of the bench's ways of shrinking (`ceval.mjs`;
+  `run.mjs BROWSER=1` shrinks as a browser does — the degraded test photo loses one of its 11 controls that way). The start is
+  rarely read on a scan: the page then places it where the trace waits. `window.anDebug().course.first`: the colour reading's
+  figures when the colour-blind one was tried.
 - **Languages: French, English, German and Spanish** (owner, 2026-10-17 French and English, open to everyone since 2026-10-18,
   `i18n.OPEN` true; **German and Spanish since 2026-11-01**: `i18n.LANGS`, catalogues `i18n/de.js`, `es.js`, `tracer.de.js`,
   `tracer.es.js`, long texts `content/<name>.de.js` / `.es.js`, e-mails in `_lib/templates.js`, `manifest.de|es.webmanifest`;
