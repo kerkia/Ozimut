@@ -51,7 +51,9 @@
 //   PATCH  /api/analyses/<id>/trace/<n>                one's own trace's comment and visitors' consent: { note?, visitors? }
 //   GET    /api/analyses/v[/<id>[/map/<n> | /traces/<n>]]   visitors without an account (owner, 2026-11-02, after RouteGadget):
 //                                                      the analyses an organiser opened to them (public, `visitors`), each
-//                                                      only with the traces whose runners agreed (`visitors`), no licence
+//                                                      only with the traces whose runners agreed (`visitors`), no licence;
+//                                                      the list names every published event (2026-11-21), `access` saying
+//                                                      which a visitor may open ("open") and why not ("account", "club", "locked")
 //   PUT|DELETE /api/analyses/<id>/trace/<n>[/<uid>]    one's own trace (DELETE <uid>: the organiser, an admin); an admin's
 //                                                      PUT { test: k } adds a test runner « <name> #k », DELETE …/tests
 //                                                      removes that admin's test traces of circuit n
@@ -285,11 +287,18 @@ async function visitors(ctx, parts) {
   if (request.method !== "GET") return json({ error: "method" }, 405);
   const open = (m) => !!m && m.vis === "public" && !!m.visitors && !isDraft(m);
   if (!parts.length) {
-    const metas = (await listAll(env, META)).map((o) => o.customMetadata || {}).filter((m) => m.vis === "public" && m.visitors === "1" && !draftNow(m.draft === "1", m.openAt));
+    // every published event is listed (owner, 2026-11-21: « all users see all events, even those they cannot access »): one a
+    // visitor cannot open says why — "account" (open to accounts), "club" (its club's), "locked" (a password) — and gives its
+    // name, day, club, place and numbers only: no thumbnail, and never its organiser's name
+    const metas = (await listAll(env, META)).map((o) => o.customMetadata || {}).filter((m) => VIS.includes(m.vis) && !draftNow(m.draft === "1", m.openAt));
     const counts = await dataCounts(env);
-    return json({ analyses: metas.map((m) => ({ id: m.id, kind: m.kind, title: m.title, date: m.date, race: m.race, vis: m.vis, courses: Number(m.courses) || 0,
-      pos: m.pos ? m.pos.split(",").map(Number) : null, access: "open", organiser: false, visitors: true, cc: m.cc || "", orgName: m.orgName || "", orgSet: m.orgSet === "1",
-      runners: counts(m.id).visible.size, thumb: firstThumb(counts(m.id)), upload: false, solo: false })) },
+    return json({ analyses: metas.map((m) => {
+      const open = m.vis === "public" && m.visitors === "1", c = counts(m.id);
+      return { id: m.id, kind: m.kind, title: m.title, date: m.date, race: m.race, vis: m.vis, courses: Number(m.courses) || 0,
+        pos: m.pos ? m.pos.split(",").map(Number) : null, access: open ? "open" : m.vis === "public" ? "account" : m.vis === "club" ? "club" : "locked",
+        organiser: false, visitors: open, cc: m.cc || "", orgName: m.orgName || "", orgSet: m.orgSet === "1",
+        runners: (open ? c.visible : c.runners).size, thumb: open ? firstThumb(c) : null, upload: false, solo: false };
+    }) },
       200, { "Cache-Control": "private, max-age=60" });
   }
   const id = parts[0];

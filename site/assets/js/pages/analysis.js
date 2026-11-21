@@ -557,7 +557,8 @@ export async function render(main, { query = {}, route } = {}) {
     try {
       const res = await fetch(`api/analyses${me ? "" : "/v"}`, { credentials: "same-origin" });
       const d = res.ok ? await res.json() : null;
-      ans = (d?.analyses || []).filter((a) => a.date === day && a.courses > 0 && !a.draft && a.pos && distKm(here, a.pos) <= 25)
+      // (a visitor without an account is listed every event, 2026-11-21: only those they may open are offered)
+      ans = (d?.analyses || []).filter((a) => a.date === day && a.courses > 0 && !a.draft && (me || a.access === "open") && a.pos && distKm(here, a.pos) <= 25)
         .sort((a, b) => distKm(here, a.pos) - distKm(here, b.pos)).slice(0, 2);
     } catch (e) { /* the races alone */ }
     if (traceFull !== tr) return;                          // another track since

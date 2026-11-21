@@ -8,7 +8,7 @@
 // track (#/analyse-solo). The tiles of 2026-11-01 are gone (`?choix=` addresses lead here); a race's analysis with its
 // published times (#/analyse?course=) stays Arena's.
 
-import { html, raw, $, $$, fmt, fmtDate, normalise } from "../util.js";
+import { html, raw, esc, $, $$, fmt, fmtDate, normalise } from "../util.js";
 import { t, tn, has } from "../i18n.js";
 import * as auth from "../auth.js";
 import * as country from "../country.js";
@@ -87,7 +87,9 @@ export async function render(main, r) {
       courses: a.courses, runners: a.runners || 0,
       locked: a.access === "locked", clubOnly: a.vis === "club", organiser: !!a.organiser, thumb: a.thumb ?? null,
       // a club's analysis this account is not a member of (owner, 2026-11-07: listed to all, its code asked of its organiser)
-      shut: a.access === "club", code: !!a.code };
+      shut: a.access === "club", code: !!a.code,
+      // a visitor without an account sees every published event too (owner, 2026-11-21), those open to accounts only said so
+      needs: a.access === "account" };
   });
   // the account's kept solo analyses (owner, 2026-11-05: « Analyse solo »'s « Enregistrer l'analyse », trace/solokeep.js), seen
   // by their owner alone, replayed or deleted here — in every country's list
@@ -119,7 +121,11 @@ export async function render(main, r) {
   };
   let selected = byKey.has(q0.id) ? q0.id : null;
   // an event its organisers opened to their club's members only (owner, 2026-11-05: said in the list)
-  const clubTag = (e) => (e.clubOnly ? html` <span class="tag ma-club-only" title="${clubName(e.org) ? t("ma.clubOnly.tip", { club: clubName(e.org) }) : t("ma.clubOnly.tip0")}">${t("ma.clubOnly")}</span>` : "");
+  const clubTag = (e) => (e.clubOnly ? html` <span class="tag ma-club-only" title="${clubName(e.org) ? t("ma.clubOnly.tip", { club: clubName(e.org) }) : t("ma.clubOnly.tip0")}">${t("ma.clubOnly")}</span>`
+    : e.needs ? html` <span class="tag ma-club-only" title="${t("ma.accOnly.tip")}">${t("ma.accOnly")}</span>` : "");
+  // a visitor without an account on an event they cannot open: why, and the two ways to an account
+  const guestAsk = (e) => raw(t(e.needs ? "ma.guest.account" : e.shut ? "ma.guest.club" : "ma.guest.locked",
+    { club: esc(clubName(e.org) || t("ma.club.club0")), a: `<a href="#/compte/inscription">`, b: "</a>", c: `<a href="#/?s=login">`, d: "</a>" }));
   const seg = (name, list, cur) => html`<div class="seg" role="group" aria-label="${t(`ma.${name}`)}">${list.map(([k, l]) =>
     html`<button type="button" class="seg-btn${k === cur ? " on" : ""}" data-${name}="${k}" aria-pressed="${k === cur}">${l}</button>`)}</div>`;
   $("#ma-filters").innerHTML = html`<div class="filters ma-filters">
@@ -175,7 +181,7 @@ export async function render(main, r) {
   const thumbs = new Map();
   const thumbOf = (e) => {
     if (e.solo) return Promise.resolve(SK.thumbUrl(e.solo.sha));
-    if (e.thumb == null || ((e.locked || e.shut) && !keyOf(e.key))) return Promise.resolve(null);
+    if (e.thumb == null || e.needs || ((e.locked || e.shut) && !keyOf(e.key))) return Promise.resolve(null);
     if (!thumbs.has(e.key)) thumbs.set(e.key, api(`/${e.key}/thumb/${e.thumb}`, { blob: true, key: keyOf(e.key) }).then((b) => URL.createObjectURL(b)).catch(() => null));
     return thumbs.get(e.key);
   };
@@ -193,7 +199,8 @@ export async function render(main, r) {
     box.innerHTML = html`<div class="card-body">
       <h2 class="ma-d-title">${e.name}</h2><p class="muted">${facts.join(" · ")}</p>
       <p><span class="tag">${t(`ma.kind.${e.kind}`)}</span>${clubTag(e)} ${tn("ma.courses", e.courses)} · ${tn("ma.runners", e.runners)}</p>
-      ${shut ? html`<p class="ma-club-ask">${clubAsk(e.code, clubName(e.org), a.ownerName)}</p>${e.code ? codeRow(t("ma.code")) : ""}`
+      ${!me && (e.needs || shut || locked) ? html`<p class="ma-club-ask">${guestAsk(e)}</p>`
+      : shut ? html`<p class="ma-club-ask">${clubAsk(e.code, clubName(e.org), a.ownerName)}</p>${e.code ? codeRow(t("ma.code")) : ""}`
       : locked ? html`<p class="muted">${t("ma.locked.ask")}</p>${codeRow(t("sh.pw"))}`
       : html`<div class="ma-ways">
         ${way(multiHref(a), t("ma.go.view"), t("ma.go.view.hint"), !me)}

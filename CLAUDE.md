@@ -2775,6 +2775,16 @@ Every multiple-choice game was played through to its score page at phone size, w
   carte », « Ouvrir l'analyse de carte »); the runners' side, where it is told apart from « Analyse solo », is Coach's tile
   « Comparer avec les autres coureurs » (`ma.multi.title`). Code names (`multi`, `shared.js`, `beta.multi`) keep the old word.
 - **« Analyse », simply** (owner, 2026-11-05): Coach's « Analyse de carte » and Arena's « Analyse de course » are both « Analyse » (Analysis, Analyse, Análisis), Orga's « Analyses de carte » « Analyses », and in running text « l'analyse » — so the notes above saying « Analyse de carte » / « Analyse de course » mean these pages; a text that must say whose writes « Arena › Analyse » / « Coach › Analyse ». The Tracer's ribbon button is « Publier l'analyse »; the event page's left-panel tab « Analyses » is « Temps » (`sh.tab.views`). Routes and code names (`#/analyse-carte`, `mapAnalysis`, `nav.raceAnalysis`) unchanged.
+- **Every published event is listed to everyone** (owner, 2026-11-21: « all users see all events, even those they cannot access »):
+  Coach › Analyse listed a club's or a password's event to every account since 2026-11-07, but a visitor without an account only
+  the analyses opened to visitors. `GET /api/analyses/v` now lists every published analysis, its `access` "open" (public and opened
+  to visitors), "account" (open to accounts), "club" or "locked" — for those a visitor cannot open: name, day, club, place, circuits
+  and runners only, no thumbnail, never the organiser's name; the analysis itself, its map and traces stay refused (`/v/<id>` 404).
+  `mapanalysis.js`: the tag « Avec un compte » (`ma.accOnly`), and for a visitor the card says why and links « Créez un compte » /
+  « connectez-vous » (`guestAsk`, `ma.guest.account|club|locked`; no code field: unlocking needs an account). « Analyse solo »'s
+  `findLikely` offers a visitor only the events they may open. « Membres du club »'s tooltip says « Ouverte seulement aux membres… »
+  (it said « Visible »). Local test of a visitor: launch config `pages-dev-guest` (8773, the anti-robot check's secret unset so that
+  no guest pass is asked), opened at `127.0.0.1` (the local session's cookie is `localhost`'s).
 - **Vocabulary** (owner, 2026-10-14, as the World Ranking separates them; renamed 2026-10-19): a race's points are the
   « score Ozimut » / « score officiel » (`ui.scoreLabel`, i18n `score.*`; « score Top » until 2026-10-19), a runner's ranking
   value the « indice Ozimut » / « CN officiel » (`ui.cnLabel`, `ui.cnWords`, `cn.*`; « CN Top » until 2026-10-19); the
