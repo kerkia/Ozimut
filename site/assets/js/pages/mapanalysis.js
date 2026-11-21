@@ -106,7 +106,7 @@ export async function render(main, r) {
   const forCountry = () => {
     cc = country.current();
     // an event without a country (a training of before): in every country's list
-    items = all.filter((e) => !e.cc || e.cc === cc).sort((a, b) => (b.date || "").localeCompare(a.date || "") || a.name.localeCompare(b.name));
+    items = all.filter((e) => !e.cc || e.cc === cc || cc === country.ALL).sort((a, b) => (b.date || "").localeCompare(a.date || "") || a.name.localeCompare(b.name));
     byKey = new Map(items.map((e) => [e.key, e]));
     clubs = [...new Set(items.map((e) => e.org).filter(Boolean))].sort((a, b) => clubName(a).localeCompare(clubName(b)));
   };

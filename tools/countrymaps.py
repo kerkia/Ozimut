@@ -205,6 +205,8 @@ def main(argv) -> None:
     world, units = load(FILES[0]), load(FILES[1])
     OUT.mkdir(parents=True, exist_ok=True)
     for cc in dict.fromkeys(ccs):
+        if cc == "XA":                 # (« Tous les pays » draws IOF WRE's world map)
+            continue
         m = build_world(world) if cc == "XW" else build(cc, world, units)
         if not m:
             print(f"{cc}: not in Natural Earth")

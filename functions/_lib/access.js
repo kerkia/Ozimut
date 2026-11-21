@@ -21,3 +21,5 @@ for (const cc of ["AT", "BE", "BG", "BR", "BY", "CH", "CZ", "DE", "DK", "EE", "G
   "KR", "LT", "MK", "PL", "RO", "RS", "SI", "SK", "TR", "UA", "ZA"]) DATA_ACCESS[cc] = "all";
 // « IOF WRE » (countries/wre.py, 2026-11-04): the IOF's World Ranking Events, listed as a country of its own
 DATA_ACCESS.XW = "all";
+// « Tous les pays » (countries/world.py, 2026-11-21): every country's agenda in one, and OrienteeringOnline's competitions
+DATA_ACCESS.XA = "all";

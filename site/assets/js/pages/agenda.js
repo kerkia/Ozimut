@@ -13,6 +13,7 @@ import { sees } from "../auth.js";
 import { LIVE } from "../livesplits.js";
 import * as tracking from "../tracking.js";
 import * as agendaMap from "../agendamap.js";
+import * as agendaCal from "../agendacal.js";
 import { probe } from "../livesplits.js";
 import { raceFilters } from "../racefilters.js";
 
@@ -59,11 +60,28 @@ export async function render(main, { query }) {
   // « IOF WRE » (countries/wre.py; owner, 2026-11-04): the IOF's World Ranking Events, a list of their own (the site's country
   // XW) and in their host country's: its row of the same event tagged « WRE » (the match the build made, `same`), the others
   // added as rows of their own — a country whose calendar Ozimut cannot read has those alone
-  const WRE = country.WRE, inWre = country.current() === WRE;
-  const W = inWre ? null : await data.countryJson(WRE, "agenda.json").catch(() => null);
+  // « Tous les pays » (countries/world.py; owner, 2026-11-21): every country's competitions in one list — the countries' own
+  // calendars, the WREs and OrienteeringOnline's competitions no country's list has —, on the world's map, a « Pays » column and
+  // filter; a row chosen reads its country's own file for the details' long texts. A country's own list also gains
+  // OrienteeringOnline's competitions its calendar lacks (xa/extra.json), as it gains its WREs
+  const WRE = country.WRE, ALL = country.ALL, inWre = country.current() === WRE, inAll = country.current() === ALL;
+  const several = inWre || inAll;                     // a list of several countries: their flag and name in the place's column
+  const hostOf = (e) => (inWre ? e.host : inAll ? country.of(e) : null);
+  const [W, X] = inWre || inAll ? [null, null] : await Promise.all([data.countryJson(WRE, "agenda.json").catch(() => null),
+    data.countryJson(ALL, "extra.json").catch(() => null)]);
   const wres = (W?.events || []).filter((w) => w.host === country.current());
+  const extras = (X?.events || []).filter((x) => x.country === country.current());
   let A = await data.agenda();
-  if (!A && wres.length) A = { events: [], regions: [], depts: {}, specs: [], generated: W.generated, sources: W.sources, wreOnly: true };
+  if (!A && (wres.length || extras.length)) A = { events: [], regions: [], depts: {}, specs: [], generated: (W || X).generated, sources: {}, wreOnly: true };
+  if (A && extras.length) {
+    A = { ...A, events: [...A.events, ...extras], sources: { ...(A.sources || {}), ...(X.sources || {}) },
+      specs: [...new Set([...(A.specs || []), ...extras.map((x) => x.spec).filter(Boolean)])] };
+  }
+  if (A && inAll) {                          // the countries as the list's places
+    const ccs = [...new Set(A.events.map((e) => country.of(e)))];
+    const nm = new Map(ccs.map((c) => [c, country.name(c)]));
+    A = { ...A, regions: ccs.sort((a, b) => nm.get(a).localeCompare(nm.get(b), locale())).map((c) => ({ name: c, depts: [] })), depts: {} };
+  }
   if (A && wres.length) {                    // (the file as loaded is the cache's: copied, never changed)
     const of = new Map(wres.filter((w) => w.same).map((w) => [String(w.same), w]));
     const hit = new Set();
@@ -118,13 +136,17 @@ export async function render(main, { query }) {
   // the site's country's events (country.js; France's alone until another country's agenda is read)
   // (an event of the agenda's last days that « Résultats » has is its past row)
   const events = [...A.events.filter((e) => !(e.date < today && pastIds.has(String(e.id)))), ...declared, ...past]
-    .map((e, i) => ({ ...e, key: keyOf(e, i) })).filter((e) => country.of(e) === country.current())
+    .map((e, i) => ({ ...e, key: keyOf(e, i) })).filter((e) => country.here(e))
     .sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0) || depOrder(a.dep) - depOrder(b.dep)
       || String(a.name || "").localeCompare(String(b.name || ""), "fr"));
   const byKey = new Map(events.map((e) => [e.key, e]));
   const fr = country.current() === "FR";        // France's CN and FFCO's own pages
   // the country's places, when its agenda has them (France: regions and départements; Spain: communities and provinces)
   const places = (A.regions || []).length > 0;
+  // (under « Tous les pays » the places are the countries: a row's own region stays in the details)
+  const regionOf = (e) => (inAll ? country.of(e) : e.region), depOf = (e) => (inAll ? null : e.dep);
+  const regionLabel = (r) => (inAll ? country.name(r) : fmtRegion(r));
+  const regionCol = places && !inAll;
   const deptName = (c) => A.depts[c] || c;
   // an event FFCO lists without a name of its own carries its type as its name (« Régionale Sprint (sans qualif) »):
   // shown in the reader's language, as the type is
@@ -136,6 +158,8 @@ export async function render(main, { query }) {
   // the levels' names in the country (« Canton », « Bezirk »…), else the generic ones
   const cc = country.current();
   const levelName = (lvl) => (fr ? t(`agd.${lvl}`) : has(`agd.${lvl}.${cc}`) ? t(`agd.${lvl}.${cc}`) : t(`agd.${lvl}.other`));
+  // a French competition among others (« Tous les pays »): its CN and FFCO's page in the details
+  const frRow = (e) => fr || (inAll && country.of(e) === "FR");
   const regionOfDept = new Map(A.regions.flatMap((r) => r.depts.map((d) => [d, r.name])));
   const allDepts = A.regions.flatMap((r) => r.depts);
   const everyPlace = () => st.regions.size === A.regions.length && st.depts.size === allDepts.length;
@@ -173,11 +197,13 @@ export async function render(main, { query }) {
         <summary><span>${t("agd.filters")}</span><span class="badge" id="fold-badge" hidden></span></summary>
         <section class="card agenda-filters"><div id="filters"></div><div id="ag-rf"></div></section>
       </details>
-      ${country.hint([...Object.entries(data.site()?.countries || {}).filter(([, v]) => v.agenda).map(([cc]) => cc), ...(data.site()?.countries?.[WRE]?.hosts || [])])}
+      ${country.hint([...Object.entries(data.site()?.countries || {}).filter(([, v]) => v.agenda).map(([cc]) => cc), ...(data.site()?.countries?.[WRE]?.hosts || []),
+        ...(data.site()?.countries?.[ALL]?.hosts || [])])}
       </div>
       <section class="card" id="list-card"><div class="card-head"><h2 id="count"></h2></div><div class="agenda-table" id="table"></div></section>
       </div>
       <div class="agenda-side"><section class="card agenda-map" id="agmap" hidden></section>
+        <section class="card agenda-cal" id="agcal" hidden></section>
         <section class="card agenda-detail" id="detail"></section></div>
     </div></div>`;
   const page = $("#agenda-page");
@@ -207,8 +233,8 @@ export async function render(main, { query }) {
       if (st.cnOnly && !e.cn) return false;
       if (st.spec && e.spec !== st.spec) return false;
       if (!places) {                                        // some places are unchecked
-        if (e.dep) { if (!st.depts.has(e.dep)) return false; }
-        else if (e.region) { if (!st.regions.has(e.region)) return false; }
+        if (depOf(e)) { if (!st.depts.has(depOf(e))) return false; }
+        else if (regionOf(e)) { if (!st.regions.has(regionOf(e))) return false; }
         else return false;                                  // no known place
       }
       if (st.groups.size && !st.groups.has(groupOf(e))) return false;
@@ -228,8 +254,8 @@ export async function render(main, { query }) {
   const regionSummary = () => {
     const states = A.regions.map(regionState);
     const on = states.filter((x) => x === "on").length, part = states.filter((x) => x === "part").length;
-    if (on === states.length) return t("agd.allF");
-    if (on + part === 0) return t("agd.noneF");
+    if (on === states.length) return t(inAll ? "agd.allM" : "agd.allF");
+    if (on + part === 0) return t(inAll ? "agd.noneM" : "agd.noneF");
     return part ? tn("agd.partial", part, { on, total: states.length }) : t("agd.nOf", { n: on, total: states.length });
   };
   const regionState = (r) => {
@@ -252,8 +278,8 @@ export async function render(main, { query }) {
         <label class="field"><span>${t("agd.to")}</span><input type="date" id="f-to" value="${st.to}" min="${st.from}"></label>
         <label class="field"><span>${t("agd.spec")}</span><select id="f-spec"><option value="">${t("agd.allF")}</option>
           ${A.specs.map((s) => html`<option value="${s}" ${raw(st.spec === s ? "selected" : "")}>${fmtFormat(s)}</option>`)}</select></label>
-        ${places ? html`<div class="field field-wide"><span>${levelName("region")}</span>${multi("m-regions", regionSummary(),
-          A.regions.map((r) => opt("m-regions", r.name, fmtRegion(r.name), regionState(r))))}</div>
+        ${places ? html`<div class="field field-wide"><span>${inAll ? t("agd.col.country") : levelName("region")}</span>${multi("m-regions", regionSummary(),
+          A.regions.map((r) => opt("m-regions", r.name, inAll ? html`${raw(country.flagImg(r.name))} ${regionLabel(r.name)}` : regionLabel(r.name), regionState(r))))}</div>
         ${allDepts.length ? html`<div class="field field-wide"><span>${levelName("dept")}</span>${multi("m-depts", summary(st.depts.size, allDepts.length, t("agd.allM"), t("agd.noneM")),
           A.regions.filter((r) => r.depts.length).map((r) => html`<div class="multi-group">${fmtRegion(r.name)}</div>
             ${r.depts.map((d) => opt("m-depts", d, deptLabel(d), st.depts.has(d) ? "on" : "off"))}`))}</div>` : ""}` : ""}
@@ -326,7 +352,7 @@ export async function render(main, { query }) {
   const firstDir = (k) => (k === "cn" ? -1 : 1);                 // the CN's races first; dates and texts from the start
   const coll = new Intl.Collator(locale(), { sensitivity: "base", numeric: true });
   const sortVal = (e, k) => (k === "date" ? e.date : k === "cn" ? (e.cn ? 1 : 0) : k === "event" ? nameOf(e) || null
-    : k === "place" ? (inWre && e.host ? `${country.name(e.host)} ${e.place || ""}` : e.place || null)
+    : k === "place" ? (several && hostOf(e) ? `${country.name(hostOf(e))} ${e.place || ""}` : e.place || null)
     : k === "region" ? fmtRegion(e.region) || null : k === "type" ? typeLabel(e) || null : null);
   const byDefault = () => sortBy.length === 1 && sortBy[0].key === "date" && sortBy[0].dir === 1;
   const rank = new Map(events.map((e, i) => [e.key, i]));
@@ -369,19 +395,20 @@ export async function render(main, { query }) {
     $("#fold-badge").textContent = n;
     $("#count").textContent = tn("agd.count", shown.length);
     map?.show(shown, st.selected, (e) => periodOf(e) !== "coming");      // today's and past ones: only on hover
+    cal?.show(shown, st.selected);
     // a redraw (live races, start lists found later) keeps the row at the list's top where it was: rows above it may have grown
     const box0 = $("#table"), top0 = box0.getBoundingClientRect().top;
     const anchor = !toToday && box0.scrollTop > 0 ? $$("#table tbody tr").find((r) => r.getBoundingClientRect().bottom > top0 + 1) : null;
     const at0 = anchor ? anchor.getBoundingClientRect().top - top0 : 0, key0 = anchor?.dataset.key;
     const head = html`<table class="data"><thead><tr>
-        ${sortHead("date", t("agd.col.date"))}${sees("FR") && fr ? sortHead("cn", t("agd.col.cn")) : ""}${sortHead("event", t("agd.col.event"))}${sortHead("place", t(inWre ? "agd.col.country" : "agd.col.place"))}${places ? sortHead("region", levelName("region")) : ""}${sortHead("type", t("agd.col.type"))}</tr></thead>`.toString();
+        ${sortHead("date", t("agd.col.date"))}${sees("FR") && fr ? sortHead("cn", t("agd.col.cn")) : ""}${sortHead("event", t("agd.col.event"))}${sortHead("place", t(several ? "agd.col.country" : "agd.col.place"))}${regionCol ? sortHead("region", levelName("region")) : ""}${sortHead("type", t("agd.col.type"))}</tr></thead>`.toString();
     const rows = shown.map((e) => html`<tr data-key="${e.key}" data-period="${periodOf(e)}" tabindex="0" class="${e.key === st.selected ? "selected" : ""} ${e.cancelled ? "cancelled" : ""} ${e.past ? "past" : ""}">
         <td class="num nowrap d">${fmtDate(e.date, "short")}${e.end ? html`<span class="dim d-end"> → ${fmtDate(e.end, "short")}</span>` : ""}${(e.natcal?.alt || []).map((d) => html`<span class="dim d-end"> ${t("agd.nat.or")} ${fmtDate(d, "short")}</span>`)}</td>
         ${sees("FR") && fr ? html`<td class="c">${e.natcal ? html`<span class="dim" title="${t("agd.nat.cnTip")}">—</span>` : e.cn ? html`<span class="tag tag-in"><span class="m-only">CN</span><span class="d-only">${t("agd.yes")}</span></span>` : html`<span class="dim"><span class="m-only">${t("agd.notCn")}</span><span class="d-only">${t("agd.no")}</span></span>`}</td>` : ""}
         <td class="n">${nameOf(e)}${wreTags(e)}${natTag(e)}${e.cancelled ? html` <span class="tag">${t("agd.cancelled")}</span>` : ""}${starts.has(String(e.id)) ? html` <span class="tag" style="color:var(--accent)" title="${t("agd.startsTip")}">${t("agd.starts")}</span>` : ""}${lives.get(String(e.id))?.now ? html` <a class="lv-badge" href="#/direct/${lives.get(String(e.id)).id}" title="${t("agd.liveTip")}">${t("lv.badge")}</a>` : ""}${trackOf(e) ? html` <span class="tag" title="${t("trk.tagTip")}">${t("trk.tag")}</span>` : ""}${e.past ? pastTags(e) : ""}</td>
-        <td class="p">${inWre && e.host ? html`<span class="nowrap">${country.flagImg(e.host)} ${country.name(e.host)}</span>${e.place ? html` <span class="dim">· ${e.place}</span>` : ""}`
+        <td class="p">${several && hostOf(e) ? html`<span class="nowrap">${country.flagImg(hostOf(e))} ${country.name(hostOf(e))}</span>${e.place ? html` <span class="dim">· ${e.place}</span>` : ""}`
           : html`${e.place || ""}${deptTag(e) ? html` <span class="dim">${deptTag(e)}</span>` : ""}`}</td>
-        ${places ? html`<td class="r">${fmtRegion(e.region)}</td>` : ""}
+        ${regionCol ? html`<td class="r">${fmtRegion(e.region)}</td>` : ""}
         <td class="nowrap t">${typeLabel(e)}</td></tr>`.toString());
     // The rows are kept (2026-11-17: a tick of a filter built the whole table again — measured, two thirds of the wait
     // were the browser styling and laying out rows it had just thrown away). When the rows to show are among those in
@@ -472,10 +499,19 @@ export async function render(main, { query }) {
     const row = key && $(`#table tr[data-key="${CSS.escape(key)}"]`);
     row?.classList.add("selected");
     map?.select(key);
+    cal?.select(key);
     drawDetail();
     page.classList.toggle("detail-open", !!key);
     if (mobile()) { window.scrollTo(0, key ? 0 : listY); if (!key) $("#table").scrollTop = listBox; }
-    else if (key && scroll) row?.scrollIntoView({ block: "center" });
+    else {
+      if (key && scroll) row?.scrollIntoView({ block: "center" });
+      // the details under the map and the calendar: brought into the side column's sight when it is too short for all three
+      const side = $(".agenda-side", main), det = $("#detail");
+      if (key && side && side.scrollHeight > side.clientHeight + 1) {
+        const off = det.getBoundingClientRect().top - side.getBoundingClientRect().top;
+        if (off > side.clientHeight - 160) side.scrollTo({ top: side.scrollTop + off - 8, behavior: "smooth" });
+      }
+    }
   }
   function select(key) {
     const e = byKey.get(key);
@@ -510,19 +546,58 @@ export async function render(main, { query }) {
     map = await agendaMap.mount($("#agmap"), cc, {
       levels: { dept: levelName("dept").toLowerCase(), region: levelName("region").toLowerCase() },
       // (the WREs the IOF's calendar alone gives are placed at their country's centre when their name gives no town)
-      area: inWre || A.wreOnly ? "agd.map.areaCountry" : "agd.map.area",
+      area: inAll ? "agd.map.areaAll" : inWre || A.wreOnly ? "agd.map.areaCountry" : "agd.map.area",
       onPick: (key) => { select(key); $(`#table tr[data-key="${CSS.escape(key)}"]`)?.scrollIntoView({ block: "nearest" }); },
-      onHover: (key) => {
-        $$("#table tr.map-hover").forEach((r) => r.classList.remove("map-hover"));
-        if (key) $(`#table tr[data-key="${CSS.escape(key)}"]`)?.classList.add("map-hover");
-      },
+      onHover: (key) => { lightRows(key ? [key] : null); cal?.hover(key); },
     });
     map?.show(shown, st.selected, (e) => periodOf(e) !== "coming");      // today's and past ones: only on hover
   }
+  const lightRows = (keys) => {
+    $$("#table tr.map-hover").forEach((r) => r.classList.remove("map-hover"));
+    for (const k of keys || []) $(`#table tr[data-key="${CSS.escape(k)}"]`)?.classList.add("map-hover");
+  };
+  // ---- the calendar under the map (a computer only, agendacal.js; owner, 2026-11-21): the table's competitions by month or week
+  let cal = null, calScroll = 0;
+  /** The list brought to the first competition shown from that day on (the calendar moved, a day opened). */
+  function listTo(iso) {
+    if (!byDefault()) return;
+    const box = $("#table");
+    const row = $$("#table tbody tr[data-key]:not([hidden])").find((r) => {
+      const e = byKey.get(r.dataset.key);
+      return e && (e.end || e.date) >= iso;
+    });
+    if (!row) return;
+    calScroll = Date.now();
+    box.scrollTop += row.getBoundingClientRect().top - box.getBoundingClientRect().top - ($("#table thead")?.offsetHeight || 0);
+  }
+  function mountCal() {
+    if (cal || mobile()) return;
+    cal = agendaCal.mount($("#agcal"), {
+      today, name: nameOf, flag: (e) => (several && hostOf(e) ? country.flagImg(hostOf(e), "cty-flag agc-flag") : ""),
+      onPick: (key) => { select(key); $(`#table tr[data-key="${CSS.escape(key)}"]`)?.scrollIntoView({ block: "nearest" }); },
+      onHover: (keys) => { lightRows(keys); map?.hover(keys?.length ? keys : null); },
+      onRange: (from) => listTo(from),
+      onDay: (iso) => listTo(iso),
+    });
+    cal.show(shown, st.selected);
+  }
+  // the list scrolled by hand: the calendar goes to its first row in sight (by date only)
+  let followT = 0;
+  $("#table").addEventListener("scroll", () => {
+    if (!cal || Date.now() - calScroll < 400 || !byDefault()) return;
+    clearTimeout(followT);
+    followT = setTimeout(() => {
+      const box = $("#table"), top = box.getBoundingClientRect().top + ($("#table thead")?.offsetHeight || 0);
+      const r = $$("#table tbody tr[data-key]:not([hidden])").find((x) => x.getBoundingClientRect().bottom > top + 2);
+      const e = r && byKey.get(r.dataset.key);
+      if (e) cal.follow(e.date < today && (e.end || e.date) >= today ? today : e.date);
+    }, 120);
+  }, { passive: true });
   phone.addEventListener("change", mountMap);
-  $("#table").addEventListener("mouseover", (e) => { const r = e.target.closest("tr[data-key]"); if (r) map?.hover(r.dataset.key); });
-  $("#table").addEventListener("mouseleave", () => map?.hover(null));
-  $("#table").addEventListener("focusin", (e) => { const r = e.target.closest("tr[data-key]"); if (r) map?.hover(r.dataset.key); });
+  phone.addEventListener("change", mountCal);
+  $("#table").addEventListener("mouseover", (e) => { const r = e.target.closest("tr[data-key]"); if (r) { map?.hover(r.dataset.key); cal?.hover(r.dataset.key); } });
+  $("#table").addEventListener("mouseleave", () => { map?.hover(null); cal?.hover(null); });
+  $("#table").addEventListener("focusin", (e) => { const r = e.target.closest("tr[data-key]"); if (r) { map?.hover(r.dataset.key); cal?.hover(r.dataset.key); } });
   $("#table").addEventListener("keydown", (e) => {
     const r = e.target.closest("tr[data-key]");
     if (r && (e.key === "Enter" || e.key === " ")) { e.preventDefault(); select(r.dataset.key); }
@@ -559,7 +634,7 @@ export async function render(main, { query }) {
     const tied = new Set([...lives.values()].map((l) => String(l.id)));
     const cc = country.current();
     for (const c of list.comps || []) {
-      if (tied.has(String(c[0])) || c[3] !== today || ((c[5] || cc) !== cc)) continue;
+      if (tied.has(String(c[0])) || c[3] !== today || (!inAll && (c[5] || cc) !== cc)) continue;
       const ev = on.find((e) => fits(e.name || "", c[1]));
       if (ev) set(String(ev.id), c[0], c[6] != null && c[6] <= liveS);
     }
@@ -600,7 +675,7 @@ export async function render(main, { query }) {
     if (e.kind !== "c" || e.declared || e.natcal) return "";    // a declared competition: its organiser's own registration
     const r = e.reg;
     // (an agenda read from a calendar that does not tell the entries — `sources`, the other countries' — says nothing)
-    if (!r && (A.sources || e.host)) return "";
+    if (!r && (inAll ? country.of(e) !== "FR" : A.sources || e.host)) return "";
     if (!r) return html`<div class="reg closed"><div class="reg-title">${t("agd.reg")}</div><div class="dim">${t("agd.reg.none")}</div></div>`;
     const closed = r.closed || (r.close && r.close < today);
     const dates = r.close || r.mods || r.count != null;
@@ -673,8 +748,21 @@ export async function render(main, { query }) {
     return out.length ? html`<p class="row" style="margin:0;gap:8px;flex-wrap:wrap">${out}</p>` : "";
   };
 
+  // under « Tous les pays » a row keeps the list's fields: its country's own file gives the rest (read once a country)
+  const fullDone = new Set();
+  async function fillRow(e) {
+    if (!inAll || fullDone.has(e.key) || e.id == null) return;
+    fullDone.add(e.key);
+    const own = await data.countryJson(country.of(e), "agenda.json").catch(() => null);
+    const full = (own?.events || []).find((x) => String(x.id) === String(e.id));
+    if (!full) return;
+    for (const [k, v] of Object.entries(full)) if (e[k] == null) e[k] = v;
+    if (full.reg?.circuits && e.reg && !e.reg.circuits) e.reg = { ...e.reg, circuits: full.reg.circuits };
+    if (st.selected === e.key) drawDetail();
+  }
   function drawDetail() {
     const e = st.selected && byKey.get(st.selected);
+    if (e) fillRow(e);
     const box = $("#detail");
     const backBtn = html`<button type="button" class="btn btn-sm detail-back" data-back>${t("agd.back")}</button>`;
     if (!e) { box.innerHTML = html`<div class="empty">${t("agd.pick")}</div>`; return; }
@@ -684,7 +772,7 @@ export async function render(main, { query }) {
       <div class="card-head"><div><h2>${nameOf(e)}</h2>
         <div class="hint">${e.end ? t("agd.range", { a: longDate(e.date), b: longDate(e.end) }) : longDate(e.date)}${e.cancelled ? ` · ${t("agd.cancelled")}` : ""}</div></div></div>
       <div class="card-body stack" style="gap:14px">
-        <div class="row" style="gap:6px">${!sees("FR") || !fr || e.natcal ? "" : e.cn ? html`<span class="tag tag-in">${t("agd.inCn")}</span>` : html`<span class="tag">${t("agd.outCn")}</span>`}
+        <div class="row" style="gap:6px">${!sees("FR") || !frRow(e) || e.natcal ? "" : e.cn ? html`<span class="tag tag-in">${t("agd.inCn")}</span>` : html`<span class="tag">${t("agd.outCn")}</span>`}
           <span class="tag">${typeLabel(e)}</span>${groupOf(e) ? html`<span class="tag">${t("agd.groupTag", { g: groupOf(e) })}</span>` : ""}</div>
         ${actions(e)}
         ${natNote(e)}
@@ -695,9 +783,9 @@ export async function render(main, { query }) {
           ${row(t("agd.d.manif"), fmtManif(e.manif))}
           ${row(t("agd.d.league"), e.league)}
           ${row(t("agd.d.level"), e.level)}
-          ${row(t("agd.d.country"), inWre && e.host ? html`${country.flagImg(e.host)} ${country.name(e.host)}` : "")}
+          ${row(t("agd.d.country"), several && hostOf(e) ? html`${country.flagImg(hostOf(e))} ${country.name(hostOf(e))}` : "")}
           ${row(t("agd.d.place"), e.place ? html`${e.place}${e.dep ? html` (${deptLabel(e.dep)})` : ""}` : e.dep ? deptLabel(e.dep) : "")}
-          ${row(t("agd.d.region"), fmtRegion(region))}
+          ${row(t("agd.d.region"), inAll && country.of(e) !== "FR" ? e.region || "" : fmtRegion(region))}
           ${row(t("agd.d.spec"), fmtFormat(e.spec))}
           ${row(t("agd.d.epr"), fmtFormat(e.epr))}
           ${row(t("agd.d.org"), e.org)}
@@ -713,7 +801,7 @@ export async function render(main, { query }) {
           ${(e.extra || []).map(([l, v]) => row(l, v))}
           ${row(t("agd.d.obs"), e.obs ? html`<span style="white-space:pre-line">${e.obs}</span>` : "")}
         </dl>
-        ${fr && e.id != null && !e.declared && !e.host ? html`<p style="margin:0"><a class="btn btn-sm" href="https://api.ffcorientation.fr/iframe/courses/${e.id}/" target="_blank" rel="noopener">${t("agd.ffco")}</a></p>` : ""}
+        ${frRow(e) && e.id != null && !e.declared && !e.host && !e.natcal ? html`<p style="margin:0"><a class="btn btn-sm" href="https://api.ffcorientation.fr/iframe/courses/${e.id}/" target="_blank" rel="noopener">${t("agd.ffco")}</a></p>` : ""}
         ${sourceLinks(e)}
         <div class="detail-nav">${backBtn}</div>
       </div>`;
@@ -722,6 +810,7 @@ export async function render(main, { query }) {
   drawFilters();
   drawTable();
   mountMap();
+  mountCal();
   if (returning) setTimeout(() => {
     const box = $("#table");
     if (box.scrollHeight > box.clientHeight + 1) box.scrollTop = returning.box;
@@ -743,5 +832,5 @@ export async function render(main, { query }) {
   } else drawDetail();
   return { title: t("nav.agenda"), onQuery, cleanup: () => { document.removeEventListener("click", closeMulti); phone.removeEventListener("change", syncFold);
     window.removeEventListener("ocn:country", onCountry);
-    phone.removeEventListener("change", mountMap); map?.destroy(); } };
+    phone.removeEventListener("change", mountMap); phone.removeEventListener("change", mountCal); map?.destroy(); cal?.destroy(); } };
 }

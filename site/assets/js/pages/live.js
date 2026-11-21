@@ -87,7 +87,7 @@ async function list(main, query) {
     const x = r ? provFacts(r) : { region: "", lics: [] };
     return { ...x, spec: (r && x.spec) || terrainOf(c[1], ""), text: `${c[1]} ${c[2]} ${c[7] || ""}` };
   };
-  const F = await raceFilters({ id: "lv", query, races: comps.filter((c) => (c[5] || "?") === cur), facts, onChange: () => draw() });
+  const F = await raceFilters({ id: "lv", query, races: comps.filter((c) => cur === country.ALL || (c[5] || "?") === cur), facts, onChange: () => draw() });
   $("#lv-filters").innerHTML = F.html;
   // live now (owner, 2026-10-22): a race whose last punch is under liveS old (the relay's directory reads today's races'
   // last passings: c[6], the age in seconds), a broadcast that sent something in that time
@@ -108,7 +108,7 @@ async function list(main, query) {
   const today = new Date().toLocaleDateString("sv-SE");
   const draw = () => {
     const n = F.searching();
-    const kept = comps.filter((c) => (n || (c[5] || "?") === cur) && F.keep(c))
+    const kept = comps.filter((c) => (n || cur === country.ALL || (c[5] || "?") === cur) && F.keep(c))
       .sort((a, b) => isLive(b) - isLive(a) || (a[3] === today ? -1 : b[3] === today ? 1 : 0) || Math.abs(Date.parse(a[3]) - Date.parse(today)) - Math.abs(Date.parse(b[3]) - Date.parse(today)));
     // the box on top: the races live now (the country's, or the search's), the latest punch first
     const now = kept.filter(isLive).sort((a, b) => a[6] - b[6]);

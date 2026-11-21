@@ -75,7 +75,7 @@ export async function render(main, { query = {} } = {}) {
 // ---- the races -------------------------------------------------------------------------------------------------
 async function list(main, idx, query) {
   // the races run so far (today's too): a coming race's start list is reached from « Agenda »
-  const R = idx.races.filter((r) => !r.soon && country.of(r) === country.current());     // the site's country's (country.js)
+  const R = idx.races.filter((r) => !r.soon && country.here(r));     // the site's country's (country.js)
   // a runner's races published by FFCO (their results are « Courses classées »'s): one's own races are those where one is
   // recognised in an organiser's list or in FFCO's (owner, 2026-10-17: the race of the day FFCO had published, with no
   // organiser's list read yet, was missing from one's own races)

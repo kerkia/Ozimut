@@ -14,7 +14,8 @@ import { t, tn } from "./i18n.js";
 const SVG = "http://www.w3.org/2000/svg";
 const cache = new Map();
 const outline = (cc) => {
-  if (!cache.has(cc)) cache.set(cc, fetch(`/assets/geo/${cc.toLowerCase()}.json`).then((r) => (r.ok ? r.json() : null)).catch(() => null));
+  // (« Tous les pays », XA, on IOF WRE's world map)
+  if (!cache.has(cc)) cache.set(cc, fetch(`/assets/geo/${cc === "XA" ? "xw" : cc.toLowerCase()}.json`).then((r) => (r.ok ? r.json() : null)).catch(() => null));
   return cache.get(cc);
 };
 
@@ -104,7 +105,7 @@ export async function mount(el, cc, { onPick, onHover, levels = {}, area = "agd.
   });
 
   // ---- the dots: one per place (the events at one place share it)
-  let spots = [], byKey = new Map(), cur = { hover: null, selected: null };
+  let spots = [], byKey = new Map(), cur = { hover: null, selected: null, many: null };
   // `ghost(e)`: an event placed but drawn only while the mouse is over its row or it is selected (owner, 2026-10-30: today's
   // and the past competitions, the coming ones being the dots)
   function show(events, selected, ghost = () => false) {
@@ -147,7 +148,11 @@ export async function mount(el, cc, { onPick, onHover, levels = {}, area = "agd.
         + `<circle class="agm-hi-dot${spot.approx ? " approx" : ""}" cx="${spot.x}" cy="${spot.y}" r="${(strong ? 5.5 : 4.5) * u}" style="stroke-width:${1.6 * u}"/>`
         + (label ? `<text x="${lx}" y="${ly}" style="font-size:${12.5 * u}px;stroke-width:${3.5 * u}px">${esc(label)}</text>` : "");
     };
-    hiG.innerHTML = (sel && sel !== s ? mark(sel, false) : "") + (s ? mark(s, true) : "");
+    // several competitions under the mouse (a day of the calendar): each one's place, without names
+    const many = (cur.many || []).map((k) => byKey.get(k)).filter((x) => x && x !== s && x !== sel);
+    const dots = [...new Set(many)].slice(0, 200).map((spot) => `<circle class="agm-hi-halo" cx="${spot.x}" cy="${spot.y}" r="${8 * u}"/>`
+      + `<circle class="agm-hi-dot${spot.approx ? " approx" : ""}" cx="${spot.x}" cy="${spot.y}" r="${4 * u}" style="stroke-width:${1.4 * u}"/>`).join("");
+    hiG.innerHTML = dots + (sel && sel !== s ? mark(sel, false) : "") + (s ? mark(s, true) : "");
   }
   const esc = (x) => String(x).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]);
 
@@ -187,7 +192,13 @@ export async function mount(el, cc, { onPick, onHover, levels = {}, area = "agd.
     if (s && (s.x < view.x || s.x > view.x + view.w || s.y < view.y || s.y > view.y + view.h)) setView({ ...view, x: s.x - view.w / 2, y: s.y - view.h / 2 });
     highlight();
   }
-  function hover(key) { cur.hover = key || null; highlight(); }
+  /** The competition under the mouse elsewhere (a row), or several (`key` a list: a day of the calendar, its one named). */
+  function hover(key) {
+    const keys = Array.isArray(key) ? key : null;
+    cur.many = keys && keys.length > 1 ? keys : null;
+    cur.hover = (keys ? (keys.length === 1 ? keys[0] : null) : key) || null;
+    highlight();
+  }
   /** The view fitted on the dots (« Mes cartes »: the world's map closes in on where the maps are), else the whole frame. */
   function fitDots() {
     if (!spots.length) return setView(full);

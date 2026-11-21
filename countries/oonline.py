@@ -6,6 +6,10 @@ with the country and a window of dates — date, name, the number of entries, th
 30 rows at most: a window that fills it is cut in two. Each competition's page gives its last day, organiser, place,
 website and entry deadline (an e-mail too, never kept): read once, when the competition is first seen. Only the
 competitions taking entries there are listed: a part of each country's calendar.
+
+Every country's (owner, 2026-11-21: « complete the international agenda »): `read_world` searches « All countries » at once
+(the list then gives each competition's country); countries/world.py adds those no country's own list has — about 200 a year,
+the Balkans, Germany, Italy, the Netherlands, Hungary, Portugal… — to « Tous les pays » and to their country's list.
 """
 from __future__ import annotations
 
@@ -58,6 +62,7 @@ def search(http, country: int, lo: date, hi: date, state: dict, depth: int = 0) 
         if d and cid:
             out.append({"id": cid.group(1), "date": f"{d.group(3)}-{d.group(2)}-{d.group(1)}",
                         "name": link.text_content().strip() or cells[3],
+                        "country": cells[1] if len(cells) > 1 else "",
                         "entries": int(cells[-1]) if cells[-1].isdigit() else None})
     if len(out) >= ROWS and depth < 5 and hi > lo:           # (a full page: the rest is on the next one)
         mid = lo + (hi - lo) / 2
@@ -85,6 +90,37 @@ def _day(s: str | None) -> str | None:
     return f"{d[-1][2]}-{d[-1][1]}-{d[-1][0]}" if d else None
 
 
+def page_fields(http, cid: str) -> dict:
+    """What a competition's page adds to the list: {end, place, org, site, close, entries} (entries: does it take its entries
+    on the platform)."""
+    page = info(http, cid)
+    got = {k: v for k, (v, _) in page.items()}
+    site = page.get("Competition website", (None, None))
+    return {"end": _day(got.get("End date")), "close": _day(got.get("Entry dates")),
+            "place": got.get("Location (city, area, ...)") or None, "org": got.get("Organizer") or None,
+            "site": next((u for u in (site[1], site[0]) if u and u.startswith("http")), None),
+            "entries": got.get("Use our online entries system", "Yes") != "No"}
+
+
+def row(cc: str, c: dict, f: dict, id_=None) -> dict:
+    """A competition of the list (`c`) and of its page (`f`, page_fields) as an agenda row of country `cc`."""
+    name = c["name"]
+    cancelled = bool(OFF.search(name))
+    name = OFF.sub("", name).strip(" -–") or name
+    url = EVENT.format(c["id"])
+    reg = {k: v for k, v in (("url", url), ("close", f.get("close")), ("count", c.get("entries"))) if v is not None}
+    return agenda.event(
+        cc, id_ if id_ is not None else c["id"], c["date"], name, kind="e" if TRAINING.search(name) else "c", end=f.get("end"),
+        place=f.get("place"), org=f.get("org"), site=f.get("site"), cancelled=cancelled, reg=reg if f.get("entries") else None,
+        src={"oo": url})
+
+
+def kept_fields(old: dict) -> dict:
+    """page_fields as an earlier day's row of the agenda keeps them (its page not read again)."""
+    return {"end": old.get("end"), "place": old.get("place"), "org": old.get("org"), "site": old.get("site"),
+            "close": (old.get("reg") or {}).get("close"), "entries": bool(old.get("reg"))}
+
+
 def read_country(cc: str, country: int, http, today: date, prev: dict | None) -> list[dict]:
     """A country's agenda from the platform: the window's competitions, each one's page read when first seen."""
     lo, hi = today - timedelta(days=agenda.BACK_DAYS), today + timedelta(days=366)
@@ -95,25 +131,40 @@ def read_country(cc: str, country: int, http, today: date, prev: dict | None) ->
     out = []
     for c in search(http, country, lo, hi, _form(a.content)):
         old = known.get(f"{cc.lower()}{c['id']}")
-        if old and old.get("date") == c["date"]:         # (its page read on an earlier day)
-            end, place, org, site = (old.get(k) for k in ("end", "place", "org", "site"))
-            close, entries = (old.get("reg") or {}).get("close"), bool(old.get("reg"))
-        else:
-            page = info(http, c["id"])
-            got = {k: v for k, (v, _) in page.items()}
-            end, close = _day(got.get("End date")), _day(got.get("Entry dates"))
-            place, org = got.get("Location (city, area, ...)") or None, got.get("Organizer") or None
-            site = page.get("Competition website", (None, None))
-            site = next((u for u in (site[1], site[0]) if u and u.startswith("http")), None)
-            entries = got.get("Use our online entries system", "Yes") != "No"
-        name = c["name"]
-        cancelled = bool(OFF.search(name))
-        name = OFF.sub("", name).strip(" -–") or name
-        url = EVENT.format(c["id"])
-        reg = {k: v for k, v in (("url", url), ("close", close), ("count", c["entries"])) if v is not None}
-        out.append(agenda.event(
-            cc, c["id"], c["date"], name, kind="e" if TRAINING.search(name) else "c", end=end, place=place, org=org,
-            site=site, cancelled=cancelled, reg=reg if entries else None, src={"oo": url}))
+        # (its page read on an earlier day)
+        f = kept_fields(old) if old and old.get("date") == c["date"] else page_fields(http, c["id"])
+        out.append(row(cc, c, f))
+    return out
+
+
+# the platform's countries (its search's own list, 2026-11-21) -> ISO 3166-1 alpha-2
+ISO = {
+    "Albania": "AL", "Algeria": "DZ", "Andorra": "AD", "Australia": "AU", "Austria": "AT", "Azerbaijan": "AZ", "Belarus": "BY",
+    "Belgium": "BE", "Bosnia and Herzegovina": "BA", "Brazil": "BR", "Bulgaria": "BG", "China": "CN", "Colombia": "CO",
+    "Croatia": "HR", "Cyprus": "CY", "Czech Republic": "CZ", "Czechia": "CZ", "Denmark": "DK", "Ecuador": "EC", "Egypt": "EG",
+    "Estonia": "EE", "Finland": "FI", "France": "FR", "Georgia": "GE", "Germany": "DE", "Greece": "GR", "Greenland": "GL",
+    "Guatemala": "GT", "Hong Kong S.A.R., China": "HK", "Hungary": "HU", "Iceland": "IS", "Ireland": "IE", "Israel": "IL",
+    "Italy": "IT", "Japan": "JP", "Latvia": "LV", "Lithuania": "LT", "Luxembourg": "LU", "Macedonia": "MK",
+    "North Macedonia": "MK", "Malaysia": "MY", "Mauritius": "MU", "Moldova": "MD", "Montenegro": "ME", "Netherlands": "NL",
+    "New Caledonia": "NC", "New Zealand": "NZ", "North Korea": "KP", "Poland": "PL", "Portugal": "PT", "Romania": "RO",
+    "Serbia": "RS", "Slovakia": "SK", "Slovenia": "SI", "South Africa": "ZA", "Spain": "ES", "Sweden": "SE",
+    "Switzerland": "CH", "Turkey": "TR", "Türkiye": "TR", "Uganda": "UG", "Ukraine": "UA", "United States": "US"}
+
+
+def read_world(http, today: date) -> list[dict] | None:
+    """Every country's competitions on the platform over the agenda's window (its search for « All countries »: about 200 a
+    year in 2026, ~20 requests): [{id, date, name, cc, entries}], `cc` None for a country not in ISO. None when the platform
+    did not answer."""
+    lo, hi = today - timedelta(days=agenda.BACK_DAYS), today + timedelta(days=366)
+    a = http.get(SEARCH)
+    if a.status != 200:
+        return None
+    got = search(http, 0, lo, hi, _form(a.content))
+    seen, out = set(), []
+    for c in got:
+        if c["id"] not in seen:
+            seen.add(c["id"])
+            out.append({**c, "cc": ISO.get(c.get("country") or "")})
     return out
 
 

@@ -21,7 +21,7 @@ export async function render(main, { query = {} } = {}) {
   const idx = await getProv("index.json");
   // O'Live's relays (owner, 2026-10-25: the CNE at Le Bessat) apart in the index: listed here alone, each leg a circuit
   const every = [...(idx?.races || []), ...(idx?.relays || []).map((r) => ({ ...r, relay: true }))].filter((r) => r.splits && !r.soon);
-  const races = every.filter((r) => country.of(r) === country.current())
+  const races = every.filter((r) => country.here(r))
     .sort((a, b) => b.date_iso.localeCompare(a.date_iso) || a.name.localeCompare(b.name));
   // the filters (racefilters.js, as on Résultats)
   const F = await raceFilters({ id: "ra", query, races, onChange: () => draw() });

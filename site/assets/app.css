@@ -1231,6 +1231,62 @@ table.data tbody tr.me .name { font-weight: 700; }
 .agm-k-ring { border: 1.5px dashed color-mix(in srgb, var(--water) 75%, var(--ink)); }
 .agm-credit { margin-left: auto; }
 .agenda-table tbody tr.map-hover { background: var(--flag-wash); }
+/* the Agenda's calendar under the map (agendacal.js; owner, 2026-11-21) */
+.agenda-side { overflow-y: auto; }
+.agenda-side .agenda-detail { min-height: 160px; }
+.agenda-side:has(.agenda-cal:not([hidden])) .agm { height: min(28vh, 280px); }
+.agenda-cal { flex: 0 0 auto; padding: 8px 12px 8px; position: relative; }
+.agc-head { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.agc-h { margin: 0; font-size: 15px; margin-right: auto; }
+.agc-nav { display: flex; gap: 4px; }
+.agc-nav .btn { min-width: 30px; padding: 2px 8px; }
+.agc-views button { height: 26px; padding: 3px 10px; font-size: 12.5px; }
+.agc-fold { min-width: 30px; padding: 2px 8px; }
+.agenda-cal.folded .agc-body { display: none; }
+.agenda-cal.folded .agc-nav, .agenda-cal.folded .agc-views { display: none; }
+.agc-title { margin: 6px 0 4px; font-weight: 650; font-size: 13.5px; }
+.agc-title::first-letter, .agc-wd-h::first-letter { text-transform: uppercase; }
+.agc-month { width: 100%; border-collapse: separate; border-spacing: 2px; table-layout: fixed; }
+.agc-month th { font-size: 11px; font-weight: 600; color: var(--ink-3); text-align: center; padding: 0 0 2px; text-transform: uppercase; }
+.agc-month th.agc-wk, .agc-month td.agc-wk { width: 26px; }
+.agc-month tbody th.agc-wk { font-weight: 500; color: var(--ink-3); font-size: 10.5px; text-transform: none; }
+.agc-d { --heat: 0; position: relative; height: 38px; vertical-align: top; padding: 2px 3px; border-radius: 6px; font-size: 11.5px;
+  background: color-mix(in srgb, var(--forest) calc(var(--heat) * 38%), var(--surface-2)); border: 1px solid transparent; }
+.agc-d.past { background: color-mix(in srgb, var(--water) calc(var(--heat) * 38%), var(--surface-2)); }
+.agc-d.out { opacity: .45; }
+.agc-d.has { cursor: pointer; }
+.agc-d.has:hover, .agc-d.has:focus-visible { border-color: var(--ink-3); outline: none; }
+.agc-d.today { border-color: var(--flag); box-shadow: inset 0 0 0 1px var(--flag); }
+.agc-d.hl { border-color: var(--flag); background: color-mix(in srgb, var(--flag) 30%, var(--surface-2)); }
+.agc-d.sel { border-color: var(--focus); box-shadow: inset 0 0 0 1px var(--focus); }
+.agc-n { font-weight: 600; color: var(--ink-2); }
+.agc-c { position: absolute; right: 3px; top: 2px; font-weight: 700; font-size: 10.5px; color: var(--ink); }
+.agc-dots { position: absolute; left: 3px; right: 3px; bottom: 3px; display: flex; flex-wrap: wrap; gap: 2px; line-height: 0; }
+.agc-dot { display: inline-block; width: 6px; height: 6px; border-radius: 50%; flex: none; background: var(--ink-3); }
+.agc-dot.d-foot { background: var(--forest); }
+.agc-dot.d-sprint { background: #c0392b; }
+.agc-dot.d-mtbo { background: #9a6324; }
+.agc-dot.d-ski { background: var(--water); }
+.agc-dot.d-trail { background: #8e44ad; }
+.agc-dot.train { background: transparent; box-shadow: inset 0 0 0 1.5px var(--forest); }
+.agc-dot.off { opacity: .35; }
+.agc-legend { display: flex; flex-wrap: wrap; gap: 3px 10px; margin-top: 4px; font-size: 11px; color: var(--ink-2); }
+.agc-k { display: inline-flex; align-items: center; gap: 4px; }
+.agc-week { max-height: min(34vh, 330px); overflow: auto; display: flex; flex-direction: column; gap: 6px; }
+.agc-wd { border-radius: 8px; padding: 4px 6px; background: var(--surface-2); border: 1px solid transparent; }
+.agc-wd.today { border-color: var(--flag); }
+.agc-wd.open { border-color: var(--focus); }
+.agc-wd-h { font-size: 12px; font-weight: 650; margin-bottom: 2px; }
+.agc-ev { display: flex; align-items: center; gap: 5px; width: 100%; text-align: left; border: 0; background: none; font: inherit;
+  font-size: 12.5px; color: var(--ink); padding: 2px 4px; border-radius: 5px; cursor: pointer; }
+.agc-ev span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.agc-ev:hover, .agc-ev.hl { background: var(--flag-wash); }
+.agc-ev.sel { background: var(--accent-wash); box-shadow: inset 3px 0 0 var(--focus); }
+.agc-ev.off span { text-decoration: line-through; color: var(--ink-3); }
+.agc-flag { width: 14px; height: 10px; flex: none; }
+.agc-none { font-size: 12px; padding: 0 4px; }
+.agc-tip { position: absolute; z-index: 6; max-width: 260px; padding: 6px 9px; font-size: 12.5px; line-height: 1.4; pointer-events: none;
+  background: var(--surface); border: 1px solid var(--border-strong); border-radius: 8px; box-shadow: 0 8px 20px rgba(0,0,0,.18); }
 .multi { position: relative; }
 .multi > summary {
   list-style: none; cursor: pointer; height: 34px; padding: 0 28px 0 10px; display: flex; align-items: center; gap: 8px;
@@ -1257,7 +1313,7 @@ table.data tbody tr.me .name { font-weight: 700; }
   .agenda-table { max-height: 60vh; }
   .agenda-detail { position: static; max-height: none; }
   .agenda-side { position: static; max-height: none; display: block; }
-  .agenda-map { display: none; }
+  .agenda-map, .agenda-cal { display: none; }
 }
 
 .ag-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 6px 14px; }

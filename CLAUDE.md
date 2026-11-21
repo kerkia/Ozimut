@@ -4531,6 +4531,36 @@ Every multiple-choice game was played through to its score page at phone size, w
   table by table) and France (régions, départements by number) and Spain were added for it. Measured 2026-10-25 on the local
   agendas: France 1 810 events by town, 28 by GPS, 172 at a centre, 10 not placed, of 2 020; Britain 752 / 28 of 836;
   Switzerland 45 GPS, 87 town, 51 centre; Poland 1 town (its list gives only the club's voivodeship). Lakes are not drawn.
+- **« Tous les pays », OrienteeringOnline everywhere, the calendar** (owner, 2026-11-21: « the agenda is missing a lot of major
+  competitions from outside France »). `countries/world.py`, code **XA** (ISO's user-assigned range, as XW), runs last in the agenda
+  run (`countries.modules`, after `wre`): `site/data/xa/agenda.json` = every country's agenda rows (each with its `country`; the long
+  texts — observations, access, contacts, entries by circuit: `HEAVY` — left to the country's own file, which the page reads when a
+  row is chosen, `fillRow`), the WREs no host's list holds, and OrienteeringOnline's competitions no country's list has; every row
+  placed on the world's map (a town of its place or name, else its country's centre, `wre.position`). OrienteeringOnline
+  (`countries/oonline.py` `read_world`: its search for « All countries », ~20 requests; its countries' names → ISO in `ISO`) holds
+  about 200 competitions a year (2026-11-21: Germany, Romania, Italy, Slovenia, Spain, Croatia, the Netherlands, Hungary, Portugal…);
+  one is a country's own when that country's row links its page or shares a word of its name on its day (`world.match`); the
+  others (103 that day) go to `xa/extra.json` with their page read once (`pages`: last day, place, organiser, website, entry
+  deadline; `MAX_PAGES` a run), and the Agenda page adds them to their country's list as it adds the WREs — a country Ozimut reads
+  no calendar of gets a list of them (the Netherlands, Hungary, Portugal, Latvia…; the index's XA `hosts` puts them in the menu).
+  **World of O** (worldofo.com and events.worldofo.com, its « grey rows » from IOF Eventor, the national Eventors and Attackpoint)
+  answers robots with a Cloudflare challenge, as every Eventor does; **Attackpoint**'s robots.txt forbids everything (« contact ken if
+  you need to crawl the site ») and its events pages answer 403: none read (checked 2026-11-21; ask their editors). The site:
+  `country.ALL`, « Tous les pays » / All countries / Alle Länder / Todos los países (`cty.all`, its own mark, « Tous » on the header's
+  button), at the top of the header's menu with the account's own countries — a visitor's: the one in use — and « IOF WRE »
+  (`country.items`), and on top of a page's « Choisir un autre pays »; `country.here(x)` (any country under XA) for the lists of
+  races — Résultats, En direct, Arena's Analyse list, Coach › Analyse (`analysis.js` not yet: its race picker under XA is empty). The
+  Agenda under XA: the place column gives the flag and country, the « Pays » filter lists the countries (`regionOf` / `depOf`), the
+  world's map (`agendamap` draws XA on `geo/xw.json`), a French row keeps its CN tag and FFCO link in the details (`frRow`).
+  **The calendar** (`site/assets/js/agendacal.js`, under the map on a computer, `#agcal`): the table's competitions (the filters
+  apply) by month — each day its number, a dot per competition coloured by discipline (a training hollow), how many, a ground the
+  darker the busier, past days in the water's colour, the ISO week numbers — or by week, each day's competitions by name with the
+  flag where countries mix; ‹ › and « Aujourd'hui », folding, the view kept (`localStorage ocn.agd.cal`). Synced: a day under the
+  mouse lights its competitions in the table and on the map (`agendamap.hover` takes a list) with a box listing them, a click opens
+  its week and brings the list there (`listTo`); a name chooses the competition; the list scrolled by hand takes the calendar to its
+  first row in sight (by date order only); a row under the mouse or chosen marks its day, the calendar going to a competition chosen
+  elsewhere; the side column scrolls when map, calendar and details do not fit, a choice bringing the details into sight. Not on a
+  phone (hidden with the map under 980 px).
 - **No FFCO for those outside France** (owner, 2026-10-20): a visitor or an account that has not joined France never meets
   « FFCO » outside the site's rules (privacy page, « Indépendance et sources »): the home page, the footer, the shared pages
   (Agenda, Résultats, En direct, Réglages, registration, the Tracer, the organisers' deposits) and the e-mails speak of « la

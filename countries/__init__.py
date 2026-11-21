@@ -25,9 +25,10 @@ def modules() -> list:
     """Every country's module (countries/fr, countries/es, countries/ch…), France first: its COUNTRY, and what it can do —
     refresh_agenda(root), agenda_path(root)…"""
     import importlib
-    from . import ca, es, fr, wre
-    # « IOF WRE » (countries/wre.py) last: it matches each WRE to its host country's agenda as just refreshed
-    return [fr, es, ca] + [importlib.import_module(f"{__name__}.{k}") for k in AGENDA_ONLY] + [wre]
+    from . import ca, es, fr, world, wre
+    # « IOF WRE » (countries/wre.py) after the countries: it matches each WRE to its host country's agenda as just refreshed;
+    # « Tous les pays » (countries/world.py) last: every country's agenda and the WREs in one list
+    return [fr, es, ca] + [importlib.import_module(f"{__name__}.{k}") for k in AGENDA_ONLY] + [wre, world]
 
 
 def registry() -> list[Country]:
@@ -61,6 +62,11 @@ def summary(c: Country, root: Path = SITE_DATA) -> dict | None:
         try:
             ev = json.loads((d / "agenda.json").read_text(encoding="utf-8")).get("events") or []
             out["hosts"] = sorted({e["host"] for e in ev if e.get("host")})
+        except (OSError, ValueError):
+            pass
+    if c.code == "XA" and agenda:                # « Tous les pays »: the countries whose own list gains OrienteeringOnline's
+        try:
+            out["hosts"] = json.loads((d / "extra.json").read_text(encoding="utf-8")).get("hosts") or []
         except (OSError, ValueError):
             pass
     if meta:

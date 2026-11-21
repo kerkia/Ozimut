@@ -17,6 +17,11 @@ const KEY = "ocn.country";
 // own (XW: ISO 3166's user-assigned range), first after the account's own countries; the countries its events take place in
 // (its index's `hosts`) are offered too — their own lists show their WREs, a country whose calendar Ozimut cannot read its WREs alone
 export const WRE = "XW";
+// « Tous les pays » (countries/world.py; owner, 2026-11-21: « adding a "all countries" to the list of countries, at the top with the
+// home country and WRE »): every country's competitions in one list, on the world's map — the countries' own calendars, the WREs no
+// host's list holds and OrienteeringOnline's competitions; listed as a country of its own (XA). The lists of races (Résultats,
+// En direct, Analyse) show every country's there (`here`)
+export const ALL = "XA";
 // the countries of the races « En direct » offers (the live relay's list: liveresultat's, every country's), kept on the device
 // for LIVE_TTL (owner, 2026-10-29: Sweden, whose agenda Ozimut cannot read, had left the menu with its live races)
 const LIVE_KEY = "ocn.liveCountries", LIVE_TTL = 6 * 3600e3;
@@ -39,13 +44,14 @@ export function refreshLive(base = "") {
 export function withData() {
   const read = Object.keys(data.site()?.countries || {});
   if (!read.length) read.push("FR");
-  read.push(...(data.site()?.countries?.[WRE]?.hosts || []));
+  read.push(...(data.site()?.countries?.[WRE]?.hosts || []), ...(data.site()?.countries?.[ALL]?.hosts || []));
   const mine = (auth.session()?.countries || []).filter((c) => c.status === "ok").map((c) => c.cc);
   return [...new Set([...read, ...(liveKept()?.cc || []), ...mine])];
 }
 /** A country's name in the site's language. */
 export function name(cc) {
   if (cc === WRE) return t("cty.wre");
+  if (cc === ALL) return t("cty.all");
   try { return new Intl.DisplayNames([lang()], { type: "region" }).of(cc) || cc; } catch (e) { return cc; }
 }
 /** The site's country now. */
@@ -62,6 +68,10 @@ export function pick(cc) {
 }
 /** An event or race of a country (the data's `country`; France when it has none, as everything before 2026-10-20). */
 export const of = (x) => x?.country || "FR";
+/** Is an event or race of the site's country — any, under « Tous les pays »? */
+export const here = (x, cur = current()) => cur === ALL || of(x) === cur;
+/** A pseudo-country (« IOF WRE », « Tous les pays »): no federation, no ranking, its lists gather several countries. */
+export const isGroup = (cc) => cc === WRE || cc === ALL;
 /** What the site has of a country (data/meta.json `countries`): { access, federation, ranking, agenda, methods… }, or null. */
 export const info = (cc = current()) => data.site()?.countries?.[cc] || null;
 /** Who may read a country's data: "members" (France) or "all" (Spain); a country the site has no data for: null. */
@@ -71,11 +81,16 @@ export const access = (cc) => info(cc)?.access || null;
 export const ranks = (cc = current()) => !!info(cc)?.ranking && (info(cc)?.access !== "admins" || auth.sees(cc));
 
 /** A country's flag (owner, 2026-10-22: beside every country choice), or nothing for an unknown one. */
-export const flagImg = (cc, cls = "cty-flag") => (cc === WRE ? wreMark(cls) : cc && /^[A-Z]{2}$/.test(cc)
+export const flagImg = (cc, cls = "cty-flag") => (cc === WRE ? wreMark(cls) : cc === ALL ? allMark(cls) : cc && /^[A-Z]{2}$/.test(cc)
   ? html`<img class="${cls}" src="${flag(cc)}" alt="" width="18" height="13" loading="lazy" decoding="async">` : "");
 
 /** « IOF WRE »'s mark in place of a flag: a globe, the world's (no federation's emblem). */
 const wreMark = (cls) => html`<svg class="${cls} cty-wre" width="18" height="13" viewBox="0 0 18 13" aria-hidden="true"><rect width="18" height="13" rx="1.5" fill="#1f5f9e"/><g fill="none" stroke="#fff" stroke-width="1"><circle cx="9" cy="6.5" r="4.6"/><ellipse cx="9" cy="6.5" rx="2" ry="4.6"/><path d="M4.4 6.5h9.2M5.1 4.1h7.8M5.1 8.9h7.8"/></g></svg>`;
+
+/** « Tous les pays »' mark: four flags' colours in a square, no country's. */
+const allMark = (cls) => html`<svg class="${cls} cty-all" width="18" height="13" viewBox="0 0 18 13" aria-hidden="true"><rect width="18" height="13" rx="1.5" fill="#e8743b"/><rect x="9" width="9" height="6.5" fill="#2e7d4f"/><rect y="6.5" width="9" height="6.5" fill="#1f5f9e"/><rect x="9" y="6.5" width="9" height="6.5" fill="#f2c230"/><circle cx="9" cy="6.5" r="3.4" fill="#fff"/><circle cx="9" cy="6.5" r="1.6" fill="#e8743b"/></svg>`;
+/** A country's code as the header's button writes it. */
+export const shortName = (cc) => (cc === WRE ? "WRE" : cc === ALL ? t("cty.allShort") : cc);
 
 /** The header's menu, beside the language's: every country — the account's own first, then a line and the countries Ozimut
  *  has data for, then a line and every other IOF member (owner, 2026-10-29: a country is never left out of this menu; a page's
@@ -84,11 +99,14 @@ function items() {
   const ok = withData();
   const cur = current();
   const mine = byName((auth.session()?.countries || []).filter((c) => c.status === "ok").map((c) => c.cc));
-  // « IOF WRE » first after the account's own countries (owner, 2026-11-04)
-  const known = [...(ok.includes(WRE) ? [WRE] : []), ...byName(ok.filter((cc) => !mine.includes(cc) && cc !== WRE))];
-  const rest = byName(MEMBERS.filter((cc) => !mine.includes(cc) && !ok.includes(cc)));
+  // the account's own countries, « Tous les pays » and « IOF WRE » on top (owner, 2026-11-04, 2026-11-21); a visitor's own country
+  // is the site's: the one in use, when it is a real one
+  const home = mine.length ? mine : isGroup(cur) ? [] : [cur];
+  const top = [...home, ...[ALL, WRE].filter((cc) => ok.includes(cc))];
+  const known = byName(ok.filter((cc) => !top.includes(cc)));
+  const rest = byName(MEMBERS.filter((cc) => !top.includes(cc) && !ok.includes(cc)));
   const item = (cc) => html`<button type="button" role="menuitemradio" aria-checked="${String(cc === cur)}" data-country-pick="${cc}">${flagImg(cc)}${name(cc)}</button>`;
-  return html`${[mine, known, rest].filter((l) => l.length).map((l, i) => html`${i ? html`<div class="cty-sep" role="separator"></div>` : ""}${l.map(item)}`)}`;
+  return html`${[top, known, rest].filter((l) => l.length).map((l, i) => html`${i ? html`<div class="cty-sep" role="separator"></div>` : ""}${l.map(item)}`)}`;
 }
 export function menu() {
   const cur = current();
@@ -96,7 +114,7 @@ export function menu() {
     <button class="icon-btn nav-top" type="button" aria-expanded="false" aria-haspopup="menu" title="${t("cty.menu")}" aria-label="${t("cty.menu")}">
       <span class="tool-label" aria-hidden="true">${t("cty.menu")}</span>
       ${flagImg(cur) || html`<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 21V4M5 4h11l-2 4 2 4H5"/></svg>`}
-      <span class="lang-code">${cur === WRE ? "WRE" : cur}</span>
+      <span class="lang-code">${shortName(cur)}</span>
     </button>
     <div class="nav-menu cty-menu" role="menu">${items()}</div>
   </div>`;
@@ -134,7 +152,7 @@ const PREP = {
   en: { aux: ["US", "NL", "PH", "GB"] },
   de: { aux: ["US", "NL", "PH"], au: ["CH", "TR", "SK", "UA", "MN", "CZ"] },
 };
-const prepOf = (cc) => cc === WRE ? "wre" : Object.entries(PREP[lang()] || {}).find(([, l]) => l.includes(cc))?.[0] || "en";
+const prepOf = (cc) => cc === WRE ? "wre" : cc === ALL ? "all" : Object.entries(PREP[lang()] || {}).find(([, l]) => l.includes(cc))?.[0] || "en";
 const openHeaderMenu = () => {
   let b = document.querySelector('.nav-group[data-group="country"] > .nav-top');
   const sub = !b?.offsetParent && document.querySelector('.nav-group[data-group="me"] .menu-sub[data-sub="country"]');
@@ -160,12 +178,13 @@ document.addEventListener("click", (e) => {
   if (!hintCcs) { openHeaderMenu(); return; }
   const pop = popOf(open), cur = current();
   if (!pop.hidden) { shut(pop); return; }
-  const others = byName(hintCcs.filter((cc) => cc !== cur && cc !== WRE && /^[A-Z]{2}$/.test(cc || "")));
-  // « IOF WRE » on top, a line under it, as in the header's menu (owner, 2026-11-04: sorted by name, it was lost among the I's)
-  const wre = hintCcs.includes(WRE) && cur !== WRE;
+  const others = byName(hintCcs.filter((cc) => cc !== cur && !isGroup(cc) && /^[A-Z]{2}$/.test(cc || "")));
+  // « Tous les pays » and « IOF WRE » on top, a line under them, as in the header's menu (owner, 2026-11-04: sorted by name, it
+  // was lost among the I's)
+  const groups = [ALL, WRE].filter((cc) => hintCcs.includes(cc) && cc !== cur);
   const pickBtn = (cc) => html`<button type="button" role="menuitem" data-cty-pick="${cc}">${flagImg(cc)}${name(cc)}</button>`;
-  pop.innerHTML = html`${wre ? html`${pickBtn(WRE)}${others.length ? html`<div class="cty-sep" role="separator"></div>` : ""}` : ""}${others.length ? others.map(pickBtn)
-    : wre ? "" : html`<span class="cty-pop-none">${t("cty.hint.none")}</span>`}<button type="button" role="menuitem" class="cty-pop-all" data-cty-all>${t("cty.hint.all")}</button>`;
+  pop.innerHTML = html`${groups.length ? html`${groups.map(pickBtn)}${others.length ? html`<div class="cty-sep" role="separator"></div>` : ""}` : ""}${others.length ? others.map(pickBtn)
+    : groups.length ? "" : html`<span class="cty-pop-none">${t("cty.hint.none")}</span>`}<button type="button" role="menuitem" class="cty-pop-all" data-cty-all>${t("cty.hint.all")}</button>`;
   pop.hidden = false;
   open.setAttribute("aria-expanded", "true");
 });
