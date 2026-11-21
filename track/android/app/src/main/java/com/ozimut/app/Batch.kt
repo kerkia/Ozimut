@@ -61,13 +61,10 @@ class Batcher(private val store: FixStore, val max: Int = MAX_FIXES) {
     }
 }
 
-/** The batch as the server reads it: in each list the first value is absolute, the others differences. */
+/** The batch as the server reads it: in dt, la, lo and al the first value is absolute, the others differences; ac plain. */
 object BatchEncoder {
-    /**
-     * Accuracies are sent as differences too, as the design's general rule says; set to false to send them
-     * as plain values (see the note in the report on design.md's example « ac »: [5,5,6]).
-     */
-    var accuracyAsDeltas = true
+    /** Accuracies are plain values, each its own fix's (docs/track/design.md, settled 2026-11-21 as the iPhone and Garmin send them). */
+    var accuracyAsDeltas = false
 
     fun encode(b: Batch, share: String, battery: Int?, lowPower: Boolean, left: Int, nowSec: Long): String {
         val f = b.fixes

@@ -32,7 +32,7 @@ class BatchEncoderTest {
         assertEquals(listOf(2634567L, -20L, -18L), (0 until 3).map { json.getJSONArray("lo").getLong(it) })
         assertEquals(fixes.map { it.la.toLong() }, sums(json.getJSONArray("la")))
         assertEquals(fixes.map { it.lo.toLong() }, sums(json.getJSONArray("lo")))
-        assertEquals(fixes.map { it.ac.toLong() }, sums(json.getJSONArray("ac")))
+        assertEquals(fixes.map { it.ac.toLong() }, (0 until 3).map { json.getJSONArray("ac").getLong(it) })   // plain values
         assertEquals(fixes.map { it.al!!.toLong() }, sums(json.getJSONArray("al")))
         assertEquals(71, json.getInt("bat"))
         assertFalse(json.getBoolean("lp"))
