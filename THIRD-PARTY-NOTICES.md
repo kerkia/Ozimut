@@ -3,7 +3,8 @@
 The Ozimut repository is published under its own licence (see `LICENSE`). The components listed here are not
 covered by it: each keeps its own licence and copyright, as stated below. Where the full licence text is already in
 the repository, its path is given instead of a copy. Items marked « to check » are those whose licence or copyright
-notice could not be found in the repository.
+notice could not be found in the repository. Every vendored package's licence files are fetched by
+`python tools/vendor.py licences` (from its npm package, else from its own repository at the published commit).
 
 Contents:
 
@@ -26,19 +27,19 @@ into `site/assets/vendor/<name>@<version>/`. Only the files listed there are in 
 | Apache ECharts 5.5.1 | `site/assets/vendor/echarts@5.5.1/` | « Apache ECharts — Copyright 2017-2024 The Apache Software Foundation » (NOTICE) | Apache-2.0 | https://echarts.apache.org/ | `site/assets/vendor/echarts@5.5.1/LICENSE`, `NOTICE` |
 | PDF.js (pdfjs-dist) 4.10.38 | `site/assets/vendor/pdfjs-dist@4.10.38/` | « Copyright 2024 Mozilla Foundation » (file header) | Apache-2.0 | https://github.com/mozilla/pdf.js | `site/assets/vendor/pdfjs-dist@4.10.38/LICENSE` |
 | pdf-lib 1.17.1 | `site/assets/vendor/pdf-lib@1.17.1/` | « Copyright (c) 2019 Andrew Dillon » | MIT | https://github.com/Hopding/pdf-lib | `site/assets/vendor/pdf-lib@1.17.1/LICENSE` |
-| @pdf-lib/fontkit 1.1.1 | `site/assets/vendor/pdf-lib-fontkit@1.1.1/` | not stated in the repository | MIT (per `site/assets/js/tracer/fonts.js`) | https://github.com/Hopding/fontkit | licence file not found in the repository: to check |
+| @pdf-lib/fontkit 1.1.1 | `site/assets/vendor/pdf-lib-fontkit@1.1.1/` | « Copyright (c) 2014-present Devon Govett » (fontkit, of which Andrew Dillon's @pdf-lib/fontkit is a fork) | MIT | https://github.com/Hopding/fontkit | `site/assets/vendor/pdf-lib-fontkit@1.1.1/LICENSE` (the fork ships none: fontkit's own, foliojs/fontkit) |
 | fflate 0.8.2 | `site/assets/vendor/fflate@0.8.2/` | « Copyright (c) 2023 Arjun Barrett » | MIT | https://github.com/101arrowz/fflate | `site/assets/vendor/fflate@0.8.2/LICENSE` |
-| Proj4js 2.12.1 | `site/assets/vendor/proj4@2.12.1/` | « Copyright (c) 2014, Mike Adair, Richard Greenwood, Didier Richard, Stephen Irons, Olivier Terral and Calvin Metcalf » | MIT | https://github.com/proj4js/proj4js | `site/assets/vendor/proj4@2.12.1/LICENSE` |
-| DuckDB-WASM 1.32.0 (browser module bundled with Apache Arrow 17.0.0 by esbuild 0.24.0) | `site/assets/vendor/duckdb-wasm@1.32.0/` | DuckDB-WASM: not stated in the repository. Apache Arrow: see its licence file (it lists the many projects Arrow includes) | DuckDB-WASM: MIT (to check); Apache Arrow: Apache-2.0 | https://github.com/duckdb/duckdb-wasm, https://github.com/apache/arrow | Apache Arrow: `site/assets/vendor/duckdb-wasm@1.32.0/LICENSE-apache-arrow`. DuckDB-WASM and DuckDB: licence file not found in the repository: to check |
+| Proj4js 2.12.1 | `site/assets/vendor/proj4@2.12.1/` | « Copyright (c) 2014, Mike Adair, Richard Greenwood, Didier Richard, Stephen Irons, Olivier Terral and Calvin Metcalf » | MIT | https://github.com/proj4js/proj4js | `site/assets/vendor/proj4@2.12.1/LICENSE`, `AUTHORS` |
+| DuckDB-WASM 1.32.0 (browser module bundled with Apache Arrow 17.0.0 by esbuild 0.24.0; DuckDB compiled into its WebAssembly) | `site/assets/vendor/duckdb-wasm@1.32.0/` | DuckDB-WASM and DuckDB: « Copyright 2018-2025 Stichting DuckDB Foundation »; Apache Arrow: « Copyright 2016-2024 The Apache Software Foundation » (its NOTICE lists the projects Arrow includes) | DuckDB-WASM, DuckDB: MIT; Apache Arrow: Apache-2.0 | https://github.com/duckdb/duckdb-wasm, https://github.com/duckdb/duckdb, https://github.com/apache/arrow | `site/assets/vendor/duckdb-wasm@1.32.0/LICENSE`, `LICENSE-duckdb`, `LICENSE-apache-arrow`, `NOTICE-apache-arrow` |
 | three.js 0.185.1 | `site/assets/vendor/three@0.185.1/` | « Copyright © 2010-2026 three.js authors » | MIT | https://threejs.org/ | `site/assets/vendor/three@0.185.1/LICENSE` |
-| qrcode-generator 2.0.4 | `site/assets/vendor/qrcode-generator@2.0.4/` | « Copyright (c) 2009 Kazuhiko Arase » (file header) | MIT | https://github.com/kazuhikoarase/qrcode-generator | notice in the head of `dist/qrcode.mjs`; no separate licence file |
+| qrcode-generator 2.0.4 | `site/assets/vendor/qrcode-generator@2.0.4/` | « Copyright (c) 2009 Kazuhiko Arase » | MIT | https://github.com/kazuhikoarase/qrcode-generator | `site/assets/vendor/qrcode-generator@2.0.4/LICENSE` (also in the head of `dist/qrcode.mjs`) |
 | polygon-clipping 0.15.7 | `site/assets/vendor/polygon-clipping@0.15.7/` | « Copyright (c) 2018 Mike Fogel » ; « Copyright (c) 2016 Alexander Milevski » (portions from w8r/martinez) | MIT | https://github.com/mfogel/polygon-clipping | `site/assets/vendor/polygon-clipping@0.15.7/LICENSE` (and `LICENSE.md`, identical) |
 | geotiff.js 2.1.3 | `site/assets/vendor/geotiff@2.1.3/` | « Copyright (c) 2015 EOX IT Services GmbH »; the bundle also contains LERC, « Copyright 2015-2021 Esri », Apache-2.0 | MIT (LERC part: Apache-2.0) | https://github.com/geotiffjs/geotiff.js | `site/assets/vendor/geotiff@2.1.3/LICENSE` |
 
 Notes on bundled sub-components:
 
-- ECharts' LICENSE names sub-components under BSD-3-Clause (d3.js) and refers to `/licenses/LICENSE-d3`, which is not
-  in the repository: to check.
+- ECharts' LICENSE names sub-components under BSD-3-Clause (d3.js, « Copyright 2010-2016 Mike Bostock »): their licence is
+  `site/assets/vendor/echarts@5.5.1/licenses/LICENSE-d3`.
 - pdf-lib's bundle contains tslib (« Copyright (c) Microsoft Corporation », header kept in the minified file).
 
 ## 2. Code ported or converted from other projects
@@ -89,8 +90,8 @@ third-party.
 
 | Font | Where | Copyright (as stated) | Licence | Upstream | Licence text |
 |---|---|---|---|---|---|
-| Roboto 5.0.8 (@fontsource/roboto) | `site/assets/vendor/fontsource/roboto@5.0.8/` | no copyright line in the licence file | Apache-2.0 | https://fontsource.org/fonts/roboto | `.../roboto@5.0.8/LICENSE` |
-| Roboto Condensed 5.0.8 | `site/assets/vendor/fontsource/roboto-condensed@5.0.8/` | no copyright line in the licence file | Apache-2.0 | https://fontsource.org/fonts/roboto-condensed | `.../roboto-condensed@5.0.8/LICENSE` |
+| Roboto 5.0.8 (@fontsource/roboto) | `site/assets/vendor/fontsource/roboto@5.0.8/` | Roboto: « Copyright 2011 Google Inc. » (the licence file is the Apache-2.0 text alone) | Apache-2.0 | https://fontsource.org/fonts/roboto | `.../roboto@5.0.8/LICENSE` |
+| Roboto Condensed 5.0.8 | `site/assets/vendor/fontsource/roboto-condensed@5.0.8/` | as Roboto | Apache-2.0 | https://fontsource.org/fonts/roboto-condensed | `.../roboto-condensed@5.0.8/LICENSE` |
 | Noto Sans JP 5.0.19 | `site/assets/vendor/fontsource/noto-sans-jp@5.0.19/` | « (c) 2014-2021 Adobe (http://www.adobe.com/), with Reserved Font Name 'Source'. » | OFL-1.1 | https://fontsource.org/fonts/noto-sans-jp | `.../noto-sans-jp@5.0.19/LICENSE` |
 | Noto Sans TC 5.0.19 | `site/assets/vendor/fontsource/noto-sans-tc@5.0.19/` | same as above | OFL-1.1 | https://fontsource.org/fonts/noto-sans-tc | `.../noto-sans-tc@5.0.19/LICENSE` |
 | Noto Sans HK 5.0.19 | `site/assets/vendor/fontsource/noto-sans-hk@5.0.19/` | same as above | OFL-1.1 | https://fontsource.org/fonts/noto-sans-hk | `.../noto-sans-hk@5.0.19/LICENSE` |

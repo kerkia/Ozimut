@@ -48,6 +48,24 @@ PACKAGES = {
 }
 BUNDLE = {"apache-arrow": "17.0.0", "esbuild": "0.24.0"}      # to bundle DuckDB's browser module
 
+# Licence texts a package's npm tarball does not carry (2026-11-21: THIRD-PARTY-NOTICES.md must point to a copy of each
+# licence in the repository), fetched from the project's own repository at the commit that version was published from
+# (npm's « gitHead »), else at the version tag: (file written beside the package's files, address).
+UPSTREAM_LICENCES = {
+    # Hopding's fork of fontkit has no licence file of its own; it is MIT, as foliojs/fontkit, whose licence it keeps
+    "@pdf-lib/fontkit": [("LICENSE", "https://raw.githubusercontent.com/foliojs/fontkit/master/LICENSE")],
+    # DuckDB-WASM, and DuckDB itself compiled into its WebAssembly (the submodule at that commit)
+    "@duckdb/duckdb-wasm": [
+        ("LICENSE", "https://raw.githubusercontent.com/duckdb/duckdb-wasm/a20b8290e79e37a7b914e62621aa412d69ba95fc/LICENSE"),
+        ("LICENSE-duckdb", "https://raw.githubusercontent.com/duckdb/duckdb/d1dc88f950d456d72493df452dabdcd13aa413dd/LICENSE"),
+    ],
+    "qrcode-generator": [
+        ("LICENSE", "https://raw.githubusercontent.com/kazuhikoarase/qrcode-generator/83b7e8fe3fddd3b0368dbafd6ce56995bd25e3c8/LICENSE")],
+}
+# the licence-like files kept from a tarball: its licence (written as LICENSE), and every NOTICE, AUTHORS, COPYING and
+# licenses/* file under its own name (ECharts' licenses/LICENSE-d3, which its LICENSE names; Proj4js' AUTHORS)
+LICENCE_FILE = re.compile(r"^((licen[cs]e|notice|copying|authors)[^/]*|licen[cs]es/[^/]+)$", re.I)
+
 
 def registry(name, what="latest"):
     with urllib.request.urlopen(f"https://registry.npmjs.org/{name.replace('/', '%2F')}/{what}", timeout=30) as r:
@@ -71,8 +89,13 @@ def check():
 
 def tarball(name, ver):
     url = registry(name, ver)["dist"]["tarball"]
-    with urllib.request.urlopen(url, timeout=120) as r:
-        return tarfile.open(fileobj=io.BytesIO(r.read()), mode="r:gz")
+    for attempt in range(4):                 # the registry drops a large download now and then
+        try:
+            with urllib.request.urlopen(url, timeout=120) as r:
+                return tarfile.open(fileobj=io.BytesIO(r.read()), mode="r:gz")
+        except (ConnectionError, TimeoutError, OSError):
+            if attempt == 3:
+                raise
 
 
 def member(tar, path):
@@ -89,12 +112,33 @@ def write(path, data):
         path.write_bytes(data)
 
 
-def licence(tar, dest):
+def licence(tar, dest, name=""):
     names = {m.name for m in tar.getmembers()}
     for lic in ("LICENSE", "LICENSE.md", "LICENSE.txt", "LICENCE"):
         if "package/" + lic in names:
             write(dest / "LICENSE", member(tar, lic))
-            return
+            break
+    for m in tar.getmembers():
+        p = m.name.removeprefix("package/")
+        if m.isfile() and LICENCE_FILE.match(p) and not re.fullmatch(r"(?i)licen[cs]e(\.md|\.txt)?", p):
+            write(dest / p, member(tar, p))
+    for fname, url in UPSTREAM_LICENCES.get(name, []):
+        with urllib.request.urlopen(url, timeout=60) as r:
+            write(dest / fname, r.read())
+
+
+def licences():
+    """Only the licence files of the packages already vendored (no code rebuilt): `python tools/vendor.py licences`."""
+    for name, (ver, folder, _files) in PACKAGES.items():
+        dest = VENDOR / f"{folder}@{ver}"
+        if not dest.exists():
+            continue
+        licence(tarball(name, ver), dest, name)
+        if name == "@duckdb/duckdb-wasm":
+            arrow = tarball("apache-arrow", BUNDLE["apache-arrow"])
+            write(dest / "LICENSE-apache-arrow", member(arrow, "LICENSE.txt"))
+            write(dest / "NOTICE-apache-arrow", member(arrow, "NOTICE.txt"))
+        print(name, sorted(p.name for p in dest.rglob("*") if p.is_file() and LICENCE_FILE.match(p.relative_to(dest).as_posix())))
 
 
 def bundle_duckdb(ver, dest):
@@ -109,6 +153,7 @@ def bundle_duckdb(ver, dest):
                         "--legal-comments=eof", "--outfile=out.mjs"], cwd=d, check=True, shell=True)
         write(dest / "dist" / "duckdb-browser.mjs", (d / "out.mjs").read_bytes())
         write(dest / "LICENSE-apache-arrow", (d / "node_modules" / "apache-arrow" / "LICENSE.txt").read_bytes())
+        write(dest / "NOTICE-apache-arrow", (d / "node_modules" / "apache-arrow" / "NOTICE.txt").read_bytes())
 
 
 def build(only=None):
@@ -142,7 +187,7 @@ def build(only=None):
                             write(dest / p, member(tar, p))
                 else:
                     write(dest / f, member(tar, f))
-        licence(tar, dest)
+        licence(tar, dest, name)
         if name == "@duckdb/duckdb-wasm":
             bundle_duckdb(ver, dest)
         print(f"{name}@{ver}")
@@ -155,4 +200,4 @@ if __name__ == "__main__":
     if cmd == "build":
         build(sys.argv[2] if len(sys.argv) > 2 else None)
     else:
-        {"check": check}.get(cmd, lambda: print(__doc__))()
+        {"check": check, "licences": licences}.get(cmd, lambda: print(__doc__))()
