@@ -268,7 +268,7 @@ struct PairView: View {
                     .textInputAutocapitalization(.characters)
                     .autocorrectionDisabled()
                     .textFieldStyle(.roundedBorder)
-                    .onChange(of: code) { v in
+                    .onChange(of: code) { _, v in
                         let n = PairCode.normalise(v)
                         if n != v { code = n }
                     }

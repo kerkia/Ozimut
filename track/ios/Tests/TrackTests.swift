@@ -2,9 +2,14 @@ import XCTest
 
 final class BatchEncoderTests: XCTestCase {
     private func fixes(_ n: Int, t0: Int64 = 1_795_253_712) -> [TrackFix] {
-        (0..<n).map { i in
-            TrackFix(t: t0 + Int64(i), la: 48_412_345 + Int64(i * 12), lo: 2_634_567 - Int64(i * 20), ac: 5 + i % 3, al: 87 + i % 2)
+        var out: [TrackFix] = []
+        for i in 0..<n {
+            let k = Int64(i)
+            let la: Int64 = 48_412_345 + k * 12
+            let lo: Int64 = 2_634_567 - k * 20
+            out.append(TrackFix(t: t0 + k, la: la, lo: lo, ac: 5 + i % 3, al: 87 + i % 2))
         }
+        return out
     }
 
     func testDeltaFormat() throws {
