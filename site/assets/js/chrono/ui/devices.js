@@ -1,8 +1,11 @@
+// This Source Code Form is subject to the terms of the Mozilla Public License, v. 2.0. If a copy of the MPL was not
+// distributed with this file, You can obtain one at https://mozilla.org/MPL/2.0/.
+
 // What is plugged into a station: card readers (SPORTident, Emit — over Web Serial, in a page as in the app) and a printer
 // for receipts (a thermal printer on a serial or Bluetooth port, the system's printer, or the app's silent printing).
 // The choices are this computer's (`localStorage oz.chrono.dev`); nothing here knows about posts.
 
-import { t } from "../../i18n.js";
+import { t } from "../lib/i18n.js";
 import { receipt, escpos, receiptHtml } from "../print/receipt.js";
 import { printHtml } from "./kit.js";
 

@@ -1,3 +1,6 @@
+// This Source Code Form is subject to the terms of the Mozilla Public License, v. 2.0. If a copy of the MPL was not
+// distributed with this file, You can obtain one at https://mozilla.org/MPL/2.0/.
+
 // Lists as HTML pages: results (with or without split times), start lists, the list by club — for a printer, a wall
 // screen or a file to post. No text of its own: the labels come from the caller, `L` = { title, place, name, club, cat,
 // time, behind, start, card, bib, status: {…}, runners, km, climb, controls, printed, points }.

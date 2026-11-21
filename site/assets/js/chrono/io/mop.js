@@ -1,6 +1,9 @@
+// This Source Code Form is subject to the terms of the Mozilla Public License, v. 2.0. If a copy of the MPL was not
+// distributed with this file, You can obtain one at https://mozilla.org/MPL/2.0/.
+
 // MeOS's online results (MOP, « MeOS Online Protocol » 2.0) written by Chrono: what MeOS's « Online results » service posts
 // to a live results server — the whole race (<MOPComplete>), then what changed (<MOPDiff>). Written from the protocol as
-// MeOS emits it and as this project's reader (live/src/mop.js) takes it (docs/chrono/meos.md); none of MeOS's code.
+// MeOS emits it and as ozimut.com's live results read it (docs/meos.md); none of MeOS's code.
 //   <competition date organizer homepage zerotime>name</competition>
 //   <ctrl id>name</ctrl>                          a radio control
 //   <cls id ord radio="31,32">name</cls>          a class and its radio controls (« ; » between a relay's legs)
@@ -13,7 +16,7 @@
 // In a diff `<cmp id delete="true"/>` (org, tm alike) takes one away; a class or a radio control gone is not said that way:
 // as MeOS does, the whole race is sent again.
 //
-// What the view must carry beyond docs/chrono/design.md:
+// What the view must carry beyond docs/design.md:
 //   row.id       the runner's id — the <cmp> number comes from it (without it: the card and the name, which may change)
 //   row.radio    [{ code, t }] — t in seconds since the runner's start, in the order passed — the passings to send
 //   row.clubId   (optional) the club's id; else the club's code, else its name, gives the <org> number

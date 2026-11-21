@@ -35,7 +35,9 @@ and logs in `C:\KerkiaBackup\tools` and `logs`, restore steps in `C:\KerkiaBacku
 `C:\KerkiaBackup` to pCloud's `/KerkiaBackup`; KopiaUI browses and restores. Its password is the owner's alone.
 Not in git (see `.gitignore`): the database and HTTP cache (`C:\kerkia\Ozimut\data` on the PC, `paths.py`, env `CN_DATA_DIR`),
 `site/data/` and `site/auth/` (generated), `.dev.vars` (local secrets), exports. **The repository is public:** never
-commit results, personal data, secrets or credentials.
+commit results, personal data, secrets or credentials. **Licence** (owner, 2026-11-21): all rights reserved, published for reading and study
+only (`LICENSE`; third-party parts in `THIRD-PARTY-NOTICES.md` — add an entry there whenever something from elsewhere comes in);
+only `site/assets/js/chrono/` is open source (MPL 2.0, see « Ozimut Chrono »). No GPL/AGPL code anywhere.
 
 ## Hosting and deployment
 
@@ -748,94 +750,39 @@ By hand: `python -m ffco_scraper.prov --db <db>
 
 ## Ozimut Chrono (race timing)
 
-**Ozimut Chrono** (owner, 2026-11-17, after the study of the timing tools clubs use — MeOS, OE12, SiTiming, QuickEvent…, private
-artifact https://claude.ai/artifact/1dFDHiPCfLzd5N3CbRx1tG — and the design note with mock-ups,
-https://claude.ai/artifact/HuNh42gd6RU8uqaHthADP4): the « GEC » inside Ozimut — entries, start draw, card reading, results,
-referee — for a timing team that often has no Internet. **Administrators only** for now: the tab « Chrono » of an Orga event
-(`pages/manage.js` adds it before « Équipe » for `auth.session().admin`; `pages/chrono.js`), `functions/api/chrono` an
-administrator's session or the event's own key. The contract is `docs/chrono/design.md`; read it first. Owner's decisions:
-**compatible with MeOS, never derived from it** (its files and protocols, none of its (A)GPL code, nor any other GPL code);
-no waiting for the federations' or the editors' answers; two shells (the tab and a desktop app); Emit from the start; every
-country (rules by country, nothing French in the engine); a tab of an Orga event — « Direct » and « Résultats » stay for those
-who time with another tool.
+**Ozimut Chrono** (owner, 2026-11-17): the « GEC » — entries, start draw, card reading, results, referee — for a timing team
+that often has no Internet. **Since 2026-11-21 it is free software with a repository of its own** (owner: open source so that
+clubs can trust and keep it, and so that its installers can be signed for free; Ozimut's paid features stay elsewhere):
+**https://github.com/kerkia/ChronOzimut, Mozilla Public License 2.0**, checked out on the PC at `C:\Kerkia\Ozimut\ChronOzimut`
+(its own CLAUDE.md, README, `docs/design.md` — the contract —, tests `npm test`, texts `npm run check`). Everything of Chrono
+is developed THERE: the engine and the screens (`src/`), the desktop app and its hub (`app/`: every laptop equal, found on
+the network, an event's six-character code typed once; auto-update through its GitHub releases `v<version>`, a release
+made by bumping `package.json`'s version), the tests, the release workflow. Owner's standing decisions: **compatible with
+MeOS, never derived from it** (no (A)GPL code, not even test data), Emit from the start, every country, nothing of Emit's
+confidential eScan2 specification.
 
-- **Engine** `site/assets/js/chrono/` — pure ES modules (no DOM, no UI text; they run in a page, in the app and under Node):
-  `log.js` (the **log of operations** every station appends to — `ev`, `put`, `many`, `read`, `assign`, `edit`, `punch`,
-  `note` —, ordered by a hybrid clock, station and sequence, folded into the state: stations converge whatever the order of
-  arrival; names that would reach an object's prototype are refused), `model.js` (`importSet`: rows found by licence, else
-  name and club, never doubled; `takeRead`: a card kept once and given to its holder), `times.js` (12-hour card clocks,
-  Emit's times from the card's own zero), `judge.js` (a card against its course by longest common subsequence: missing and
-  extra punches, alternative codes, forked classes — the variant the card fits —, score, relay legs, start by list / start
-  punch / mass, the closing time), `view.js` (lists by class and by course with places at each control, the problems that wait
-  for someone, liveresultat's compact form for « En direct », the exporters' view), `draw.js` (start draw by class or course,
-  club separation, vacant places, seeded), `rules/` (`fr`, `ca`, `iof`: categories by age, draw habits, entry kinds, the
-  federation's files — FFCO's results by circuit), `io/` (`iofxml.js` IOF XML 3.0 entries, starts, courses, results there and
-  back; `oecsv.js` the OE layouts by their headings in French, English or German, written as **OE 2003, the layout FFCO's
-  archive and CN results files use** — windows-1252 —, with a pre-flight; `meosxml.js` MeOS's event file, `mop.js` MeOS's
-  online results, `sirap.js` radio punches), `si/` (SPORTident: protocol, cards SI5-SI11/SIAC/pCard, reader over Web Serial,
-  a simulator; ported from MIT-licensed libraries, `site/assets/chrono/LICENSE-sportident.txt`), `emit/` (the 250 reader and
-  MTR4, written from the protocol's facts: `docs/chrono/emit.md`), `print/` (the finish receipt as ESC/POS bytes or HTML,
-  lists as pages), `sync.js` (stations exchange what they lack: a message link to a hub, a request to the cloud),
-  `store.js` (IndexedDB with strict durability, a journal in a folder, the event file `.ozchrono`).
-- **Screens** `chrono/ui/` + `site/assets/chrono.css`, texts in the area catalogue `i18n/chrono.{fr,en,de,es}.js`
-  (`chr.*`): `app.js` (`mountChrono`: bar with the devices' state and the clock, rail of posts, ribbon of the post in hand,
-  status line; a card read on any post is kept, judged, announced and printed; `window.chronoDebug()` gives its context),
-  nine posts — « Préparer » (an assistant: event, courses, classes, entries, starts, equipment, links, a check;
-  `importFiles` takes any file and says what it holds before merging; the federation's file kept on the computer as an
-  archive for quick entry), « Accueil », « Départ », « Arrivée » (the last card in large, what waits for someone, the cards
-  read lately; the dialogs of `dialogs.js`: an entry, a card's content corrected by hand — the card's own content is never
-  changed, the correction replaces it and is noted —, a card nobody holds, a finish typed by hand), « Suivi », « Speaker »,
-  « Arbitre » (the journal of every change made by hand, read from the log; complaints and decisions), « Postes » (which
-  units are punched, which seem dead or off the clock), « Clôturer » (what is still open, FFCO's file with its pre-flight,
-  IOF XML, MeOS, a web page, publication to « Résultats » through `/api/upload`, the card numbers remembered on the
-  computer). **A rehearsal** (« Préparer › Matériel ») works on a copy of the log with made-up cards — nothing saved nor
-  sent; with no entries it makes a small invented race (`prepare.demoSet`).
-- **Cloud** `functions/api/chrono/[[path]].js` — R2 only (`chrono/<event>/meta.json` and batches `b/<key>.json`, no D1
-  table): `sync` (each station's operations in sequence, what the caller lacks given back a few batches a call), `token`
-  (an HMAC of the event's id for the stations that are not signed in; CORS open for it), `live` (the lists passed to a
-  broadcast of « En direct », opened at the first call). The login gate lets `/api/chrono/<event>/…` through: the function
-  checks the session or the key itself. The Orga event `<id>`'s log is `e<id>`.
-- **Desktop app** `chrono-app/` (Electron; `README.md` there): `hub.mjs` is plain Node — HTTP on 8377 serving
-  `www/index.html` (→ `chrono/ui/standalone.js`) and the site's assets, a WebSocket `/hub` linking every station to the
-  event's log, a journal `<event>.ozchrono.jsonl` per event, a SIRAP listener on 10000, a key for other computers —,
-  `main.mjs` / `preload.cjs` the window (`window.chronoApp`: silent printing, printers, save dialog; Web Serial allowed).
-  **The arena's computers are equal** (owner, 2026-11-18: « all laptops are hubs », simple and automatic; `peers.mjs`,
-  `docs/chrono/design.md` « The arena's computers »): each app says on the network (UDP broadcast, port 8379) which events it
-  holds and links by itself to every app holding the same event, any of them relaying; an event's six-character code
-  (`event.lan`, Préparer › Liaisons) is typed once on a computer that does not hold it yet (its home screen › « Sur le réseau »),
-  then it links by itself at every start; « Un ordinateur n'apparaît pas ? » takes another app's address and key where broadcasts
-  do not pass. Phones and screens open any app's address (no card reader there: plain http). The serial port is chosen by
-  what is connected (`ports.mjs`, 2026-11-18). Tests `t_peers.mjs`, `t_ports.mjs`.
-  `node chrono-app/dev-hub.mjs [port] [folder]` runs the hub alone. Electron 45 (2026-11-17): `npm install` in `chrono-app`,
-  `npm start`; `npm run smoke` starts the real app hidden on a free port and checks its page is drawn (`smoke.mjs`,
-  `--unpacked` for the built app, `--doc` for the documentation window). Only `js/**`, `chrono/**`, the two stylesheets and the
-  icons of `site/assets` are packaged (~100 MB installers, nearly all Electron). Help › Documentation (F1) opens `www/doc.html`
-  (→ `chrono/ui/appdoc.js`, the content modules `content/chronoapp.<lang>.js`, also shown in Orga's documentation).
-  **The release** `.github/workflows/chrono-app.yml` (a push to main changing `chrono-app/package.json` — bump its `version` for a
-  new release — or the workflow; or by hand): Windows, macOS (one universal dmg, ad-hoc signed), Linux; the hub test and the smoke
-  test on each; one rolling GitHub Release, tag `chrono-app`, files `Ozimut-Chrono-Setup.exe` (per user), `-Portable.exe`,
-  `Ozimut-Chrono.dmg`, `Ozimut-Chrono.AppImage`, `chrono-app.json` ({ version, files, sizes, signed }) at
-  `https://github.com/kerkia/Ozimut/releases/download/chrono-app/<file>`, which the tab's « Télécharger l'application » links
-  (`prepare.appDialog`). **Unsigned** today; the workflow signs when the owner adds secrets: SignPath (`SIGNPATH_API_TOKEN` +
-  variables; free only for an open-source project under an OSI licence — the repository has no licence), Azure Artifact Signing
-  (individuals only in the USA or Canada), Apple Developer ID (`CSC_LINK`…): `chrono-app/README.md`.
-- **Tests** (no dependency but `ws` for the hub's, `npm install --omit=dev` in `chrono-app`): `node tools/chrono/t_engine.mjs`,
-  `t_io.mjs`, `t_sync.mjs`, `t_si.mjs`, `t_emit.mjs`, `t_meos.mjs`, `t_hub.mjs`, `t_formats.mjs`, `t_lists.mjs` (~750 checks). In a browser
-  (headless Edge, 2026-11-17): the hub's page through every post in a rehearsal, two stations on one event through the hub,
-  imports of an IOF XML course file and a CSV of entries, and the tab inside the site on the local dev server (an
-  administrator: mount, cloud sync between two browsers, the key accepted and a wrong one refused).
-- **Never tried on real equipment**: no SPORTident or Emit station, no thermal printer, no real MeOS, no file accepted by
-  FFCO yet, the installers never installed on another computer. **The formats** (2026-11-17, `docs/chrono/design.md` « Formats
-  beyond one individual race »): relay teams entered by hand (`ui/teams.js`: « Préparer › Équipes », a team's legs, bibs) and
-  the mass start of the late legs (`legs[i].mass`; restarted teams rank after the others; IOF XML `TeamResult`), pairs and
-  patrols (`class.team`), knockout heats (`knockout.js`: snake seeding, copies of the entries sharing their card), several
-  days (`series.js`: stages under `stage.<id>`, totals by time or points, the chase start), custom lists
-  (`print/designer.js`, under `list.<id>`) and invoices by club (`print/invoices.js`). **Emit's eScan / eScan2**: only their
-  status and emiTag passings (Emit's public eClock+ manual); a card's content is not read — its layout is only in Emit's
-  confidential eScan2 specification (`docs/chrono/emit.md`). Orga's documentation has the chapters « Chrono » and
-  « L'application Chrono » (administrators only, as the tab).
-  The privacy page has « Chronométrage (Ozimut Chrono) » (17 November 2026): update it when Chrono opens beyond the
-  administrators.
+**What this repository keeps**:
+- `site/assets/js/chrono/` — **a copy of ChronOzimut's `src/`, never edited here** (its `LICENSE` MPL 2.0 and `UPSTREAM`,
+  the commit it came from): `node tools/chrono_sync.mjs` replaces it from the checkout (`--check` fails when the copy
+  differs), then commit. It has its own texts (`chrono/i18n/<lang>.js`, read by `chrono/lib/i18n.js`, which takes the page's
+  language from `<html lang>`), helpers (`chrono/lib/`), stylesheet (`chrono/css/chrono.css`, built on the site's tokens;
+  `css/base.css` is for the app's own page, not loaded here) and the app's documentation (`chrono/doc/app.<lang>.js`, shown
+  in Orga's guide, chapter « L'application Chrono »). `tools/i18n_check.mjs` and the site's catalogues leave it alone.
+- `pages/chrono.js` — the site's side (closed): the tab « Chrono » of an Orga event (`pages/manage.js` adds it before
+  « Équipe »), **administrators only** for now; it loads the copy for the event (`e<id>`) and stops it when the tab is left.
+- `functions/api/chrono/[[path]].js` — the cloud side (closed; R2 `chrono/<event>/`: `sync`, `token`, `live`), an
+  administrator's session or the event's own key; results published through `/api/upload`. In Chrono these calls are its
+  optional « Ozimut connector » (`src/ui/net.js`, `close.js`): the app works without them.
+- `tools/chrono/t_mop_live.mjs` — the one test left here: what Chrono's MOP writer sends, read by the live relay
+  (`live/src/mop.js`).
+- Orga's guide chapters « Chrono » (`content/guide.*.js`, administrators only) and the privacy page's « Chronométrage ».
+
+Gone from here (2026-11-21): `chrono-app/`, `tools/chrono/t_*.mjs`, `docs/chrono/`, `i18n/chrono.*.js`,
+`content/chronoapp.*.js`, `site/assets/chrono.css`, the workflow `chrono-app.yml` and its rolling release (the download
+button now gives `https://github.com/kerkia/ChronOzimut/releases/latest/download/<file>`). **Never tried on real
+equipment** (SPORTident or Emit stations, a thermal printer, real MeOS, real laptops on an arena's Wi-Fi, an update
+between two installed versions). Installers unsigned until SignPath Foundation accepts the project (applied for by the
+owner; its conditions are in ChronOzimut's README « Code signing policy »).
 
 ## Changing a method: migrations
 

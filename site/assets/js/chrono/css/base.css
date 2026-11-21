@@ -1,0 +1,109 @@
+/* This Source Code Form is subject to the terms of the Mozilla Public License, v. 2.0. If a copy of the MPL was not
+   distributed with this file, You can obtain one at https://mozilla.org/MPL/2.0/. */
+
+/* Ozimut Chrono's own page (the desktop app's window, and the pages it serves to phones and screens): the colours, the
+   type and the few shared parts — buttons, tables, notes — that chrono.css builds on. A site that hosts Chrono in one of
+   its pages (ozimut.com's « Chrono » tab) gives these itself and does not load this file.
+
+   The look is ozimut.com's: its five themes, from the lightest to the darkest — Jour (light), Clairière (clearing, the
+   pale yellow of open land), Forêt (forest, the map's light green), Sous-bois (undergrowth, dark green), Nuit (dark) —,
+   the control flag's orange for the main action. The app is used on laptops, often outdoors: the page fills the window
+   and never scrolls as a whole, rows are compact, and Jour and Nuit are there for full sun and for night races. */
+
+:root {
+  color-scheme: light;
+  --plane: #f9f9f7; --surface: #fcfcfb; --surface-2: #f3f2ee; --surface-3: #eceae4;
+  --ink: #0b0b0b; --ink-2: #52514e; --ink-3: #898781;
+  --grid: #e1e0d9; --axis: #c3c2b7;
+  --border: rgba(11, 11, 11, 0.10); --border-strong: rgba(11, 11, 11, 0.18);
+  --link: #1c5cab; --focus: #2a78d6;
+  --good: #006300; --bad: #c62828; --amber: #a66d00;
+  --shadow: 0 1px 2px rgba(11, 11, 11, .04), 0 4px 16px rgba(11, 11, 11, .05);
+  --shadow-pop: 0 8px 32px rgba(11, 11, 11, .16);
+  --flag: #e8641c; --flag-ink: #ffffff; --flag-wash: #fdebdd;
+  --forest: #2f8a3e; --forest-wash: #e2f1de;
+  --water: #1c80bb; --water-wash: #ddeef8;
+  --radius: 10px; --radius-sm: 6px;
+  --font: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --mono: ui-monospace, "Cascadia Mono", Consolas, "Liberation Mono", monospace;
+}
+:root[data-theme="clearing"] {
+  color-scheme: light;
+  --plane: #f6efd4; --surface: #fbf7e6; --surface-2: #efe6c8; --surface-3: #e5d9b4;
+  --ink: #1e1a12; --ink-2: #5b5447; --ink-3: #8b8371;
+  --grid: #e0d7c0; --axis: #c4b99c;
+  --border: rgba(30, 26, 18, 0.11); --border-strong: rgba(30, 26, 18, 0.2);
+  --link: #1b5aa6; --focus: #2a72c8;
+  --shadow: 0 1px 2px rgba(30, 26, 18, .05), 0 4px 16px rgba(30, 26, 18, .07);
+  --flag-wash: #f8e2cc; --forest-wash: #dfeccf; --water-wash: #d8e8f0;
+}
+:root[data-theme="forest"] {
+  color-scheme: light;
+  --plane: #dcefcd; --surface: #eef8e6; --surface-2: #e0f0d3; --surface-3: #cfe6bd;
+  --ink: #102214; --ink-2: #3e5a40; --ink-3: #6a8a6a;
+  --grid: #c6e0b3; --axis: #9cc48a;
+  --border: rgba(16, 52, 22, 0.13); --border-strong: rgba(16, 52, 22, 0.24);
+  --link: #1b5aa6; --focus: #2f8a4e;
+  --shadow: 0 1px 2px rgba(16, 52, 22, .06), 0 4px 16px rgba(16, 52, 22, .08);
+  --flag-wash: #f8e0c8; --forest: #23793a; --forest-wash: #c3e3b2; --water: #17739f; --water-wash: #cfe6ea;
+}
+:root[data-theme="undergrowth"], :root[data-theme="dark"] {
+  color-scheme: dark;
+  --plane: #0d0d0d; --surface: #1a1a19; --surface-2: #222220; --surface-3: #2c2c2a;
+  --ink: #ffffff; --ink-2: #c3c2b7; --ink-3: #898781;
+  --grid: #2c2c2a; --axis: #383835;
+  --border: rgba(255, 255, 255, 0.10); --border-strong: rgba(255, 255, 255, 0.18);
+  --link: #86b6ef; --focus: #5598e7;
+  --good: #0ca30c; --bad: #e66767; --amber: #f0c43c;
+  --shadow: 0 1px 2px rgba(0, 0, 0, .4), 0 4px 16px rgba(0, 0, 0, .3);
+  --shadow-pop: 0 8px 32px rgba(0, 0, 0, .6);
+  --flag: #ff8a45; --flag-ink: #1b1a17; --flag-wash: #3a2214;
+  --forest: #5fbf6c; --forest-wash: #16301a;
+  --water: #55b5e8; --water-wash: #12293a;
+}
+:root[data-theme="undergrowth"] {
+  --plane: #0b1d10; --surface: #112818; --surface-2: #17331f; --surface-3: #1e3f27;
+  --ink: #f1f5ea; --ink-2: #bfd2bc; --ink-3: #86a585;
+  --grid: #1b3a23; --axis: #2c5536;
+  --border: rgba(190, 255, 200, 0.10); --border-strong: rgba(190, 255, 200, 0.18);
+  --link: #9cc3ee; --focus: #6ea4e8;
+  --good: #3fb53f; --bad: #ea7a7a;
+  --shadow: 0 1px 2px rgba(0, 0, 0, .35), 0 4px 16px rgba(0, 0, 0, .25);
+  --shadow-pop: 0 8px 32px rgba(0, 0, 0, .5);
+  --flag: #ff8f4a; --flag-wash: #3f2415; --forest: #6ccf78; --forest-wash: #19422a; --water: #5ab7ea; --water-wash: #12303b;
+}
+
+*, *::before, *::after { box-sizing: border-box; }
+html { height: 100%; }
+body { margin: 0; min-height: 100%; background: var(--plane); color: var(--ink); font: 14px/1.45 var(--font); -webkit-font-smoothing: antialiased; }
+a { color: var(--link); text-decoration: none; }
+a:hover { text-decoration: underline; text-underline-offset: 2px; }
+:focus-visible { outline: 2px solid var(--focus); outline-offset: 1px; border-radius: 4px; }
+h1, h2, h3, h4 { margin: 0; line-height: 1.25; letter-spacing: -0.01em; }
+h1 { font-size: 24px; font-weight: 650; } h2 { font-size: 17px; font-weight: 620; } h3 { font-size: 14.5px; font-weight: 620; }
+p { margin: 0 0 8px; }
+code, kbd { font-family: var(--mono); font-size: .93em; }
+button, input, select, textarea { font: inherit; color: inherit; }
+::selection { background: color-mix(in srgb, var(--flag) 30%, transparent); }
+* { scrollbar-width: thin; scrollbar-color: var(--axis) transparent; }
+[hidden] { display: none !important; }
+
+.btn { display: inline-flex; align-items: center; gap: 6px; height: 30px; padding: 0 12px; border-radius: 7px; border: 1px solid var(--border-strong);
+  background: var(--surface); color: var(--ink); font: inherit; font-size: 13.5px; font-weight: 580; cursor: pointer; white-space: nowrap; text-decoration: none; }
+.btn:hover { background: var(--surface-2); text-decoration: none; }
+.btn-primary { background: var(--flag); color: var(--flag-ink); border-color: transparent; }
+.btn-primary:hover { background: var(--flag); filter: brightness(1.08); }
+.btn-ghost { border-color: transparent; background: transparent; color: var(--ink-2); }
+.btn[disabled] { opacity: .45; cursor: not-allowed; }
+.btn-sm { height: 26px; padding: 0 9px; font-size: 12.5px; }
+
+.note { margin: 0 0 8px; padding: 8px 12px; background: var(--surface-2); border-radius: var(--radius-sm); color: var(--ink-2); }
+
+.table-wrap { overflow: auto; }
+table.data { width: 100%; border-collapse: collapse; font-size: 13.5px; }
+table.data th, table.data td { padding: 5px 9px; text-align: left; border-bottom: 1px solid var(--grid); white-space: nowrap; }
+table.data thead th { position: sticky; top: 0; z-index: 1; background: var(--surface); font-size: 12px; font-weight: 620; color: var(--ink-2); border-bottom: 1px solid var(--axis); }
+table.data tbody tr:hover { background: var(--surface-2); }
+
+/* The app's window and the pages it serves: Chrono fills the window. (In a site's page, Chrono is a box of that page.) */
+body > #chrono-root { height: 100vh; height: 100dvh; }

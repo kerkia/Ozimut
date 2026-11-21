@@ -1,8 +1,11 @@
+// This Source Code Form is subject to the terms of the Mozilla Public License, v. 2.0. If a copy of the MPL was not
+// distributed with this file, You can obtain one at https://mozilla.org/MPL/2.0/.
+
 // « Accueil » and « Départ »: the two posts that meet the runners before the race. The desk finds or makes an entry, takes
 // a card's number from the reader, the fee, the rented cards; the start calls the minutes and ticks who is there.
 
-import { t, tn } from "../../i18n.js";
-import { confirmBox } from "../../askbox.js";
+import { t, tn } from "../lib/i18n.js";
+import { confirmBox } from "../lib/ask.js";
 import { html, raw, icon, printHtml } from "./kit.js";
 import { clock, span } from "../times.js";
 import { searchRunners } from "../model.js";

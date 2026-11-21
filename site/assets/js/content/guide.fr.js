@@ -3,7 +3,7 @@
 // helpers and returns « Le site » (the documentation's home: short, every section on one page) and the guides of Arena,
 // Coach, Orga and Carto, each a set of chapters (Stats' documentation is the methods', content/methods.*.js; Orga's « Le tracé »
 // too). Plain sentences for orienteers; a page is named as the menu names it, with a link.
-import APP from "./chronoapp.fr.js";
+import APP from "../chrono/doc/app.fr.js";
 
 export function build(X) {
   const { html, raw, subTabs, fr = true, admin = false, owner = false } = X;
@@ -19,7 +19,7 @@ export function build(X) {
   const list = (items) => html`<ul class="mx-list">${items.filter(Boolean).map((i) => html`<li><span>${i}</span></li>`)}</ul>`;
   // a chapter of Orga's documentation
   const CHAP = (chapter, label) => html`<a href="#/documentation?module=orga&voir=${chapter}" data-tab-link="orga" data-goto="${chapter}">${label}</a>`;
-  // the desktop application's own documentation (content/chronoapp.*.js, which the application shows too): a slide a section
+  // the desktop application's own documentation (site/assets/js/chrono/doc/app.*.js, Chrono's own, which the application shows too): a slide a section
   const appDoc = (kicker) => html`<p class="muted" style="margin:0 0 14px">${APP.lede}</p>${APP.sections.map((sec) => slide(kicker, sec.title,
     raw(sec.html.replace(/<table>/g, '<div class="table-wrap"><table class="data compact">').replace(/<\/table>/g, "</table></div>")), `chrono-app-${sec.id}`))}`;
 

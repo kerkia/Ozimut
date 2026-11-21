@@ -1,6 +1,9 @@
+// This Source Code Form is subject to the terms of the Mozilla Public License, v. 2.0. If a copy of the MPL was not
+// distributed with this file, You can obtain one at https://mozilla.org/MPL/2.0/.
+
 // SIRAP: the punch packets radio relays (ROC, WiRoc, YAROC, jSh.radio…) send over TCP to the event software — MeOS listens
 // for them on its « TCP » input (default port 10000) and so can Chrono. Written from the layout MeOS's reader expects and
-// two senders build (docs/chrono/meos.md); no code of theirs. No framing, no checksum, no answer: 15 bytes a packet,
+// two senders build (docs/meos.md); no code of theirs. No framing, no checksum, no answer: 15 bytes a packet,
 // little-endian —
 //   0      type: 0 a punch; 64 a whole card when the next field is 2…192 and the time 0
 //   1-2    the control's code (a card: the number of records that follow)

@@ -1,3 +1,6 @@
+// This Source Code Form is subject to the terms of the Mozilla Public License, v. 2.0. If a copy of the MPL was not
+// distributed with this file, You can obtain one at https://mozilla.org/MPL/2.0/.
+
 // France (FFCO): what the federation's rules and habits ask of a timing tool. Data only: labels come from the catalogues.
 
 const AGES = [10, 12, 14, 16, 18, 20, 21, 35, 40, 45, 50, 55, 60, 65, 70, 75, 80];

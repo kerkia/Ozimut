@@ -1,3 +1,6 @@
+// This Source Code Form is subject to the terms of the Mozilla Public License, v. 2.0. If a copy of the MPL was not
+// distributed with this file, You can obtain one at https://mozilla.org/MPL/2.0/.
+
 // Lists an organiser composes (what OE calls report layouts): which rows, grouped how, which columns, sorted how — as
 // groups of rows, as a page for a printer or a wall screen, as a table for a spreadsheet. A list's definition is kept on
 // the event under its own key « list.<id> », so two stations changing different lists never overwrite each other.

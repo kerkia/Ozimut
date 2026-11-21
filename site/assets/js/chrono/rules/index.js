@@ -1,3 +1,6 @@
+// This Source Code Form is subject to the terms of the Mozilla Public License, v. 2.0. If a copy of the MPL was not
+// distributed with this file, You can obtain one at https://mozilla.org/MPL/2.0/.
+
 // The rules by country: one pack each, the engine knows none of them by name.
 import fr from "./fr.js";
 import ca from "./ca.js";

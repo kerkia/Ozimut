@@ -1,6 +1,9 @@
+// This Source Code Form is subject to the terms of the Mozilla Public License, v. 2.0. If a copy of the MPL was not
+// distributed with this file, You can obtain one at https://mozilla.org/MPL/2.0/.
+
 // Knockout rounds (a sprint by elimination): from a ranking — a qualification race, or the round before — the runners are
 // spread over heats, each heat a class of its own started together; the first of each heat go on to the next round.
-// Pure: state and view in, rows to write out (docs/chrono/design.md). A runner of a round is a copy of their entry
+// Pure: state and view in, rows to write out (docs/design.md). A runner of a round is a copy of their entry
 // (`of` = the entry it stands for) in the heat's class, with the same card: a card read goes to the one of its holders
 // who has no read yet (judge.ownerOf), so each round's read finds its heat. A heat's class carries
 // `ko` = { base (the class the knockout started from), round, heat, up (how many go on) }.

@@ -1,0 +1,49 @@
+Ozimut — https://ozimut.com
+Copyright © 2026 Yann Le Helloco. All rights reserved.
+
+This repository holds the source code of the Ozimut website. It is published so that
+anyone can read it, study how the site works and check what it does with data.
+It is NOT open-source software: publishing the code grants no right to reuse it.
+
+1. What you may do
+
+   - Read the code, here or in a copy you download or clone for that purpose.
+   - Fork the repository on GitHub, within what GitHub's Terms of Service give every
+     user (viewing and forking on GitHub itself).
+   - Quote short excerpts to discuss, review or cite the project, naming their source.
+
+2. What needs the copyright holder's prior written permission
+
+   - Copying, modifying, merging, publishing, distributing, sublicensing or selling
+     the code, the texts or the pictures, or any substantial part of them.
+   - Running the code, or a work derived from it, as a website, a service or an
+     application — for yourself or for others, whether or not for money.
+   - Using the code, the texts or the data to train, tune or evaluate
+     machine-learning models.
+
+   To ask: contact@ozimut.com.
+
+3. Parts under their own terms
+
+   This licence does not cover, and does not restrict, what belongs to others or is
+   published under another licence:
+
+   - site/assets/js/chrono/ is Ozimut Chrono, a copy of
+     https://github.com/kerkia/ChronOzimut, under the Mozilla Public License 2.0
+     (site/assets/js/chrono/LICENSE). That licence, not this one, applies to it.
+   - The third-party components listed in THIRD-PARTY-NOTICES.md keep their own
+     licences and copyright notices.
+   - Some photographs and map extracts are shown with their authors' permission, given
+     to Ozimut only (THIRD-PARTY-NOTICES.md names them): nothing here licenses them to
+     anyone else.
+   - The results, rankings and other data the site shows are not in this repository.
+
+4. Names
+
+   « Ozimut », « Ozimut Chrono » and the Ozimut logo identify this project and its
+   author. This licence gives no right to use them.
+
+5. No warranty
+
+   The code is provided as it is, without warranty of any kind. The copyright holder
+   is not liable for any damage arising from it or from its use.

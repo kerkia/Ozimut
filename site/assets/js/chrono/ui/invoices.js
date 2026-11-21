@@ -1,8 +1,11 @@
+// This Source Code Form is subject to the terms of the Mozilla Public License, v. 2.0. If a copy of the MPL was not
+// distributed with this file, You can obtain one at https://mozilla.org/MPL/2.0/.
+
 // Invoices by club: what each club owes for its runners' entry fees and rented cards — the settings of the document (kept
 // on the event under « inv »), the clubs with their totals, a club's runners marked paid or not, the pages and the tables.
 
-import { t, tn, locale } from "../../i18n.js";
-import { alertBox } from "../../askbox.js";
+import { t, tn, locale } from "../lib/i18n.js";
+import { alertBox } from "../lib/ask.js";
 import { html, raw, icon, formDialog, values, field, table, bindTable, download, printHtml } from "./kit.js";
 import { invoiceData, invoicesHtml, invoicesCsv, invoiceLinesCsv } from "../print/invoices.js";
 

@@ -1,4 +1,7 @@
-// MeOS's event file (.meosxml, root <meosdata>), read and written from its format alone (docs/chrono/meos.md: element
+// This Source Code Form is subject to the terms of the Mozilla Public License, v. 2.0. If a copy of the MPL was not
+// distributed with this file, You can obtain one at https://mozilla.org/MPL/2.0/.
+
+// MeOS's event file (.meosxml, root <meosdata>), read and written from its format alone (docs/meos.md: element
 // names, units and numbers learnt from MeOS's source, none of its code).
 //
 // Times. Every time of the file counts from <ZeroTime> (itself seconds after midnight) and is written in SECONDS: whole
@@ -8,7 +11,7 @@
 // second is « -1.0 »), and a start or finish of 0 is « none ». Here they become seconds after midnight (tenths kept).
 //
 // readMeos(text) → { set, oracle, info }
-//   set     the importers' set (docs/chrono/design.md, as model.importSet takes it), with what MeOS adds:
+//   set     the importers' set (docs/design.md, as model.importSet takes it), with what MeOS adds:
 //           event { name, date, zero, meosZero, tenths? } — `zero` is Chrono's, the first start (the earliest start time
 //             of the runners, else MeOS's zero time + 1 h, the margin MeOS itself takes); `meosZero` the file's own;
 //             `tenths` when a start or a finish holds tenths, which is when MeOS itself ranks on them;

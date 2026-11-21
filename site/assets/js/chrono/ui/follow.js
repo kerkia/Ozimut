@@ -1,8 +1,11 @@
+// This Source Code Form is subject to the terms of the Mozilla Public License, v. 2.0. If a copy of the MPL was not
+// distributed with this file, You can obtain one at https://mozilla.org/MPL/2.0/.
+
 // « Suivi », « Speaker », « Arbitre », « Postes »: the posts that watch the race. Suivi lists every class or course as it
 // stands; Speaker shows who just came in and who leads; Arbitre holds the record of every change made by hand and the
 // complaints; Postes tells which units are punched, by how many, and which may be at fault.
 
-import { t, tn, locale } from "../../i18n.js";
+import { t, tn, locale } from "../lib/i18n.js";
 import { html, raw, icon, formDialog, values, field, opt, printHtml, openPage, download, statusTag, atClock } from "./kit.js";
 import { clock, span, parseClock } from "../times.js";
 import { opMs } from "../log.js";

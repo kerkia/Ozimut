@@ -1,8 +1,11 @@
+// This Source Code Form is subject to the terms of the Mozilla Public License, v. 2.0. If a copy of the MPL was not
+// distributed with this file, You can obtain one at https://mozilla.org/MPL/2.0/.
+
 // The race formats beyond one individual race: the knockout's rounds (heats made from a ranking), the totals over several
 // days (the stages kept, how they are added, the general ranking) and the chase start of the last day.
 
-import { t, tn, locale } from "../../i18n.js";
-import { confirmBox, alertBox } from "../../askbox.js";
+import { t, tn, locale } from "../lib/i18n.js";
+import { confirmBox, alertBox } from "../lib/ask.js";
 import { html, raw, icon, formDialog, values, field, opt, pickFiles, download, printHtml, openPage } from "./kit.js";
 import { clock, parseClock } from "../times.js";
 import { newId } from "../log.js";

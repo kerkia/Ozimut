@@ -1,3 +1,6 @@
+// This Source Code Form is subject to the terms of the Mozilla Public License, v. 2.0. If a copy of the MPL was not
+// distributed with this file, You can obtain one at https://mozilla.org/MPL/2.0/.
+
 // Where a station keeps its log: the browser's database (IndexedDB, written with strict durability so that a power cut
 // loses nothing already shown), optionally a journal in a folder the user chose (one line an operation, readable by hand),
 // and the event file `.ozchrono` to carry a race from one computer to another. Browser only.

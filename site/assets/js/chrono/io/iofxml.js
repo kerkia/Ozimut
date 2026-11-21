@@ -1,5 +1,8 @@
+// This Source Code Form is subject to the terms of the Mozilla Public License, v. 2.0. If a copy of the MPL was not
+// distributed with this file, You can obtain one at https://mozilla.org/MPL/2.0/.
+
 // IOF XML 3.0 (and what 2.0.3 shares with it): entries, start lists, courses and results, read into a set and written
-// from a view (docs/chrono/design.md). Clock times are read as written — the wall clock of the event —, whatever the offset.
+// from a view (docs/design.md). Clock times are read as written — the wall clock of the event —, whatever the offset.
 
 import { parseXml, decodeText, kid, kids, txt, x, XML_HEAD } from "../xml.js";
 

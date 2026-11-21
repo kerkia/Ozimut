@@ -1,3 +1,6 @@
+// This Source Code Form is subject to the terms of the Mozilla Public License, v. 2.0. If a copy of the MPL was not
+// distributed with this file, You can obtain one at https://mozilla.org/MPL/2.0/.
+
 // A station's links: the cloud (Ozimut keeps the event's operations: other computers catch up, the race is safe if this one
 // dies), a hub (the desktop app, on this computer or on the arena's network) and the live results. All of it is optional:
 // a station alone, offline, keeps everything itself.

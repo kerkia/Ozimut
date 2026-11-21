@@ -1,3 +1,6 @@
+// This Source Code Form is subject to the terms of the Mozilla Public License, v. 2.0. If a copy of the MPL was not
+// distributed with this file, You can obtain one at https://mozilla.org/MPL/2.0/.
+
 // A runner's receipt — the strip printed at the finish: who, the result, each control with the time from the start, the leg
 // and the place there. One layout for the thermal printer (ESC/POS bytes), for a page printer (HTML) and for the screen.
 // No text of its own: the labels come from the caller (the catalogues), `L` below.

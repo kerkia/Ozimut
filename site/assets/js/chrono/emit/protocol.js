@@ -1,7 +1,10 @@
+// This Source Code Form is subject to the terms of the Mozilla Public License, v. 2.0. If a copy of the MPL was not
+// distributed with this file, You can obtain one at https://mozilla.org/MPL/2.0/.
+
 // Emit's EPT e-cards on the wire: what the « 250 » reader and the MTR4 send down their serial line, and what the MTR4 takes.
 // Pure: bytes in, objects out, and back (the encoders feed the simulator). Nothing here judges a race.
 //
-// Every fact, with its source and how sure it is: docs/chrono/emit.md. In short —
+// Every fact, with its source and how sure it is: docs/emit.md. In short —
 //  · 250 reader: 9600 baud 8N2, sends only; a card lying on it is sent again and again as 217 bytes, each XOR-ed with 0xDF:
 //    FF FF · card number (3, LSB first) · 0 · production week · year · 0 · head check (bytes 3-10 sum to 0 mod 256) ·
 //    50 × (control code, time in seconds LSB first) · 56 bytes of text · check (the 217 bytes sum to 0 mod 256).
@@ -12,9 +15,9 @@
 //    each item a letter and its value — the layout Emit prints in the eClock+ manual: a status (« BS ») and an emiTag's
 //    passing (« BM »: N tag, C code, E time of day, T the tag's race time…). Only those two are read; what an eScan sends
 //    for an e-card's content is in no public document (Emit's eScan2 specification is confidential) and is not decoded.
-// Sources: Emit's manuals (MTR4, eScan, eScan2, ETS2, eClock+), the protocol notes and real captures published with an
-// open TypeScript library (GPL-3: read for its facts, none of its code or structure is here), and three small readers on
-// GitHub that agree with them.
+// Sources: Emit's manuals (MTR4, eScan, eScan2, ETS2, eClock+), the protocol notes and captures published with an open
+// TypeScript library (GPL-3: read only to learn the facts — none of its code, structure, text or data is here, its
+// captures included), and three small readers on GitHub that agree with them.
 
 export const XOR_250 = 0xdf, LEN_250 = 217, LEN_MTR_CARD = 234, LEN_MTR_STATUS = 59, SLOTS = 50, TEXT_LEN = 56;
 /** How to open the line. A 250 sends two stop bits; one is enough to listen to it, which is what « auto » does. */

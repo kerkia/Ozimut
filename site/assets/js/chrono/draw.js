@@ -1,3 +1,6 @@
+// This Source Code Form is subject to the terms of the Mozilla Public License, v. 2.0. If a copy of the MPL was not
+// distributed with this file, You can obtain one at https://mozilla.org/MPL/2.0/.
+
 // The start draw: start times for the runners of some classes. Pure: returns the rows to write, `[["runners", id, { start }]]`.
 // By class (each class a block of its own; classes on one course follow one another, never the same minute) or by course
 // (every runner of the course in one sequence). Runners of one club are kept `gap` places apart where the field allows it.

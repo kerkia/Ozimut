@@ -1,8 +1,9 @@
 // Orga › an event › « Chrono » (owner, 2026-11-17; administrators only for now): Ozimut's race timing, in the event's
-// tab. The screens and the engine are in site/assets/js/chrono/ (docs/chrono/design.md); this page loads them for the
-// event shown and stops them when the tab is left.
+// tab. Chrono itself is free software with a repository of its own (github.com/kerkia/ChronOzimut, MPL 2.0); the site
+// carries a copy of it, site/assets/js/chrono/ (tools/chrono_sync.mjs — never edited here), with its own texts, helpers
+// and stylesheet. This page is the site's side: it loads that copy for the event shown and stops it when the tab is left.
+// Chrono takes its language from the page (<html lang>, which i18n.js sets) and its colours from the site's tokens.
 
-import { t, loadArea } from "../i18n.js";
 import { html } from "../util.js";
 import * as auth from "../auth.js";
 
@@ -12,7 +13,7 @@ function style() {
   if (document.getElementById("chrono-css")) return Promise.resolve();
   return new Promise((ok) => {
     const l = document.createElement("link");
-    l.id = "chrono-css"; l.rel = "stylesheet"; l.href = "/assets/chrono.css";
+    l.id = "chrono-css"; l.rel = "stylesheet"; l.href = new URL("../chrono/css/chrono.css", import.meta.url).href;
     l.onload = l.onerror = ok;
     document.head.append(l);
   });
@@ -20,11 +21,12 @@ function style() {
 
 /** `event`: the Orga event `{ id, name, date, country, type, club, race, place }`. */
 export async function render(panel, { event }) {
-  await Promise.all([loadArea("chrono"), style()]);
+  // Chrono's own texts (its catalogues, in the page's language)
+  const [{ t: ct }] = await Promise.all([import("../chrono/lib/i18n.js"), style()]);
   if (running) { try { await running.stop(); } catch (e) { /* gone */ } running = null; }
   const me = auth.session();
-  if (!me?.admin) { panel.innerHTML = html`<p class="note">${t("chr.adminOnly")}</p>`.toString(); return; }
-  panel.innerHTML = html`<p class="chr-beta">${t("chr.beta")} <button type="button" class="btn btn-sm" id="chrono-app-dl">${t("chr.app.get")}</button></p><div id="chrono-root" class="chr-in-tab"></div>`.toString();
+  if (!me?.admin) { panel.innerHTML = html`<p class="note">${ct("chr.adminOnly")}</p>`.toString(); return; }
+  panel.innerHTML = html`<p class="chr-beta">${ct("chr.beta")} <button type="button" class="btn btn-sm" id="chrono-app-dl">${ct("chr.app.get")}</button></p><div id="chrono-root" class="chr-in-tab"></div>`.toString();
   panel.querySelector("#chrono-app-dl").addEventListener("click", async () => (await import("../chrono/ui/prepare.js")).appDialog());
   const root = panel.querySelector("#chrono-root");
   const { mountChrono } = await import("../chrono/ui/app.js");

@@ -1,9 +1,12 @@
-// An Emit reading unit behind Chrono's reader interface (docs/chrono/design.md, « What a reader gives »): the « 250 »
+// This Source Code Form is subject to the terms of the Mozilla Public License, v. 2.0. If a copy of the MPL was not
+// distributed with this file, You can obtain one at https://mozilla.org/MPL/2.0/.
+
+// An Emit reading unit behind Chrono's reader interface (docs/design.md, « What a reader gives »): the « 250 »
 // reader, which sends a card for as long as it lies on it and takes no command, the MTR4, which sends each card once
 // with its own clock, keeps the last 2 040 and answers a few commands, and — as far as Emit has published it — the eScan
 // and the eScan2: their status and an emiTag's passing, in the text messages of Emit's eClock+ manual. What an eScan
 // sends for an e-card's content is in no public document: such a message is told (« unsupported »), never read.
-// Facts and sources: docs/chrono/emit.md.
+// Facts and sources: docs/emit.md.
 //
 // What `onCard` gets — nothing is judged, nothing interpreted:
 //   { sys: "emit", card, family: "emit", start: null, finish: null, check: null, clear: null, rel: true,

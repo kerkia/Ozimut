@@ -1,3 +1,6 @@
+// This Source Code Form is subject to the terms of the Mozilla Public License, v. 2.0. If a copy of the MPL was not
+// distributed with this file, You can obtain one at https://mozilla.org/MPL/2.0/.
+
 // Races over several days: each day's results kept as a « stage », the totals over the stages — the times added, or
 // points —, and the chase start of the last day (the leader first, the others behind by their deficit). Pure.
 // A stage is kept on the event under the key `stage.<id>` (one key a stage: two stations adding stages never overwrite

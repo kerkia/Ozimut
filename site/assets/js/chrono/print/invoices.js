@@ -1,3 +1,6 @@
+// This Source Code Form is subject to the terms of the Mozilla Public License, v. 2.0. If a copy of the MPL was not
+// distributed with this file, You can obtain one at https://mozilla.org/MPL/2.0/.
+
 // What each club owes: its runners' entry fees and rented cards, as figures, as one page a club for a printer, and as
 // tables for a spreadsheet. Pure: the state in, plain objects and text out. No text of its own — the labels come from the
 // caller, `L` = { title, number, date, club, code, runner, cls, fee, rent, total, paid, due, runners, fees, rents, lic,

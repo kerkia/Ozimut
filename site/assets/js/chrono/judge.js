@@ -1,4 +1,7 @@
-// Judging: one runner's card against their course. Pure functions on the state (docs/chrono/design.md).
+// This Source Code Form is subject to the terms of the Mozilla Public License, v. 2.0. If a copy of the MPL was not
+// distributed with this file, You can obtain one at https://mozilla.org/MPL/2.0/.
+
+// Judging: one runner's card against their course. Pure functions on the state (docs/design.md).
 // A course is a list of control codes in order. The card's punches are matched to it by the longest common subsequence,
 // earliest punches first: what the course asks and the card lacks is « missing », what the card holds beyond is « extra ».
 // A class may offer several courses (a pool: forked legs, relay variants): the course the card fits best is the runner's.

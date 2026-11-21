@@ -1,3 +1,6 @@
+// This Source Code Form is subject to the terms of the Mozilla Public License, v. 2.0. If a copy of the MPL was not
+// distributed with this file, You can obtain one at https://mozilla.org/MPL/2.0/.
+
 // i18n-ignore-file: column headings of other programs' files, in the languages they are written in — data, not UI text.
 // Delimited text files: SportSoftware's OE layouts (the 2003 one the French federation's archive and ranking files use, and
 // the newer OE2010/OE12 ones) and any table with a heading row — entries from a spreadsheet. Columns are found by their

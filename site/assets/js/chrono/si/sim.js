@@ -1,3 +1,6 @@
+// This Source Code Form is subject to the terms of the Mozilla Public License, v. 2.0. If a copy of the MPL was not
+// distributed with this file, You can obtain one at https://mozilla.org/MPL/2.0/.
+
 // A made-up SPORTident master station behind the transport interface, for the tests and the tool's rehearsal: it answers
 // what reader.js asks (SET_MS, system data read and written, the clock, the beep), says a card is in, serves its blocks,
 // takes the ACK, says the card is out; `punch` sends a punch as a control with « autosend » or a radio dongle does.

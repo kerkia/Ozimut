@@ -1,7 +1,7 @@
 // The Documentation's guide to the site, in English (guide.fr.js is the reference: the same structure, the same chapters).
 // build(X) receives the page's helpers and returns « The site » (the documentation's home) and the guides of Arena, Coach and
 // Orga and Carto. A page is named as the English menu names it, with a link.
-import APP from "./chronoapp.en.js";
+import APP from "../chrono/doc/app.en.js";
 
 export function build(X) {
   const { html, raw, subTabs, fr = true, admin = false, owner = false } = X;
@@ -17,7 +17,7 @@ export function build(X) {
   const list = (items) => html`<ul class="mx-list">${items.filter(Boolean).map((i) => html`<li><span>${i}</span></li>`)}</ul>`;
   // a chapter of Orga's documentation
   const CHAP = (chapter, label) => html`<a href="#/documentation?module=orga&voir=${chapter}" data-tab-link="orga" data-goto="${chapter}">${label}</a>`;
-  // the desktop application's own documentation (content/chronoapp.*.js, which the application shows too): a slide a section
+  // the desktop application's own documentation (site/assets/js/chrono/doc/app.*.js, Chrono's own, which the application shows too): a slide a section
   const appDoc = (kicker) => html`<p class="muted" style="margin:0 0 14px">${APP.lede}</p>${APP.sections.map((sec) => slide(kicker, sec.title,
     raw(sec.html.replace(/<table>/g, '<div class="table-wrap"><table class="data compact">').replace(/<\/table>/g, "</table></div>")), `chrono-app-${sec.id}`))}`;
 

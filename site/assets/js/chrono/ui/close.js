@@ -1,8 +1,11 @@
+// This Source Code Form is subject to the terms of the Mozilla Public License, v. 2.0. If a copy of the MPL was not
+// distributed with this file, You can obtain one at https://mozilla.org/MPL/2.0/.
+
 // « Clôturer »: the race is over — what is still open, the results out (the federation's file, IOF XML, MeOS, a page),
 // published on Ozimut, the card numbers remembered for next time, the event's file put away.
 
-import { t, tn } from "../../i18n.js";
-import { confirmBox, alertBox } from "../../askbox.js";
+import { t, tn } from "../lib/i18n.js";
+import { confirmBox, alertBox } from "../lib/ask.js";
 import { html, raw, icon, download, printHtml } from "./kit.js";
 import { exportView } from "../view.js";
 import { writeResults } from "../io/iofxml.js";

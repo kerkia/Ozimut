@@ -1,9 +1,13 @@
+// This Source Code Form is subject to the terms of the Mozilla Public License, v. 2.0. If a copy of the MPL was not
+// distributed with this file, You can obtain one at https://mozilla.org/MPL/2.0/.
+
 // Chrono's window: the bar (the event, the devices' state, the clock), the rail of posts, the ribbon of the post in hand,
 // its screen, the status line. One window per station; every post reads the same log and writes operations to it.
 // The same code runs in an Orga event's tab on Ozimut and in the desktop app's page (ui/standalone.js).
 
-import { t, tn, locale } from "../../i18n.js";
+import { t, tn, locale } from "../lib/i18n.js";
 import { html, raw, icon, toast } from "./kit.js";
+import { confirmBox } from "../lib/ask.js";
 import { Log, newCode } from "../log.js";
 import { openEvent, kvGet } from "../store.js";
 import { buildView, problems } from "../view.js";
@@ -146,15 +150,26 @@ export async function mountChrono(root, opt) {
     $("#chr-sub").textContent = [e.date ? new Date(`${e.date}T12:00:00`).toLocaleDateString(locale(), { weekday: "short", day: "numeric", month: "long", year: "numeric" }) : "", e.place, e.club].filter(Boolean).join(" · ");
     const rd = D.readers.length ? D.readers.map((r) => `${r.label}${r.state === "ready" || r.state === "removed" ? "" : ` (${t(`chr.dev.st.${["opening", "error", "card", "reading"].includes(r.state) ? r.state : "ready"}`)})`}`).join(", ") : t("chr.dev.noReader");
     const cloud = N.cloud.state, cl = cloud === "ok" ? (N.pending() ? "warn" : "ok") : cloud === "off" ? "off" : cloud === "sync" || cloud === "idle" ? "ok" : "bad";
+    const upd = N.local() ? N.hub.info?.update : null;
     const chip = (ic, label, cls, tip, act) => html`<button type="button" class="chr-chipb ${cls}" title="${tip}" data-act="${act}">${icon(ic, 16)}<span>${label}</span></button>`;
     $("#chr-dev").innerHTML = [
       chip("card", rd, D.readers.some((r) => r.state === "error") ? "bad" : D.readers.length ? "ok" : "off", t("chr.dev.readerTip"), "kit"),
       chip("print", t(`chr.dev.pr.${D.printer.mode}`), D.lastError ? "bad" : D.printer.mode === "none" ? "off" : "ok", D.lastError || t("chr.dev.printerTip"), "kit"),
       chip("cloud", t(`chr.net.${cloud}`), cl, N.cloud.error || t("chr.net.tip"), "net"),
       N.hub.state !== "off" ? chip("link", N.hub.state === "on" && N.hub.info ? (N.linked().length ? tn("chr.lan.linked", N.linked().length) : t("chr.lan.solo")) : t(`chr.hub.${N.hub.state}`),
-        N.hub.state === "on" ? (N.hub.info && !N.linked().length ? "off" : "ok") : "bad", N.linked().map((l) => l.name).join(", ") || N.hub.url, "net") : "",
+        N.hub.state === "on" ? (N.hub.info && !N.linked().length ? "off" : N.linked().some((l) => l.ver && l.ver !== N.hub.info.version) ? "warn" : "ok") : "bad", N.linked().map((l) => l.name).join(", ") || N.hub.url, "net") : "",
+      // the app's own update (app/update.mjs, through /hub/info), on the computer that runs it
+      upd && upd.status === "ready" ? chip("down", t("chr.upd.ready", { v: upd.version }), "warn", t("chr.upd.tipReady"), "update") : "",
+      upd && upd.status === "available" ? chip("down", t("chr.upd.available", { v: upd.version }), "warn", t("chr.upd.tipGet"), "update") : "",
     ].join("");
-    $("#chr-dev").querySelectorAll("button").forEach((b) => b.addEventListener("click", () => { ui.prepStep = b.dataset.act === "kit" ? "kit" : "net"; show(posts.some((p) => p.id === "prepare") ? "prepare" : cur, true); }));
+    $("#chr-dev").querySelectorAll("button").forEach((b) => b.addEventListener("click", async () => {
+      if (b.dataset.act === "update") {
+        const u = N.hub.info?.update || {};
+        if (u.status === "ready") { if (await confirmBox(t("chr.upd.ask", { v: u.version }), { ok: t("chr.upd.restart"), cancel: t("chr.upd.later") })) window.chronoApp?.installUpdate?.(); }
+        else if (await confirmBox(t("chr.upd.get", { v: u.version }), { ok: t("chr.upd.open"), cancel: t("chr.upd.later") })) window.open("https://github.com/kerkia/ChronOzimut/releases/latest", "_blank", "noopener");
+        return;
+      }
+      ui.prepStep = b.dataset.act === "kit" ? "kit" : "net"; show(posts.some((p) => p.id === "prepare") ? "prepare" : cur, true); }));
     $("#chr-sand").hidden = !sand;
   }
   function drawStatus() {

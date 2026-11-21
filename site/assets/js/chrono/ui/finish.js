@@ -1,7 +1,10 @@
+// This Source Code Form is subject to the terms of the Mozilla Public License, v. 2.0. If a copy of the MPL was not
+// distributed with this file, You can obtain one at https://mozilla.org/MPL/2.0/.
+
 // « Arrivée »: where cards are read. The last card in large — who, the verdict, the time, what is missing —, what waits
 // for someone (a card nobody holds, no finish punch, a runner still out after closing) and the cards read lately.
 
-import { t } from "../../i18n.js";
+import { t } from "../lib/i18n.js";
 import { html, raw, icon, formDialog, statusTag, atClock } from "./kit.js";
 import { clock, span } from "../times.js";
 import { runnerDialog, readDialog, unknownDialog, manualDialog, runnerSearch } from "./dialogs.js";

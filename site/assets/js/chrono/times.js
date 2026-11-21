@@ -1,3 +1,6 @@
+// This Source Code Form is subject to the terms of the Mozilla Public License, v. 2.0. If a copy of the MPL was not
+// distributed with this file, You can obtain one at https://mozilla.org/MPL/2.0/.
+
 // Clock times on cards. A reader gives each time as it is stored: seconds within the day, or within 12 hours on the older
 // SPORTident cards (`half`), sometimes with a weekday. The engine works in seconds after the event day's midnight (they may
 // pass 86 400 for a night race): `unwrap` picks the 12- or 24-hour turn that puts a time after what came before it on the

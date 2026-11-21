@@ -1,3 +1,6 @@
+// This Source Code Form is subject to the terms of the Mozilla Public License, v. 2.0. If a copy of the MPL was not
+// distributed with this file, You can obtain one at https://mozilla.org/MPL/2.0/.
+
 // SPORTident cards: which family a number is, which 128-byte blocks to read, and a card's memory as the read design.md
 // describes — and the reverse, for the simulator and the tests.
 //

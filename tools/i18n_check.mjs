@@ -37,7 +37,8 @@ const report = (title, items) => {
 };
 
 // keys used by the code
-const files = walk(JS).filter((f) => !f.startsWith(CAT + sep));
+// (js/chrono/ is Ozimut Chrono, a copy of its own repository with its own catalogues: checked there, tools/chrono_sync.mjs)
+const files = walk(JS).filter((f) => !f.startsWith(CAT + sep) && !f.startsWith(join(JS, "chrono") + sep));
 const used = new Set(), dynamic = [];
 for (const f of files) {
   const src = readFileSync(f, "utf8");
@@ -74,6 +75,7 @@ const FRENCH = /[àâçéèêëîïôûùüÿœÀÂÇÉÈÊËÎÏÔÛÙÜŒ«»]
 const inline = [], typo = [];
 for (const f of files) {
   if (/\.(fr|en|de|es)\.js$/.test(f)) continue;
+  if (/[\\/]js[\\/]chrono[\\/]/.test(f)) continue;       // Ozimut Chrono: a copy of its own repository, checked there (tools/chrono_sync.mjs)
   const src = readFileSync(f, "utf8");
   if (/i18n-ignore-file/.test(src.slice(0, 600))) continue;
   const lines = src.split("\n");

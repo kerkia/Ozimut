@@ -1,5 +1,8 @@
+// This Source Code Form is subject to the terms of the Mozilla Public License, v. 2.0. If a copy of the MPL was not
+// distributed with this file, You can obtain one at https://mozilla.org/MPL/2.0/.
+
 // The race as lists: every runner judged, ranked by class and by course, with the places at each control; the problems
-// that wait for someone; the figures of the status line. Pure: state in, plain objects out (docs/chrono/design.md).
+// that wait for someone; the figures of the status line. Pure: state in, plain objects out (docs/design.md).
 
 import { judge, readsByRunner, holders, FINAL } from "./judge.js";
 import { rulesOf } from "./rules/index.js";

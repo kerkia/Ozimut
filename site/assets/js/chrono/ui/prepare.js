@@ -1,8 +1,11 @@
+// This Source Code Form is subject to the terms of the Mozilla Public License, v. 2.0. If a copy of the MPL was not
+// distributed with this file, You can obtain one at https://mozilla.org/MPL/2.0/.
+
 // « Préparer »: the assistant that takes an event from nothing to ready — the event, its courses, its classes, the entries,
 // the start times, the equipment, the links, a last check. Each step is a panel; the ribbon holds the step's commands.
 
-import { t, tn, locale } from "../../i18n.js";
-import { confirmBox, alertBox } from "../../askbox.js";
+import { t, tn, locale } from "../lib/i18n.js";
+import { confirmBox, alertBox } from "../lib/ask.js";
 import { html, raw, icon, formDialog, values, field, opt, pickFiles, download, printHtml, table, bindTable, statusTag, atClock } from "./kit.js";
 import { clock, span, parseClock } from "../times.js";
 import { newId } from "../log.js";
@@ -25,8 +28,8 @@ const STEPS = ["event", "courses", "classes", "entries", "teams", "starts", "kit
 /** The steps of this event: « Équipes » only where a class is run in teams. */
 const stepsOf = (ctx) => STEPS.filter((s) => s !== "teams" || hasTeams(ctx.st()));
 
-/** Where the desktop application is downloaded: the files the release workflow publishes (.github/workflows/chrono-app.yml). */
-const APP_BASE = "https://github.com/kerkia/Ozimut/releases/download/chrono-app/";
+/** Where the desktop application is downloaded: the files the release workflow publishes (.github/workflows/release.yml). */
+const APP_BASE = "https://github.com/kerkia/ChronOzimut/releases/latest/download/";
 const APP_FILES = [["win", "Windows", "Ozimut-Chrono-Setup.exe"], ["winp", "Windows", "Ozimut-Chrono-Portable.exe"], ["mac", "macOS", "Ozimut-Chrono.dmg"], ["linux", "Linux", "Ozimut-Chrono.AppImage"]];
 export function appDialog() {
   const ua = navigator.userAgent, mine = /Windows/.test(ua) ? "win" : /Mac OS X|Macintosh/.test(ua) ? "mac" : /Linux|X11/.test(ua) && !/Android/.test(ua) ? "linux" : "";
@@ -328,11 +331,14 @@ function lanBlock(ctx) {
   if (N.hub.state !== "on" || !i) return "";
   if (served()) return html`<p>${t("chr.lan.served", { name: i.name || "" })}</p>`;
   const linked = N.linked(), others = (i.peers?.hubs || []).filter((h) => !linked.some((l) => l.station === h.station));
+  // every computer of the arena on the same version: those known to run another one are named
+  const odd = [...linked, ...others].filter((h) => h.ver && i.version && h.ver !== i.version);
   const phone = (i.addresses || [])[0] ? `http://${i.addresses[0]}:${i.port}/?k=${encodeURIComponent(i.token || "")}` : "";
   return html`${code ? html`<div class="chr-lan-code"><span>${t("chr.lan.code")}</span><b>${code}</b></div><p class="chr-dim">${t("chr.lan.codeHint")}</p>` : ""}
-    ${linked.length ? html`<p><b>${t("ui.colon", { a: tn("chr.lan.linked", linked.length) })}</b> ${linked.map((l) => l.name || l.host).join(", ")}</p>` : ""}
+    ${linked.length ? html`<p><b>${t("chr.colon", { a: tn("chr.lan.linked", linked.length) })}</b> ${linked.map((l) => l.name || l.host).join(", ")}</p>` : ""}
     ${!linked.length ? html`<p class="chr-dim">${t("chr.lan.alone")}</p>` : ""}
     ${others.length ? html`<p class="chr-dim">${t("chr.lan.others", { names: others.map((h) => h.name).join(", ") })}</p>` : ""}
+    ${odd.length ? html`<p class="chr-warn">${icon("alert", 14)} ${t("chr.lan.versions", { list: odd.map((h) => `${h.name || h.host} ${h.ver}`).join(", "), mine: i.version })}</p>` : ""}
     ${phone ? html`<p>${t("chr.lan.phones")} <code class="chr-sel">${phone}</code></p>` : ""}
     ${N.local() ? html`<details class="chr-more"><summary>${t("chr.lan.manual")}</summary><p class="chr-dim">${t("chr.lan.manualHint")}</p>
       <p><input id="chr-peer-host" class="chr-in-l" placeholder="192.168.1.20:8377"> <input id="chr-peer-key" class="chr-in-m" placeholder="${t("chr.net.key")}"> <button type="button" class="btn" id="chr-peer-add">${t("chr.net.join")}</button></p></details>` : ""}`;

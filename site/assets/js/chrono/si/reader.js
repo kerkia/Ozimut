@@ -1,3 +1,6 @@
+// This Source Code Form is subject to the terms of the Mozilla Public License, v. 2.0. If a copy of the MPL was not
+// distributed with this file, You can obtain one at https://mozilla.org/MPL/2.0/.
+
 // A SPORTident station on a transport (`{ open({ baud }), write(bytes), onData(cb), close() }`: Web Serial in a page, the
 // simulator in tests): the cards put in a readout station are read and given to `onCard`, the punches a station sends by
 // itself — a control with « autosend », a radio (SRR) dongle seen as a serial port — to `onPunch`.

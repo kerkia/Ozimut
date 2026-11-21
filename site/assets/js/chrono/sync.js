@@ -1,4 +1,7 @@
-// Stations exchange what they lack (docs/chrono/design.md): each holds the whole log; on meeting, each says what it has
+// This Source Code Form is subject to the terms of the Mozilla Public License, v. 2.0. If a copy of the MPL was not
+// distributed with this file, You can obtain one at https://mozilla.org/MPL/2.0/.
+
+// Stations exchange what they lack (docs/design.md): each holds the whole log; on meeting, each says what it has
 // of every station (`have`), receives the operations beyond it, then every new operation is passed on. Taking one twice
 // changes nothing, so links may be cut and made again at any time, and a hub may sit between stations.
 // Two transports: a message link (a WebSocket to the app's hub) and a request to the cloud.

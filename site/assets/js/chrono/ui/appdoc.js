@@ -1,10 +1,13 @@
-// The desktop application's documentation as a page of its own (chrono-app/www/doc.html: Help › Documentation in the
+// This Source Code Form is subject to the terms of the Mozilla Public License, v. 2.0. If a copy of the MPL was not
+// distributed with this file, You can obtain one at https://mozilla.org/MPL/2.0/.
+
+// The desktop application's documentation as a page of its own (app/www/doc.html: Help › Documentation in the
 // application, and /doc.html at the hub's address for the other stations). The words are the content modules
-// content/chronoapp.<lang>.js — the same ones Orga's documentation shows on the site (content/guide.*.js, chapter
+// src/doc/app.<lang>.js — the same ones Orga's documentation shows on the site (content/guide.*.js, chapter
 // « chrono-app ») —, in the reader's language as the rest of Chrono chooses it; this module only lays them out: a title, a
 // table of contents, a section each. The sections' markup is the modules' own static HTML.
 
-import { lang } from "../../i18n.js";
+import { lang } from "../lib/i18n.js";
 
 const esc = (s) => String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
 
@@ -12,7 +15,7 @@ const esc = (s) => String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<
 async function load() {
   for (const l of [...new Set([lang(), "en", "fr"])]) {
     try {
-      const doc = (await import(`../../content/chronoapp.${l}.js`)).default;
+      const doc = (await import(`../doc/app.${l}.js`)).default;
       if (doc?.sections?.length) return doc;
     } catch (e) { /* the next language */ }
   }

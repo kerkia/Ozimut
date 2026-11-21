@@ -1,6 +1,9 @@
+// This Source Code Form is subject to the terms of the Mozilla Public License, v. 2.0. If a copy of the MPL was not
+// distributed with this file, You can obtain one at https://mozilla.org/MPL/2.0/.
+
 // A pretend Emit reading unit, for tests and demonstrations without hardware: a transport (`open`, `write`, `onData`,
 // `close`) whose bytes are those a « 250 » reader or an MTR4 would send — built by protocol.js's encoders from the facts
-// of docs/chrono/emit.md, so it is only as right as they are. Everything is delivered at once, in the caller's turn.
+// of docs/emit.md, so it is only as right as they are. Everything is delivered at once, in the caller's turn.
 //
 //   const sim = simReader({ kind: "250" });           // or "mtr4"
 //   const reader = openReader(sim.transport, { kind: "250", onCard });

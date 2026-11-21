@@ -1,8 +1,11 @@
+// This Source Code Form is subject to the terms of the Mozilla Public License, v. 2.0. If a copy of the MPL was not
+// distributed with this file, You can obtain one at https://mozilla.org/MPL/2.0/.
+
 // Chrono's screens: the small parts every post uses — icons, a dialog with a form, a toast, a file picker, a download,
 // a sortable table. Texts come from the catalogue `chrono` (keys `chr.*`).
 
-import { html, raw, esc } from "../../util.js";
-import { t, locale } from "../../i18n.js";
+import { html, raw, esc } from "../lib/html.js";
+import { t, locale } from "../lib/i18n.js";
 
 /** The time of day of an instant, as the reader's language writes it (24 hours). */
 export const atClock = (ms) => new Date(ms).toLocaleTimeString(locale(), { hour12: false });

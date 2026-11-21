@@ -1,3 +1,6 @@
+// This Source Code Form is subject to the terms of the Mozilla Public License, v. 2.0. If a copy of the MPL was not
+// distributed with this file, You can obtain one at https://mozilla.org/MPL/2.0/.
+
 // Canada (Orienteering Canada): age classes by sex for championships, courses by level at local events.
 
 const AGES = [10, 12, 14, 16, 20, 21, 35, 45, 55, 65, 75, 80, 85];

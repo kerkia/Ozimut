@@ -1,3 +1,6 @@
+// This Source Code Form is subject to the terms of the Mozilla Public License, v. 2.0. If a copy of the MPL was not
+// distributed with this file, You can obtain one at https://mozilla.org/MPL/2.0/.
+
 // A small XML reader and writer for Chrono's formats (IOF XML, MeOS's files, MOP): no DOMParser, so that the same code runs
 // in a page, in a worker and under Node. Prefixes are dropped (« iof:Person » is « Person »). Enough for data files; it is
 // not a validating parser.

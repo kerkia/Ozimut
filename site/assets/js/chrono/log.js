@@ -1,4 +1,7 @@
-// Chrono's log of operations (docs/chrono/design.md): every station appends operations — an entry changed, a card read, a
+// This Source Code Form is subject to the terms of the Mozilla Public License, v. 2.0. If a copy of the MPL was not
+// distributed with this file, You can obtain one at https://mozilla.org/MPL/2.0/.
+
+// Chrono's log of operations (docs/design.md): every station appends operations — an entry changed, a card read, a
 // radio punch — and the state of the race is what folding them in order gives. The order is (t, s, n): a hybrid clock (wall
 // milliseconds × 1000 + a counter, never going back), then the station, then its sequence number, so every station folds the
 // same log into the same state. An operation that arrives out of order (a station back after a cut) replays the log.

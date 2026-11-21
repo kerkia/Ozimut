@@ -1,9 +1,12 @@
+// This Source Code Form is subject to the terms of the Mozilla Public License, v. 2.0. If a copy of the MPL was not
+// distributed with this file, You can obtain one at https://mozilla.org/MPL/2.0/.
+
 // Teams: the relay's (one runner a leg) and those whose members race together (pairs, patrols). The list of « Préparer »,
 // a team's own dialog — its name, club, class, bib, and who runs each leg —, the bibs given in one go, and the relay's
 // mass start of the runners still waiting.
 
-import { t, tn } from "../../i18n.js";
-import { confirmBox } from "../../askbox.js";
+import { t, tn } from "../lib/i18n.js";
+import { confirmBox } from "../lib/ask.js";
 import { html, raw, icon, formDialog, values, field, opt, table } from "./kit.js";
 import { clock, parseClock } from "../times.js";
 import { newId } from "../log.js";

@@ -1,3 +1,6 @@
+// This Source Code Form is subject to the terms of the Mozilla Public License, v. 2.0. If a copy of the MPL was not
+// distributed with this file, You can obtain one at https://mozilla.org/MPL/2.0/.
+
 // Web Serial as a reader's transport (`{ open({ baud }), write(bytes), onData(cb), close() }`): a SPORTident station's USB
 // port (Silicon Labs CP210x, 10C4:800A), or any serial port — an Emit unit, a station on a serial adapter, a radio dongle.
 // 8 data bits, no parity, 1 stop bit, no flow control, as GecoSI and lool-ing/sportident open the port.

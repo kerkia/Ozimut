@@ -1,8 +1,11 @@
+// This Source Code Form is subject to the terms of the Mozilla Public License, v. 2.0. If a copy of the MPL was not
+// distributed with this file, You can obtain one at https://mozilla.org/MPL/2.0/.
+
 // The dialogs every post shares: a runner's entry, a card's content (corrected by hand), a card nobody holds, a finish
 // typed by hand. Each writes operations through the log and resolves when closed.
 
-import { t } from "../../i18n.js";
-import { confirmBox } from "../../askbox.js";
+import { t } from "../lib/i18n.js";
+import { confirmBox } from "../lib/ask.js";
 import { html, raw, formDialog, values, field, opt, icon, statusTag, atClock } from "./kit.js";
 import { clock, span, parseClock, parseSpan } from "../times.js";
 import { newId } from "../log.js";

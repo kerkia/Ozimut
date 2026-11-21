@@ -1,3 +1,6 @@
+// This Source Code Form is subject to the terms of the Mozilla Public License, v. 2.0. If a copy of the MPL was not
+// distributed with this file, You can obtain one at https://mozilla.org/MPL/2.0/.
+
 // SPORTident's serial protocol: framing, the CRC, the commands a readout needs and the fixed layouts of their answers.
 //
 // A frame of the extended protocol is  [WAKEUP] STX cmd len data… crcHi crcLo ETX  (the CRC over cmd, len and data); every

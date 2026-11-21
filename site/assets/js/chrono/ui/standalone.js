@@ -1,17 +1,23 @@
+// This Source Code Form is subject to the terms of the Mozilla Public License, v. 2.0. If a copy of the MPL was not
+// distributed with this file, You can obtain one at https://mozilla.org/MPL/2.0/.
+
 // Chrono outside Ozimut's pages: the page the desktop app's hub serves — to its own window, to the arena's other computers
 // and to phones. It lists the hub's events, opens one (or makes one), and runs the same window as the Orga tab, linked to
 // the hub that served it. `?ev=<id>` opens an event at once, `?role=start|desk|finish|speaker|referee` keeps to that post,
 // `?k=<token>` is the hub's key for another computer.
 
-import { t, loadArea } from "../../i18n.js";
+import { t, lang, setLang, LANGS, LANG_NAMES } from "../lib/i18n.js";
 import { html } from "./kit.js";
 import { newId } from "../log.js";
 import { listEvents } from "../store.js";
 import { formDialog, field, values } from "./kit.js";
 import { mountChrono } from "./app.js";
 
+/** The page's themes, ozimut.com's five (css/base.css); the one in use was set by the page before anything was drawn. */
+const THEMES = ["light", "clearing", "forest", "undergrowth", "dark"];
+const theme = () => document.documentElement.dataset.theme || "light";
+
 export async function standalone(root) {
-  await loadArea("chrono");
   document.title = "Ozimut Chrono";
   const q = new URLSearchParams(location.search), k = q.get("k") || "", role = q.get("role") || "all";
   const hubUrl = location.protocol.startsWith("http") ? `${location.protocol === "https:" ? "wss" : "ws"}://${location.host}/hub${k ? `?k=${encodeURIComponent(k)}` : ""}` : "";
@@ -31,7 +37,11 @@ export async function standalone(root) {
       <label class="chr-f"><span>${t("chr.ev.rules")}</span><select name="country"><option value="FR">${t("chr.rules.fr")}</option><option value="CA">${t("chr.rules.ca")}</option><option value="">${t("chr.rules.iof")}</option></select></label>
       <button type="submit" class="btn btn-primary">${t("chr.create")}</button></form></div>
     <div class="chr-card" id="chr-network"></div>
-    <p class="chr-home-doc"><a href="doc.html" target="_blank" rel="noopener">${t("chr.home.doc")}</a></p></div>`.toString();
+    <p class="chr-home-doc"><a href="doc.html" target="_blank" rel="noopener">${t("chr.home.doc")}</a>
+      <label>${t("chr.home.theme")} <select id="chr-theme">${THEMES.map((th) => html`<option value="${th}" ${th === theme() ? "selected" : ""}>${t(`chr.theme.${th}`)}</option>`)}</select></label>
+      <label>${t("chr.home.lang")} <select id="chr-lang">${LANGS.map((l) => html`<option value="${l}" ${l === lang() ? "selected" : ""}>${LANG_NAMES[l]}</option>`)}</select></label></p></div>`.toString();
+  root.querySelector("#chr-theme").addEventListener("change", (e) => { document.documentElement.dataset.theme = e.target.value; try { localStorage.setItem("ozchrono.theme", e.target.value); } catch (err) { /* this visit only */ } });
+  root.querySelector("#chr-lang").addEventListener("change", (e) => setLang(e.target.value));
   root.querySelectorAll("[data-ev]").forEach((b) => b.addEventListener("click", () => { clearInterval(tick); open(b.dataset.ev); }));
   // the events other computers of the arena hold (their app says so on the network): one is joined with its code, once
   const local = /^(127\.0\.0\.1|localhost|\[::1\])(:\d+)?$/.test(location.host);

@@ -1,9 +1,12 @@
+// This Source Code Form is subject to the terms of the Mozilla Public License, v. 2.0. If a copy of the MPL was not
+// distributed with this file, You can obtain one at https://mozilla.org/MPL/2.0/.
+
 // The list designer: an organiser composes their own lists — which rows, grouped how, which columns, sorted how —, sees
 // them as they will print, prints them, exports them, and saves them with the event (one event key a list, « list.<id> »,
 // so that two stations changing different lists never overwrite each other). The saved lists join the posts' print groups.
 
-import { t, locale } from "../../i18n.js";
-import { confirmBox } from "../../askbox.js";
+import { t, locale } from "../lib/i18n.js";
+import { confirmBox } from "../lib/ask.js";
 import { html, raw, icon, field, opt, download, printHtml, openPage } from "./kit.js";
 import { listLabels } from "./prepare.js";
 import { COLUMNS, KINDS, GROUPS, SIZES, STATUSES, columnsOf, defaultList, normalise, savedLists, listHtml, listCsv, newListId } from "../print/designer.js";

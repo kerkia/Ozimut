@@ -1,4 +1,7 @@
-// Chrono's model: what the screens and the formats do to the log (docs/chrono/design.md). Rows are found by what people
+// This Source Code Form is subject to the terms of the Mozilla Public License, v. 2.0. If a copy of the MPL was not
+// distributed with this file, You can obtain one at https://mozilla.org/MPL/2.0/.
+
+// Chrono's model: what the screens and the formats do to the log (docs/design.md). Rows are found by what people
 // know them by — a licence, a name and a club, a class's or a course's name —, never by ids, which only the log makes.
 
 import { newId } from "./log.js";
