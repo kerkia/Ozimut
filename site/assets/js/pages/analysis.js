@@ -2140,6 +2140,9 @@ export async function render(main, { query = {}, route } = {}) {
     return lastTurn;
   }
   const legAt = (s) => { let j = -1; for (let i = 0; i < legs.length; i++) if (legs[i].t0 != null && s >= legs[i].t0) j = i; return j; };
+  /** The leg shown: the one opened, else the one run now — one rule for the routes drawn, « Itinéraires », the leg menu and the
+   *  runner (2026-11-21: a leg chosen in « Itinéraires » drew its routes while the menu and the runner stayed on the leg before) */
+  const shownLeg = () => (legSel >= 0 ? legSel : Math.max(0, legAt(tNow)));
   /** The reader moved the race's time: the runner followed from now on. */
   function moved() { still = false; opening = false; }
   /** The race's time span shown: the leg opened, else the whole race. */
@@ -2562,8 +2565,8 @@ export async function render(main, { query = {}, route } = {}) {
     const lw = (px) => px / view.k;
     if (calibrated && rcs.on) {                       // the route choices computed (administrators, a prototype)
       if (rcs.pic) { ctx.globalAlpha = 0.6; ctx.imageSmoothingEnabled = false; ctx.drawImage(rcs.pic.canvas, 0, 0, rcs.pic.canvas.width * rcs.pic.cell, rcs.pic.canvas.height * rcs.pic.cell); ctx.globalAlpha = 1; }
-      RC.drawDecision(ctx, rcDecision(Math.max(0, legAt(tNow))));
-      RC.drawRoutes(ctx, rcs.routes[Math.max(0, legAt(tNow))], lw, rcPace(), clock);
+      RC.drawDecision(ctx, rcDecision(shownLeg()));
+      RC.drawRoutes(ctx, rcs.routes[shownLeg()], lw, rcPace(), clock);
     }
     ctx.lineCap = "round"; ctx.lineJoin = "round";
     if (fit && fullPath && offset != null && !drawing) {
@@ -2795,7 +2798,7 @@ export async function render(main, { query = {}, route } = {}) {
                 rcs.mine[i] = { ...m, ...RC.chosen(m, routes), actual: l.time };
               }
             }
-            if (i === Math.max(0, legAt(tNow))) draw();
+            if (i === shownLeg()) draw();
           }
           done++;
         }
@@ -2854,9 +2857,10 @@ export async function render(main, { query = {}, route } = {}) {
           : l.time != null ? html`<div class="rc-lb-gaps">${l.time != null ? html`<span title="${t("rc.col.actual.hint")}">${t("rc.col.actual")} <b class="num">${clock(l.time)}</b></span>` : ""}</div>` : ""}
       </div>`)}`;
     $$("#an-rc .rc-lb").forEach((b) => b.addEventListener("click", () => {
-      const l = legs[Number(b.dataset.leg)];
-      if (l?.t0 == null) return;
-      stop(); zoomTo(l); seek(l.t0);
+      // a leg's block opens that leg, as « Inter-postes » and the leg menu do
+      const i = Number(b.dataset.leg);
+      if (legs[i]?.t0 == null) return;
+      if (i !== legSel) setLegView(i);
     }));
     rcLegShown = -2;
     rcCurrent(true);
@@ -2864,7 +2868,7 @@ export async function render(main, { query = {}, route } = {}) {
   let rcLegShown = -2;
   /** The current leg's block marked in « Itinéraires », brought into view when the tab shows. */
   function rcCurrent(force) {
-    const j = Math.max(0, legAt(tNow));
+    const j = shownLeg();
     if (j === rcLegShown && !force) return;
     rcLegShown = j;
     let cur = null;

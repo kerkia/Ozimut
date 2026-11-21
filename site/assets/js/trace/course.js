@@ -42,8 +42,9 @@ const RADII = [6, 7, 8, 9, 10, 11, 12, 13, 15, 17, 19, 21, 23, 26, 29, 32, 36, 4
  *  2026-11-18: the passes chosen by how well their legs are inked (align.visitOrder); 2026-11-19: clean scans (a channel its
  *  background absorbs left out of the colour tests, the control radius weighed by size, the description table's boxes);
  *  2026-11-20: on a solid colour reading only the circles a printed leg reaches, and the probes likewise; then every ring all
- *  but whole on the ink field in the course's colour, and on a sharp image only those. */
-export const READER = 7;
+ *  but whole on the ink field in the course's colour, and on a sharp image only those; 2026-11-21: the start found at the open
+ *  end of a leg when no triangle was read. */
+export const READER = 8;
 const ANGLES = 24, STRIDE = 4;
 const DARK_T = 0.4, IN_DARK = 0.45, LEG = 0.75;
 /** A channel whose background is under this level (of 256) is already absorbed there: blue over yellow or olive green. */
@@ -542,7 +543,36 @@ async function readCourse(image, { maxSide = 1800, debug = false, dark = false, 
       }
       // a start no leg leaves is a symbol of the description sheet (the Auray scan's)
       if (start && !controls.some((c) => legIn(start.x, start.y, c.x, c.y, 1.1 * start.R, 1.3 * rStar) >= 0.5)) start = null;
+      // no start read: it is at the end of a leg that leads to no other symbol — the triangle's blob joined to the course's
+      // other lines, or a side of it run on by the leg, was too large a piece for the blob search (the three Morbihan scans,
+      // 2026-11-21: all three triangles, plainly drawn, missed). Each control's straight inked runs that end in the open, a
+      // triangle looked for just past their end
+      if (!start) start = startOnLeg();
     }
+  }
+  /** The start triangle at the open end of a leg: from every control, each straight run of the overprint (80 % inked, two radii
+   *  at least) that ends 1.5 radii away from any symbol read, a triangle of 1-1.45 radii looked for around the point half a
+   *  radius past its end (the leg stops at the triangle's side, its centre beyond). The best above 0.7, hollow. */
+  function startOnLeg() {
+    const syms = [...controls.map((c) => ({ x: c.x, y: c.y, r: rStar })), ...(finish ? [{ x: finish.x, y: finish.y, r: finish.r2 }] : [])];
+    let best = null;
+    for (const c of controls) for (let deg = 0; deg < 360; deg += 2) {
+      const ux = Math.cos((deg * Math.PI) / 180), uy = Math.sin((deg * Math.PI) / 180), r0 = 1.25 * rStar;
+      let f0 = -1, last = -1, on = 0;
+      for (let d = r0; d <= 40 * rStar; d += 1) {
+        if (inkNear(c.x + d * ux, c.y + d * uy, ux, uy)) { if (f0 < 0) f0 = d; last = d; on++; }
+        else if (f0 >= 0 && d - last > 0.6 * rStar) break;
+        else if (f0 < 0 && d - r0 > 0.5 * rStar) break;
+      }
+      if (f0 < 0 || last - f0 < 2 * rStar || on < 0.8 * (last - f0 + 1)) continue;
+      const ex = c.x + last * ux, ey = c.y + last * uy;
+      if (syms.some((q) => q !== c && Math.hypot(q.x - ex, q.y - ey) < q.r + 1.5 * rStar)) continue;
+      for (const k of [0.3, 0.6, 0.9]) {
+        const tri = triangleAt(dil, w, h, ex + k * rStar * ux, ey + k * rStar * uy, rStar, sharp);
+        if (tri && tri.score >= 0.7 && !inGrid(grid, w, h, tri.x, tri.y, 1.1 * tri.R, 1) && (!best || tri.score > best.score)) best = { ...tri, onLeg: true };
+      }
+    }
+    return best;
   }
   await step(0.95);
   const sequence = rStar && controls.length >= 2 ? (start ? followCourse(finish) : dark || solid ? chainBack(finish) : null) : null;
