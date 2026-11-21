@@ -72,6 +72,7 @@ function dialog(inner) {
   d.innerHTML = `<form method="dialog" class="trk-dlg-x"><button class="btn btn-sm" aria-label="${t("trk.close")}">✕</button></form>${inner}`;
   document.body.append(d);
   d.addEventListener("close", () => d.remove());
+  window.addEventListener("hashchange", () => { if (d.open) d.close(); }, { once: true });     // never left over another page
   d.addEventListener("click", (e) => { if (e.target === d) d.close(); });
   d.showModal();
   return d;
@@ -257,8 +258,12 @@ function watchPage(main, id) {
   function take(msg) {
     if (msg.t === "hello") {
       W.live = true;
-      W.batch = msg.batch || 30; W.bat = msg.bat; W.lp = msg.lp; W.lastAt = msg.last || 0;
-      if (msg.run) { W.run = msg.run; W.state = msg.state || "run"; W.fixes = decode(msg.fixes); W.name = msg.name || W.name; }
+      W.batch = msg.batch || 30;
+      // the relay holds only the run under way; with none, what the server listed stays
+      if (msg.run) {
+        W.run = msg.run; W.state = msg.state || "run"; W.fixes = decode(msg.fixes); W.name = msg.name || W.name;
+        W.bat = msg.bat; W.lp = msg.lp; W.lastAt = msg.last || W.lastAt;
+      }
       if (W.fixes.length) map.fit(W.fixes.map((f) => [f[1], f[2]]));
     } else if (msg.t === "fixes") {
       if (msg.run !== W.run) { W.run = msg.run; W.fixes = []; W.state = "run"; W.alerts = []; }
