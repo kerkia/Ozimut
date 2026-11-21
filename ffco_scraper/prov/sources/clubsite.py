@@ -356,6 +356,10 @@ class ClubSite:
                     address_other_day(url, d) or \
                     other_year(urllib.parse.unquote(urllib.parse.urlsplit(url).path.rsplit("/", 1)[-1]) + " " + text, d):
                 return                                          # a file of another day's (or season's) race
+            # a results link whose own words name days, none the race's (ECHO 73's season page, 2026-11-21: one line
+            # « 21 novembre - JaCO-Belle » made it the race's weekend page, and « 10 mai - CFC Bourbach » was taken)
+            if not start and other_day_named(plain(text), d):
+                return
             path = urllib.parse.urlsplit(url).path.lower()
             is_doc = path.endswith(DOC_EXT) or "drive.google.com/file" in url or "document-download" in url or "/ugd/" in url
             # a file without an extension (a Cloudinary upload: « …/organisations/resultat_si69 »), or a link saying

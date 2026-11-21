@@ -28,7 +28,7 @@ from .compute import Scorer
 from .fetch import Fetcher
 from .match import Matcher
 from .model import plain
-from .sources.clubsite import ClubSite, address_other_day, download_url, other_day, other_year, uploaded_before
+from .sources.clubsite import ClubSite, address_other_day, download_url, other_day, other_day_named, other_year, uploaded_before
 from .sources.heyries import BASE as HY_BASE, Heyries
 from .sources.helga import BASE as HG_BASE, Helga
 from .sources import broadcast, declared, upload
@@ -388,7 +388,7 @@ def site_docs(con, race, f: Fetcher, lr: LiveResultat, ws: WinSplits, hy: Heyrie
                                AND kind NOT IN ({",".join("?" * len(START_KINDS))})""", (race["key"], *START_KINDS)).fetchall():
         name = urllib.parse.unquote(urllib.parse.urlsplit(row["url"]).path.rsplit("/", 1)[-1])
         if other_day(urllib.parse.unquote(row["url"]), day) or uploaded_before(row["url"], day) or \
-                address_other_day(row["url"], day) or \
+                address_other_day(row["url"], day) or other_day_named(plain(row["note"] or ""), day) or \
                 other_year(f"{name} {row['note'] or ''}", day):
             con.execute("DELETE FROM prov_docs WHERE race_key = ? AND url = ?", (race["key"], row["url"]))
             changed += 1
