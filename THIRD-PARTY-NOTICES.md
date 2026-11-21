@@ -134,18 +134,14 @@ under the same licence):
 | `vegBoundary.webp` | Steven Brown | CC-BY-SA-2.0 | https://commons.wikimedia.org/wiki/File:Field_and_trees_at_the_edge_of_Brightmony_Wood_-_geograph.org.uk_-_1900103.jpg |
 | `ditch.webp` | Panek | CC-BY-SA-4.0 | https://commons.wikimedia.org/wiki/File:Wyschni%C4%99ty_r%C3%B3w_w_d%C4%85br%C3%B3wce_szlacheckiej.jpg |
 
-Photos used with their author's permission only — **not licensed to anyone else; they may not be reused, copied or
+Photos and map extracts used with their author's permission only — **not licensed to anyone else; they may not be reused, copied or
 adapted without their author's own permission**:
 
-- by Emmanuel Roiné (15 photos): `pathBend.webp`, `knoll.webp`, `ruin.webp`, `boulderField.webp`, `cliff.webp`,
+- by Emmanuel Roiné (17 photos): `pathBend.webp`, `knoll.webp`, `ruin.webp`, `boulderField.webp`, `cliff.webp`,
   `impFence.webp`, `cairn.webp`, `pathJunction.webp`, `road.webp`, `stump.webp`, `earthWall.webp`, `boulder.webp`,
-  `rockFace.webp`, `earthBank.webp`, `pathCross.webp`.
-
-Material taken from a club's quiz « définitions carte course d'orientation » (Wayground), credited to the quiz on the
-page; no licence or permission is recorded in the repository: to check — **not licensed to anyone else**:
-
-- the photos `boulderCluster.webp` and `hill.webp` (photographer not named in the quiz);
-- the map extracts `site/assets/learn/map/*.png` (31 files).
+  `rockFace.webp`, `earthBank.webp`, `pathCross.webp`, and `boulderCluster.webp`, `hill.webp` from his quiz;
+- the map extracts `site/assets/learn/map/*.png` (31 files), from Emmanuel Roiné's quiz « définitions carte course
+  d'orientation », which he made and asked to have on Ozimut (permission recorded on 2026-11-21).
 
 ## 4. Geographic data committed in the repository
 

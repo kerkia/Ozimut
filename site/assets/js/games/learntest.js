@@ -103,9 +103,7 @@ const symbols = (f, size = 56) => html`<span class="lt-syms" role="img" aria-lab
 })}</span>`;
 /** A photo's credit (author, licence, Wikimedia Commons; `page`: with the link to the file, whose name gives the answer
  *  away — after the answer only). */
-export const credit = (ph, page = true) => ph.quiz
-  ? html`<span class="lt-credit">${t("lt.credit.quiz")}</span>`
-  : ph.permission
+export const credit = (ph, page = true) => ph.permission
   ? html`<span class="lt-credit">${t("lt.credit", { a: ph.author })} · ${t("lt.credit.perm")}</span>`
   : html`<span class="lt-credit">${t("lt.credit", { a: ph.author })} ·
   <a href="${ph.licenceUrl}" target="_blank" rel="noopener">${ph.licence}</a> ·

@@ -6,8 +6,8 @@
 // 2026-11-10 (owner: « ajoute-les toutes »), the control's streamer in the picture, their EXIF (place, date) left out; his
 // photo replaces the web's wherever he has one (owner: a professional orienteering coach, his photos are best). Nine more of
 // his on 2026-11-11 (abrupt de terre, borne, butte, coude, croisement et jonction de chemins, falaise, grillage, petite ruine).
-// « quiz »: the club quiz's own photo (owner, 2026-11-11: the boulder cluster and the small hill, « in the pdf »), credited
-// to the quiz, its photographer not named there.
+// The boulder cluster and the small hill: photos of Emmanuel Roiné's quiz (owner, 2026-11-11: « in the pdf »), his own
+// (owner, 2026-11-21: he wrote the quiz and its map extracts and asked for them on Ozimut).
 export const PHOTOS = {
   roughOpen: {"w": 760, "h": 570, "author": "John Ferguson", "licence": "CC BY-SA 2.0", "licenceUrl": "https://creativecommons.org/licenses/by-sa/2.0", "page": "https://commons.wikimedia.org/wiki/File:Small_clearing_in_the_forest_-_geograph.org.uk_-_1822289.jpg", "title": "Small clearing in the forest - geograph.org.uk - 1822289"},
   pathBend: {"w": 450, "h": 600, "author": "Emmanuel Roiné", "permission": true, "title": "Coude de chemin"},
@@ -32,6 +32,6 @@ export const PHOTOS = {
   rockFace: {"w": 450, "h": 600, "author": "Emmanuel Roiné", "permission": true, "title": "Falaise (petite)"},
   earthBank: {"w": 450, "h": 600, "author": "Emmanuel Roiné", "permission": true, "title": "Abrupt de terre"},
   pathCross: {"w": 450, "h": 600, "author": "Emmanuel Roiné", "permission": true, "title": "Croisement de chemins"},
-  boulderCluster: {"w": 259, "h": 194, "quiz": true, "title": "Groupe de rochers"},
-  hill: {"w": 740, "h": 555, "quiz": true, "title": "Petite colline"},
+  boulderCluster: {"w": 259, "h": 194, "author": "Emmanuel Roiné", "permission": true, "title": "Groupe de rochers"},
+  hill: {"w": 740, "h": 555, "author": "Emmanuel Roiné", "permission": true, "title": "Petite colline"},
 };

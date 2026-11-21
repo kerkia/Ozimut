@@ -1648,7 +1648,7 @@ Every multiple-choice game was played through to its score page at phone size, w
   author, licence and page in `games/learnphotos.js`, credited under the photo (the file's page, whose name gives the answer away,
   linked after the answer) and listed under the test. **A photo must be unambiguous** (owner, 2026-11-10: the « petite colline »
   was a big wooded hill behind a vegetation boundary): the feature at a control's scale, nothing else of the list in the frame;
-  none for re-entrant, spur and thicket (their name shows instead; the earth wall, path crossing and earth bank have Emmanuel Roiné's, the boulder cluster and small hill the quiz's). Replace one with a photo Ozimut may use: the file and its credit. The settings hide while a run is under way
+  none for re-entrant, spur and thicket (their name shows instead; the earth wall, path crossing and earth bank have Emmanuel Roiné's, the boulder cluster and small hill his quiz's). Replace one with a photo Ozimut may use: the file and its credit. The settings hide while a run is under way
   (`runGame`'s `onState`), « Arrêter le test » brings them back. **Compact, a question whole on a laptop's screen** (owner,
   2026-11-10): a lean page (no title, its line the menu entry's tooltip), the lede hidden too during a run, « Arrêter le test » on
   the puzzle's line (`topAction`), the game scrolled to the top (`scrollOnPlay`), no question text, no letters (the circles alone
@@ -1656,7 +1656,8 @@ Every multiple-choice game was played through to its score page at phone size, w
   list under the game (« Apprendre » and « Jeux »), extracts of ~100 px (112 at most), the photo's height from the window's (`100vh − 425px`), the time's bar a thin line under « Énigme n / N »
   (`.g-n-box`), the result centred under the circles; on a phone the four extracts still on one line (~62 px on a 375 px screen) and the result one
   short paragraph — checked at 1366 × 650, 375 × 812 and 375 × 667. The 28 features and each one's three wrong answers (« Facile ») come from a club's
-  Wayground quiz the owner gave (« définitions carte course d'orientation »; its photos not used, its map extracts used since the same evening, its wrong options
+  Wayground quiz the owner gave (« définitions carte course d'orientation », **Emmanuel Roiné's**: he made it, its map extracts and
+  its two photos used here, and asked for them on Ozimut — owner, 2026-11-21: credited « avec son autorisation »; its photos not used, its map extracts used since the same evening, its wrong options
   mapped to the other questions' features by image matching; its three pictures that answer no question — nine options — kept as they are, `learn/map/<key>-2.png`, `EXTRA`, named by Ozimut's reading: « Rocher » (one boulder in a group, under « Gros rocher »), « Butte » (a small ring of form line, no tick), « Souche » (a green cross; owner, 2026-11-10)); « Aléatoire » draws three of the 28,
   never one with the same symbols. **The training always gives the quiz's groups of four** (owner, 2026-11-10, evening: grouped
   as in its PDF; `testSpec`'s `mode` "groups"; the random mixing of before gone) and keeps no palmarès. The name sits right over the photo, centred with it (`.lt-name` in `.lt-photo`; owner, 2026-11-10: not at the question's far left). The question shows the photo and the name by default, not the description symbols (owner, 2026-11-10; `DEFAULTS.show`, settings kept in `ocn.learn.test.v3`). The user sets the number of questions (20 by default) and the time each (10 s by default, 5 to
