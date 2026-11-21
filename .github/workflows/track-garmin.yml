@@ -1,0 +1,114 @@
+# The Ozimut Garmin data field (track/garmin): compile with strict type checking for a few watches, then
+# export the store package (.iq) for every product of the manifest. Unsigned for the store unless the
+# developer key secret exists (a throwaway key is made otherwise).
+#
+# The SDK comes from Garmin's public SDK listing; the device files need a Garmin developer login:
+#   - with the secrets GARMIN_USERNAME, GARMIN_PASSWORD and GARMIN_AGREEMENT_HASH (the hash printed by
+#     `connect-iq-sdk-manager agreement view`), lindell/connect-iq-sdk-manager-cli (Apache-2.0) logs in and
+#     downloads the SDK and the manifest's devices — the way Garmin's own SDK Manager does;
+#   - without them, the SDK and device files are copied out of the public image
+#     ghcr.io/matco/connectiq-tester (its scripts are under the Unlicense; the device files in it are
+#     Garmin's, fetched by its author with the SDK Manager) — a test build only.
+# Optional: GARMIN_DEVELOPER_KEY, the store's developer key as base64 of its DER file.
+name: track-garmin
+
+on:
+  push:
+    paths:
+      - "track/garmin/**"
+      - ".github/workflows/track-garmin.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: track-garmin-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    env:
+      GARMIN_USERNAME: ${{ secrets.GARMIN_USERNAME }}
+      GARMIN_PASSWORD: ${{ secrets.GARMIN_PASSWORD }}
+      GARMIN_AGREEMENT_HASH: ${{ secrets.GARMIN_AGREEMENT_HASH }}
+      GARMIN_DEVELOPER_KEY: ${{ secrets.GARMIN_DEVELOPER_KEY }}
+      SDK_RANGE: "^9.1.0"
+      TEST_DEVICES: "fr255 fenix7 fr965 venu3"
+    defaults:
+      run:
+        working-directory: track/garmin
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: SDK and devices (Garmin login)
+        if: env.GARMIN_USERNAME != '' && env.GARMIN_PASSWORD != '' && env.GARMIN_AGREEMENT_HASH != ''
+        run: |
+          (cd "$HOME" && curl -fsSL https://raw.githubusercontent.com/lindell/connect-iq-sdk-manager-cli/master/install.sh | sh)
+          export PATH="$HOME/bin:$HOME/.local/bin:$PATH"
+          command -v connect-iq-sdk-manager
+          connect-iq-sdk-manager agreement accept --agreement-hash="$GARMIN_AGREEMENT_HASH"
+          connect-iq-sdk-manager login
+          connect-iq-sdk-manager sdk set "$SDK_RANGE"
+          connect-iq-sdk-manager device download --manifest=manifest.xml
+          echo "$(connect-iq-sdk-manager sdk current-path --bin)" >> "$GITHUB_PATH"
+          dev=$(dirname "$(find "$HOME" -path '*ConnectIQ/Devices/*/compiler.json' | head -1)")
+          echo "DEVICES_DIR=$(dirname "$dev")" >> "$GITHUB_ENV"
+
+      - name: SDK and devices (public test image)
+        if: env.GARMIN_USERNAME == '' || env.GARMIN_PASSWORD == '' || env.GARMIN_AGREEMENT_HASH == ''
+        run: |
+          docker pull ghcr.io/matco/connectiq-tester:latest
+          id=$(docker create ghcr.io/matco/connectiq-tester:latest)
+          docker cp "$id:/connectiq" "$HOME/connectiq"
+          mkdir -p "$HOME/.Garmin/ConnectIQ"
+          docker cp "$id:/root/.Garmin/ConnectIQ/Devices" "$HOME/.Garmin/ConnectIQ/Devices"
+          docker rm "$id"
+          echo "$HOME/connectiq/bin" >> "$GITHUB_PATH"
+          echo "DEVICES_DIR=$HOME/.Garmin/ConnectIQ/Devices" >> "$GITHUB_ENV"
+          echo "::notice::Device files from ghcr.io/matco/connectiq-tester (no Garmin login secrets): a test build"
+
+      - name: SDK version and the manifest's devices
+        run: |
+          cat "$(dirname "$(command -v monkeyc)")/../bin/../version.txt" 2>/dev/null || true
+          monkeyc --version || true
+          python3 tools/check_devices.py "$DEVICES_DIR" manifest.xml
+
+      - name: Developer key
+        run: |
+          if [ -n "$GARMIN_DEVELOPER_KEY" ]; then
+            echo "$GARMIN_DEVELOPER_KEY" | base64 -d > "$RUNNER_TEMP/developer_key.der"
+          else
+            openssl genrsa -out "$RUNNER_TEMP/k.pem" 4096
+            openssl pkcs8 -topk8 -inform PEM -outform DER -in "$RUNNER_TEMP/k.pem" -out "$RUNNER_TEMP/developer_key.der" -nocrypt
+            rm "$RUNNER_TEMP/k.pem"
+          fi
+
+      - name: Compile (strict type checking)
+        run: |
+          mkdir -p out
+          for d in $TEST_DEVICES; do
+            echo "::group::$d"
+            monkeyc -d "$d" -f monkey.jungle -o "out/ozimut-$d.prg" -y "$RUNNER_TEMP/developer_key.der" -l 3 -w
+            echo "::endgroup::"
+          done
+
+      - name: Export the store package (every product)
+        run: monkeyc -e -r -f monkey.jungle -o out/ozimut.iq -y "$RUNNER_TEMP/developer_key.der" -l 3 -w
+
+      - name: Remove the key
+        if: always()
+        run: rm -f "$RUNNER_TEMP/developer_key.der"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ozimut-garmin
+          path: track/garmin/out/
+          retention-days: 14
