@@ -23,6 +23,7 @@ runner histories, clubs, comparisons, an agenda of upcoming events and per-race 
 | `site/assets/js/mapper/` | **Cartographier** (Orga, 2026-11-06): the map editor, OCAD's records as its document (`docs/mapper/model.md`); see « Orga › Cartographier » |
 | `.github/workflows/update.yml` | Hourly quick run, 03:00 Paris full run, 06:00 Paris agenda run, Sat/Sun evening provisional-results runs (every 20 min), deploy on push |
 | `run_cn.py`, `query_cn.py`, `merge_methods.py` | Developer tools (recompute one method, inspect a runner, merge DBs) |
+| `track/` | **GPS tracking's native apps** (2026-11-21, see « Live GPS tracking »): `track/android` (Kotlin), `track/ios` (Swift, XcodeGen: the iPhone app and its Apple Watch app), `track/garmin` (Monkey C data field); each built by its own workflow (`track-android.yml`, `track-ios.yml`, `track-garmin.yml`) on a push touching it |
 | `live/` | **O'CN's live relay**, Worker `ocn-live` (2026-10-18): Durable Objects — one `LiveRace` per liveresultat competition (« En direct »), MeOSDjango, O'Live, SPORTident Center or OResults race, or organiser's broadcast (« Organisation › Direct »), and the `Directory` (liveresultat's, MeOSDjango's and O'Live's lists, the broadcasts). No public address (`workers_dev = false`): O'CN reaches it only through its Durable Object bindings (`wrangler.toml` LIVE_RACE, LIVE_DIR) — `functions/api/live/list.js`, `functions/ws/[comp].js`, `functions/api/live/push.js`, `mop.js` (MeOS's online results) and `broadcasts.js`. Deployed by hand: `cd live && npx wrangler deploy`; local: launch config `ocn-live-dev` (8786), the local Pages dev binds to it; `live/dev/lr-mock.mjs` replays recorded races as liveresultat's API (`--var LR_API:…`) |
 
 On the PC everything is under `C:\kerkia\Ozimut` (one folder since 2026-11-07; `C:\kerkia\CO` and `C:\kerkia\cn-data` before):
@@ -783,6 +784,51 @@ button now gives `https://github.com/kerkia/ChronOzimut/releases/latest/download
 equipment** (SPORTident or Emit stations, a thermal printer, real MeOS, real laptops on an arena's Wi-Fi, an update
 between two installed versions). Installers unsigned until SignPath Foundation accepts the project (applied for by the
 owner; its conditions are in ChronOzimut's README « Code signing policy »).
+
+## Live GPS tracking (« Suivi GPS »)
+
+**Built 2026-11-21** (owner: « implement the whole plan, phases 1 to 3 … I will test in steps »), after the study
+`C:\Kerkia\Ozimut\work\study\gps-tracking\ozimut-gps-tracking-from-a-phone.pdf` (v2). **The contract is
+`docs/track/design.md`: change it first, then the code** (server, site and the three native apps follow it). Runners
+without a GPS watch and children followed live by their parents; the coach and competition uses are not a priority.
+Owner's rules: one Ozimut app (the site in a web view plus a native tracker), a device always tied to an account, a child
+an account of its own managed by its parents (no e-mail, no password; `users.child`, `track_guardians`), watchers are
+accounts invited by a code (`track_watchers`), one fix a second always, batches every `batch` s (10-60, 30 by default)
+while someone watches and 120 s otherwise, the watch page replaying `batch + 10` s behind on a base map (OpenStreetMap,
+`trackmap.js`; never an orienteering map), nobody under 15 registering alone (registration asks `birthYear`; with
+`TRACK_OPEN` "1" under 15 → 422 `under15`; while "0" such an account gets `guardian_wanted`: private runs, no alerts, a
+banner asking a parent), a child taking the account over from 15 (`POST /api/track/takeover`, e-mail confirmation).
+
+- **Server**: migration `0029_track.sql`; `functions/_lib/track.js` (access: `trackAllowed` — every account with
+  `TRACK_OPEN` "1", else administrators and accounts tied to them by the tracking —, `canManage`, `canWatch`, codes stored
+  hashed in `track_codes`, the batch reader, R2 `track/<user>/<run>/<seq>.json` then `track/<user>/<run>.json` at the end,
+  `deleteChild`); `functions/api/track/[[path]].js` (its header lists every route; the device routes are public in
+  `_middleware.js`: their own Bearer key, a code, the relay's `X-Relay` secret or Polar's signature); `functions/ws/track/[user].js`;
+  `functions/t/[[code]].js` (`/t/<code>` a pair code's landing, `/t/login#<token>` the app's web view signing in);
+  `site/.well-known/assetlinks.json` and `apple-app-site-association` (**placeholders**: the release key's SHA-256, the Apple
+  team id). Runs are kept 30 days unless taken into an analysis (`kept`). Account deletion removes the tracking, and a child
+  whose last guardian it was.
+- **Relay**: `live/src/track.js` `LiveTrack` (migration v3 in `live/wrangler.toml`, binding `TRACK`): the run under way, the
+  watchers' sockets (hibernation), alerts every 30 s (start, end, help, silent 3 min, still 15 m / 5 min, battery < 15 %,
+  back at the start, out of the area) posted to `<SITE_URL>/api/track/alert` with `TRACK_RELAY_SECRET`; the site's binding
+  `LIVE_TRACK` is **commented in `wrangler.toml` until the relay is deployed** — without it the runs are kept and the watch
+  page reads them every 20 s, but nobody gets alerts.
+- **Push**: `functions/_lib/nativepush.js` (FCM HTTP v1 by a service account's JWT, APNs by an ES256 JWT — HTTP/2 from Workers
+  not verified); `pushToUser` sends to an account's native devices beside its Web Push subscriptions. Secrets
+  `FCM_SERVICE_ACCOUNT`, `APNS_KEY`, `APNS_KEY_ID`, `APNS_TEAM_ID`, `APNS_TOPIC`; Polar `POLAR_CLIENT_ID`,
+  `POLAR_CLIENT_SECRET`, `POLAR_WEBHOOK_SECRET`.
+- **Site**: Coach › « Suivi GPS » (`#/suivi`, `#/mes-traces`, `#/famille`, `#/suivi/<id>`; route `track`, `pages/track.js`, area
+  catalogue `i18n/track.*.js`), in the menu for `trackOpen`, administrators, children and a browser that opened it once
+  (`ocn.track.seen`); `appbridge.js` (the app's bridge: `inApp`, `call`, `info`, its `file` and `push` events); the privacy
+  page's « Suivi GPS et Mes traces » and « Comptes des enfants » (21 November 2026).
+- **Native apps** (`track/`, each its README): Android (foreground service of type location, SQLite queue, zxing pairing,
+  FCM when `google-services.json` exists; Health Connect not done), iPhone + Apple Watch (CLLocationManager with
+  CLBackgroundActivitySession, HealthKit routes, APNs, WatchConnectivity pairing of the watch; the watch records with an
+  HKWorkoutSession and sends alone on cellular), Garmin data field (claim code, sends through the phone; 37 products). **Only
+  built and unit-tested in CI, never run on a device**; signing, stores, icons and the owner's accounts still to come.
+- **Local test**: launch configs `ocn-live-track` (8771) then `pages-dev-track` (8774, a copy of the local state with 0029
+  applied, the relay bound with `--do LIVE_TRACK=LiveTrack@ocn-live`); scripts `t_track.mjs` (the API, 31 checks) and
+  `t_ws.mjs` (the relay) kept in `C:\Kerkia\Ozimut\work\scratch-scripts`.
 
 ## Changing a method: migrations
 

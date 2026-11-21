@@ -82,7 +82,8 @@ export async function onRequestPost({ request, env }) {
   if (rows.length) await env.DB.batch(rows.map((r) => saveMembership(env, row.id, r)));
   // « J'organise des courses ou je fais des cartes » (one optional box, owner 2026-11-12): the creators' modules, Orga and
   // Carto (migrations 0016, 0027; `orga` the form of before). A new account has no work to look at (_lib/modules.js autoShow).
-  if (birth) { try { await env.DB.prepare("UPDATE users SET birth_year = ? WHERE id = ?").bind(birth, row.id).run(); } catch (e) { /* before 0029 */ } }
+  // under 15 (possible only while TRACK_OPEN is "0"): the account waits for a parent to be attached (« Suivi GPS »)
+  if (birth) { try { await env.DB.prepare("UPDATE users SET birth_year = ?, guardian_wanted = ? WHERE id = ?").bind(birth, year - birth < 15 ? 1 : 0, row.id).run(); } catch (e) { /* before 0029 */ } }
   const creator = b.creator === true || b.orga === true;
   try { await env.DB.prepare(`UPDATE users SET modules_checked = 1${creator ? ", orga = 1, carto = 1" : ""} WHERE id = ?`).bind(row.id).run(); }
   catch (e) { if (creator) { try { await env.DB.prepare("UPDATE users SET orga = 1 WHERE id = ?").bind(row.id).run(); } catch (e2) { /* no column yet */ } } }
