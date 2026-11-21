@@ -52,6 +52,9 @@ class OzimutField extends WatchUi.DataField {
 
     // Sending.
     hidden var busy as Boolean = false;
+    // The fixes given to the current batch number. A batch that failed is sent again with exactly these
+    // fixes under the same number: the server ignores a number it already holds and answers its ack, so
+    // a retry must never carry fixes the first attempt did not. Halving leaves them alone.
     hidden var inflight as Number = 0;
     hidden var inflightSeq as Number = 0;
     hidden var inflightEnd as Boolean = false;
@@ -225,7 +228,7 @@ class OzimutField extends WatchUi.DataField {
             alt = backlog.alt(backlog.count - 1);
         }
         backlog.add(now, round(deg[0] * 1000000.0d), round(deg[1] * 1000000.0d), accuracyOf(q), alt,
-            busy ? inflight : 0);
+            inflight);
         lastFixT = now;
     }
 
@@ -269,7 +272,7 @@ class OzimutField extends WatchUi.DataField {
     }
 
     hidden function sendBatch() as Void {
-        var n = backlog.count < batchMax ? backlog.count : batchMax;
+        var n = inflight > 0 ? inflight : (backlog.count < batchMax ? backlog.count : batchMax);
         var isEnd = endPending && n == backlog.count;
         var dt = new Array<Number>[n];
         var la = new Array<Number>[n];
@@ -333,6 +336,7 @@ class OzimutField extends WatchUi.DataField {
             var ack = (d != null && d["ack"] instanceof Number) ? d["ack"] as Number : 0;
             if (ack >= inflightSeq) {
                 backlog.drop(inflight);
+                inflight = 0;
                 seq = inflightSeq + 1;
                 lastAck = now;
                 if (inflightEnd) {
@@ -351,6 +355,7 @@ class OzimutField extends WatchUi.DataField {
                 stopped = true;
                 run = null;
                 endPending = false;
+                inflight = 0;
                 backlog.clear();
                 return;
             }
@@ -363,10 +368,12 @@ class OzimutField extends WatchUi.DataField {
             // Removed from the account: forget the key, show a new code.
             run = null;
             endPending = false;
+            inflight = 0;
             backlog.clear();
             newIdentity();
         } else if (code == 409) {
             // The run is closed on the server (its cap): what is held starts a new run.
+            inflight = 0;
             if (inflightEnd || backlog.count == 0) {
                 run = null;
                 endPending = false;
@@ -376,6 +383,7 @@ class OzimutField extends WatchUi.DataField {
             nextAt = now;
         } else if (code == 413) {
             batchMax = batchMax > 20 ? batchMax / 2 : 10;
+            inflight = 0;   // refused whole: split again
             nextAt = now;
         } else if (code == 429) {
             var nx = (d != null && d["next"] instanceof Number) ? d["next"] as Number : 60;
