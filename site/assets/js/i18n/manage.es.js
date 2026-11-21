@@ -73,7 +73,7 @@ export default {
   "mg.new.s2.hint": "Las competiciones del {d}, las de tu club primero.",
   "mg.new.s3": "3. El evento",
   "mg.new.trainingClub": "Club del entrenamiento: el tuyo, {club}.",
-  "mg.next.title": "4. ¿Y ahora?",
+  "mg.next.title": "4. ¿Y ahora? (opcional)",
   "mg.chip.anLive": "publicado",
   "mg.chip.anDraft": "borrador",
   "mg.chip.anLater": "el {when}",

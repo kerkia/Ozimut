@@ -285,7 +285,9 @@ async function createPage(main, q) {
     const p = pre ? null : (await getProv("index.json").catch(() => null))?.races?.find((r) => r.key === q.course);
     if (p) pre = { id: null, key: p.key, name: p.name, date: p.date_iso, epr: p.epreuve };
   }
-  const st = { next: "", kind: "competition", form: pre ? asForm(pre) : "individual", cc: pre ? "FR" : cs.includes("FR") ? "FR" : cs[0] || "", day: pre?.date || "", pick: pre ? pre.key || `a${pre.id}` : "", list: [] };
+  // nothing chosen in advance (owner, 2026-11-21: a choice already made read as the expected one), but what a competition picked in
+  // the calendar says: the user chooses the kind and the form, the next step only if they wish (else the event's team)
+  const st = { next: "", kind: pre ? "competition" : "", form: pre ? asForm(pre) : "", cc: pre ? "FR" : cs.includes("FR") ? "FR" : cs[0] || "", day: pre?.date || "", pick: pre ? pre.key || `a${pre.id}` : "", list: [] };
   main.innerHTML = html`
     <a class="back-link" href="${BASE}">‹ ${t("mg.back")}</a>
     <div class="page-head"><div><h1>${t("mg.new.title")}</h1><p class="lede">${t("mg.new.lede")}</p></div></div>
@@ -293,7 +295,7 @@ async function createPage(main, q) {
     <section class="card"><div class="card-head"><h2>${t("mg.new.s1")}</h2></div><div class="card-body">
       <div class="mg-types">${Object.keys(KINDS).map((x) => html`<label class="mg-type"><input type="radio" name="mg-kind" value="${x}" ${raw(st.kind === x ? "checked" : "")}>
         <b>${kindLabel(x)}</b><span class="muted">${t(`mg.kind.${x}.hint`)}</span></label>`)}</div>
-      <div class="mg-forms"><h3>${t("mg.f.form")}</h3><div class="mg-types" id="mg-forms"></div></div>
+      <div class="mg-forms" id="mg-formbox" hidden><h3>${t("mg.f.form")}</h3><div class="mg-types" id="mg-forms"></div></div>
       <div class="filters" style="margin-top:12px">
         <label class="field"><span>${t("mg.f.country")}</span><select id="mg-cc">${cs.map((c) => html`<option value="${c}" ${raw(c === st.cc ? "selected" : "")}>${country.name(c)}</option>`)}</select></label>
         <label class="field"><span>${t("mg.f.date")}</span><input type="date" id="mg-day" value="${st.day}"></label>
@@ -309,18 +311,20 @@ async function createPage(main, q) {
   const linkable = () => st.cc === "FR" && st.kind === "competition" && !!st.day;
   /** The forms the kind offers (a relay only for a competition), the one chosen kept when the kind has it. */
   function drawForms() {
-    if (!KINDS[st.kind].includes(st.form)) st.form = "individual";
+    $("#mg-formbox").hidden = !st.kind;
+    if (!st.kind) return;
+    if (!KINDS[st.kind].includes(st.form)) st.form = "";
     $("#mg-forms").innerHTML = html`${KINDS[st.kind].map((x) => html`<label class="mg-type"><input type="radio" name="mg-form" value="${x}" ${raw(st.form === x ? "checked" : "")}>
       <b>${formLabel(x)}</b><span class="muted">${t(`mg.form.${x}.hint`)}</span></label>`)}`;
-    $$("input[name=mg-form]").forEach((r) => r.addEventListener("change", () => { st.form = r.value; drawNext(); }));
+    $$("input[name=mg-form]").forEach((r) => r.addEventListener("change", () => { st.form = r.value; drawNext(); drawDesc(); }));
     drawNext();
   }
-  /** « Et ensuite ? »: the event's own tabs, by its kind and form; the course setting by default, the analysis for a club training. */
+  /** « Et ensuite ? »: the event's own tabs, by its kind and form; none chosen in advance. */
   function drawNext() {
+    if (!st.kind || !st.form) return;
     const list = nextOf(st.kind, st.form);
     if (!list.includes(st.next)) st.next = "";
-    const next = st.next || (st.kind === "training" ? "analyse" : "trace");
-    $("#mg-next-list").innerHTML = html`${list.map((x) => html`<label class="mg-type"><input type="radio" name="mg-next" value="${x}" ${raw(x === next ? "checked" : "")}>
+    $("#mg-next-list").innerHTML = html`${list.map((x) => html`<label class="mg-type"><input type="radio" name="mg-next" value="${x}" ${raw(x === st.next ? "checked" : "")}>
       <b>${t(`mg.next.${x}`)}</b><span class="muted">${t(`mg.next.${x}.hint`)}</span></label>`)}`;
     $$("input[name=mg-next]").forEach((r) => r.addEventListener("change", () => { st.next = r.value; }));
   }
@@ -351,7 +355,7 @@ async function createPage(main, q) {
   }
   function drawDesc() {
     const x = st.list.find((y) => y.key === st.pick);
-    $("#mg-desc").hidden = !st.day || (linkable() && !st.pick);
+    $("#mg-desc").hidden = !st.kind || !st.form || !st.day || (linkable() && !st.pick);
     $$(".mg-form [data-f]").forEach((el) => { el.disabled = !!x; });
     const training = st.kind === "training", line = $(".mg-train-club");
     $("#mg-next").hidden = !!x?.holder;

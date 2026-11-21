@@ -926,13 +926,14 @@ async function managePage(main, id, data, race, embed = false) {
             <input type="text" id="sh-s-codev" style="width:160px" autocomplete="off" aria-label="${t("ma.code")}" placeholder="${A.code ? t("sh.pw.keep") : t("sh.pw.ph")}"></div>
           <div class="sh-s-sub sh-s-visitors" ${raw(A.vis === "public" ? "" : "hidden")}><label class="an-opt" title="${t("sh.visitors.hint")}"><input type="checkbox" id="sh-s-visitors" ${raw(A.visitors && A.vis === "public" ? "checked" : "")}> ${t("sh.visitors")}</label></div></div>
         <label class="field" id="sh-s-pwf" ${raw(A.vis === "password" ? "" : "hidden")}><span>${t("sh.pw.new")}</span><input type="text" id="sh-s-pw" style="width:160px" autocomplete="off" placeholder="${A.vis === "password" ? t("sh.pw.keep") : ""}"></label></div></div>
-      ${A.draft ? html`<div class="sh-s-actions">
-          <button type="button" class="btn btn-primary" id="sh-s-pubnow" ${raw(ready ? "" : "disabled")}>${t("sh.m.saveNow")}</button>
+      ${A.draft ? html`<!-- three equal ways to save, none put forward (owner, 2026-11-21: one highlighted read as the expected one) -->
+        <div class="sh-s-actions">
+          <button type="button" class="btn" id="sh-s-pubnow" ${raw(ready ? "" : "disabled")}>${t("sh.m.saveNow")}</button>
           <div class="sh-s-later"><button type="button" class="btn" id="sh-s-publater" ${raw(ready ? "" : "disabled")}>${t("sh.m.saveLater")}</button>
             <span class="sh-s-at"><input type="date" id="sh-s-at" value="${atValue(A).day}" aria-label="${t("sh.m.atDay")}" title="${t("sh.m.atDay")}">
               <span>${t("sh.m.atJoin")}</span>
               <input type="text" id="sh-s-attime" class="sh-s-time" value="${atValue(A).time}" inputmode="numeric" autocomplete="off" maxlength="5" placeholder="${t("df.ph.time")}" aria-label="${t("sh.m.atTime")}" title="${t("sh.m.atTime")}"></span></div>
-          <button type="button" class="btn btn-sm" id="sh-s-save">${t("sh.m.saveDraft")}</button>
+          <button type="button" class="btn" id="sh-s-save">${t("sh.m.saveDraft")}</button>
           <span class="muted" id="sh-s-note"></span></div>`
         : html`<div class="row sh-s-saverow"><button type="button" class="btn btn-sm" id="sh-s-save">${t("sh.save")}</button><span class="muted" id="sh-s-note"></span></div>`}</div>`;
     // the card is drawn again with what the server kept, then « Enregistré » said in it (owner, 2026-11-11: it was written before
