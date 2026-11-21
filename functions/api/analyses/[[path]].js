@@ -439,7 +439,9 @@ const forUsers = withUser(async (ctx, user) => {
         // a competition's analysis: by its organising club (or an administrator), one per race — a second asks opens it
         race = clean(b.race, 40);
         const r = await findRace(env, request, race);
-        if (!r || /^a/.test(r.key)) return json({ error: "race" }, 400);         // a race of the list, or a declared one
+        // a race of the list, a declared one, or one of France's calendar not listed yet (owner, 2026-11-21: an event linked to
+        // it opens its analysis at once; « Résultats » keeps the agenda's key « a<id> », FFCO's copy merged into it)
+        if (!r) return json({ error: "race" }, 400);
         orgClub = orgCode(r.org) || "";
         if (!(await organises(env, request, user, r, await lazyClub()))) return json({ error: "not organiser" }, 403);
         const same = (await listAll(env, META)).find((o) => o.customMetadata?.kind === "race" && o.customMetadata?.race === race);

@@ -30,7 +30,8 @@ const ALL_TABS = ["trace", "departs", "direct", "resultats", "analyse", "equipe"
 // the tabs of each type (a relay's results and start list wait for « Résultats » to take relays; a club training has no race
 // page; a public training, often timed, has a competition's)
 const tabsOf = (ev) => (formOf(ev.type) === "relay" ? ["trace", "direct", "analyse", "equipe"] : kindOf(ev.type) === "training" ? ["trace", "analyse", "equipe"] : ALL_TABS);
-const NEXT = ["trace", "analyse", "equipe"];                            // the steps offered once an event is created
+// the steps offered once an event is created: its own tabs (owner, 2026-11-21: a competition's Départs, Direct and Résultats too)
+const nextOf = (kind, form) => tabsOf({ type: kind === "competition" ? form : kind === "public" ? (form === "score" ? "public-score" : "public") : "training" });
 const TERRAINS = ["Forêt", "Sprint", "VTT", "Ski"];                    // the data's values (i18n-ignore)
 const FORMATS = ["MD", "LD", "Sprint", "Nuit", "Autre"];                // (i18n-ignore)
 const today = () => new Date().toLocaleDateString("sv-SE");
@@ -301,9 +302,7 @@ async function createPage(main, q) {
       <div class="card-body" id="mg-cands"></div></section>
     <section class="card" id="mg-desc" hidden><div class="card-head"><h2>${t("mg.new.s3")}</h2></div><div class="card-body">
       <div class="mg-form">${formFields({})}</div>
-      <div class="mg-next" id="mg-next"><h3>${t("mg.next.title")}</h3>
-        <div class="mg-types">${NEXT.map((x) => html`<label class="mg-type"><input type="radio" name="mg-next" value="${x}">
-          <b>${t(`mg.next.${x}`)}</b><span class="muted">${t(`mg.next.${x}.hint`)}</span></label>`)}</div></div>
+      <div class="mg-next" id="mg-next"><h3>${t("mg.next.title")}</h3><div class="mg-types" id="mg-next-list"></div></div>
       <div class="row" style="gap:10px;margin-top:12px;align-items:center"><button type="button" class="btn btn-primary" id="mg-create">${t("mg.new.create")}</button>
         <span class="muted" id="mg-create-msg"></span></div></div></section>`;
   dateWords($("#mg-day"));
@@ -313,7 +312,17 @@ async function createPage(main, q) {
     if (!KINDS[st.kind].includes(st.form)) st.form = "individual";
     $("#mg-forms").innerHTML = html`${KINDS[st.kind].map((x) => html`<label class="mg-type"><input type="radio" name="mg-form" value="${x}" ${raw(st.form === x ? "checked" : "")}>
       <b>${formLabel(x)}</b><span class="muted">${t(`mg.form.${x}.hint`)}</span></label>`)}`;
-    $$("input[name=mg-form]").forEach((r) => r.addEventListener("change", () => { st.form = r.value; }));
+    $$("input[name=mg-form]").forEach((r) => r.addEventListener("change", () => { st.form = r.value; drawNext(); }));
+    drawNext();
+  }
+  /** « Et ensuite ? »: the event's own tabs, by its kind and form; the course setting by default, the analysis for a club training. */
+  function drawNext() {
+    const list = nextOf(st.kind, st.form);
+    if (!list.includes(st.next)) st.next = "";
+    const next = st.next || (st.kind === "training" ? "analyse" : "trace");
+    $("#mg-next-list").innerHTML = html`${list.map((x) => html`<label class="mg-type"><input type="radio" name="mg-next" value="${x}" ${raw(x === next ? "checked" : "")}>
+      <b>${t(`mg.next.${x}`)}</b><span class="muted">${t(`mg.next.${x}.hint`)}</span></label>`)}`;
+    $$("input[name=mg-next]").forEach((r) => r.addEventListener("change", () => { st.next = r.value; }));
   }
   drawForms();
   async function refresh() {
@@ -345,10 +354,7 @@ async function createPage(main, q) {
     $("#mg-desc").hidden = !st.day || (linkable() && !st.pick);
     $$(".mg-form [data-f]").forEach((el) => { el.disabled = !!x; });
     const training = st.kind === "training", line = $(".mg-train-club");
-    // the next step: the course setting for a competition, the map analysis for a training, until one is chosen
     $("#mg-next").hidden = !!x?.holder;
-    const next = st.next || (training ? "analyse" : "trace");
-    $$("input[name=mg-next]").forEach((r) => { r.checked = r.value === next; });
     showFields($("#mg-desc"), training);
     line.hidden = !(training && st.myClub);
     line.textContent = st.myClub ? t("mg.new.trainingClub", { club: st.myClub }) : "";
@@ -361,7 +367,6 @@ async function createPage(main, q) {
   // the organising club: the account's own in the chosen country by default, the country's clubs offered
   const clubs = async () => { st.myClub = await fillClubs($("#mg-desc"), st.cc, { setDefault: !st.list.some((y) => y.key === st.pick) }); drawDesc(); };
   $$("input[name=mg-kind]").forEach((r) => r.addEventListener("change", () => { st.kind = r.value; drawForms(); refresh(); }));
-  $$("input[name=mg-next]").forEach((r) => r.addEventListener("change", () => { st.next = r.value; }));
   $("#mg-cc").addEventListener("change", (e) => { st.cc = e.target.value; refresh().then(clubs); });
   $("#mg-day").addEventListener("change", (e) => { st.day = e.target.value; refresh(); });
   $("#mg-create").addEventListener("click", async () => {
@@ -377,10 +382,10 @@ async function createPage(main, q) {
     try {
       const r = await api("", { method: "POST", body }), e = r.event;
       const next = $("input[name=mg-next]:checked")?.value || "equipe";
-      // straight to the next step chosen (owner, 2026-11-16); a link waiting for an administrator: the team, where it says so
-      if (e.linkState === "pending") location.hash = href({ ev: e.id, onglet: "equipe" });
-      else if (next === "trace") location.hash = `#/orga-tracer?${new URLSearchParams({ ev: e.id, nouveau: "1" })}`;
-      else location.hash = href({ ev: e.id, onglet: next === "analyse" ? "analyse" : "equipe" });
+      // straight to the next step chosen (owner, 2026-11-16), the course setting in the Tracer; a link waiting for an
+      // administrator: the event's tab chosen all the same, which says the tools wait (owner, 2026-11-21: not the team instead)
+      if (next === "trace" && e.linkState !== "pending") location.hash = `#/orga-tracer?${new URLSearchParams({ ev: e.id, nouveau: "1" })}`;
+      else location.hash = href({ ev: e.id, onglet: tabsOf(e).includes(next) ? next : "equipe" });
     } catch (e) { msg.textContent = e.code === "held" ? t("mg.err.held", { by: e.data?.holder?.by || "" }) : errText(e); }
   });
   await refresh();
