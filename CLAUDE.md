@@ -3987,6 +3987,23 @@ Every multiple-choice game was played through to its score page at phone size, w
   order; the photos as before. The bench's truth had the Quiberon course's 10 and 11 swapped (its numbers printed beside the
   circles say otherwise; fixed in `cases.json`). Still: the start is not read on scans 1 and 3 (its leg also points at a
   control, which `probeStart` refuses), so the race clock starts with the trace.
+  **The owner's test of the scans in the page, 2026-11-21** (routes through walls and olive, a leg without a route, the start
+  missed, the analysis's leg views out of step): `course.js` `startOnLeg` (READER 8) finds the start at the open end of the
+  first leg — a triangle where an inked run 80 % solid leaving a control ends at no symbol (scans 2 and 3; scan 1's leg is too
+  faint). Clicking a leg in « Itinéraires » opens that leg (`setLegView`; it seeked only, so the menu, the runner and the
+  routes showed different legs; `shownLeg()` everywhere). On a scan (`1.6 / mpp >= 4`) `sprintLayers` carries each wall's
+  end on along its own ink as wide as a wall and under the course's overprint (purple, lilac, grey, the course's dark brown)
+  until another wall's black, then joins it to the wall or the building or olive it nearly meets (2.7 m of line, 1.4 m of
+  area) when under 0.6 m of paper lies between the inks — not to a wall end straight ahead (a dash, a gate: the facing ends'
+  rule) nor to what its own block reaches nearby; a line's width read where the overprint covers its edge says nothing, and a
+  line whose width it mostly hides is a wall when it continues one (`hidden`); a dashed path's pieces are chained only across
+  paper. Olive a metre wide stays closed (the window 0.5 m a side). `legSearch`'s last resort crosses closed ground that is no
+  drawn wall at a crawl (cost 15: a misread area never strands a control), and `matchRoute` allows the slantwise lanes as the
+  relaxed search does. **The gate reads the scans as the page does since that day** (`scans/page<n>.rgba`, the PDF rendered and
+  shrunk to 2523 × 3568, `pagelike.py`; `--native` the scan itself; the old baseline `baseline.native.json`): committed code
+  2 legs without a route, 40 tracks laid, 60 dark lines and 112 m of olive crossed on the scans; after, 0, 36, 46 and 91 m.
+  The four tracks lost run through passages about a metre wide on the scan, narrower than a route cell (1.3-1.7 m): finer
+  cells would cost time. The page's cell is 5 px on scan 3 where the bench's is 4 (its calibrated scale).
 - **Languages: French, English, German and Spanish** (owner, 2026-10-17 French and English, open to everyone since 2026-10-18,
   `i18n.OPEN` true; **German and Spanish since 2026-11-01**: `i18n.LANGS`, catalogues `i18n/de.js`, `es.js`, `tracer.de.js`,
   `tracer.es.js`, long texts `content/<name>.de.js` / `.es.js`, e-mails in `_lib/templates.js`, `manifest.de|es.webmanifest`;
