@@ -463,10 +463,10 @@ class OzimutField extends WatchUi.DataField {
         var h = dc.getHeight();
         // On round screens the edges of a field may be cut by the bezel: keep the text inside.
         var ob = getObscurityFlags();
-        var left = (ob & WatchUi.OBSCURE_LEFT) != 0 ? w * 14 / 100 : 2;
-        var right = (ob & WatchUi.OBSCURE_RIGHT) != 0 ? w * 14 / 100 : 2;
-        var top = (ob & WatchUi.OBSCURE_TOP) != 0 ? h * 12 / 100 : 0;
-        var bottom = (ob & WatchUi.OBSCURE_BOTTOM) != 0 ? h * 12 / 100 : 0;
+        var left = (ob & WatchUi.DataField.OBSCURE_LEFT) != 0 ? w * 14 / 100 : 2;
+        var right = (ob & WatchUi.DataField.OBSCURE_RIGHT) != 0 ? w * 14 / 100 : 2;
+        var top = (ob & WatchUi.DataField.OBSCURE_TOP) != 0 ? h * 12 / 100 : 0;
+        var bottom = (ob & WatchUi.DataField.OBSCURE_BOTTOM) != 0 ? h * 12 / 100 : 0;
         var bw = w - left - right;
         var bh = h - top - bottom;
         var cx = left + bw / 2;
