@@ -1,4 +1,4 @@
-// POST /api/account/register { email, password, first, last, countries: [{ country, club, id }], consent, website, lang, creator (orga before),
+// POST /api/account/register { email, password, first, last, birthYear, countries: [{ country, club, id }], consent, website, lang, creator (orga before),
 //   turnstile } — `licence` alone (the form of before) stands for France.
 //
 // Every country asked is checked by its policy (_lib/countries.js): France's only if (first name, last name, licence)
@@ -50,6 +50,11 @@ export async function onRequestPost({ request, env }) {
   if (new Set(asked.map((c) => cleanCountry(c?.country))).size !== asked.length) return json({ error: "country" }, 422);
   if (env.WORLD_OPEN !== "1" && !asked.some((c) => cleanCountry(c?.country) === "FR")) return json({ error: "fields" }, 422);
   if (b.consent !== true) return json({ error: "consent" }, 422);
+  // the year of birth (docs/track/design.md, « The registration rule »): asked by the form; with TRACK_OPEN "1" nobody under 15
+  // registers alone — a parent creates a child account (« Famille »)
+  const year = new Date().getUTCFullYear(), birth = Number(b.birthYear) || null;
+  if (birth != null && (!Number.isInteger(birth) || birth < year - 110 || birth > year)) return json({ error: "birthYear" }, 422);
+  if (env.TRACK_OPEN === "1" && (birth == null || year - birth < 15)) return json({ error: birth == null ? "birthYear" : "under15" }, 422);
 
   const rows = [];
   let display = `${first} ${last}`, licence = "";
@@ -77,6 +82,7 @@ export async function onRequestPost({ request, env }) {
   if (rows.length) await env.DB.batch(rows.map((r) => saveMembership(env, row.id, r)));
   // « J'organise des courses ou je fais des cartes » (one optional box, owner 2026-11-12): the creators' modules, Orga and
   // Carto (migrations 0016, 0027; `orga` the form of before). A new account has no work to look at (_lib/modules.js autoShow).
+  if (birth) { try { await env.DB.prepare("UPDATE users SET birth_year = ? WHERE id = ?").bind(birth, row.id).run(); } catch (e) { /* before 0029 */ } }
   const creator = b.creator === true || b.orga === true;
   try { await env.DB.prepare(`UPDATE users SET modules_checked = 1${creator ? ", orga = 1, carto = 1" : ""} WHERE id = ?`).bind(row.id).run(); }
   catch (e) { if (creator) { try { await env.DB.prepare("UPDATE users SET orga = 1 WHERE id = ?").bind(row.id).run(); } catch (e2) { /* no column yet */ } } }

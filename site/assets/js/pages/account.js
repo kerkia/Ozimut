@@ -67,6 +67,7 @@ async function register(main) {
           <label class="field" style="flex:1"><span>${t("ac.reg.first")}</span><input name="first" type="text" autocomplete="given-name" required maxlength="60"></label>
           <label class="field" style="flex:1"><span>${t("ac.reg.last")}</span><input name="last" type="text" autocomplete="family-name" required maxlength="60"></label>
         </div>
+        <label class="field"><span>${t("ac.reg.birthYear")} <span class="muted">· ${t("ac.reg.birthYear.hint")}</span></span><input name="birthYear" type="number" inputmode="numeric" autocomplete="bday-year" required min="${new Date().getFullYear() - 110}" max="${new Date().getFullYear()}"></label>
         <fieldset class="cty-set"><legend>${t(world ? "ac.reg.countries" : "ac.reg.country")}</legend>
           ${world ? html`<p class="muted" style="margin:0 0 6px;font-size:12.5px">${t("ac.reg.countries.hint")}</p>` : ""}
           <div id="reg-cty">${membershipFields("c0", { fixed: !world, allowNone: world, row: world ? {} : { cc: "FR" } })}</div>
@@ -122,6 +123,7 @@ async function register(main) {
       email: f.get("email"), password: f.get("password"), first: f.get("first"), last: f.get("last"),
       countries: Array.from({ length: rows }, (_, i) => readMembership(form, `c${i}`)).filter(Boolean),
       consent: f.get("consent") === "on", website: f.get("website"), creator: f.get("creator") === "on",
+      birthYear: Number(f.get("birthYear")) || null,
       lang: lang(), turnstile: tsToken,
     });
     if (!r.ok && tsWidget !== null) { try { window.turnstile.reset(tsWidget); } catch (e) { /* gone */ } tsToken = ""; }

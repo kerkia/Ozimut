@@ -1,5 +1,5 @@
 {
   "version": 1,
   "include": ["/*"],
-  "exclude": ["/", "/index.html", "/assets/*", "/favicon.svg", "/sw.js", "/sw-push.js", "/manifest.webmanifest", "/manifest.en.webmanifest", "/manifest.de.webmanifest", "/manifest.es.webmanifest", "/offline.html", "/offline", "/favicon.ico", "/robots.txt", "/data/meta.json"]
+  "exclude": ["/", "/index.html", "/assets/*", "/favicon.svg", "/sw.js", "/sw-push.js", "/manifest.webmanifest", "/manifest.en.webmanifest", "/manifest.de.webmanifest", "/manifest.es.webmanifest", "/offline.html", "/offline", "/favicon.ico", "/robots.txt", "/data/meta.json", "/.well-known/*"]
 }

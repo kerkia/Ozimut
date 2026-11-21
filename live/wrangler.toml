@@ -15,6 +15,12 @@ class_name = "LiveRace"
 name = "DIR"
 class_name = "Directory"
 
+# the live GPS tracking (2026-11-21, docs/track/design.md): one object per followed account; its alerts go back to Ozimut
+# (SITE_URL below, secret TRACK_RELAY_SECRET: `npx wrangler secret put TRACK_RELAY_SECRET`, the same value as the Pages project's)
+[[durable_objects.bindings]]
+name = "TRACK"
+class_name = "LiveTrack"
+
 # Ozimut's R2 bucket: an organiser's broadcast tied to a competition is saved there (broadcasts/<number>.json) every couple
 # of minutes, for « Résultats » (the workflow copies the folder; ffco_scraper/prov/sources/broadcast.py)
 # Every 10 minutes: the results runs GitHub's schedule skips, started again (functions/_lib/ciwatch.js; secret GH_DISPATCH_TOKEN,
@@ -33,5 +39,12 @@ new_sqlite_classes = ["LiveRace"]
 [[migrations]]
 tag = "v2"
 new_sqlite_classes = ["Directory"]
+
+[[migrations]]
+tag = "v3"
+new_sqlite_classes = ["LiveTrack"]
+
+[vars]
+SITE_URL = "https://ozimut.com"
 
 # LR_API: liveresultat's API; local tests point it at live/dev/lr-mock.mjs (wrangler dev --var LR_API:http://localhost:8790/api.php)

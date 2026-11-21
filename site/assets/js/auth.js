@@ -131,7 +131,9 @@ const fromUser = (u) => ({ uid: u.uid, lic: String(u.lic || ""), nom: u.nom, ema
   // the Carto module and the consumers' modules hidden (migration 0027; app.moduleShown); a server of before sends no carto: Orga's
   carto: u.carto === undefined ? !!u.orga : !!u.carto, hiddenModules: Array.isArray(u.hiddenModules) ? u.hiddenModules : [],
   nutrition: ["admin", "author", "reader"].includes(u.nutrition) ? u.nutrition : "",
-  countries: Array.isArray(u.countries) ? u.countries : null });     // { cc, club, id, status }: `sees`
+  countries: Array.isArray(u.countries) ? u.countries : null,     // { cc, club, id, status }: `sees`
+  // the tracking (migration 0029): a child account managed by its parents, an under-15's own account waiting for one, the flag
+  child: !!u.child, guardianWanted: !!u.guardianWanted, trackOpen: !!u.trackOpen });
 /** Re-read the account from the server: rights granted or withdrawn by the administrator apply at once. */
 export async function refresh() {
   const s = session();

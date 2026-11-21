@@ -3,6 +3,7 @@ import { allow, clearCookie, json, readBody, withUser } from "../../_lib/api.js"
 import { checkPassword } from "../../_lib/crypto.js";
 import { handOver, soloHandOver, forgetUser, tracerInfo } from "../../_lib/maplib.js";
 import { runnerHash } from "../../_lib/virtual.js";
+import { deleteAllRuns, deleteChild } from "../../_lib/track.js";
 
 export const onRequestPost = withUser(async ({ request, env }, user) => {
   const b = await readBody(request);
@@ -240,6 +241,23 @@ export const onRequestPost = withUser(async ({ request, env }, user) => {
     await env.DB.batch([env.DB.prepare("DELETE FROM event_members WHERE user_id = ?").bind(user.id),
       env.DB.prepare("DELETE FROM event_requests WHERE user_id = ?").bind(user.id)]);
   } catch (e) { /* before migration 0026 */ }
+  // the tracking (migration 0029): its runs, devices, codes and settings; it stops watching and being watched; a child it was
+  // the last guardian of goes with it (the privacy page says so), one with another parent stays with them
+  try {
+    const { results: kids } = await env.DB.prepare(`SELECT child_id AS id FROM track_guardians g WHERE parent_id = ?
+      AND NOT EXISTS (SELECT 1 FROM track_guardians h WHERE h.child_id = g.child_id AND h.parent_id != g.parent_id)`).bind(user.id).all();
+    for (const k of kids) await deleteChild(env, k.id);
+    if (env.BUCKET) await deleteAllRuns(env, user.id);
+    await env.DB.batch([
+      env.DB.prepare("DELETE FROM track_guardians WHERE child_id = ? OR parent_id = ?").bind(user.id, user.id),
+      env.DB.prepare("DELETE FROM track_watchers WHERE user_id = ? OR watcher_id = ?").bind(user.id, user.id),
+      env.DB.prepare("UPDATE track_devices SET revoked_at = ?, user_id = NULL, push_token = NULL WHERE user_id = ?").bind(new Date().toISOString(), user.id),
+      env.DB.prepare("DELETE FROM track_runs WHERE user_id = ?").bind(user.id),
+      env.DB.prepare("DELETE FROM track_settings WHERE user_id = ?").bind(user.id),
+      env.DB.prepare("DELETE FROM track_codes WHERE user_id = ? OR created_by = ?").bind(user.id, user.id),
+      env.DB.prepare("DELETE FROM track_polar WHERE user_id = ?").bind(user.id),
+    ]);
+  } catch (e) { /* before migration 0029 */ }
   try {                                       // the devices' push subscriptions and what was sent to them (migration 0010)
     await env.DB.batch([env.DB.prepare("DELETE FROM push_subs WHERE user_id = ?").bind(user.id),
       env.DB.prepare("DELETE FROM push_sent WHERE user_id = ?").bind(user.id),

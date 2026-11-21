@@ -8,7 +8,10 @@
 
 import { siteUrl } from "./api.js";
 
+import { nativeReady, nativeToUser } from "./nativepush.js";
+
 const enc = new TextEncoder();
+
 export const b64u = (bytes) => btoa(String.fromCharCode(...new Uint8Array(bytes))).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
 export const unb64u = (s) => Uint8Array.from(atob(String(s).replace(/-/g, "+").replace(/_/g, "/") + "===".slice((String(s).length + 3) % 4)), (c) => c.charCodeAt(0));
 const concat = (...parts) => {
@@ -99,8 +102,10 @@ export async function sendPush(env, sub, msg, { topic = null, ttl = 4 * 86400 } 
 
 /** Send to every device of an account; drop the subscriptions gone, count the failures. -> number of devices reached. */
 export async function pushToUser(env, userId, msg, opts) {
+  // the Ozimut app's devices too, natively (_lib/nativepush.js, migration 0029)
+  let reached = await nativeToUser(env, userId, msg, opts);
+  if (!pushReady(env)) return reached;
   const { results: subs } = await env.DB.prepare("SELECT * FROM push_subs WHERE user_id = ?").bind(userId).all();
-  let reached = 0;
   for (const s of subs) {
     const r = await sendPush(env, s, msg, opts);
     if (r === "ok") { reached++; await env.DB.prepare("UPDATE push_subs SET last_ok = ?, fails = 0 WHERE id = ?").bind(Date.now(), s.id).run(); }
@@ -117,7 +122,7 @@ export const queuePush = (env, userId, kind, msg, { topic = null, hours = 72 } =
 
 /** Send the oldest queued notifications, at most `max` (each is an encryption and a request per device). -> { pushSent, pushLeft } */
 export async function flushPush(env, max = 8) {
-  if (!pushReady(env)) return { pushSent: 0, pushLeft: 0 };
+  if (!pushReady(env) && !nativeReady(env)) return { pushSent: 0, pushLeft: 0 };
   try {
     await env.DB.prepare("DELETE FROM push_queue WHERE expires < ?").bind(Date.now()).run();
     const { results } = await env.DB.prepare("SELECT * FROM push_queue ORDER BY id LIMIT ?").bind(max).all();

@@ -952,3 +952,46 @@ export function eventPush(lang, kind, ev, who = "") {
   return { title: ev.name, body: typeof line === "function" ? line(who) : line,
     url: `/#/orga?ev=${encodeURIComponent(ev.id)}${kind === "request" ? "&onglet=equipe" : ""}`, tag: `event-${ev.id}-${kind}` };
 }
+
+// ---- Live GPS tracking (docs/track/design.md « Alerts », 2026-11-21): a watcher's notifications, push only ---------------
+const TRACK = {
+  fr: { start: (n) => `${n} a démarré le suivi`, end: (n) => `${n} a terminé`, help: (n) => `${n} demande de l'aide !`,
+    silent: (n) => `Plus de position de ${n} depuis 3 minutes`, still: (n) => `${n} est immobile depuis 5 minutes`,
+    battery: (n, b) => `Batterie faible pour ${n} (${b} %)`, back: (n) => `${n} est revenu·e au départ`,
+    area: (n) => `${n} est sorti·e de la zone`, open: "Ouvrir le suivi" },
+  en: { start: (n) => `${n} started tracking`, end: (n) => `${n} has finished`, help: (n) => `${n} is asking for help!`,
+    silent: (n) => `No position from ${n} for 3 minutes`, still: (n) => `${n} has not moved for 5 minutes`,
+    battery: (n, b) => `Low battery for ${n} (${b}%)`, back: (n) => `${n} is back at the start`,
+    area: (n) => `${n} has left the area`, open: "Open the tracking" },
+  de: { start: (n) => `${n} hat die Verfolgung gestartet`, end: (n) => `${n} ist fertig`, help: (n) => `${n} bittet um Hilfe!`,
+    silent: (n) => `Seit 3 Minuten keine Position von ${n}`, still: (n) => `${n} bewegt sich seit 5 Minuten nicht`,
+    battery: (n, b) => `Akku schwach bei ${n} (${b} %)`, back: (n) => `${n} ist zurück am Start`,
+    area: (n) => `${n} hat das Gebiet verlassen`, open: "Verfolgung öffnen" },
+  es: { start: (n) => `${n} ha iniciado el seguimiento`, end: (n) => `${n} ha terminado`, help: (n) => `¡${n} pide ayuda!`,
+    silent: (n) => `Ninguna posición de ${n} desde hace 3 minutos`, still: (n) => `${n} no se mueve desde hace 5 minutos`,
+    battery: (n, b) => `Batería baja de ${n} (${b} %)`, back: (n) => `${n} ha vuelto a la salida`,
+    area: (n) => `${n} ha salido de la zona`, open: "Abrir el seguimiento" },
+};
+/** A tracking alert for a watcher: { title, body, url, tag }. `b` the relay's alert ({ bat, … }). */
+export function trackPush(lang, kind, name, b, uid) {
+  const T = TRACK[L(lang)];
+  const line = T[kind] ? T[kind](name, b?.bat ?? "") : name;
+  return { title: line, body: T.open, url: `/#/suivi/${uid}`, tag: `trk-${uid}-${kind}`, ...(kind === "help" ? { urgent: true } : {}) };
+}
+trackPush.KINDS = ["start", "end", "help", "silent", "still", "battery", "back", "area"];
+
+/** A child account taken over by the young person (from 15): the link confirming the address they gave. */
+export function takeoverMail(env, token, firstName, lang) {
+  const url = `${siteUrl(env)}/#/famille?reprendre=${encodeURIComponent(token)}`;
+  const T = pick(lang, {
+    fr: { s: "Votre compte Ozimut devient le vôtre", p: "Vous avez demandé à gérer vous-même votre compte Ozimut. Confirmez cette adresse : vous vous connecterez ensuite avec elle et le mot de passe choisi, et vos parents deviendront des personnes qui peuvent vous suivre, ce que vous pourrez changer (lien valable 24 heures).", b: "Confirmer", n: "Si vous n'êtes pas à l'origine de cette demande, ignorez ce message." },
+    en: { s: "Your Ozimut account becomes yours", p: "You asked to manage your Ozimut account yourself. Confirm this address: you will then sign in with it and the password you chose, and your parents will become people who may follow you, which you can change (link valid for 24 hours).", b: "Confirm", n: "If you didn't ask for this, ignore this message." },
+    de: { s: "Dein Ozimut-Konto wird dein eigenes", p: "Du möchtest dein Ozimut-Konto selbst verwalten. Bestätige diese Adresse: Du meldest dich danach mit ihr und dem gewählten Passwort an, und deine Eltern werden zu Personen, die dich verfolgen dürfen – das kannst du ändern (der Link ist 24 Stunden gültig).", b: "Bestätigen", n: "Falls du das nicht angefordert hast, ignoriere diese Nachricht." },
+    es: { s: "Tu cuenta de Ozimut pasa a ser tuya", p: "Has pedido gestionar tú mismo tu cuenta de Ozimut. Confirma esta dirección: después iniciarás sesión con ella y la contraseña elegida, y tus padres pasarán a ser personas que pueden seguirte, lo que podrás cambiar (enlace válido durante 24 horas).", b: "Confirmar", n: "Si no lo has pedido tú, ignora este mensaje." },
+  });
+  return {
+    subject: `${T.s} — Ozimut`,
+    html: wrap(env, T.s, `<p>${esc(greet(lang, firstName))}</p><p>${esc(T.p)}</p>${button(url, T.b, lang)}<p style="font-size:13px;color:#5b6675">${esc(T.n)}</p>`, lang),
+    text: `${greet(lang, firstName)}\n\n${T.p}\n${url}\n\n${T.n}`,
+  };
+}

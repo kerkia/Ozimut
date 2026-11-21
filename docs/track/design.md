@@ -60,11 +60,13 @@ in the trace form, written at the end and on read), kept 30 days unless taken in
 ## Device protocol
 
 All JSON over HTTPS to `https://ozimut.com` (a dev build may set another base). Times are whole seconds since 1970 (UTC)
-of the fix itself; coordinates millionths of a degree; in each list the first value is absolute, the others differences
-from the previous one.
+of the fix itself; coordinates millionths of a degree; in `dt`, `la`, `lo` and `al` the first value is absolute, the
+others differences from the previous one; `ac` (accuracy, metres) is plain, each value its own fix's (2026-11-21: the Android
+build first sent it as differences).
 
 ### Pairing a phone: `POST /api/track/pair`
-A signed-in account makes a code for itself or a child it manages: `POST /api/track/pair-code { account }` →
+A signed-in account makes a code for itself (a child's account too: its iPhone pairs its own Apple Watch so) or a child it
+manages: `POST /api/track/pair-code { account }` →
 `{ code: "K7QM4TXD", url: "https://ozimut.com/t/K7QM4TXD", expires: 900 }`; the page shows the url as a QR code, and inside
 the app the site may hand the code to the native side directly (bridge `pair`).
 ```

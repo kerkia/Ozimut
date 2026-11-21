@@ -11,6 +11,7 @@ import { methodSwitch, cnWords } from "./ui.js";
 import * as auth from "./auth.js";
 import * as bridge from "./bridge.js";
 import * as pwa from "./pwa.js";
+import * as appbridge from "./appbridge.js";
 import * as country from "./country.js";
 import { watchTables } from "./fit.js";
 import { watch as watchDates } from "./datewords.js";
@@ -43,7 +44,8 @@ const PAGES = {
   analysisPerso: () => import("./pages/analysis.js"),   // « Analyse solo » (Entrainement): the same page, no race
   analysisOrga: () => import("./pages/analysis.js"),    // « Analyse solo » on an organiser's published map and circuits (2026-11-01)
   mapAnalysis: () => import("./pages/mapanalysis.js"),  // « Analyse de carte » (2026-11-01): the four ways into the GPS analyses
-  myMaps: () => import("./pages/mymaps.js"),           // « Mes cartes » (2026-11-01): one's maps and the routes run on them, kept and shared
+  myMaps: () => import("./pages/mymaps.js"),
+  track: () => import("./pages/track.js"),             // « Suivi GPS » (2026-11-21): live tracking, « Mes traces », family and devices (docs/track/design.md)           // « Mes cartes » (2026-11-01): one's maps and the routes run on them, kept and shared
   phoneSend: () => import("./pages/phonesend.js"),     // « Depuis mon téléphone » (2026-11-03): the phone's side of the QR code (phonelink.js)
   analysisClub: () => import("./pages/shared.js"),      // « Analyse club » (Entrainement): an organiser's circuits, the runners' traces compared
   analysisRace: () => import("./pages/shared.js"),      // « Analyse multi » (Courses): the same for a race of « Résultats »
@@ -96,6 +98,9 @@ const FR_ROUTES = new Set(["runner", "ranking", "categories", "courses", "compar
 const PUBLIC_STATS = new Set(["runner", "ranking", "courses"]);
 /** May the account open the site's country's ranking pages? */
 const ranksHere = () => country.ranks() && auth.sees(country.current());
+/** « Suivi GPS » in Coach's menu: every account once the tracking opens, before that those it concerns (an administrator, a
+ *  child account, an account that opened its page once: an invitation or a child's account made by an administrator). */
+const trackShown = (me) => { try { return !!(me.trackOpen || me.admin || me.child || localStorage.getItem("ocn.track.seen")); } catch (e) { return !!(me.trackOpen || me.admin || me.child); } };
 /** Where a signed-in account or a visitor without one lands: the modules page (owner, 2026-10-30; the agenda from 2026-10-21). */
 const homeOf = () => "#/modules";
 // The pages a visitor without an account may open (owner, 2026-10-30): those of public data — Arena, Coach but « Analyse
@@ -173,6 +178,7 @@ function parseHash(hash = location.hash) {
     : head === "analyse" ? "analysis"
     : head === "analyse-solo" || head === "analyse-perso" ? "analysisPerso"     // « Analyse solo » (« Analyse perso » until 2026-10-15)
     : head === "mes-cartes" ? "myMaps"
+    : head === "suivi" || head === "mes-traces" || head === "famille" ? "track"
     : head === "envoi" ? "phoneSend"
     : head === "analyses" || head === "analyse-carte" ? "mapAnalysis" : head === "analyse-orga" ? "analysisOrga"     // #/analyse-carte: the address until 2026-11-07
     : head === "orga-analyses" || head === "orga-competitions" || head === "orga-entrainements" ? "orgAnalyses"     // one list since 2026-11-04 (old addresses)
@@ -470,6 +476,8 @@ export function moduleMenus() {
     coach: [["mapAnalysis", "#/analyses", t("nav.mapAnalysis")],
       // « Mes cartes » (owner, 2026-11-01): an account's own archive (a link shared opens it to anyone: GUEST_ROUTES)
       ...(me ? [["myMaps", "#/mes-cartes", t("nav.myMaps")]] : []),
+      // « Suivi GPS » (2026-11-21): while TRACK_OPEN is "0" the administrators', a child's and the accounts the tracking reached
+      ...(me && trackShown(me) ? [["track", "#/suivi", t("nav.track")]] : []),
       ["learn", "#/apprendre", t("nav.learn")], ["games", "#/jeux", t("nav.games")], ["vma", "#/vma", t("nav.vma")],
       // « Santé » to the accounts given it; its authors reach « Rédaction » from its page, not from the menu (owner, 2026-11-01)
       ["nutrition", "#/sante", t("nav.nutrition")]]
@@ -483,7 +491,7 @@ export function moduleMenus() {
 const ROUTE_MODULE = { club: "stats", clubcompare: "stats", relays: "stats", ask: "stats", deposit: "orga",
   orgManage: "orga", orgTracer: "orga", orgAnalyses: "orga", orgResults: "orga", orgStarts: "orga", orgDirect: "orga",
   orgMapper: "carto", virtually: "pixel",
-  agenda: "arena", provisional: "arena", splits: "arena", live: "arena", booking: "arena", myMaps: "coach" };
+  agenda: "arena", provisional: "arena", splits: "arena", live: "arena", booking: "arena", myMaps: "coach", track: "coach" };
 /** Where a module opens: its first page (Arena: the competitions). */
 // Stats opens on the ranking (owner, 2026-10-30: the page every visitor has), the others on their menu's first page
 // Coach and Orga open on their pages as tiles, Stats too on a phone (owner, 2026-10-31: every choice in sight at once; a
@@ -923,10 +931,10 @@ async function siteChanged() {
 // signed-in visit opening on one — the modules page, Coach's tools, Réglages — no longer waits for those files (1.6 MB
 // and 0.5 MB for France); they load once the page is drawn, for the pages that follow. Keep it to pages checked so.
 const NO_RUNNERS = new Set(["hub", "orgaOff", "modtiles", "games", "vma", "learn", "nutrition", "nutritionWrite",
-  "myMaps", "settings", "contact", "orgMapper", "needCountry", "phoneSend"]);
+  "myMaps", "track", "settings", "contact", "orgMapper", "needCountry", "phoneSend"]);
 // the pages a text loaded late never draws again (i18n « ocn:i18n-late »): they hold work in hand
 const NO_REDRAW = new Set(["orgTracer", "orgMapper", "analysis", "analysisPerso", "analysisOrga", "analysisClub", "analysisRace",
-  "orgAnalyses", "orgManage", "orgDirect", "deposit", "games", "virtually", "learn", "nutritionWrite", "myMaps"]);
+  "orgAnalyses", "orgManage", "orgDirect", "deposit", "games", "virtually", "learn", "nutritionWrite", "myMaps", "track"]);
 let refreshed = false;                    // the account read again from the server, once a visit
 let drawing = false, drawnAt = 0, lateRedraw = false, lateKeys = [];
 
@@ -1112,7 +1120,7 @@ async function route_() {
 
 // the pages a visit may open on that draw no chart (none of their modules calls charts.js's builders, checked 2026-11-06):
 // the first of them shown needs no ECharts (app.route_); keep it to pages checked so
-const NO_CHARTS = new Set(["hub", "orgaOff", "overview", "modtiles", "agenda", "mapAnalysis", "account", "phoneSend", "booking",
+const NO_CHARTS = new Set(["track", "hub", "orgaOff", "overview", "modtiles", "agenda", "mapAnalysis", "account", "phoneSend", "booking",
   "analysis", "analysisPerso", "analysisOrga", "games", "vma", "learn"]);
 let routed = false;
 /** Redraws the page for another method without moving anything (owner, 2026-10-12): no loading screen, the page keeps
@@ -1252,6 +1260,7 @@ async function start() {
   // the page's description in the reader's language (index.html carries the French one, for robots)
   document.querySelector('meta[name="description"]')?.setAttribute("content", t("home.metaDesc"));
   pwa.boot();                                     // the service worker, the manifest's language, files opened with the app
+  appbridge.boot();                               // inside the Ozimut app: its files and notifications (docs/track/design.md)
   // a visitor without an account, or an account that has not joined a country, reads its public copy (data.js)
   data.setPublicRule((cc) => (!!auth.session() || auth.guest()) && data.site()?.countries?.[cc]?.access === "members" && !auth.sees(cc));
   // a ranking only the administrators read (Canada for now): the others load nothing of it (the gate refuses its files)

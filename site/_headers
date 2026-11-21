@@ -16,3 +16,7 @@
   Cache-Control: public, max-age=86400
 /assets/geo/*
   Cache-Control: public, max-age=86400
+
+# The Ozimut app's links (docs/track/design.md): Apple reads its file as JSON whatever its name.
+/.well-known/apple-app-site-association
+  Content-Type: application/json

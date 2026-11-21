@@ -1,0 +1,4 @@
+{
+  "applinks": { "details": [{ "appIDs": ["TEAMID0000.com.ozimut.app"], "components": [{ "/": "/t/*", "comment": "pair codes and the web view's sign-in" }] }] },
+  "webcredentials": { "apps": ["TEAMID0000.com.ozimut.app"] }
+}

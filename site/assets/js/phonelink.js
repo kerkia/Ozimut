@@ -27,7 +27,7 @@ export function bind(id, opts, root = document) {
 }
 
 /** The QR code of text as an SVG, black on white whatever the theme (a phone's camera reads dark on light). */
-async function qrSvg(text) {
+export async function qrSvg(text) {
   const { qrcode } = await qrLib();
   const q = qrcode(0, "M");
   q.addData(text, "Byte");

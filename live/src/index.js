@@ -16,6 +16,7 @@ import * as md from "./meosdjango.js";
 import * as ol from "./olive.js";
 import * as si from "./sportident.js";
 import * as orr from "./oresults.js";
+export { LiveTrack } from "./track.js";
 
 const UA = "Ozimut-live/1.0 (+https://ozimut.com; one reader per competition, relayed to its spectators)";
 const ACTIVE_MS = 15000, QUIET_MS = 30000;       // polling interval while passings keep coming / when nothing moves
