@@ -1,0 +1,10 @@
+<strings>
+    <string id="AppName">Ozimut</string>
+    <string id="Live">en directo</string>
+    <string id="Waiting">en espera ($1$)</string>
+    <string id="Unpaired">sin vincular</string>
+    <string id="NoPhone">sin teléfono</string>
+    <string id="Ready">listo</string>
+    <string id="Stopped">detenido</string>
+    <string id="Halved">1 punto de 2</string>
+</strings>
