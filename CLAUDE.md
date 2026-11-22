@@ -4069,6 +4069,29 @@ Every multiple-choice game was played through to its score page at phone size, w
   on the scans), 1.0 m gave back the tracks lost (36 → 40) with fewer crossings than the committed code (52 against 60). Gate,
   page input, against the code of before: legs without a route 2 → 0, tracks laid 88 = 88, dark lines crossed 124 → 115, olive
   237 → 214 m (baseline accepted 2026-11-22).
+  **Speed, the same evening** (owner: « this remains too slow … review the overall strategy »; measured stage by stage on the
+  scans, `route-bench/perf/`): a scan took about a minute — its course read in 17-24 s, its colours in 22-32 s, its lines as
+  objects in 4 s, its legs in 8-11 s, computed twice. Now about 20 s, most of it while the calibration is looked at:
+  (1) **the same results from less work** (byte-identical readings on the bench's ten maps, `perf/hash.mjs`; identical
+  routes leg by leg on the three scans, `perf/routes.mjs`; the course reader's thirteen cases unchanged): `morph` by runs of
+  pixels and one pass down the columns, `components` unrolled, the north lines' ink as masks, `thin1` over the pixels still
+  set, `oliveModel` stopped once settled, the sprint reading without the forest's path network it never used; course.js's
+  circles from kept cosines (`trig`), its `closing` row by row; (2) **a leg searched only as far as a route worth showing
+  reaches** (`legSearchOnce`: the best way by A*, then the forward tree stopped where its cost and the least the rest can cost
+  pass the slowest variant kept plus the valleys' prominence, the backward tree where the two costs do — `tree`'s `lim`, `rest`;
+  `stepCost` without an array a step): 8-11 s → 2-4 s; (3) **the page** (`analysis.js` `rcPlanner`, `rcWarm`, `rcHeights`): the
+  map's reading and the relief start together as soon as a calibration stands (1.5 s after its last change), not at « Voir la
+  course », and the legs are computed again after the runner's speeds are fitted only when those change a cost on this map
+  (path speeds where paths were read, the climb where there is relief, a crossing's time on a vector map). In the page on
+  scan 1: calibration 8 s after the files, first route 5 s after the click, the 25 legs in 12 s. **Tried and dropped**:
+  reading only the course's part of the image (15 % faster, but the reading's statistics — paper, olive, north lines — change
+  and the gate moved both ways). **Left open, map 2** (legs to 13 and 15): an underpass (ISSprOM 512.2: two dotted lines
+  across the road it goes under, stripes between, triangles at its mouths) is read as shut by the road's edges, so the routes
+  go round where the runner ran under; it needs the symbol detected and the passage as a link between its two mouths on a
+  lower level — never the band opened on the grid, which would let a route climb from the street onto the bridge. A first
+  detector by its dots failed (none found there: dots of 3-4 px touching the stripes; 98 false pairs in a control description
+  table): notes and prototype in `route-bench/README.md`. Map 3's legs flagged by the owner (to 4, 5, 6, 7, 13, 14, 17, the
+  finish) were not looked at again one by one.
 - **Languages: French, English, German and Spanish** (owner, 2026-10-17 French and English, open to everyone since 2026-10-18,
   `i18n.OPEN` true; **German and Spanish since 2026-11-01**: `i18n.LANGS`, catalogues `i18n/de.js`, `es.js`, `tracer.de.js`,
   `tracer.es.js`, long texts `content/<name>.de.js` / `.es.js`, e-mails in `_lib/templates.js`, `manifest.de|es.webmanifest`;
