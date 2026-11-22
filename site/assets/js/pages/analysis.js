@@ -1208,7 +1208,7 @@ export async function render(main, { query = {}, route } = {}) {
         pts.unshift(sp);
         located = [sp, ...located.filter((q) => q.kind !== "start")];
         vo = passes();
-        notes.push(t(st.triangle ? "an.st.startTriangle" : "an.st.startFound"));
+        notes.push(t(st.onTrace ? "an.st.startTrace" : st.triangle ? "an.st.startTriangle" : "an.st.startFound"));
       }
     }
     // two circles passed within 15 s are not two controls (a leg takes longer): the second is a phantom

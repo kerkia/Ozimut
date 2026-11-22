@@ -2710,7 +2710,7 @@ export default {
   "an.forget": "Olvidar los archivos",
   "an.st.restored": "Calibración de tu última visita recuperada.",
   "an.st.newReader": "Ozimut lee mejor los mapas desde esta calibración: «Rehacer la calibración automática» para aprovecharlo (los controles colocados a mano habrá que colocarlos de nuevo).",
-  "an.st.reading": "Leyendo el recorrido en el mapa…", "an.st.reading2": "El recorrido ha perdido su color en esta imagen: leyendo los círculos sin el color…", "an.st.startFound": "Salida colocada donde la traza espera, en la línea que lleva al primer control: compruébala.", "an.st.startTriangle": "Salida colocada en el triángulo hallado al final de la línea que lleva al primer control, donde la traza espera: compruébala.",
+  "an.st.reading": "Leyendo el recorrido en el mapa…", "an.st.reading2": "El recorrido ha perdido su color en esta imagen: leyendo los círculos sin el color…", "an.st.startFound": "Salida colocada donde la traza espera, en la línea que lleva al primer control: compruébala.", "an.st.startTriangle": "Salida colocada en el triángulo hallado al final de la línea que lleva al primer control, donde la traza espera: compruébala.", "an.st.startTrace": "Salida colocada en el triángulo hallado junto a la traza, después del lugar donde espera: compruébala.",
   "an.st.aligning": "Calando el track sobre los controles…",
   "an.st.noCourse": "No se ha leído ningún recorrido en el mapa (no se han reconocido círculos violeta): marca los controles a mano.",
   "an.st.found": "Leído en el mapa: {n} círculos de control, salida {s}, meta {f}.",

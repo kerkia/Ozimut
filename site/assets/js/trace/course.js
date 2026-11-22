@@ -376,16 +376,91 @@ async function readCourse(image, { maxSide = 1800, debug = false, dark = false, 
       runs.push(c);
       if (all) all.push({ deg, len: c.len / s, total: c.total, waits: waits.map((q) => ({ ...q, x: q.x / s, y: q.y / s })) });
     }
-    if (!runs.length) return null;
+    // no leg seen (a faint one, or one running on to another symbol): the triangle looked for along the trace, after the
+    // runner's last wait, where they pass by it (the three Auray scans: the wait 50 m before it, the runner by it within
+    // 10 m, 15-25 s later); else the start placed at that wait
+    if (!runs.length) {
+      const tr = triangleOnTrace(from, P);
+      if (tr) return { x: tr.x / s, y: tr.y / s, R: tr.R / s, wait: tr.wait, triangle: true, onTrace: true };
+      const wt = lastWait(from, P);
+      return wt ? { x: wt.x / s, y: wt.y / s, wait: wt.wait } : null;
+    }
     // the run that saw the most waiting, with the runs a degree or three from it (one printed line): its last wait
     const top = runs.reduce((p, q) => (q.total > p.total ? q : p));
     const pool = runs.filter((q) => Math.min(Math.abs(q.deg - top.deg), 360 - Math.abs(q.deg - top.deg)) <= 3).flatMap((q) => q.waits);
     const best = pool.reduce((p, q) => (q.t > p.t + 1 || (q.t > p.t - 1 && q.wait > p.wait) ? q : p));
     // the triangle itself, now that the place is narrow (owner, 2026-11-17): on that line, from the wait toward the
     // first control, a tip pointing at the control
-    const tri = triangleOnLeg(from, best, legColour(from, top), all && (all.tri = []));
+    const tri = triangleOnLeg(from, best, legColour(from, top), all && (all.tri = [])) || triangleOnTrace(from, P);
     return tri ? { x: tri.x / s, y: tri.y / s, R: tri.R / s, wait: best.wait, triangle: true } : { x: best.x / s, y: best.y / s, wait: best.wait };
   };
+  /** The runner's last stand before the first control: the last point from which they moved under a third of a radius in
+   *  eight seconds (a runner stands at the start box), within 40 radii of the control. { x, y, wait, k } — k the index of
+   *  the trace where they set off again — or null. */
+  function lastWait(from, P) {
+    let found = null;
+    for (let k = 0, j = 0; k < P.length; k++) {
+      while (j < P.length && P[j][2] - P[k][2] < 8) j++;
+      if (j >= P.length) break;
+      let far = 0;
+      for (let m = k + 1; m <= j; m++) far = Math.max(far, Math.hypot(P[m][0] - P[k][0], P[m][1] - P[k][1]));
+      if (far < rStar / 3 && Math.hypot(P[k][0] - from.x, P[k][1] - from.y) < 40 * rStar) {
+        let e = j;
+        while (e + 1 < P.length && Math.hypot(P[e + 1][0] - P[k][0], P[e + 1][1] - P[k][1]) < rStar / 3) e++;
+        found = { x: P[k][0], y: P[k][1], wait: P[e][2] - P[k][2], k: e };
+      }
+    }
+    return found;
+  }
+  /** A start triangle beside the trace, from the runner's last wait to the first control `from`: centres every 3 px within
+   *  1.3 radii of the trace's points, a coarse look first (two sizes, 8° steps), the best few refined by `triangleAt`; a
+   *  tip toward the control (± 25°), hollow, off the description sheet's grid, two radii clear of a control's centre. */
+  function triangleOnTrace(from, P) {
+    const wt = lastWait(from, P);
+    if (!wt) return null;
+    const path = P.slice(wt.k).filter((q) => Math.hypot(q[0] - from.x, q[1] - from.y) > 2 * rStar);
+    if (!path.length) return null;
+    const seen = new Set(), cand = [];
+    const coarse = (cx, cy) => {
+      let top = 0;
+      for (const k of [1.1, 1.35]) {
+        const R = k * rStar;
+        for (let th = 0; th < 120; th += 8) {
+          let hit = 0;
+          for (let m = 0; m < 3; m++) {
+            const a = ((th + 120 * m) * Math.PI) / 180, b = ((th + 120 * (m + 1)) * Math.PI) / 180;
+            const A = [cx + R * Math.cos(a), cy + R * Math.sin(a)], B = [cx + R * Math.cos(b), cy + R * Math.sin(b)];
+            for (let q = 0; q < 10; q++) { const f = (q + 0.5) / 10, x = Math.round(A[0] + f * (B[0] - A[0])), y = Math.round(A[1] + f * (B[1] - A[1])); if (x >= 0 && y >= 0 && x < w && y < h && dil[y * w + x]) hit++; }
+          }
+          if (hit > top) top = hit;
+        }
+      }
+      return top / 30;
+    };
+    const reach = 1.3 * rStar;
+    for (const q of path) for (let dy = -reach; dy <= reach; dy += 3) for (let dx = -reach; dx <= reach; dx += 3) {
+      if (dx * dx + dy * dy > reach * reach) continue;
+      const cx = Math.round((q[0] + dx) / 3) * 3, cy = Math.round((q[1] + dy) / 3) * 3, key = cy * w + cx;
+      if (seen.has(key) || cx < 0 || cy < 0 || cx >= w || cy >= h) continue;
+      seen.add(key);
+      if (controls.some((c) => Math.hypot(c.x - cx, c.y - cy) < 2 * rStar)) continue;
+      const v = coarse(cx, cy);
+      if (v >= 0.45) cand.push({ cx, cy, v });
+    }
+    cand.sort((a, b) => b.v - a.v);
+    let best = null;
+    for (const c of cand.slice(0, 60)) {
+      const tri = triangleAt(dil, w, h, c.cx, c.cy, rStar, sharp);
+      // a faint print (the Auray scan's first leg) inks 60 % of its sides: the trace beside it and the tip say the rest
+      if (!tri || tri.score < 0.55 || inGrid(grid, w, h, tri.x, tri.y, 1.1 * tri.R, 1)) continue;
+      // one tip toward the first control
+      const toward = Math.atan2(from.y - tri.y, from.x - tri.x);
+      const off = Math.min(...[0, 1, 2].map((m) => { const d = Math.abs(((tri.ang + (2 * Math.PI * m) / 3 - toward) % (2 * Math.PI) + 3 * Math.PI) % (2 * Math.PI) - Math.PI); return d; }));
+      if (off > (25 * Math.PI) / 180) continue;
+      if (!best || tri.score > best.score) best = { ...tri, wait: wt.wait };
+    }
+    return best;
+  }
   /** A start triangle on the line from `at` (where the runner waited) to the first control `from`: an equilateral
    *  triangle of 0.55 to 0.9 r* (measured on three town sprints: 0.6-0.8), one tip toward the control (± 12°), its centre within half a radius of the line, from
    *  two radii behind the wait to ten before it (the start line may lie well before the triangle, along a marked

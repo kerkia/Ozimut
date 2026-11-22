@@ -1256,6 +1256,16 @@ export function sprintLayers(O, P, pts = [], r = 0) {
  * included), raw (the same without the bridged gaps), blue (share of blue line pixels, 0-255), north (a north line taken out
  * there) }, a cell full of marsh lines becoming A.MARSH.
  */
+/**
+ * The route grid's cell, in pixels of the image read: about 1.5 m, and on a sprint map read from a sharp image (0.6 m a pixel
+ * or finer: a scan) 0.8 m — ISSprOM's narrowest opening, 1.6 m, then keeps a free cell between the walls on its sides, which
+ * 1.5 m cells lost (the Auray scans' lanes and passages, 2026-11-22: the map read at the scan's pixel, the routes on a grid
+ * fine enough for what the reading tells).
+ */
+export function cellSize(mpp, map = "forest") {
+  return Math.max(1, Math.round((map === "sprint" && mpp <= 0.6 ? 1.0 : 1.5) / mpp));
+}
+
 export function cells(px, w, h, cs) {
   const nx = Math.ceil(w / cs), ny = Math.ceil(h / cs), M = nx * ny;
   const cls = new Uint8Array(M), path = new Uint8Array(M), raw = new Uint8Array(M), blue = new Uint8Array(M), north = new Uint8Array(M), over = new Uint8Array(M), count = new Int32Array(N_CLASSES);

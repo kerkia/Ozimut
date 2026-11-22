@@ -6,7 +6,7 @@
 // the overprint near them is theirs); for a tour through many controls (the Tracer's): forbid (the setter's out-of-bounds areas
 // and boundaries, kept over a new reading), tour (the costs from each control to its nearest ones), path (one leg's best route).
 
-import { classify, cells, costs, context, legSearch, lineRoute, matchRoute, picture, decisionPicture, releaseAround, DEFAULTS,
+import { classify, cells, cellSize, costs, context, legSearch, lineRoute, matchRoute, picture, decisionPicture, releaseAround, DEFAULTS,
   freeCells, cellOf, costsFrom, bestPath, forbidCells, courseInk, sprintObjects, sprintLayers, SPRINT_SCALE } from "./routechoice.js";
 import { heightAt } from "./terrain.js";
 
@@ -22,11 +22,13 @@ const released = () => releaseAround(G, em, ctrlPts, kindRead === "sprint" ? 75 
 /** The course's circles and legs and a pixel of blend, slowed (an image's only: a vector map's course is not drawn). */
 const inked = () => (image ? courseInk(G, ctrlPts, ctrlR, 1) : null);
 
-/** The grid's size and the metres of a pixel step (J's columns): the cell size, about 1.5 m, 4 million cells at most. */
-function start(w, hh, J) {
-  W = w; H = hh;
+/** The grid's size and the metres of a pixel step (J's columns): the cell size (routechoice `cellSize`: 1.5 m, 0.8 m on a
+ *  sprint map's sharp image), 4 million cells at most. */
+let Jlast = null;
+function start(w, hh, J, kind = "forest") {
+  W = w; H = hh; Jlast = J;
   const mpp = Math.sqrt(Math.abs(J[0][0] * J[1][1] - J[0][1] * J[1][0]));
-  cs = Math.max(1, Math.round(1.5 / mpp));
+  cs = cellSize(mpp, kind);
   while ((W / cs) * (H / cs) > 4e6) cs++;
   em = [[J[0][0] * cs, J[1][0] * cs], [J[0][1] * cs, J[1][1] * cs]];
   mpc = Math.min(Math.hypot(...em[0]), Math.hypot(...em[1]));
@@ -59,9 +61,9 @@ const sprintPx = () => sprintLayers(sprintRead.O, sprintRead.P, ctrlPts, ctrlR);
 
 const ops = {
   init({ id, rgba, w, h: hh, J, map }) {
-    mppRead = start(w, hh, J);
-    image = new Uint8ClampedArray(rgba);
     kindRead = map === "sprint" ? "sprint" : "forest";
+    mppRead = start(w, hh, J, kindRead);
+    image = new Uint8ClampedArray(rgba);
     return read(id);
   },
   /** A vector map's layers, drawn on the page (trace/vectorroutes.js): no colours to read. */
@@ -82,7 +84,7 @@ const ops = {
   settings({ id, s }) {
     settings = { ...DEFAULTS, ...s, speeds: { ...DEFAULTS.speeds, ...(s.speeds || {}) } };
     const kind = settings.map === "sprint" ? "sprint" : "forest";
-    if (image && kind !== kindRead) { kindRead = kind; return { reread: true, facts: read(id) }; }
+    if (image && kind !== kindRead) { kindRead = kind; start(W, H, Jlast, kind); return { reread: true, facts: read(id) }; }
     rebuild();
     return {};
   },

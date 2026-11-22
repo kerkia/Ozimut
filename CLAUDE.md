@@ -4058,6 +4058,17 @@ Every multiple-choice game was played through to its score page at phone size, w
   2 legs without a route, 40 tracks laid, 60 dark lines and 112 m of olive crossed on the scans; after, 0, 36, 46 and 91 m.
   The four tracks lost run through passages about a metre wide on the scan, narrower than a route cell (1.3-1.7 m): finer
   cells would cost time. The page's cell is 5 px on scan 3 where the bench's is 4 (its calibrated scale).
+  **The next day** (owner, 2026-11-22: « estimate the location of the start triangle »; « one resolution to read the map, finer,
+  and another one to compute the routes — sprint is quite binary »): when no leg leads to the start, `probeStart` looks for the
+  triangle along the trace after the runner's last wait (`lastWait`: under a third of a radius in 8 s; `triangleOnTrace`: centres
+  within 1.3 radii of the trace, a coarse look then `triangleAt`, 0.55 at least — a faint print inks 60 % of its sides —, a tip
+  toward control 1 within 25°), else the start at that wait; on the three scans the runner waits 50 m before the triangle and
+  passes it within 10 m, scan 1's start now found 4 px from the truth (note `an.st.startTrace`). **The route grid's cell**
+  (`routechoice.cellSize`, the worker's and the bench's): 1.5 m, but 1.0 m on a sprint map read from a sharp image (0.6 m a pixel
+  or finer), the map still read at the image's pixel; 0.8 m let the routes through the reading's gaps (dark lines crossed 46 → 68
+  on the scans), 1.0 m gave back the tracks lost (36 → 40) with fewer crossings than the committed code (52 against 60). Gate,
+  page input, against the code of before: legs without a route 2 → 0, tracks laid 88 = 88, dark lines crossed 124 → 115, olive
+  237 → 214 m (baseline accepted 2026-11-22).
 - **Languages: French, English, German and Spanish** (owner, 2026-10-17 French and English, open to everyone since 2026-10-18,
   `i18n.OPEN` true; **German and Spanish since 2026-11-01**: `i18n.LANGS`, catalogues `i18n/de.js`, `es.js`, `tracer.de.js`,
   `tracer.es.js`, long texts `content/<name>.de.js` / `.es.js`, e-mails in `_lib/templates.js`, `manifest.de|es.webmanifest`;
