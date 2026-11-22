@@ -20,7 +20,7 @@ const decisions = new Map();                         // the last legs' decision 
 /** The overprint released round the course's controls (its circles, numbers): 75 m on a forest map, less on a sprint map. */
 const released = () => releaseAround(G, em, ctrlPts, kindRead === "sprint" ? 75 * SPRINT_SCALE : 75);
 /** The course's circles and legs and a pixel of blend, slowed (an image's only: a vector map's course is not drawn). */
-const inked = () => (image ? courseInk(G, ctrlPts, ctrlR, 1) : null);
+const inked = () => (image ? courseInk(G, ctrlPts, ctrlR, 1, kindRead === "sprint" ? mppRead : 0) : null);
 
 /** The grid's size and the metres of a pixel step (J's columns): the cell size (routechoice `cellSize`: 1.5 m, 0.8 m on a
  *  sprint map's sharp image), 4 million cells at most. */

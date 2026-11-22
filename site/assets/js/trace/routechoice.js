@@ -748,7 +748,19 @@ export function classify(rgba0, w, h, mpp, opt = {}, progress = () => {}) {
   const ol = { ...oliveModel(rgba, w, h), sprint: opt.map === "sprint" };
   for (let i = 0, p = 0; i < N; i++, p += 4) kind[i] = rgba[p + 3] < 128 ? A.WHITE : kindOf(rgba[p], rgba[p + 1], rgba[p + 2], ol);
   progress(0.3);
-  const north = new Uint8Array(N), nlines = northLines(kind, rgba, w, h, mpp, north);
+  const north = new Uint8Array(N);
+  let nlines = northLines(kind, rgba, w, h, mpp, north);
+  // a map printed or scanned on its side has its north lines across the page: looked for the same way on the image turned a
+  // quarter (the Auray scan: its blue lines, left in, cut every lane they cross — 2026-11-22)
+  if (!nlines.length) {
+    const kt = new Uint8Array(N), rt = new Uint8ClampedArray(4 * N), nt = new Uint8Array(N);
+    for (let y = 0; y < h; y++) for (let x = 0, i = y * w; x < w; x++, i++) { const j = x * h + y, p = 4 * i, q = 4 * j; kt[j] = kind[i]; rt[q] = rgba[p]; rt[q + 1] = rgba[p + 1]; rt[q + 2] = rgba[p + 2]; rt[q + 3] = rgba[p + 3]; }
+    const got = northLines(kt, rt, h, w, mpp, nt);
+    if (got.length) {
+      for (let y = 0; y < h; y++) for (let x = 0, i = y * w; x < w; x++, i++) { const j = x * h + y; if (nt[j]) { kind[i] = kt[j]; north[i] = 1; } }
+      nlines = got.map((l) => ({ ...l, across: true }));
+    }
+  }
   // a dark brown read on the levelled photo is told from a wall on the photo as taken: the levelling lifts a wall's 51 above the
   // course ink's threshold (kindOf), and the walls of the Auray MD photo came out course ink, with gaps the routes went through
   if (rgba !== rgba0) for (let i = 0, p = 0; i < N; i++, p += 4) if (kind[i] === I_BROWN && Math.max(rgba0[p], rgba0[p + 1], rgba0[p + 2]) < 70) kind[i] = I_BLACK;
@@ -764,15 +776,15 @@ export function classify(rgba0, w, h, mpp, opt = {}, progress = () => {}) {
   const area = new Uint8Array(N).fill(UNKNOWN);
   for (let i = 0; i < N; i++) if (kind[i] < 20) area[i] = kind[i];
   // the thick parts of each ink: areas of their own
-  const thickOf = (test, decide, keep = null, kk = k) => {   // keep: the kinds that take the area (default: all the test's)
+  const thickOf = (test, decide, keep = null, kk = k, least = minArea) => {   // keep: the kinds that take the area (default: all the test's)
     const m = new Uint8Array(N);
     for (let i = 0; i < N; i++) if (test(kind[i], i)) m[i] = 1;
     const open = morph(morph(m, w, h, kk, true), w, h, kk, false);
     for (let i = 0; i < N; i++) open[i] &= m[i];
     const { lab, comps } = components(open, w, h);
-    const stats = comps.map(() => [0, 0, 0, 0]);
-    for (let i = 0; i < N; i++) if (lab[i]) { const s = stats[lab[i]]; s[0]++; if (kind[i] === I_BLACK) s[1]++; s[2] += rgba[4 * i]; if (kind[i] === I_PURPLE) s[3]++; }
-    const cls = comps.map((c, id) => (id && c.n >= minArea ? decide(stats[id]) : UNKNOWN));
+    const stats = comps.map(() => [0, 0, 0, 0, 0, 0, 0]);  // pixels, black ones, red, purple ones, green, blue, olive ones
+    for (let i = 0; i < N; i++) if (lab[i]) { const s = stats[lab[i]]; s[0]++; if (kind[i] === I_BLACK) s[1]++; s[2] += rgba[4 * i]; if (kind[i] === I_PURPLE) s[3]++; s[4] += rgba[4 * i + 1]; s[5] += rgba[4 * i + 2]; if (kind[i] === I_OLIVE) s[6]++; }
+    const cls = comps.map((c, id) => (id && c.n >= least ? decide(stats[id]) : UNKNOWN));
     for (let i = 0; i < N; i++) if (lab[i] && cls[lab[i]] !== UNKNOWN && (!keep || keep(kind[i]))) area[i] = cls[lab[i]];
     return open;
   };
@@ -781,8 +793,14 @@ export function classify(rgba0, w, h, mpp, opt = {}, progress = () => {}) {
   // on a sprint map the course's line drawn across a building is part of it: a control circle cut the houses inside it in two,
   // halves too thin to be read as buildings (Quiberon's control 3, 2026-11-18); mostly purple, it is the overprint's own
   const sprintInk = opt.map === "sprint";
+  // where the image shows a line's width (a scan: sprintObjects' rule), a building is grey however small: a shed of 4 x 5 m, a
+  // house 4 m wide failed the test made for photos (2 m of half-width, 6 x 6 m: a photo's grey is also the blur of its black
+  // lines) and took the ground beside them — half a garden, half a street: the lane along them was one open patch with them, no
+  // lane at all for the route grid (the Auray scan's 12-13, 2026-11-22). A metre wide, 2 x 2 m
+  const sharp = sprintInk && 1.6 / mpp >= 4;
   const darkThick = thickOf((v) => v === I_BLACK || v === I_GREY || (sprintInk && v === I_PURPLE),
-    (s) => (s[3] > 0.4 * s[0] ? UNKNOWN : s[1] > 0.5 * s[0] ? A.BUILDING : s[2] / s[0] > shade ? UNKNOWN : A.GREY), (v) => v !== I_PURPLE);
+    (s) => (s[3] > 0.4 * s[0] ? UNKNOWN : s[1] > 0.5 * s[0] ? A.BUILDING : s[2] / s[0] > shade ? UNKNOWN : A.GREY), (v) => v !== I_PURPLE,
+    sharp ? Math.max(2, Math.round(0.5 / mpp)) : k, sharp ? Math.max(9, (2 / mpp) ** 2) : minArea);
   // a paved area is a light brown; a dark one is ink — the course's legs on a photo that lost their purple come out dark brown,
   // blurred thick enough for the test, and were paved corridors across the gardens (the Quiberon photo, 2026-11-18)
   thickOf((v, i) => v === I_BROWN && rgba[4 * i] >= 170, () => A.PAVED);
@@ -793,11 +811,26 @@ export function classify(rgba0, w, h, mpp, opt = {}, progress = () => {}) {
   // on a sprint map a garden is olive however narrow: a wedge cut by a road and the course's line (the Quiberon photo's control
   // 3) failed the 2 m test, read open land, and the routes crossed the gardens; a metre wide (2026-11-19; a window of 2 m, 7 px
   // on a 300 dpi scan, until 2026-11-21: the Auray scans' gardens between walls, 1.5 m, were crossed)
-  thickOf((v) => v === I_OLIVE, () => A.OOB, null, opt.map === "sprint" ? Math.max(1, Math.round(0.5 / mpp)) : k);
+  // (and on a sharp image however small, as a building: a garden of 4 x 6 m between two houses read as the street beside it)
+  // there too the blends (a contour, the course's line over the olive: I_MIXED) count with it for the thickness — a garden
+  // crossed by two contours was three strips, each too thin or too small —, the olive alone taking the area
+  // — a small one (under 6 x 6 m) only when nearly all olive, of the olive's own hue rather than the yellow's: the dark rim of
+  // open land along a black line, the blend round a tree's green circle on yellow made small « gardens » along the streets
+  const oliveHue = (s) => {
+    const least = ol.oh ? (ol.oh + ol.yh) / 2 : ol.from ? ol.from + 3 : 0;    // (the olive's peak is 6° above `from`)
+    if (!least) return true;
+    const r = s[2] / s[0], g = s[4] / s[0], b = s[5] / s[0], mx = Math.max(r, g, b), sp = mx - Math.min(r, g, b);
+    return sp > 0 && mx !== b && (mx === r ? 60 * ((g - b) / sp) : 60 * ((b - r) / sp + 2)) >= least;
+  };
+  thickOf(sharp ? (v) => v === I_OLIVE || v === I_MIXED : (v) => v === I_OLIVE, (s) => (s[0] >= minArea || (s[6] >= 0.85 * s[0] && oliveHue(s)) ? A.OOB : UNKNOWN), sharp ? (v) => v === I_OLIVE : null,
+    opt.map === "sprint" ? Math.max(1, Math.round(0.5 / mpp)) : k, sharp ? Math.max(9, (2 / mpp) ** 2) : minArea);
   // a sprint map's out-of-bounds tint (kindOf), the course's lines and their blends printed over it counting with it for the
   // thickness (the lilac strip by the Quiberon photo's start), the lilac alone taking the area
+  // (2026-11-22: that solid pale pink is these maps' canopy — ISSprOM 522, a roof one runs under: the runners of the Auray
+  // scans ran through every one, and two controls stand at their edge. Passable, as paving; the organisers' out-of-bounds
+  // overprint is hatched or a strong purple, read by overprint())
   thickOf((v, i) => v === I_LILAC || (sprintInk && (v === I_PURPLE || v === I_MIXED || (v === I_BROWN && rgba[4 * i] < 170))),
-    () => A.OOB, (v) => v === I_LILAC);
+    () => A.PAVED, (v) => v === I_LILAC);
   // open land is never a line: a full yellow streak narrower than the thickness test is a blend — the course's leg printed across
   // olive comes out yellow on a photo, a passable corridor through the gardens (the Quiberon photo, 2026-11-18) — and takes its
   // neighbours' area, as a thin ink does. On a sprint map only: a forest map's open rides and rough open land are narrow or
@@ -812,7 +845,9 @@ export function classify(rgba0, w, h, mpp, opt = {}, progress = () => {}) {
       let any = 0;
       for (let i = 0; i < N; i++) if (test(area[i])) { m[i] = 1; any++; }
       if (!any) continue;
-      const open = morph(morph(m, w, h, k, true), w, h, k, false);
+      // (on a sharp image a metre wide, as the other areas: a patch of open land 4 m across is one — the corner of a park
+      // where the Auray scan's control 6 stands took the gardens' olive from beside it)
+      const kk = sharp ? Math.max(2, Math.round(0.5 / mpp)) : k, open = morph(morph(m, w, h, kk, true), w, h, kk, false);
       for (let i = 0; i < N; i++) if (m[i] && !open[i]) area[i] = UNKNOWN;
     }
   }
@@ -918,6 +953,124 @@ export function classify(rgba0, w, h, mpp, opt = {}, progress = () => {}) {
 // is a wall; a scan's 3 px a metre would let the symbols be named.
 
 const D8 = [[1, 0], [1, 1], [0, 1], [-1, 1], [-1, 0], [-1, -1], [0, -1], [1, -1]];
+
+/**
+ * The underpasses of a sprint map read from a sharp image (ISSprOM 512.2 and 512.3: the passage under a road or a bridge drawn
+ * between two dotted black lines across it, white stripes between them where both levels are run). Read as the symbol is drawn:
+ * the image's dark dots (0.6 to 1.7 m across, round, not among many: sandy ground is a field of dots), three or more in a row evenly spaced (1.3 to 2.6 m: the dots at a row's
+ * ends run into the road's edges), two such rows side by side — parallel within 12°, 3 to 14 m apart, end to end within a third
+ * of their length —, and between the rows the stripes: pure white in 6 to 60 % of the band (a road's beige has none, the paper
+ * of a legend or a control description table is all white). Each end is then walked outward along the passage until the dark
+ * line that closes it there (the road's edge, the bridge's triangles) is passed: the mouths. Returns [{ a, b (the mouths, px),
+ * wide (px), dots }]. Two levels: the passage is the lower one, a link between its mouths (context()); what it goes under stays
+ * as read (owner, 2026-11-22: the routes of the Auray scan went round a bridge the runners ran under).
+ */
+export function underpasses(rgba, w, h, mpp) {
+  if (!rgba || !(mpp > 0) || mpp > 0.6) return [];     // a dot under a pixel and a half is not told from noise
+  const N = w * h, m = new Uint8Array(N);
+  for (let i = 0, q = 0; i < N; i++, q += 4) if (rgba[q] < 130 && rgba[q + 1] < 130 && rgba[q + 2] < 130) m[i] = 1;
+  const { comps } = components(m, w, h, true);
+  const lo = Math.max(2, 0.6 / mpp), hi = 1.7 / mpp, dots = [];
+  for (let id = 1; id < comps.length; id++) {
+    const c = comps[id], bw = c.x1 - c.x0 + 1, bh = c.y1 - c.y0 + 1;
+    if (bw < lo || bh < lo || bw > hi || bh > hi || Math.max(bw, bh) > 1.7 * Math.min(bw, bh) || c.n < 0.5 * bw * bh) continue;
+    dots.push({ x: c.sx / c.n, y: c.sy / c.n, used: false });
+  }
+  const B = Math.max(4, Math.round(3 / mpp)), bx = Math.ceil(w / B), grid = new Map();
+  dots.forEach((d, i) => { const k = Math.floor(d.y / B) * bx + Math.floor(d.x / B); if (!grid.has(k)) grid.set(k, []); grid.get(k).push(i); });
+  const nearTo = (x, y, r) => {
+    let best = -1, bd = r;
+    const cx = Math.floor(x / B), cy = Math.floor(y / B);
+    for (let j = cy - 1; j <= cy + 1; j++) for (let i = cx - 1; i <= cx + 1; i++) for (const q of grid.get(j * bx + i) || []) {
+      const d = Math.hypot(dots[q].x - x, dots[q].y - y);
+      if (d < bd) { bd = d; best = q; }
+    }
+    return best;
+  };
+  const dMin = 1.3 / mpp, dMax = 2.6 / mpp, chains = [];
+  // a dot among many (sandy ground's pattern, a legend's dotted screen) is no row's: more than three others within a step
+  for (const p of dots) {
+    let near = 0;
+    const cx = Math.floor(p.x / B), cy = Math.floor(p.y / B);
+    for (let j = cy - 1; j <= cy + 1; j++) for (let i = cx - 1; i <= cx + 1; i++) for (const q of grid.get(j * bx + i) || []) if (dots[q] !== p && Math.hypot(dots[q].x - p.x, dots[q].y - p.y) <= dMax) near++;
+    p.crowd = near > 3;
+  }
+  for (const p of dots) if (p.crowd) p.used = true;
+  for (let i = 0; i < dots.length; i++) {
+    const p = dots[i];
+    if (p.used) continue;
+    let bestC = null;
+    const cx = Math.floor(p.x / B), cy = Math.floor(p.y / B);
+    for (let j = cy - 1; j <= cy + 1; j++) for (let ii = cx - 1; ii <= cx + 1; ii++) for (const q of grid.get(j * bx + ii) || []) {
+      if (q === i || dots[q].used) continue;
+      const dx = dots[q].x - p.x, dy = dots[q].y - p.y, d = Math.hypot(dx, dy);
+      if (d < dMin || d > dMax) continue;
+      const walk = (from, sx, sy) => {                  // the row on from a dot, a step at a time
+        const out = [];
+        let x = dots[from].x, y = dots[from].y, last = from;
+        for (;;) {
+          const k = nearTo(x + sx, y + sy, 0.35 * d);
+          if (k < 0 || k === last || dots[k].used || out.includes(k) || k === i || k === q) break;
+          out.push(k); x = dots[k].x; y = dots[k].y; last = k;
+        }
+        return out;
+      };
+      const c = [...walk(i, -dx, -dy).reverse(), i, q, ...walk(q, dx, dy)];
+      if (c.length >= 3 && (!bestC || c.length > bestC.length)) bestC = c;
+    }
+    if (!bestC) continue;
+    for (const k of bestC) dots[k].used = true;
+    const A = dots[bestC[0]], Z = dots[bestC[bestC.length - 1]], L = Math.hypot(Z.x - A.x, Z.y - A.y);
+    chains.push({ ax: A.x, ay: A.y, L, ux: (Z.x - A.x) / L, uy: (Z.y - A.y) / L, n: bestC.length, step: L / (bestC.length - 1), paired: false });
+  }
+  const white = (x, y) => { const q = 4 * (Math.round(y) * w + Math.round(x)); return rgba[q] > 225 && rgba[q + 1] > 225 && rgba[q + 2] > 225; };
+  const inside = (x, y) => x >= 1 && y >= 1 && x < w - 1 && y < h - 1;
+  const out = [];
+  for (let i = 0; i < chains.length; i++) {
+    const c = chains[i];
+    if (c.paired) continue;
+    let best = null;
+    for (let j = 0; j < chains.length; j++) {
+      const e = chains[j];
+      if (j === i || e.paired) continue;
+      const dot = c.ux * e.ux + c.uy * e.uy;
+      if (Math.abs(dot) < Math.cos((12 * Math.PI) / 180) || Math.min(c.L, e.L) < 0.6 * Math.max(c.L, e.L)) continue;
+      const ex = e.ax + e.ux * e.L, ey = e.ay + e.uy * e.L;
+      const ta = (e.ax - c.ax) * c.ux + (e.ay - c.ay) * c.uy, tz = (ex - c.ax) * c.ux + (ey - c.ay) * c.uy;
+      const sa = (e.ax - c.ax) * -c.uy + (e.ay - c.ay) * c.ux, sz = (ex - c.ax) * -c.uy + (ey - c.ay) * c.ux, s = (sa + sz) / 2;
+      if (Math.abs(s) < 3 / mpp || Math.abs(s) > 14 / mpp) continue;
+      const t1 = Math.min(ta, tz), t2 = Math.max(ta, tz);
+      if (Math.abs(t1) > c.L / 3 + c.step || Math.abs(t2 - c.L) > c.L / 3 + c.step) continue;
+      // the stripes between the two rows
+      let n = 0, wh = 0;
+      for (let t = 0; t <= c.L; t += 1) for (let v = 0.15; v <= 0.85; v += 0.05) {
+        const x = c.ax + c.ux * t - c.uy * s * v, y = c.ay + c.uy * t + c.ux * s * v;
+        if (!inside(x, y)) continue;
+        n++; if (white(x, y)) wh++;
+      }
+      if (!n || wh < 0.06 * n || wh > 0.6 * n) continue;
+      if (!best || Math.abs(s) < Math.abs(best.s)) best = { j, s, t1: Math.min(0, t1), t2: Math.max(c.L, t2) };
+    }
+    if (!best) continue;
+    c.paired = chains[best.j].paired = true;
+    // each end walked outward along the centre line: past the dark line that closes the band there, a metre and a half further
+    const mouth = (t0, dir) => {
+      let seen = false;
+      for (let t = 0; t <= 8 / mpp; t += 0.5) {
+        const x = c.ax + c.ux * (t0 + dir * t) - c.uy * best.s / 2, y = c.ay + c.uy * (t0 + dir * t) + c.ux * best.s / 2;
+        if (!inside(x, y)) return null;
+        const dark = m[Math.round(y) * w + Math.round(x)];
+        if (dark) seen = true;
+        else if (seen) return [x + c.ux * dir * (1.5 / mpp), y + c.uy * dir * (1.5 / mpp)];
+      }
+      return null;
+    };
+    const a = mouth(best.t1, -1), b = mouth(best.t2, 1);
+    if (a && b) out.push({ a, b, wide: Math.abs(best.s), dots: c.n + chains[best.j].n });
+  }
+  return out;
+}
+
 /** Zhang-Suen thinning of a binary mask (a copy). */
 function thin1(m, w, h) {
   const s = m.slice(), del = [];
@@ -1088,7 +1241,7 @@ export function sprintObjects(P, w, h, mpp, rgba = null) {
     thinLines += hidden.length;
   }
   for (let j = 0; j < toArea.length; j += 2) area[toArea[j]] = toArea[j + 1];
-  return { w, h, mpp, area, walls, thinLines, warm: rgba ? warm : null };
+  return { w, h, mpp, area, walls, thinLines, warm: rgba ? warm : null, under: rgba ? underpasses(rgba, w, h, mpp) : [] };
 }
 
 /**
@@ -1270,9 +1423,137 @@ export function sprintLayers(O, P, pts = [], r = 0) {
       if (a && b && a + b <= 3) { lane[i] = 1; break; }
     }
   }
+  // where the image shows a line's width (a scan), the narrow ways too: open ground up to 3 m wide (with the lines drawn along it) between closed ground or
+  // walls on both sides, 3 m long at least — a lane between a house and a garden wall, a passage between two walls. The route
+  // grid's cell is as wide as they are and a wall beside them closes every cell it touches: the lane was lost, and the runners'
+  // ways through the old town with it (the Auray scan's 12-13, 2026-11-22). Their middle is marked (lane 2: its cell is the
+  // lane's ground, whatever wall shares it), and a thin bank (closed ground under two cells deep) is a wall, so that the cell
+  // opened never lets through to what lies behind it. A break in a wall is shorter than 3 m: no lane
+  if (1.6 / mpp >= 4) {
+    const maxW = Math.round(3 / mpp), minLen = 3 / mpp, deep = cellSize(mpp, "sprint");
+    const mark = new Uint8Array(N);
+    // the middle of a run's own ground (its warm pixels: the lines drawn along a way are in the run, and are not its middle)
+    const middle = (from, to, st) => {
+      if (!O.warm) return from + st * (((to - from) / st - 1) >> 1);
+      let a = -1, b = -1;
+      for (let k = from; k < to; k += st) if (O.warm[k]) { if (a < 0) a = k; b = k; }
+      return a < 0 ? -1 : a + st * (((b - a) / st) >> 1);
+    };
+    for (let y = 1; y < h - 1; y++) {
+      const row = y * w;
+      for (let x = 1; x < w - 1; x++) {
+        if (shut(row + x) || !shut(row + x - 1)) continue;
+        let e = x;
+        while (e < w - 1 && !shut(row + e)) e++;
+        if (e < w - 1 && e - x >= 2 && e - x <= maxW) { const mid = middle(row + x, row + e, 1); if (mid >= 0) mark[mid] |= 1; }
+        x = e;
+      }
+    }
+    for (let x = 1; x < w - 1; x++) for (let y = 1; y < h - 1; y++) {
+      if (shut(y * w + x) || !shut((y - 1) * w + x)) continue;
+      let e = y;
+      while (e < h - 1 && !shut(e * w + x)) e++;
+      if (e < h - 1 && e - y >= 2 && e - y <= maxW) { const mid = middle(y * w + x, e * w + x, w); if (mid >= 0) mark[mid] |= 2; }
+      y = e;
+    }
+    // the pieces of a way: each with its line (its pixels' main direction) and its two ends. A contour, the course's line or a
+    // north line printed across a way takes the ground of what lies beside it — the gardens — and cut it in two (the Auray
+    // scan's lane between 11 and 13): two pieces end to end, in line, 4 m apart at most, with only such ink between them (no
+    // wall, no building's grey: a thin black line across a way is a step or a kerb, as everywhere), are one way, and the ink
+    // between is the way's ground
+    const { lab, comps } = components(mark, w, h, true), banks = [], nC = comps.length;
+    const end = comps.map((c) => (c ? { lo: Infinity, hi: -Infinity, a: -1, b: -1 } : null)), axis = comps.map((c) => {
+      if (!c) return null;
+      const mx = c.sx / c.n, my = c.sy / c.n, xx = c.sxx / c.n - mx * mx, yy = c.syy / c.n - my * my, xy = c.sxy / c.n - mx * my;
+      const th = 0.5 * Math.atan2(2 * xy, xx - yy);
+      return { mx, my, ux: Math.cos(th), uy: Math.sin(th), len: Math.hypot(c.x1 - c.x0 + 1, c.y1 - c.y0 + 1) };
+    });
+    for (let i = 0; i < N; i++) {
+      const id = lab[i];
+      if (!id) continue;
+      const A = axis[id], x = i % w, t = (x - A.mx) * A.ux + ((i - x) / w - A.my) * A.uy, e = end[id];
+      if (t < e.lo) { e.lo = t; e.a = i; }
+      if (t > e.hi) { e.hi = t; e.b = i; }
+    }
+    const up = new Int32Array(nC).map((_, i) => i), root = (i) => { while (up[i] !== i) { up[i] = up[up[i]]; i = up[i]; } return i; };
+    // (and the pale or greenish fringe a blue line leaves over a street: a ground colour, closed only because the reading gave
+    // it its neighbours' — beside a blue or erased pixel)
+    const blueBy = (k) => { for (let j = -2; j <= 2; j++) for (let i = -2; i <= 2; i++) { const v = P.kind[k + j * w + i]; if (v === I_BLUE || v === I_ERASED) return true; } return false; };
+    const inkOnly = (k) => { const v = P.kind[k]; return !block[k] && (v === I_BROWN || v === I_PURPLE || v === I_BLUE || v === I_ERASED || v === I_MIXED || v === I_LILAC || v === I_BLACK || ((v < 20 || v === I_GREY) && blueBy(k))); };
+    const ends = [];
+    for (let id = 1; id < nC; id++) {
+      if (comps[id].n < 3) continue;
+      const A = axis[id], e = end[id];
+      ends.push({ id, k: e.a, dx: -A.ux, dy: -A.uy }, { id, k: e.b, dx: A.ux, dy: A.uy });
+    }
+    // from each end, straight on (and up to 30° to either side): through such ink only, to open ground again within 4 m —
+    // the way's next piece, or the street it leads to
+    const reach = 4 / mpp, joins = [];
+    for (const E of ends) {
+      const x0 = E.k % w, y0 = (E.k - x0) / w;
+      let best = null;
+      for (const deg of [0, 15, -15, 30, -30]) {
+        const c = Math.cos((deg * Math.PI) / 180), sn = Math.sin((deg * Math.PI) / 180), dx = E.dx * c - E.dy * sn, dy = E.dx * sn + E.dy * c, px = [];
+        let ink = 0, hit = -1;
+        for (let t = 1; t <= reach * 2; t++) {
+          const x = Math.round(x0 + (dx * t) / 2), y = Math.round(y0 + (dy * t) / 2);
+          if (x < 1 || y < 1 || x >= w - 1 || y >= h - 1) { hit = -2; break; }
+          const k = y * w + x;
+          if (px[px.length - 1] === k) continue;
+          if (!shut(k)) { if (ink) { hit = k; break; } px.push(k); continue; }       // still the way's own end
+          if (!inkOnly(k)) { hit = -2; break; }
+          ink++; px.push(k);
+        }
+        // open all the way: the end is the way's mouth on a street or a square, and its last metres — no longer between two
+        // banks, so not marked, yet sharing their cells with the walls beside them — are the way's too
+        if (hit === -1 && !ink && !deg && px.length > 2) { best = { px: px.slice(0, Math.round(3 / mpp)), hit: px[px.length - 1] }; break; }
+        if (hit >= 0 && (!best || px.length < best.px.length)) best = { px, hit };
+      }
+      if (!best) continue;
+      joins.push({ px: best.px, from: E.k });
+      const hx = best.hit % w, hy = (best.hit - hx) / w;
+      for (let j = -2, done = false; j <= 2 && !done; j++) for (let i = -2; i <= 2; i++) {
+        const o = lab[(hy + j) * w + hx + i];
+        if (o && root(o) !== root(E.id)) { up[root(E.id)] = root(o); done = true; break; }
+      }
+    }
+    const total = new Float64Array(nC);
+    for (let id = 1; id < nC; id++) total[root(id)] += axis[id].len;
+    for (const J of joins) total[root(lab[J.from])] += J.px.length / 2;
+    for (let i = 0; i < N; i++) {
+      if (!mark[i] || total[root(lab[i])] < minLen) continue;
+      lane[i] = 2;
+      for (const st of [mark[i] & 1 ? 1 : 0, mark[i] & 2 ? w : 0]) {
+        if (!st) continue;
+        for (const dir of [-st, st]) {
+          let k = i;
+          while (!shut(k)) k += dir;
+          // a thin bank only (open ground again within two cells): a thick one closes its cells by itself, and walling it
+          // closed the way's own mouth where it meets a street
+          const strip = [];
+          for (let t = 0; t < 2 * deep && k >= 0 && k < N && shut(k); t++, k += dir) strip.push(k);
+          if (strip.length < 2 * deep && k >= 0 && k < N) for (const q of strip) banks.push(q);
+        }
+      }
+    }
+    for (const J of joins) if (total[root(lab[J.from])] >= minLen) for (const k of J.px) { lane[k] = 2; ar[k] = ar[J.from]; }
+    // a way running aslant: its middle steps corner to corner, and the route grid never slips between two closed cells that
+    // touch by a corner — the corner pixel between two such steps is the way's too
+    for (let y = 1; y < h - 1; y++) for (let x = 1; x < w - 1; x++) {
+      const i = y * w + x;
+      if (lane[i] !== 2) continue;
+      for (const dx of [1, -1]) {
+        if (lane[i + w + dx] !== 2 || lane[i + dx] === 2 || lane[i + w] === 2) continue;
+        const q = !shut(i + dx) ? i + dx : !shut(i + w) ? i + w : -1;
+        if (q >= 0) lane[q] = 2;
+      }
+    }
+    for (const k of banks) block[k] = 1;
+  }
   const z = () => new Uint8Array(N);
   return { area: O.area, path: z(), blue: P.blue, over: P.over, north: P.north, block, hand: block.slice(), cross: z(), slow: z(), lane,
-    lw: P.lw, ms: P.ms, lines: P.lines, northLines: P.northLines, objects: { walls: walls.length, bridges: bridges.length } };
+    links: (O.under || []).map((u) => [u.a[0], u.a[1], u.b[0], u.b[1]]),
+    lw: P.lw, ms: P.ms, lines: P.lines, northLines: P.northLines, objects: { walls: walls.length, under: (O.under || []).length, bridges: bridges.length } };
 }
 
 // ---- 2. cells -----------------------------------------------------------------------------------------------------------
@@ -1302,7 +1583,7 @@ export function cells(px, w, h, cs) {
   const speed = px.speed ? new Uint8Array(M) : null, pspeed = px.pspeed ? new Uint8Array(M) : null;
   for (let j = 0; j < ny; j++) for (let i = 0; i < nx; i++) {
     count.fill(0);
-    let p = 0, r = 0, b = 0, n = 0, bl = 0, ha = 0, no = 0, oa = 0, ob = 0, cr = 0, sn = 0, ss = 0, sb = 0, ps = 0;
+    let p = 0, r = 0, b = 0, n = 0, bl = 0, ha = 0, no = 0, oa = 0, ob = 0, cr = 0, sn = 0, ss = 0, sb = 0, ps = 0, way = -1;
     if (slow) sl.fill(0);
     for (let y = j * cs; y < Math.min(h, (j + 1) * cs); y++) for (let x = i * cs; x < Math.min(w, (i + 1) * cs); x++) {
       const k = y * w + x, v = px.path[k];
@@ -1311,6 +1592,7 @@ export function cells(px, w, h, cs) {
       if (px.north?.[k]) no = 1;
       if (px.over) { if (px.over[k] === 1) oa++; else if (px.over[k] === 2) ob = 1; }
       if (vector) { bl |= px.block[k]; ha |= px.hand[k]; }
+      if (px.lane && px.lane[k] === 2) way = px.area[k];
       if (cross) cr |= px.cross[k];
       if (slow && px.slow[k]) sl[px.slow[k]]++;
       if (speed && px.speed[k]) { sn++; if (px.speed[k] === 255) sb++; else ss += px.speed[k]; }
@@ -1324,6 +1606,8 @@ export function cells(px, w, h, cs) {
       for (let y = j * cs; y < Math.min(h, (j + 1) * cs) && open < 0; y++) for (let x = i * cs; x < Math.min(w, (i + 1) * cs); x++) if (px.lane[y * w + x]) { open = px.area[y * w + x]; break; }
       if (open >= 0) best = open;
     }
+    // a narrow way's middle (sprintLayers, lane 2): the cell is its ground, the wall beside it is not in the way
+    if (way >= 0) { best = way; bl = 0; }
     const k = j * nx + i;
     cls[k] = best; path[k] = p; raw[k] = r; blue[k] = Math.round((255 * b) / Math.max(1, n)); north[k] = no;
     over[k] = oa * 2 >= n ? 1 : ob ? 2 : 0;
@@ -1351,7 +1635,7 @@ export function cells(px, w, h, cs) {
     if (s / n > 0.2 * 255 && blue[k] && cls[k] <= A.G3) marsh.push(k);
   }
   for (const k of marsh) cls[k] = A.MARSH;
-  return { cs, nx, ny, cls, path, raw, blue, north, over, vector, block, hand, cross, slow, speed, pspeed };
+  return { cs, nx, ny, cls, path, raw, blue, north, over, vector, block, hand, cross, slow, speed, pspeed, links: px.links || null };
 }
 
 // ---- 3. costs -------------------------------------------------------------------------------------------------------------
@@ -1494,9 +1778,12 @@ export function releaseAround(G, em, pts, radius = 75) {
  * and the photo's blur, `wider` px more. costs() slows them (G.inkBand, INK_SLOW): the line blended with the gardens and roofs
  * reads as open ground, a way to be crossed, not followed. (2026-11-18, the Quiberon sprint photo; until the same day the black
  * there was no wall either, which opened the fences and walls the circles and legs cross: the course's dark ink is told by its
- * colour instead, kindOf.) Null without a radius.
+ * colour instead, kindOf.) Null without a radius, and on a sharp image (mpp: metres a pixel).
  */
-export function courseInk(G, pts, r, wider = 0) {
+export function courseInk(G, pts, r, wider = 0, mpp = 0) {
+  // (a sharp image — a scan, where a line's width shows — tells the course's ink from the ground under it: nothing to slow;
+  // slowed, a street a leg's line is printed along was avoided for its whole length — the Auray scan's 5-6, 2026-11-22)
+  if (mpp > 0 && 1.6 / mpp >= 4) return null;
   if (!(r > 0) || !pts?.length) return null;
   const { nx, ny, cs } = G, out = new Uint8Array(nx * ny), half = 0.1 * r + 1.5 + wider;
   const mark = (x0, y0, x1, y1, test, v) => {
@@ -1553,7 +1840,40 @@ class Heap {
  */
 export function context(G, C, h, em, s) {
   const len = NB.map(([dx, dy]) => Math.hypot(dx * em[0][0] + dy * em[1][0], dx * em[0][1] + dy * em[1][1]));
-  return { G, C, h, em, s, len, mpc: Math.min(Math.hypot(...em[0]), Math.hypot(...em[1])) };
+  const X = { G, C, h, em, s, len, mpc: Math.min(Math.hypot(...em[0]), Math.hypot(...em[1])), links: null, tun: null };
+  // the underpasses (underpasses()): each a link between the open cells at its two mouths, run as the ground there — a lower
+  // level of its own: the cells between are what passes over it (a road, a bridge), and a route on one level never steps onto
+  // the other. `tun`: the cells under the link's line, with its ground's factor — where a route measured off the grid
+  // (segment) passes what is closed above
+  for (const [ax, ay, bx, by] of G.links || []) {
+    const open = (x, y) => {
+      const ci = Math.floor(x / G.cs), cj = Math.floor(y / G.cs);
+      let best = -1, bd = Infinity;
+      for (let j = cj - 2; j <= cj + 2; j++) for (let i = ci - 2; i <= ci + 2; i++) {
+        if (i < 0 || j < 0 || i >= G.nx || j >= G.ny || !(C.f[j * G.nx + i] < Infinity)) continue;
+        const d = (i - ci) ** 2 + (j - cj) ** 2;
+        if (d < bd) { bd = d; best = j * G.nx + i; }
+      }
+      return best;
+    };
+    const a = open(ax, ay), b = open(bx, by);
+    if (a < 0 || b < 0 || a === b) continue;
+    const L = cellMetres(X, a, b), f = (C.f[a] + C.f[b]) / 2, cost = L * f;
+    if (!X.links) { X.links = new Map(); X.tun = new Float32Array(G.nx * G.ny); }
+    for (const [u, v] of [[a, b], [b, a]]) { if (!X.links.has(u)) X.links.set(u, []); X.links.get(u).push(v, cost, L); }
+    const ai = a % G.nx, aj = (a - ai) / G.nx, bi = b % G.nx, bj = (b - bi) / G.nx, n = 2 * Math.max(Math.abs(bi - ai), Math.abs(bj - aj)) + 1;
+    for (let q = 0; q <= n; q++) {
+      const i = Math.round(ai + ((bi - ai) * q) / n), j = Math.round(aj + ((bj - aj) * q) / n);
+      for (let dj = -1; dj <= 1; dj++) for (let di = -1; di <= 1; di++) { const I = i + di, J = j + dj; if (I >= 0 && J >= 0 && I < G.nx && J < G.ny) X.tun[J * G.nx + I] = f; }
+    }
+  }
+  return X;
+}
+/** The cost and the length of the link from cell a to cell b (an underpass: context()), or null. */
+function linkOf(X, a, b) {
+  const L = X.links?.get(a);
+  if (L) for (let t = 0; t < L.length; t += 3) if (L[t] === b) return [L[t + 1], L[t + 2]];
+  return null;
 }
 
 /** The physical time (at 1 s per metre of white forest on the flat), the cost (with the navigation risk) of a step. */
@@ -1600,7 +1920,7 @@ function astar(X, a, b, reg) {
   const g = new Float64Array(RN).fill(Infinity), from = new Int32Array(RN).fill(-1), done = new Uint8Array(RN);
   const bi = b % nx, bj = (b - bi) / nx, fmin = X.C.fMin * 0.9;
   const hOf = (k) => { const i = k % nx, j = (k - i) / nx, dx = bi - i, dy = bj - j; return fmin * Math.hypot(dx * X.em[0][0] + dy * X.em[1][0], dx * X.em[0][1] + dy * X.em[1][1]); };
-  const H = new Heap();
+  const H = new Heap(), links = X.links;
   g[loc(a)] = 0; H.push(hOf(a), a);
   while (H.n) {
     const k = H.pop(), lk = loc(k);
@@ -1618,6 +1938,15 @@ function astar(X, a, b, reg) {
       const v = g[lk] + st;
       if (v < g[lq]) { g[lq] = v; from[lq] = k; H.push(v + hOf(q), q); }
     }
+    const lk2 = links && links.get(k);
+    if (lk2) for (let t = 0; t < lk2.length; t += 3) {
+      const q = lk2[t], I = q % nx, J = (q - I) / nx;
+      if (I < i0 || J < j0 || I > i1 || J > j1) continue;
+      const lq = (J - j0) * rw + (I - i0);
+      if (done[lq] || !reg.inside[lq]) continue;
+      const v = g[lk] + lk2[t + 1];
+      if (v < g[lq]) { g[lq] = v; from[lq] = k; H.push(v + hOf(q), q); }
+    }
   }
   if (!(g[loc(b)] < Infinity)) return null;
   const out = [];
@@ -1631,7 +1960,7 @@ function tree(X, src, reg, reverse, lim = Infinity, rest = null) {
   const { nx } = X.G, { i0, j0, i1, j1, rw } = reg, RN = rw * (j1 - j0 + 1);
   const loc = (k) => { const i = k % nx; return ((k - i) / nx - j0) * rw + (i - i0); };
   const g = new Float64Array(RN).fill(Infinity), par = new Int32Array(RN).fill(-1), done = new Uint8Array(RN);
-  const H = new Heap(), f = X.C.f;
+  const H = new Heap(), f = X.C.f, links = X.links;
   g[loc(src)] = 0; H.push(0, src);
   while (H.n) {
     const k = H.pop(), lk = loc(k);
@@ -1650,6 +1979,15 @@ function tree(X, src, reg, reverse, lim = Infinity, rest = null) {
       const v = g[lk] + st;
       if (v < g[lq]) { g[lq] = v; par[lq] = k; H.push(v, q); }
     }
+    const lk2 = links && links.get(k);
+    if (lk2) for (let t = 0; t < lk2.length; t += 3) {
+      const q = lk2[t], I = q % nx, J = (q - I) / nx;
+      if (I < i0 || J < j0 || I > i1 || J > j1) continue;
+      const lq = (J - j0) * rw + (I - i0);
+      if (done[lq] || !reg.inside[lq]) continue;
+      const v = g[lk] + lk2[t + 1];
+      if (v < g[lq]) { g[lq] = v; par[lq] = k; H.push(v, q); }
+    }
   }
   return { g, par, loc };
 }
@@ -1662,6 +2000,7 @@ function measure(X, path) {
   for (let q = 1; q < path.length; q++) {
     const a = path[q - 1], b = path[q], ai = a % nx, bi = b % nx, dx = bi - ai, dy = (b - bi) / nx - (a - ai) / nx;
     const n = NB.findIndex(([x, y]) => x === dx && y === dy);
+    if (n < 0) { const l = linkOf(X, a, b) || [0, 0]; time += l[0]; cost += l[0]; len += l[1]; cum[q] = cost; continue; }
     const st = step(X, a, b, n) || [X.len[n] * 4, X.len[n] * 4];
     time += st[0]; cost += st[1]; len += X.len[n]; cum[q] = cost;
     if (X.C.isPath[a] && X.C.isPath[b]) onPath += X.len[n];
@@ -1684,13 +2023,14 @@ function segment(X, x0, y0, x1, y1, cap) {
   const at = (x, y) => Math.min(ny - 1, Math.max(0, Math.floor(y))) * nx + Math.min(nx - 1, Math.max(0, Math.floor(x)));
   const u = x1 - x0, v = y1 - y0, d = Math.hypot(u * X.em[0][0] + v * X.em[1][0], u * X.em[0][1] + v * X.em[1][1]);
   const out = { time: 0, cost: 0, len: d, onPath: 0, hs: [], parts: { path: 0, off: 0, up: 0, down: 0, cross: 0, xn: 0 } };
-  const cr = X.C.cross, xp = X.C.xp;
+  const cr = X.C.cross, xp = X.C.xp, tun = X.tun;
   if (!d) return out;
   const n = Math.max(1, Math.ceil(d / (X.mpc / 2))), L = d / n;
   let ka = at(x0, y0);
   for (let s = 1; s <= n; s++) {
     const kb = at(x0 + (u * s) / n, y0 + (v * s) / n);
     let fa = f[ka], fb = f[kb];
+    if (tun) { if (!(fa < Infinity) && tun[ka]) fa = tun[ka]; if (!(fb < Infinity) && tun[kb]) fb = tun[kb]; }
     if (!(fa < Infinity) || !(fb < Infinity)) { if (cap == null) return null; fa = Math.min(cap, fa); fb = Math.min(cap, fb); }
     const g = X.h ? Math.max(-1, Math.min(1, (X.h[kb] - X.h[ka]) / L)) : 0;
     const flat = L * ((fa + fb) / 2), tm = flat * slopeFactor(g, climb), onP = X.C.isPath[ka] && X.C.isPath[kb];
@@ -1869,7 +2209,7 @@ function legSearchOnce(X, pa, pb, relax) {
     const first = astar(X, a, b, reg);
     if (!first) return { routes: null, dec: null };
     let c0 = 0;
-    for (let q = 1; q < first.length; q++) { const u = first[q - 1], v = first[q], ui = u % nx, vi = v % nx, n = NBN.get((vi - ui) * 8 + (v - vi) / nx - (u - ui) / nx); c0 += Math.max(0, stepCost(X, u, v, n)); }
+    for (let q = 1; q < first.length; q++) { const u = first[q - 1], v = first[q], ui = u % nx, vi = v % nx, n = NBN.get((vi - ui) * 8 + (v - vi) / nx - (u - ui) / nx); c0 += n == null ? (linkOf(X, u, v) || [0])[0] : Math.max(0, stepCost(X, u, v, n)); }
     const lim = c0 * extra + Math.max(4, 0.015 * c0) + 1e-6 * c0 + 1;
     const bi0 = b % nx, bj0 = (b - bi0) / nx, fl = X.C.fMin * 0.9;
     const F = tree(X, a, reg, false, lim, (k) => { const i = k % nx, dx = bi0 - i, dy = bj0 - (k - i) / nx; return fl * Math.hypot(dx * X.em[0][0] + dy * X.em[1][0], dx * X.em[0][1] + dy * X.em[1][1]); });
