@@ -159,6 +159,7 @@ async function listPage(main, q) {
       ${D.admin ? html`<label class="check" style="margin-left:auto"><input type="checkbox" id="mg-all" ${raw(all ? "checked" : "")}> ${t("mg.f.allEvents")}</label>` : ""}
     </div>
     <section class="card"><div id="mg-list" class="mg-list"></div></section>
+    <div id="mg-orphans"></div>
     <div id="mg-mine"></div>`;
   const draw = () => {
     const now = today(), s = normalise($("#mg-q").value || "");
@@ -199,6 +200,24 @@ async function listPage(main, q) {
     location.hash = href({ tous: e.target.checked ? 1 : 0 });
   });
   draw();
+  // an administrator's view of every event: the map analyses no event holds any more (owner, 2026-11-22: deleting an event leaves
+  // what it published — its analysis stayed in Coach › Analyse with nowhere to manage it), each to its own page, where it can be
+  // deleted
+  if (D.admin && all) {
+    const held = new Set(D.events.map((e) => e.analysis).filter(Boolean)), races = new Set(D.events.map((e) => e.race).filter(Boolean));
+    const orphans = [...S.analyses.values()].filter((a) => !held.has(a.id) && !(a.race && races.has(a.race)))
+      .sort((a, b) => (b.date || "").localeCompare(a.date || "") || (a.title || "").localeCompare(b.title || ""));
+    if (orphans.length) {
+      const state = (a) => (a.draft && a.openAt ? t("mg.chip.anLater", { when: fmtWhen(a.openAt) }) : a.draft ? t("mg.chip.anDraft") : t("mg.chip.anLive"));
+      $("#mg-orphans").innerHTML = html`<section class="card" style="margin-top:16px"><div class="card-head"><h2>${t("mg.orphans.title", { n: orphans.length })}</h2></div>
+        <div class="card-body"><p class="muted" style="margin-top:0">${t("mg.orphans.lede")}</p>
+        <div class="table-wrap"><table class="data compact"><thead><tr><th>${t("f.date")}</th><th>${t("mg.orphans.col.title")}</th><th>${t("mg.orphans.col.by")}</th>
+          <th class="r">${t("sh.col.courses")}</th><th class="r">${t("ma.col.runners")}</th><th>${t("mg.orphans.col.state")}</th><th></th></tr></thead>
+        <tbody>${orphans.map((a) => html`<tr><td class="num">${fmtDate(a.date, "short")}</td><td><b>${a.title || "—"}</b></td><td>${a.ownerName || "—"}</td>
+          <td class="r num">${a.courses ?? "—"}</td><td class="r num">${a.runners ?? 0}</td><td>${state(a)}</td>
+          <td><a class="btn btn-sm" href="#/orga-analyses?id=${encodeURIComponent(a.id)}">${t("mg.orphans.manage")}</a></td></tr>`)}</tbody></table></div></div></section>`;
+    }
+  }
   // the requests the account sent, still waiting
   if (D.requests.length) {
     $("#mg-mine").innerHTML = html`<section class="card" style="margin-top:16px"><div class="card-head"><h2>${t("mg.sent.title")}</h2></div>

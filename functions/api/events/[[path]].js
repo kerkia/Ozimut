@@ -13,7 +13,8 @@
 //   POST   /api/events/migrate             administrators: events made from what organisers did before (idempotent)
 //   GET    /api/events/<id>                members: the event, its team and requests; others: what the join screen needs
 //   PUT    /api/events/<id>                members: the description, { analysis } its map analysis
-//   DELETE /api/events/<id>                members: removed (what was published stays, for an administrator to decide)
+//   DELETE /api/events/<id>                members: removed, with the map analysis it holds (2026-11-22); its start list and
+//                                          results in Arena stay for a linked competition, an unlinked one's go
 //   POST   /api/events/<id>/link           members: { key } linked (or a request to the administrators), { key: null } detached
 //   POST   /api/events/<id>/approve        administrators: { ok } a waiting link approved or refused
 //   POST   /api/events/<id>/join           anyone but members: { message? } a request to join the team
@@ -23,7 +24,7 @@
 import { allow, isAdmin, json, nowIso, parisToday, readBody, withUser } from "../../_lib/api.js";
 import { DECLARED, agendaRace, clubLabel, clubOf, findRace, orgCode, raceOf } from "../../_lib/club.js";
 import { acceptedCountries, memberships, validCountry } from "../../_lib/countries.js";
-import { TYPES, eventOf, formOf, kindOf, linked, mirror, newId, racing, ready, shortName, typeOf } from "../../_lib/events.js";
+import { TYPES, dropAnalyses, eventOf, formOf, kindOf, linked, mirror, newId, racing, ready, shortName, typeOf } from "../../_lib/events.js";
 import { flushPush, queuePush } from "../../_lib/push.js";
 import { eventPush } from "../../_lib/templates.js";
 import { broadcasts } from "../../_lib/live.js";
@@ -352,7 +353,9 @@ export const onRequest = withUser(async ({ request, env, params, waitUntil }, us
       env.DB.prepare("UPDATE event_requests SET status = 'withdrawn', answered_at = ? WHERE event_id = ? AND status = 'pending'").bind(now, id),
     ]);
     await mirror(env, { ...ev, status: "removed" });
-    return json({ ok: true, soon: ev.race_key === `d${id}` ? await startRun(env) : false });
+    // its map analysis goes with it (owner, 2026-11-22: it stayed in Coach › Analyse, nowhere to manage it)
+    const analyses = await dropAnalyses(env, ev);
+    return json({ ok: true, analyses, soon: ev.race_key === `d${id}` ? await startRun(env) : false });
   }
   return json({ error: "method" }, 405);
 });

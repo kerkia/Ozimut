@@ -121,6 +121,39 @@ export async function claimed(env, request, key) {
   return !!ev && linked(ev.race_key);
 }
 
+/**
+ * Deletes the map analyses an event holds (owner, 2026-11-22: a deleted event's analysis stayed in Coach › Analyse, with nowhere
+ * to manage it): its own (`events.analysis`) and a competition's analysis tied to its competition's key — as the analysis's own
+ * DELETE does, every file under it, its traces included. Returns how many were deleted.
+ */
+export async function dropAnalyses(env, ev) {
+  if (!env.BUCKET) return 0;
+  const list = async (prefix, include) => {
+    const out = [];
+    let cursor;
+    do {
+      const r = await env.BUCKET.list({ prefix, cursor, limit: 1000, include: include ? ["customMetadata"] : undefined });
+      out.push(...r.objects);
+      cursor = r.truncated ? r.cursor : undefined;
+    } while (cursor);
+    return out;
+  };
+  const ids = new Set(ev.analysis ? [ev.analysis] : []);
+  if (ev.race_key) {
+    for (const o of await list("analyses-meta/", true)) {
+      const m = o.customMetadata || {};
+      if (m.kind === "race" && m.race === ev.race_key && m.id) ids.add(m.id);
+    }
+  }
+  for (const id of ids) {
+    if (!/^[a-z0-9]{6,32}$/.test(id)) continue;
+    const keys = (await list(`analyses/${id}/`, false)).map((o) => o.key);
+    for (let i = 0; i < keys.length; i += 1000) await env.BUCKET.delete(keys.slice(i, i + 1000));
+    await env.BUCKET.delete(`analyses-meta/${id}.json`);
+  }
+  return ids.size;
+}
+
 /** Writes (or retires) the R2 mirror of an unlinked competition, read by the results run as a declared competition. */
 export async function mirror(env, ev) {
   if (!env.BUCKET) return;
