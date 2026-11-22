@@ -1566,17 +1566,30 @@ function step(X, a, b, n) {
   const x = X.C.cross && crosses(X.C.cross, X.G.nx, a, b, n) ? X.C.xp : 0;
   return [tm + x, tm * ((r[a] + r[b]) / 2) + x];
 }
+/** A step's cost alone (step()'s second value, the same arithmetic), -1 when either cell is closed: the searches' inner loop,
+ *  where an array made per step was a third of their time. */
+function stepCost(X, a, b, n) {
+  const f = X.C.f, fa = f[a], fb = f[b];
+  if (!(fa < Infinity) || !(fb < Infinity)) return -1;
+  const L = X.len[n], g = X.h ? (X.h[b] - X.h[a]) / L : 0, r = X.C.r;
+  const tm = L * ((fa + fb) / 2) * slopeFactor(g, X.s.climb ?? DEFAULTS.climb);
+  const x = X.C.cross && crosses(X.C.cross, X.G.nx, a, b, n) ? X.C.xp : 0;
+  return tm * ((r[a] + r[b]) / 2) + x;
+}
+const NBX = Int8Array.from(NB, (d) => d[0]), NBY = Int8Array.from(NB, (d) => d[1]);
+const NBN = new Map(NB.map(([dx, dy], n) => [dx * 8 + dy, n]));                       // a step's number from its (dx, dy)
 /** Whether the step n from cell (i, j) squeezes between blocked cells: a diagonal between two, a knight's move over one. */
 function squeezed(X, i, j, n) {
-  const { nx } = X.G, f = X.C.f, [dx, dy] = NB[n];
-  if (n >= 4 && n < 8) {
+  if (n < 4) return false;
+  const { nx } = X.G, f = X.C.f, dx = NBX[n], dy = NBY[n];
+  if (n < 8) {
     const p = j * nx + i + dx, q = (j + dy) * nx + i;
     if (f[p] < Infinity || f[q] < Infinity) return false;
     // a leg that found no way otherwise (X.loose) slips between two house corners — a lane read one cell wide, slantwise —, never
     // across a wall
     return !X.loose || !!(X.G.block?.[p] || X.G.block?.[q]);
   }
-  if (n >= 8) { const sx = Math.sign(dx), sy = Math.sign(dy), m1 = Math.abs(dx) === 2 ? j * nx + i + sx : (j + sy) * nx + i, m2 = (j + sy) * nx + i + sx; return !(f[m1] < Infinity) || !(f[m2] < Infinity); }
+  { const sx = Math.sign(dx), sy = Math.sign(dy), m1 = Math.abs(dx) === 2 ? j * nx + i + sx : (j + sy) * nx + i, m2 = (j + sy) * nx + i + sx; return !(f[m1] < Infinity) || !(f[m2] < Infinity); }
   return false;
 }
 
@@ -1596,13 +1609,13 @@ function astar(X, a, b, reg) {
     if (k === b) break;
     const i = k % nx, j = (k - i) / nx;
     for (let n = 0; n < 16; n++) {
-      const [dx, dy] = NB[n], I = i + dx, J = j + dy;
+      const I = i + NBX[n], J = j + NBY[n];
       if (I < i0 || J < j0 || I > i1 || J > j1) continue;
       const q = J * nx + I, lq = (J - j0) * rw + (I - i0);
       if (done[lq] || !reg.inside[lq] || squeezed(X, i, j, n)) continue;
-      const st = step(X, k, q, n);
-      if (!st) continue;
-      const v = g[lk] + st[1];
+      const st = stepCost(X, k, q, n);
+      if (st < 0) continue;
+      const v = g[lk] + st;
       if (v < g[lq]) { g[lq] = v; from[lq] = k; H.push(v + hOf(q), q); }
     }
   }
@@ -1614,25 +1627,27 @@ function astar(X, a, b, reg) {
 
 /** A complete shortest-path tree over the region from src (reverse: the costs of reaching src): per region cell its cost g and
  *  par, the next cell toward src. */
-function tree(X, src, reg, reverse) {
+function tree(X, src, reg, reverse, lim = Infinity, rest = null) {
   const { nx } = X.G, { i0, j0, i1, j1, rw } = reg, RN = rw * (j1 - j0 + 1);
   const loc = (k) => { const i = k % nx; return ((k - i) / nx - j0) * rw + (i - i0); };
   const g = new Float64Array(RN).fill(Infinity), par = new Int32Array(RN).fill(-1), done = new Uint8Array(RN);
-  const H = new Heap();
+  const H = new Heap(), f = X.C.f;
   g[loc(src)] = 0; H.push(0, src);
   while (H.n) {
     const k = H.pop(), lk = loc(k);
     if (done[lk]) continue;
     done[lk] = 1;
+    // lim, rest(k): a cell through which no route costs lim or less (its cost so far and the least the rest costs) leads nowhere
+    if (rest && g[lk] + rest(k) > lim) continue;
     const i = k % nx, j = (k - i) / nx;
     for (let n = 0; n < 16; n++) {
-      const [dx, dy] = NB[n], I = i + dx, J = j + dy;
+      const I = i + NBX[n], J = j + NBY[n];
       if (I < i0 || J < j0 || I > i1 || J > j1) continue;
       const q = J * nx + I, lq = (J - j0) * rw + (I - i0);
-      if (done[lq] || !reg.inside[lq] || squeezed(X, i, j, n)) continue;
-      const st = reverse ? step(X, q, k, OPP[n]) : step(X, k, q, n);
-      if (!st) continue;
-      const v = g[lk] + st[1];
+      if (done[lq] || !reg.inside[lq] || !(f[q] < Infinity) || squeezed(X, i, j, n)) continue;
+      const st = reverse ? stepCost(X, q, k, OPP[n]) : stepCost(X, k, q, n);
+      if (st < 0) continue;
+      const v = g[lk] + st;
       if (v < g[lq]) { g[lq] = v; par[lq] = k; H.push(v, q); }
     }
   }
@@ -1779,12 +1794,19 @@ function cellMetres(X, a, b) {
 /** A search region: the cells whose distances to a and b add up to 2 semi metres at most. */
 function ellipse(X, a, b, semi) {
   const { nx, ny } = X.G, ai = a % nx, aj = (a - ai) / nx, bi = b % nx, bj = (b - bi) / nx;
-  const mOf = (di, dj) => Math.hypot(di * X.em[0][0] + dj * X.em[1][0], di * X.em[0][1] + dj * X.em[1][1]);
   const R = Math.ceil(semi / X.mpc), ci = (ai + bi) / 2, cj = (aj + bj) / 2;
   const reg = { i0: Math.max(0, Math.floor(ci - R)), j0: Math.max(0, Math.floor(cj - R)), i1: Math.min(nx - 1, Math.ceil(ci + R)), j1: Math.min(ny - 1, Math.ceil(cj + R)) };
   reg.rw = reg.i1 - reg.i0 + 1;
   reg.inside = new Uint8Array(reg.rw * (reg.j1 - reg.j0 + 1));
-  for (let j = reg.j0; j <= reg.j1; j++) for (let i = reg.i0; i <= reg.i1; i++) reg.inside[(j - reg.j0) * reg.rw + i - reg.i0] = mOf(i - ai, j - aj) + mOf(i - bi, j - bj) <= 2 * semi ? 1 : 0;
+  // (square roots, not Math.hypot: a fifth of a leg's search went into this mask)
+  const e00 = X.em[0][0], e10 = X.em[1][0], e01 = X.em[0][1], e11 = X.em[1][1], two = 2 * semi;
+  for (let j = reg.j0; j <= reg.j1; j++) {
+    const ja = j - aj, jb = j - bj, row = (j - reg.j0) * reg.rw - reg.i0;
+    for (let i = reg.i0; i <= reg.i1; i++) {
+      const ia = i - ai, ib = i - bi, xa = ia * e00 + ja * e10, ya = ia * e01 + ja * e11, xb = ib * e00 + jb * e10, yb = ib * e01 + jb * e11;
+      reg.inside[row + i] = Math.sqrt(xa * xa + ya * ya) + Math.sqrt(xb * xb + yb * yb) <= two ? 1 : 0;
+    }
+  }
   return reg;
 }
 /** Whether a route is locally optimal: every stretch of `share` of its length (seven tested) costs at most 1 % (and 1 m) more
@@ -1840,7 +1862,18 @@ function legSearchOnce(X, pa, pb, relax) {
   }
   try {
     const wantN = Math.max(1, Math.min(4, X.s.variants ?? DEFAULTS.variants)), extra = 1 + (X.s.extra ?? DEFAULTS.extra) / 100;
-    const F = tree(X, a, reg, false), B = tree(X, b, reg, true), loc = F.loc;
+    // the best way first (A*), then the two trees only as far as a route worth showing can reach: a cell whose best route
+    // through it costs more than the slowest variant kept (and the valleys' prominence beyond it) is on none, nor on the way
+    // of one — the forward tree stops where its cost and the least the rest can cost pass that, the backward one where the
+    // two costs do. The same routes as from the whole region, in a fraction of its cells (2026-11-22: a scan's legs took 8-11 s)
+    const first = astar(X, a, b, reg);
+    if (!first) return { routes: null, dec: null };
+    let c0 = 0;
+    for (let q = 1; q < first.length; q++) { const u = first[q - 1], v = first[q], ui = u % nx, vi = v % nx, n = NBN.get((vi - ui) * 8 + (v - vi) / nx - (u - ui) / nx); c0 += Math.max(0, stepCost(X, u, v, n)); }
+    const lim = c0 * extra + Math.max(4, 0.015 * c0) + 1e-6 * c0 + 1;
+    const bi0 = b % nx, bj0 = (b - bi0) / nx, fl = X.C.fMin * 0.9;
+    const F = tree(X, a, reg, false, lim, (k) => { const i = k % nx, dx = bi0 - i, dy = bj0 - (k - i) / nx; return fl * Math.hypot(dx * X.em[0][0] + dy * X.em[1][0], dx * X.em[0][1] + dy * X.em[1][1]); });
+    const loc = F.loc, B = tree(X, b, reg, true, lim, (k) => F.g[loc(k)]);
     const best = F.g[loc(b)];
     if (!(best < Infinity)) return { routes: null, dec: null };
     const { i0, j0, i1, j1, rw } = reg, rh = j1 - j0 + 1, RN = rw * rh;
