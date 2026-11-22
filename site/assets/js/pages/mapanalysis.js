@@ -170,6 +170,18 @@ export async function render(main, r) {
         <td class="ma-name"><b class="ma-ev">${e.name}</b>${e.locked ? html` <span title="${t("ma.locked")}">🔒</span>` : ""}${clubTag(e)}<div class="muted ma-sub ma-l2">${[e.place, clubName(e.org)].filter(Boolean).join(" · ") || "—"}</div></td>
         <td class="r num">${e.courses ?? "—"}<div class="ma-l2 muted">${e.runners ?? "—"}</div></td></tr>`)}</tbody></table>`
       : html`<div class="empty">${t(items.length ? "ra.emptyFilter" : "ma.events.none")}</div>`;
+    // no event of this country but events elsewhere (owner, 2026-11-22: with « IOF WRE » chosen only the solos were left, and the
+    // events seemed gone): said above the list, with the countries that have some
+    if (st.type !== "solo" && !shown.some((e) => !e.solo)) {
+      const per = new Map();
+      for (const e of all) if (!e.solo && e.cc && !byKey.has(e.key) && keep(e)) per.set(e.cc, (per.get(e.cc) || 0) + 1);
+      const ccs = [...per.keys()].sort((a, b) => per.get(b) - per.get(a)).slice(0, 4);
+      if (ccs.length) {
+        const btn = (k, label) => html`<button type="button" class="btn btn-sm" data-ma-cty="${k}">${country.flagImg(k)} ${label}</button>`;
+        $("#ma-table").insertAdjacentHTML("afterbegin", html`<p class="ma-elsewhere">${t("ma.elsewhere", { country: country.name(cc) })}
+          ${ccs.map((k) => btn(k, `${country.name(k)} (${per.get(k)})`))}${per.size > 1 ? btn(country.ALL, country.name(country.ALL)) : ""}</p>`);
+      }
+    }
     // where an event comes from (named, not linked: no page leads into another module)
     $("#ma-table").insertAdjacentHTML("beforeend", html`<p class="hint ma-how">${t("ma.events.how", { path: t("mod.orga") })}</p>`);
     map?.show(shown, selected);
@@ -284,6 +296,11 @@ export async function render(main, r) {
     pop.style.left = `${Math.max(8, x)}px`; pop.style.top = `${Math.max(8, y)}px`;
   };
   const table = $("#ma-table");
+  // a country with events, offered when the one chosen has none: the site's country changes (the header's too)
+  table.addEventListener("click", (ev) => {
+    const b = ev.target.closest("[data-ma-cty]");
+    if (b) window.dispatchEvent(new CustomEvent("ocn:country", { detail: b.dataset.maCty }));
+  });
   table.addEventListener("mousemove", (ev) => {
     if (!hover.matches) return;
     const r = ev.target.closest("tr[data-key]"), e = r && byKey.get(r.dataset.key);

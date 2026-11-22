@@ -5371,6 +5371,7 @@ export default {
   "ma.col.event": "Evento",
   "ma.col.kind": "Tipo",
   "ma.events.none": "Ninguna competición ni entrenamiento tiene aún su mapa publicado aquí. Añade tu propio evento para analizar tu track sobre tu mapa.",
+  "ma.elsewhere": "Ningún análisis de evento para «{country}». Los hay para:",
   "ma.events.how": "Un evento se prepara en «{path}»: el mapa y sus recorridos. Después, los corredores añaden su track.",
   "sh.offer.title": "¿Añadir tu track?",
   "sh.offer.body": "Suelta el archivo de tu reloj o de tu teléfono (GPX, TCX o FIT): Ozimut encuentra tu recorrido y coloca tu track entre los de los demás corredores. Si solo quieres ver el análisis, cierra esta ventana.",

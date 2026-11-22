@@ -5155,6 +5155,7 @@ export default {
   "ma.col.event": "Event",
   "ma.col.kind": "Kind",
   "ma.events.none": "No competition or training session has its map published here yet. Add your own event to analyse your track on your own map.",
+  "ma.elsewhere": "No event analysis for “{country}”. There are some for:",
   "ma.events.how": "An event is set up in “{path}”: the map and its courses. The runners then add their tracks to it.",
   "sh.offer.title": "Add your track?",
   "sh.offer.body": "Drop the file from your watch or phone (GPX, TCX or FIT): Ozimut finds your course and places your track among the other runners'. To just watch the analysis, close this window.",

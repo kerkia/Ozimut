@@ -4327,6 +4327,7 @@ export default {
   "ma.col.event": "Événement",
   "ma.col.kind": "Type",
   "ma.events.none": "Aucune compétition ni aucun entraînement n'a encore sa carte publiée ici. Ajoutez votre propre événement pour analyser votre trace sur votre carte.",
+  "ma.elsewhere": "Aucune analyse d’événement pour « {country} ». Il y en a pour :",
   "ma.events.how": "Un événement se prépare dans « {path} » : la carte et ses circuits. Les coureurs y ajoutent ensuite leur trace.",
   "sh.offer.title": "Ajouter votre trace ?",
   "sh.offer.body": "Déposez le fichier de votre montre ou de votre téléphone (GPX, TCX ou FIT) : Ozimut trouve votre circuit et place votre trace parmi celles des autres coureurs. Pour seulement regarder l'analyse, fermez cette fenêtre.",

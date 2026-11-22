@@ -5371,6 +5371,7 @@ export default {
   "ma.col.event": "Veranstaltung",
   "ma.col.kind": "Art",
   "ma.events.none": "Hier hat noch kein Wettkampf und kein Training eine veröffentlichte Karte. Füge dein eigenes Event hinzu, um deinen Track auf deiner Karte zu analysieren.",
+  "ma.elsewhere": "Keine Veranstaltungsanalyse für „{country}“. Welche gibt es für:",
   "ma.events.how": "Eine Veranstaltung wird unter „{path}“ eingerichtet: die Karte und ihre Bahnen. Die Läufer fügen dann ihre Tracks hinzu.",
   "sh.offer.title": "Deinen Track hinzufügen?",
   "sh.offer.body": "Lege die Datei deiner Uhr oder deines Handys ab (GPX, TCX oder FIT): Ozimut findet deine Bahn und stellt deinen Track zu denen der anderen Läufer. Wenn du die Analyse nur ansehen willst, schließe dieses Fenster.",

@@ -2024,6 +2024,8 @@ body.full-win .ma-crumb, body.an-theatre .ma-crumb { display: none; }
   border: 1px solid var(--border-strong); box-shadow: 0 8px 26px rgba(0, 0, 0, .3); }
 .ma-pop img { display: block; width: 100%; max-height: 240px; object-fit: contain; border-radius: 5px; }
 .ma-how { margin: 10px 4px 2px; font-size: 12.5px; }
+.ma-elsewhere { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin: 4px 4px 10px; }
+.ma-elsewhere .btn { display: inline-flex; align-items: center; gap: 6px; }
 .ma-two { width: 100%; table-layout: fixed; }
 .ma-two th:nth-child(1), .ma-two td:nth-child(1) { width: 108px; }
 .ma-two th:nth-child(3), .ma-two td:nth-child(3) { width: 74px; }
