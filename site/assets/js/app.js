@@ -1113,6 +1113,14 @@ async function route_() {
     if (front.BUILD && /dynamically imported module|module script|MIME/i.test(String(e?.message || e))) {
       stampAt = 0;
       if (await siteChanged()) { location.reload(); return; }
+      // the stamp read said nothing (owner, 2026-11-22: a Firefox tab of the build before showed « error loading dynamically
+      // imported module » on Coach › Analyse and Orga until reloaded by hand): reloaded anyway, once a minute at most
+      let last = 0;
+      try { last = Number(sessionStorage.getItem("ocn.modReload")) || 0; } catch (err) { /* none */ }
+      if (Date.now() - last > 60e3) {
+        try { sessionStorage.setItem("ocn.modReload", String(Date.now())); } catch (err) { /* this once */ }
+        location.reload(); return;
+      }
     }
     main.innerHTML = html`<div class="card"><div class="empty">${t("err.load")}<br><span class="muted">${String(e.message || e)}</span></div></div>`;
   }
