@@ -159,7 +159,10 @@ function oliveModel(rgba, w, h) {
       const d0 = ((H[i] - c[0][0]) / 6) ** 2 + ((M[i] - c[0][1]) / 30) ** 2, d1 = ((H[i] - c[1][0]) / 6) ** 2 + ((M[i] - c[1][1]) / 30) ** 2, k = d0 <= d1 ? 0 : 1;
       s[k][0] += H[i]; s[k][1] += M[i]; s[k][2]++;
     }
-    c = s.map((q, k) => (q[2] ? [q[0] / q[2], q[1] / q[2], q[2]] : c[k]));
+    const c2 = s.map((q, k) => (q[2] ? [q[0] / q[2], q[1] / q[2], q[2]] : c[k]));
+    const same = c2.every((q, k) => q[0] === c[k][0] && q[1] === c[k][1] && q[2] === c[k][2]);
+    c = c2;
+    if (same) break;                                   // settled: the passes left would change nothing
   }
   const [y, o] = c[0][1] >= c[1][1] ? c : [c[1], c[0]];
   if (o[1] < 205 && y[1] - o[1] >= 40 && o[2] >= 0.1 * H.length && y[2] >= 0.1 * H.length) Object.assign(out, { oh: o[0], om: o[1], yh: y[0], ym: y[1] });
@@ -271,32 +274,39 @@ function lineWidth(mask, w, h, value) {
   return Math.max(1, runs[Math.floor(runs.length / 4)]);
 }
 
-/** Erosion (all) or dilation (any) of a binary mask by a (2k + 1) square, separable, with running counts (outside = 0). */
+/** Erosion (all) or dilation (any) of a binary mask by a (2k + 1) square, separable (outside = 0): the rows by their runs
+ *  of ones — a run loses k at each end, or gains them —, the columns in one pass down the image, a count per column (the ones in
+ *  a row above each pixel for the erosion, the last row with a one for the dilation). The same result as counting each
+ *  window, a third of the time (a 300 dpi scan asks for it fifty times). */
 function morph(m, w, h, k, erode) {
   const tmp = new Uint8Array(w * h), out = new Uint8Array(w * h), win = 2 * k + 1;
-  // a line of `len` pixels from `base`, `st` apart (plain index arithmetic: a closure per pixel cost a scan 25 s)
-  const pass = (src, dst, len, count, lineStep, st) => {
-    for (let line = 0; line < count; line++) {
-      const base = line * lineStep;
-      let n = 0;
-      for (let x = 0; x < Math.min(k, len); x++) n += src[base + x * st];
-      for (let x = 0; x < len; x++) {
-        if (x + k < len) n += src[base + (x + k) * st];
-        if (x - k - 1 >= 0) n -= src[base + (x - k - 1) * st];
-        dst[base + x * st] = erode ? (n === win ? 1 : 0) : n > 0 ? 1 : 0;
-      }
-    }
-  };
-  pass(m, tmp, w, h, w, 1);
-  // the columns row by row, a running count per column (walking a column down a large map missed the cache at every pixel)
-  const cnt = new Int32Array(w);
-  for (let y = 0; y < Math.min(k, h); y++) for (let x = 0, r = y * w; x < w; x++) cnt[x] += tmp[r + x];
+  // four pixels at a time where the mask is empty (most masks are: one ink's thick parts)
+  const m32 = m.byteOffset % 4 === 0 ? new Uint32Array(m.buffer, m.byteOffset, (w * h) >> 2) : null;
   for (let y = 0; y < h; y++) {
-    if (y + k < h) for (let x = 0, r = (y + k) * w; x < w; x++) cnt[x] += tmp[r + x];
-    if (y - k - 1 >= 0) for (let x = 0, r = (y - k - 1) * w; x < w; x++) cnt[x] -= tmp[r + x];
-    const r = y * w;
-    if (erode) for (let x = 0; x < w; x++) out[r + x] = cnt[x] === win ? 1 : 0;
-    else for (let x = 0; x < w; x++) out[r + x] = cnt[x] > 0 ? 1 : 0;
+    const r = y * w, end = r + w;
+    for (let i = r; i < end; i++) {
+      if (!m[i]) { if (m32 && !(i & 3)) { let q = i; while (q + 8 <= end && !m32[q >> 2]) q += 4; if (q > i) i = q - 1; } continue; }
+      let j = i + 1;
+      while (j < end && m[j]) j++;                     // a run of ones [i, j)
+      if (erode) { if (j - i >= win) tmp.fill(1, i + k, j - k); }
+      else tmp.fill(1, Math.max(r, i - k), Math.min(end, j + k));
+      i = j;
+    }
+  }
+  if (erode) {
+    const run = new Int32Array(w);                     // the ones in a row above (and at) each pixel of the current row
+    for (let y = 0; y < h; y++) {
+      const r = y * w, o = (y - k) * w;
+      if (y >= win - 1) { for (let x = 0; x < w; x++) { const n = tmp[r + x] ? run[x] + 1 : 0; run[x] = n; if (n >= win) out[o + x] = 1; } }
+      else for (let x = 0; x < w; x++) run[x] = tmp[r + x] ? run[x] + 1 : 0;
+    }
+    return out;
+  }
+  const last = new Int32Array(w).fill(-win - 1);       // the last row (up to y + k) with a one, per column
+  for (let y = -k; y < h; y++) {
+    const yr = y + k;
+    if (yr < h) for (let x = 0, r = yr * w; x < w; x++) if (tmp[r + x]) last[x] = yr;
+    if (y >= 0) { const lim = y - k; for (let x = 0, o = y * w; x < w; x++) if (last[x] >= lim) out[o + x] = 1; }
   }
   return out;
 }
@@ -304,8 +314,8 @@ function morph(m, w, h, k, erode) {
 /** Connected components (8-neighbours) of a binary mask: labels (0 = none) and, per label, size, bounding box and, with
  *  `moments`, the sums of x, y, x², y², xy (for its main direction). */
 function components(m, w, h, moments = false) {
-  const lab = new Int32Array(w * h), stack = new Int32Array(w * h), comps = [null];
-  for (let s = 0; s < m.length; s++) {
+  const N = w * h, lab = new Int32Array(N), stack = new Int32Array(N), comps = [null];
+  for (let s = 0; s < N; s++) {
     if (!m[s] || lab[s]) continue;
     const id = comps.length;
     let top = 0, n = 0, x0 = w, y0 = h, x1 = 0, y1 = 0, sx = 0, sy = 0, sxx = 0, syy = 0, sxy = 0;
@@ -314,11 +324,21 @@ function components(m, w, h, moments = false) {
       const i = stack[--top], x = i % w, y = (i - x) / w;
       n++; if (x < x0) x0 = x; if (x > x1) x1 = x; if (y < y0) y0 = y; if (y > y1) y1 = y;
       if (moments) { sx += x; sy += y; sxx += x * x; syy += y * y; sxy += x * y; }
-      for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) {
-        const X = x + dx, Y = y + dy;
-        if (X < 0 || Y < 0 || X >= w || Y >= h) continue;
-        const j = Y * w + X;
+      const l = x > 0, r = x < w - 1;
+      let j;
+      if (y > 0) {
+        j = i - w;
+        if (l && m[j - 1] && !lab[j - 1]) { lab[j - 1] = id; stack[top++] = j - 1; }
         if (m[j] && !lab[j]) { lab[j] = id; stack[top++] = j; }
+        if (r && m[j + 1] && !lab[j + 1]) { lab[j + 1] = id; stack[top++] = j + 1; }
+      }
+      if (l && m[i - 1] && !lab[i - 1]) { lab[i - 1] = id; stack[top++] = i - 1; }
+      if (r && m[i + 1] && !lab[i + 1]) { lab[i + 1] = id; stack[top++] = i + 1; }
+      if (y < h - 1) {
+        j = i + w;
+        if (l && m[j - 1] && !lab[j - 1]) { lab[j - 1] = id; stack[top++] = j - 1; }
+        if (m[j] && !lab[j]) { lab[j] = id; stack[top++] = j; }
+        if (r && m[j + 1] && !lab[j + 1]) { lab[j + 1] = id; stack[top++] = j + 1; }
       }
     }
     comps.push(moments ? { n, x0, y0, x1, y1, sx, sy, sxx, syy, sxy } : { n, x0, y0, x1, y1 });
@@ -343,7 +363,21 @@ function northLines(kind, rgba, w, h, mpp, nmask) {
   const bluish = (i) => { const p = 4 * i, r = rgba[p], g = rgba[p + 1], b = rgba[p + 2]; return b >= r + 8 && b >= g + 3 && b - Math.min(r, g) <= 0.75 * b; };
   for (const ink of [I_BLUE, I_BLACK]) {
     const acc = new Int32Array(NA * NR);
-    const on = ink === I_BLUE ? (i) => kind[i] === I_BLUE || (kind[i] < 20 && bluish(i)) : (i) => kind[i] === I_BLACK;
+    // the ink's pixels, once (and `near`: those with ink within hw along their row — what a line's search asks at each row)
+    const onM = new Uint8Array(w * h), near = new Uint8Array(w * h);
+    if (ink === I_BLUE) { for (let i = 0; i < onM.length; i++) if (kind[i] === I_BLUE || (kind[i] < 20 && bluish(i))) onM[i] = 1; }
+    else for (let i = 0; i < onM.length; i++) if (kind[i] === I_BLACK) onM[i] = 1;
+    const on = (i) => onM[i] === 1;
+    for (let y = 0; y < h; y++) {
+      const row = y * w, end = row + w;
+      for (let i = row; i < end; i++) {
+        if (!onM[i]) continue;
+        let j = i + 1;
+        while (j < end && onM[j]) j++;
+        near.fill(1, Math.max(row, i - hw), Math.min(end, j + hw));
+        i = j;
+      }
+    }
     for (let y = 0; y < h; y++) {
       const row = y * w;
       for (let x = 0; x < w;) {
@@ -380,7 +414,8 @@ function northLines(kind, rgba, w, h, mpp, nmask) {
       for (let y = 0; y < h; y++) {
         const xc = Math.round(xAt(p.a, p.r, y));
         let hit = false;
-        for (let x = Math.max(0, xc - hw); x <= Math.min(w - 1, xc + hw) && !hit; x++) if (on(y * w + x)) hit = true;
+        if (xc >= 0 && xc < w) hit = near[y * w + xc] === 1;
+        else for (let x = Math.max(0, xc - hw); x <= Math.min(w - 1, xc + hw) && !hit; x++) if (onM[y * w + x]) hit = true;
         if (hit) { n++; if (y0 < 0) y0 = y; y1 = y; }
       }
       p.n = n; p.span = y1 - y0;
@@ -834,19 +869,15 @@ export function classify(rgba0, w, h, mpp, opt = {}, progress = () => {}) {
   }
   progress(0.6);
   // the thin black lines: the paths' network (and also fences, walls, long cliffs — what they are is the settings' choice)
-  const thin = new Uint8Array(N), black = new Uint8Array(N);
-  const darkGrey = (i) => { const p = 4 * i, mx = Math.max(rgba[p], rgba[p + 1], rgba[p + 2]); return mx < 170 && mx - Math.min(rgba[p], rgba[p + 1], rgba[p + 2]) < 24; };
-  for (let i = 0; i < N; i++) if ((kind[i] === I_BLACK || (kind[i] === I_GREY && darkGrey(i))) && !darkThick[i] && area[i] === UNKNOWN) { thin[i] = 1; black[i] = kind[i] === I_BLACK ? 1 : 0; }
-  const path = new Uint8Array(N), lines = lineNetwork(thin, black, w, h, mpp, path);
-  // a sprint map's walls and fences are its black lines however short: the network keeps the pieces that chain 30 m (a forest's
-  // paths), and the short walls and fences of a town were no obstacle at all — routes went through them (the Auray MD photo's
-  // 8-9, 9-10, 11-12: 2026-11-18). Any thin black piece 3 m long at least is one (dots and short ticks are not)
-  if (opt.map === "sprint") {
-    const blk = new Uint8Array(N);
-    for (let i = 0; i < N; i++) if (thin[i] && black[i]) blk[i] = 1;
-    const { lab, comps } = components(blk, w, h), minL = 3 / mpp;
-    const keep = comps.map((c) => !!c && Math.hypot(c.x1 - c.x0 + 1, c.y1 - c.y0 + 1) >= minL);
-    for (let i = 0; i < N; i++) if (lab[i] && keep[lab[i]] && !path[i]) path[i] = PATH.SMALL;
+  // (a sprint map's black lines are read as objects afterwards — sprintObjects, sprintLayers: walls, never paths — so its
+  // network is not traced: two seconds of a scan's reading, 2026-11-22)
+  const path = new Uint8Array(N);
+  let lines = { chains: 0 };
+  if (opt.map !== "sprint") {
+    const thin = new Uint8Array(N), black = new Uint8Array(N);
+    const darkGrey = (i) => { const p = 4 * i, mx = Math.max(rgba[p], rgba[p + 1], rgba[p + 2]); return mx < 170 && mx - Math.min(rgba[p], rgba[p + 1], rgba[p + 2]) < 24; };
+    for (let i = 0; i < N; i++) if ((kind[i] === I_BLACK || (kind[i] === I_GREY && darkGrey(i))) && !darkThick[i] && area[i] === UNKNOWN) { thin[i] = 1; black[i] = kind[i] === I_BLACK ? 1 : 0; }
+    lines = lineNetwork(thin, black, w, h, mpp, path);
   }
   progress(0.85);
   const blue = new Uint8Array(N);
@@ -867,21 +898,6 @@ export function classify(rgba0, w, h, mpp, opt = {}, progress = () => {}) {
   // since near the course's controls the overprint is the course's own circles and lines (releaseAround) and the ground under them,
   // kept here, is what counts (2026-11-17: it was overwritten, so a released cell became runnable forest: the routes of the Auray
   // sprint photo ran straight through the buildings and gardens round every control)
-  // a sprint map's black lines are walls, but the outline round a building, an out-of-bounds area or water is no wall of its own:
-  // what it bounds is closed already, and in every cell beside it a lane 2-3 m wide between two outlined houses read as a wall —
-  // the lanes the runners of the Auray photo took were shut (2026-11-18). A line pixel within 2 px of such an area is its outline
-  if (opt.map === "sprint") {
-    const closed = (v) => v === A.GREY || v === A.BUILDING || v === A.OOB || v === A.WATER;
-    const R = 2, drop = [];
-    for (let y = R; y < h - R; y++) for (let x = R; x < w - R; x++) {
-      const i = y * w + x;
-      if (!path[i]) continue;
-      let near = false;
-      for (let dy = -R; dy <= R && !near; dy++) for (let dx = -R; dx <= R; dx++) if (Math.abs(dx) + Math.abs(dy) <= R && closed(area[i + dy * w + dx])) { near = true; break; }
-      if (near) drop.push(i);
-    }
-    for (const i of drop) path[i] = 0;
-  }
   progress(1);
   // the course's reddish ink (sprintObjects: the course's own lines are no walls)
   let redInk = null;
@@ -905,12 +921,18 @@ const D8 = [[1, 0], [1, 1], [0, 1], [-1, 1], [-1, 0], [-1, -1], [0, -1], [1, -1]
 /** Zhang-Suen thinning of a binary mask (a copy). */
 function thin1(m, w, h) {
   const s = m.slice(), del = [];
+  // the pixels still set, in the image's order (the passes walk them, not the whole image: a scan's thinning took 2 s)
+  let n = 0;
+  for (let y = 1; y < h - 1; y++) for (let x = 1, i = y * w + 1; x < w - 1; x++, i++) if (s[i]) n++;
+  const act = new Int32Array(n);
+  n = 0;
+  for (let y = 1; y < h - 1; y++) for (let x = 1, i = y * w + 1; x < w - 1; x++, i++) if (s[i]) act[n++] = i;
   for (let changed = true; changed;) {
     changed = false;
     for (const pass of [0, 1]) {
       del.length = 0;
-      for (let y = 1; y < h - 1; y++) for (let x = 1; x < w - 1; x++) {
-        const i = y * w + x;
+      for (let k = 0; k < n; k++) {
+        const i = act[k];
         if (!s[i]) continue;
         const p0 = s[i - w], p1 = s[i - w + 1], p2 = s[i + 1], p3 = s[i + w + 1], p4 = s[i + w], p5 = s[i + w - 1], p6 = s[i - 1], p7 = s[i - w - 1];
         const B = p0 + p1 + p2 + p3 + p4 + p5 + p6 + p7;
@@ -923,6 +945,9 @@ function thin1(m, w, h) {
       for (const i of del) s[i] = 0;
       if (del.length) changed = true;
     }
+    let q = 0;
+    for (let k = 0; k < n; k++) if (s[act[k]]) act[q++] = act[k];
+    n = q;
   }
   return s;
 }

@@ -840,12 +840,24 @@ function dilate(m, w, h) {
 }
 /** The share of N points of the ring (x, y, r) that are purple (a pixel of tolerance). */
 function ringScore(dil, w, h, x, y, r, N) {
+  const { c, s } = trig(N);
   let hit = 0;
   for (let k = 0; k < N; k++) {
-    const a = (2 * Math.PI * k) / N, X = Math.round(x + r * Math.cos(a)), Y = Math.round(y + r * Math.sin(a));
+    const X = Math.round(x + r * c[k]), Y = Math.round(y + r * s[k]);
     if (X >= 0 && Y >= 0 && X < w && Y < h && dil[Y * w + X]) hit++;
   }
   return hit / N;
+}
+/** The cosines and sines of N points round a circle, kept (a scan's reading asked for them a hundred million times). */
+const TRIG = new Map();
+function trig(N) {
+  let t = TRIG.get(N);
+  if (!t) {
+    t = { c: new Float64Array(N), s: new Float64Array(N) };
+    for (let k = 0; k < N; k++) { const a = (2 * Math.PI * k) / N; t.c[k] = Math.cos(a); t.s[k] = Math.sin(a); }
+    TRIG.set(N, t);
+  }
+  return t;
 }
 function refineCircle(mask, dil, w, h, x0, y0, r0) {
   // the tolerant score (a pixel of tolerance) says whether this is a ring; the strict one (the raw mask) pins its
@@ -1166,12 +1178,29 @@ function triangleAt(dil, w, h, cx0, cy0, rStar, sharp = false) {
 /** The closing of a channel (max then min over a (2k + 1) square, each separably), into `out`, `tmp` as scratch: the
  *  local background, without the dark lines thinner than the square. */
 function closing(a, w, h, k, tmp, out) {
+  // the same values as a window walked pixel by pixel, the columns' pass row by row (the cache)
   const pass = (src, dst, isMax, horiz) => {
-    for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
-      const lo = horiz ? Math.max(0, x - k) : Math.max(0, y - k), hi = horiz ? Math.min(w - 1, x + k) : Math.min(h - 1, y + k);
-      let v = isMax ? -1e9 : 1e9;
-      for (let d = lo; d <= hi; d++) { const u = horiz ? src[y * w + d] : src[d * w + x]; v = isMax ? (u > v ? u : v) : (u < v ? u : v); }
-      dst[y * w + x] = v;
+    if (horiz) {
+      for (let y = 0; y < h; y++) {
+        const r = y * w;
+        for (let x = 0; x < w; x++) {
+          const lo = x - k < 0 ? 0 : x - k, hi = x + k > w - 1 ? w - 1 : x + k;
+          let v = src[r + lo];
+          if (isMax) { for (let d = lo + 1; d <= hi; d++) { const u = src[r + d]; if (u > v) v = u; } }
+          else for (let d = lo + 1; d <= hi; d++) { const u = src[r + d]; if (u < v) v = u; }
+          dst[r + x] = v;
+        }
+      }
+      return;
+    }
+    for (let y = 0; y < h; y++) {
+      const lo = y - k < 0 ? 0 : y - k, hi = y + k > h - 1 ? h - 1 : y + k, r = y * w;
+      for (let x = 0, q = lo * w; x < w; x++) dst[r + x] = src[q + x];
+      for (let d = lo + 1; d <= hi; d++) {
+        const q = d * w;
+        if (isMax) { for (let x = 0; x < w; x++) { const u = src[q + x]; if (u > dst[r + x]) dst[r + x] = u; } }
+        else for (let x = 0; x < w; x++) { const u = src[q + x]; if (u < dst[r + x]) dst[r + x] = u; }
+      }
     }
   };
   pass(a, tmp, true, true); pass(tmp, out, true, false); pass(out, tmp, false, true); pass(tmp, out, false, false);
@@ -1271,13 +1300,16 @@ function ringCandidates(M, w, h, r, t) {
  *  photo's blur makes a side pale); `arcs`: the share of the circle in inked arcs of 20° or more (ISOM cuts a circle in
  *  a few places; hatching and text cross it in many short dots). */
 function ridgeRing(M, w, h, x, y, r, t) {
-  const n = 72, at = (X, Y) => { X = Math.round(X); Y = Math.round(Y); return X >= 0 && Y >= 0 && X < w && Y < h ? M[Y * w + X] : 0; };
-  const rd = new Float32Array(n), on = new Uint8Array(n);
+  const n = 72, T = trig(n);
+  const rd = RIDGE_RD, on = RIDGE_ON;
   for (let k = 0; k < n; k++) {
-    const a = (2 * Math.PI * k) / n, c = Math.cos(a), s = Math.sin(a);
+    const c = T.c[k], s = T.s[k];
     let v = 0, off = 0;
-    for (const d of [-1.5, -0.75, 0, 0.75, 1.5]) v = Math.max(v, at(x + (r + d) * c, y + (r + d) * s));
-    for (const d of [4, 5]) off = Math.max(off, at(x + (r - d) * c, y + (r - d) * s), at(x + (r + d) * c, y + (r + d) * s));
+    for (let q = 0; q < 9; q++) {
+      const d = RIDGE_D[q], X = Math.round(x + (r + d) * c), Y = Math.round(y + (r + d) * s);
+      const u = X >= 0 && Y >= 0 && X < w && Y < h ? M[Y * w + X] : 0;
+      if (q < 5) { if (u > v) v = u; } else if (u > off) off = u;
+    }
     rd[k] = v - off;
     on[k] = rd[k] >= 0.3 * t && v >= 0.5 * t ? 1 : 0;
   }
@@ -1289,6 +1321,7 @@ function ridgeRing(M, w, h, x, y, r, t) {
   else for (let k = 1, run = 0; k <= n; k++) { if (on[(z + k) % n]) run++; else { if (run >= 4) arcs += run; run = 0; } }
   return { score: (strong + 0.5 * weak) / 24, arcs: arcs / n };
 }
+const RIDGE_D = [-1.5, -0.75, 0, 0.75, 1.5, -4, 4, -5, 5], RIDGE_RD = new Float32Array(72), RIDGE_ON = new Uint8Array(72);
 /** The best ridge ring within two pixels and a pixel of radius of (x, y, r). */
 function bestRidge(M, w, h, x0, y0, r0, t) {
   let best = null;
