@@ -28,7 +28,8 @@ from .compute import Scorer
 from .fetch import Fetcher
 from .match import Matcher
 from .model import plain
-from .sources.clubsite import ClubSite, address_other_day, download_url, other_day, other_day_named, other_year, uploaded_before
+from .sources.clubsite import (ClubSite, address_other_day, download_url, names_race, other_day, other_day_named, other_year,
+                               uploaded_before)
 from .sources.heyries import BASE as HY_BASE, Heyries
 from .sources.helga import BASE as HG_BASE, Helga
 from .sources import broadcast, declared, upload
@@ -392,6 +393,18 @@ def site_docs(con, race, f: Fetcher, lr: LiveResultat, ws: WinSplits, hy: Heyrie
                 other_year(f"{name} {row['note'] or ''}", day):
             con.execute("DELETE FROM prov_docs WHERE race_key = ? AND url = ?", (race["key"], row["url"]))
             changed += 1
+    # and « start lists » the same page gave that are another season's or another race's results lists (« Résultats –
+    # PROVOM 2025 Jour 3 », « CNE2025_SOLunéville_HOMMES » at SO Lunéville, 2026-11-22: read by the start-list reader)
+    for row in con.execute(f"""SELECT url, parsed FROM prov_docs WHERE race_key = ? AND source = 'site'
+                               AND kind IN ({",".join("?" * len(START_KINDS))})""", (race["key"], *START_KINDS)).fetchall():
+        name = urllib.parse.unquote(urllib.parse.urlsplit(row["url"]).path.rsplit("/", 1)[-1])
+        head = (json.loads(row["parsed"]) if row["parsed"] else {}).get("head") or ""
+        text = plain(f"{name} {head}")
+        years = {int(y) for y in re.findall(r"(?<!\d)(20[0-4]\d)(?!\d)", text)}       # (« CNE2025 » too)
+        if other_day(name, day) or (years and day.year not in years) or \
+                (re.search(r"r[eé]s?u?ltats?|classement", text) and not names_race(race, f"{name} {head}")):
+            con.execute("DELETE FROM prov_docs WHERE race_key = ? AND url = ?", (race["key"], row["url"]))
+            changed += 1
     gone = False
     if sites and not f.out_of_time():
         found = cs.find(race, sites)
@@ -407,9 +420,15 @@ def site_docs(con, race, f: Fetcher, lr: LiveResultat, ws: WinSplits, hy: Heyrie
                                       (SELECT url FROM prov_docs WHERE race_key LIKE 'ol%')""", (race["key"],)).rowcount
         # unreadable files a looser search took earlier (a club's pages taken for results lists): gone once a full
         # look no longer finds them
+        # (and any result file no longer found that does not name the race: taken from a page wrongly read as the race's
+        # own — SO Lunéville's list of every season, 2026-11-22; a file naming the race stays, whatever the search reached)
         if not f.out_of_time():
-            for row in con.execute("SELECT url FROM prov_docs WHERE race_key = ? AND source = 'site' AND kind = 'unparsed'",
-                                   (race["key"],)).fetchall():
+            for row in con.execute(f"""SELECT url, kind, note FROM prov_docs WHERE race_key = ? AND source = 'site'
+                                       AND kind NOT IN ({",".join("?" * len(START_KINDS))})""",
+                                   (race["key"], *START_KINDS)).fetchall():
+                name = urllib.parse.unquote(urllib.parse.urlsplit(row["url"]).path.rsplit("/", 1)[-1])
+                if row["kind"] != "unparsed" and names_race(race, f"{name} {row['note'] or ''}"):
+                    continue
                 if row["url"] not in {u for u, _, _ in found["docs"]}:
                     con.execute("DELETE FROM prov_docs WHERE race_key = ? AND url = ?", (race["key"], row["url"]))
                     changed += 1

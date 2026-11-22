@@ -48,7 +48,10 @@ BOOK_WORDS = ("horaire", "depart", "heure de", "heures de", "creneau", "start ti
 PAGE_WORDS = ("resultat", "result", "organisation", "competition", "course", "evenement", "event", "actualite", "news",
               "archive", "saison", "orga", "programme")
 STOP = {"de", "la", "le", "du", "des", "et", "co", "course", "orientation", "club", "d", "l", "les", "en", "a", "au",
-        "regionale", "departementale", "nationale", "championnat", "ligue", "dep", "sprint", "md", "ld", "nuit"}
+        "regionale", "departementale", "nationale", "championnat", "ligue", "dep", "sprint", "md", "ld", "nuit",
+        # (a format's words name every race of that format: « Moyenne Distance Urbaine » took the club's « Nationale Nord EST
+        # Moyenne Distance » and « CO urbaine Vittel », 2026-11-22)
+        "moyenne", "longue", "distance", "urbaine", "urbain", "foret", "pedestre"}
 MONTHS = ["janvier", "fevrier", "mars", "avril", "mai", "juin", "juillet", "aout", "septembre", "octobre", "novembre", "decembre"]
 MAX_PAGES = 14                  # pages read per race and run, at most
 NOT_PAGES = ("share=", "trackback", "/feed", "replytocom", "wp-login", "/tag/", "/author/", "print=", "#respond", "/comments",
@@ -237,6 +240,20 @@ def address_other_day(url: str, d: date) -> bool:
     return other_day_named(re.sub(r"/uploads/20\d\d/[01]\d/", "/", path), d)
 
 
+def lists_races(page: str, d: date, docs: int) -> bool:
+    """A page listing many races' files — a club's « Résultats des courses » of every season, newest first — is not one
+    race's page, even when its title lines begin with this race (SO Lunéville, 2026-11-22: « Moyenne distance urbaine à
+    Baccarat — dimanche 22 novembre 2026 » on top, then 370 files of past seasons, the CF MD of Auriac among them, all
+    taken for Baccarat's). Told by its files (8 or more) and the days its body names outside the race's week (6 or more:
+    that page names 172); its menus, header, footer and margins left out, which list the club's coming events."""
+    if docs < 8:
+        return False
+    body = re.sub(r"(?is)<(script|style|nav|header|footer|aside)\b.*?</\1>", " ", page)
+    text = plain(re.sub(r"\s+", " ", htmllib.unescape(re.sub(r"<[^>]+>", " ", body))))
+    week = {((d + timedelta(days=k)).month, (d + timedelta(days=k)).day) for k in range(-3, 4)}
+    return len(days_named(text) - week) >= 6
+
+
 def headline(page: str) -> str:
     """A page's own title and the lines under it (« Résultats Sprint et KO Sprint — Publiée le 04 oct. 2026 … »), not
     its menus and margins, which list the club's other events."""
@@ -250,6 +267,12 @@ def headline(page: str) -> str:
 def race_words(race) -> set[str]:
     words = set(re.findall(r"[a-z0-9]+", plain(f"{race['name']} {race['place'] or ''}")))
     return {w for w in words - STOP if len(w) >= 4 and not w.isdigit()}
+
+
+def names_race(race, text: str) -> bool:
+    """Does a file's name or link text name the race — its day, or a word of its name or place?"""
+    low, d = plain(text), date.fromisoformat(race["date_iso"])
+    return any(t in low for t in date_tokens(d)) or names_day(low, d) or any(w in low for w in race_words(race))
 
 
 class ClubSite:
@@ -491,6 +514,10 @@ class ClubSite:
                 not other_day_named(about, d)
             before = len(found)
             links = _links(page, self.bases.get(url, url))
+            # (a list of many races' files is neither: its files must name the race themselves)
+            if (on_race_page or weekend_page) and lists_races(
+                    page, d, sum(urllib.parse.urlsplit(u).path.lower().endswith(DOC_EXT) for u, _ in links)):
+                on_race_page = weekend_page = False
             if announce and (weekend_page or (on_race_page and url not in [_root(s) + "/" for s in sites])):
                 for u, t, b in _link_ctx(page, self.bases.get(url, url)):
                     booking(u, t, b, url)
