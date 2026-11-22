@@ -138,10 +138,12 @@ const filters = () => { try { return { when: ["today", "soon", "past"], kind: ""
 const saveFilters = (f) => { try { sessionStorage.setItem(FKEY, JSON.stringify(f)); } catch (e) { /* this visit only */ } };
 
 async function listPage(main, q) {
-  // an administrator's « Tous les événements » is remembered (owner, 2026-11-12: a draft of another organiser seemed lost)
-  const ALL_KEY = "ocn.mg.all";
-  let kept = false;
-  try { kept = localStorage.getItem(ALL_KEY) === "1"; } catch (e) { /* this visit only */ }
+  // an administrator sees every event (owner, 2026-11-22: « je suis admin, je devrais tout voir »; remembered since 2026-11-12,
+  // off by default until then): « Tous les événements » ticked unless unticked on this device (a new key: an old « 0 » is not
+  // read); the server ignores ?all=1 from anyone else
+  const ALL_KEY = "ocn.mg.all2";
+  let kept = true;
+  try { kept = localStorage.getItem(ALL_KEY) !== "0"; } catch (e) { /* this visit only */ }
   const all = q.tous ? q.tous === "1" : kept;
   const [D, S] = await Promise.all([api(all ? "?all=1" : ""), states()]);
   const f = filters();
