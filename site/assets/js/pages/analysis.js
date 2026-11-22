@@ -1414,6 +1414,7 @@ export async function render(main, { query = {}, route } = {}) {
       computeLegs();
     } else { pxs = pys = fullPath = null; legs = []; total = 0; legSel = -1; }
     cutEnds();
+    rcWarm();
   }
   /** The race in legs: times and ranks from the class's splits when published, else the trace's; lengths from the trace. */
   function computeLegs() {
@@ -2727,27 +2728,53 @@ export async function render(main, { query = {}, route } = {}) {
     }
     return RC.isSprint(race) || /sprint/i.test(klass()?.name || "") ? "sprint" : "forest";
   }
-  async function rcStart() {
-    if (!rcs.on || !calibrated || !fit || !map) return;
+  /** The map's planner for the calibration in hand, made (and its reading started) if there is none for it yet. */
+  function rcPlanner(my) {
     if (!rcs.mapSet) { rcs.s.map = rcKind(); const sel = $("#rc-map"); if (sel) sel.value = rcs.s.map; }
-    const my = ++rcs.token;
     const vr = rcVector();
     const sig = [map.width, map.height, fit.m11, fit.m12, fit.m21, fit.m22, fit.tx, fit.ty].map((v) => Number(v).toFixed(5)).join(",") + (vr ? `|${vr.name || vr.v.name}` : "");
     if (!rcs.plan || rcs.planFor !== sig || rcs.planMap !== map) {
       rcs.plan?.destroy();
-      rcs.plan = RC.planner(map, (x, y) => toM(fit, x, y), vr, { map: rcs.s.map, onProgress: (f) => { if (my === rcs.token) rcReading(f); } });
-      rcs.planFor = sig; rcs.planMap = map; rcs.dem = null; rcs.pic = null;
+      rcs.plan = RC.planner(map, (x, y) => toM(fit, x, y), vr, { map: rcs.s.map, onProgress: (f) => { if (calibrated && rcs.token === rcs.reader) rcReading(f); } });
+      rcs.planFor = sig; rcs.planMap = map; rcs.dem = null; rcs.pic = null; rcs.demP = null;
     }
+    rcs.reader = my;
+    return rcs.plan;
+  }
+  /** The relief asked for once per planner, beside the map's reading (they were one after the other: 5-10 s of waiting). */
+  function rcHeights(my) {
+    if (!rcs.demP) rcs.demP = heights((f) => { if (my === rcs.token && rcs.info) rcStatus(t("rc.st.reliefPct", { p: Math.round(100 * f) }), f); });
+    rcs.demP.catch(() => {});
+    return rcs.demP;
+  }
+  /** The reading started as soon as a calibration stands, while the runner looks at it (owner, 2026-11-22: « too slow »): by
+   *  « Voir la course » the map is read, or well on its way. A second and a half after the last change, so that controls being
+   *  placed by hand do not start it again at each click. */
+  let warmT = 0;
+  function rcWarm() {
+    clearTimeout(warmT);
+    if (!rcs.on || calibrated || !fit || offset == null || !map) return;
+    warmT = setTimeout(() => {
+      if (!rcs.on || calibrated || !fit || offset == null || !map || drawing) return;
+      try { rcPlanner(rcs.token).ready.catch(() => {}); rcHeights(rcs.token); } catch (e) { console.warn(e); }
+    }, 1500);
+  }
+  async function rcStart() {
+    if (!rcs.on || !calibrated || !fit || !map) return;
+    clearTimeout(warmT);
+    const my = ++rcs.token;
+    rcPlanner(my);
     rcBusy(true);
     rcStatus(t("rc.st.reading"), 0);
     try {
       rcs.info = null;
+      const hp = rcs.dem ? null : rcHeights(my);
       rcFacts(await rcs.plan.ready);
       if (my !== rcs.token) return;
       if (!rcs.dem) {
         rcStatus(t("rc.st.relief"), 0);
         try {
-          const g = await heights((f) => { if (my === rcs.token) rcStatus(t("rc.st.reliefPct", { p: Math.round(100 * f) }), f); });
+          const g = await hp;
           if (my !== rcs.token) return;
           if (rcs.s.relief !== "dem") rcStatus(t("rc.st.contoursReading"));
           const r = await RC.reliefGrid(map, g, (x, y) => toM(fit, x, y), rcs.s);
@@ -2809,8 +2836,15 @@ export async function render(main, { query = {}, route } = {}) {
       if (twice) {
         const c = RC.calibrate(rcs.mine.map((m) => (m && m.snapped !== false ? { who: 0, actual: m.actual, parts: m.parts } : null)).filter(Boolean));
         rcs.calib = c;
-        if (c.ok) {
-          await rcs.plan.settings(RC.calibrated(rcs.s, c));
+        // the routes again only when the runner's own speeds change a cost on this map: path speeds where the reading found
+        // paths, the climb where there is relief, a crossing's time on a vector map (a sprint photo has none of the first,
+        // often none of the others: its second pass computed every leg twice for the same routes — 2026-11-22)
+        const s2 = RC.calibrated(rcs.s, c), sp = { ...rcs.s.speeds }, paths = (rcs.info.paths || []).slice(1).some(Boolean);
+        const flat = !rcs.dem || rcs.dem === "none";
+        const changes = c.ok && ((paths && ["track", "path", "small"].some((k) => s2.speeds[k] !== sp[k])) || (!flat && s2.climb !== rcs.s.climb)
+          || (!!rcs.info.vector && s2.cross !== rcs.s.cross));
+        if (changes) {
+          await rcs.plan.settings(s2);
           if (my !== rcs.token) return;
           rcs.routes = []; rcs.mine = [];
           if (!(await pass("rc.st.calib", 0.5, 0.5))) return;
