@@ -6,12 +6,13 @@ for; no legibility check: the developer's tests, owner 2026-11-18 — the « fix
 2026-11-22, the generator townmap/ needing none), the objects written gzipped to R2 townmap/out/<id>.json.gz, the request marked done or
 failed, its progress written into it as it goes.
 
-  python tools/virtually/townmap_ci.py [--kind quick|fix] --reqs <folder of the requests> --work <work folder>
+  python tools/virtually/townmap_ci.py [--kind quick] --reqs <folder of the requests> --work <work folder>
   (env BUCKET=s3://cn-state, R2=<endpoint>: the aws CLI's address, AWS_* as lidarmap.yml; BUCKET=file://<folder> on the PC)
 
-  python tools/virtually/townmap_ci.py --setup [--kind quick|fix] --reqs <folder>   (the job's first step: its queued requests
-                                                                                   marked « setup »)
-Exit 3: no request of that kind was waiting (the workflow's rounds stop).
+  python tools/virtually/townmap_ci.py --setup [--kind quick] --reqs <folder>   (the job's first step: its queued requests
+                                                                               marked « setup »)
+--kind quick: what the workflow passes; one kind of request since 2026-11-22 (an older request asking for the corrections is
+made as any other). Exit 3: no request was waiting (the workflow's rounds stop).
 
 Requests and results older than 30 days are deleted. The work folder (the point clouds: hundreds of MB a km²) goes after each.
 
@@ -99,6 +100,8 @@ def make(req: dict, work: Path) -> dict:
     prog.extra = {"pending": list(pending)}
     prog("fetch", 0, "IGN LiDAR HD, BD TOPO, BD ORTHO, cadastre, OpenStreetMap")
 
+    tiles = [0, 1]                                                  # the LiDAR's tiles read so far (« @@tile <i> <n> »)
+
     def fetched(line: str):
         parts = line.split()
         if parts[0] == "@@done" and parts[1] in pending:
@@ -106,29 +109,29 @@ def make(req: dict, work: Path) -> dict:
             prog.extra = {"pending": list(pending)}
         elif parts[0] == "@@retry" and parts[1] == "osm":
             prog.extra = {"pending": list(pending), "osmTry": int(parts[2])}
-        prog("fetch", 1 - len(pending) / len(SOURCES), force=True)
+        elif parts[0] == "@@tile":
+            tiles[:] = [int(parts[1]), max(1, int(parts[2]))]
+            prog.extra = {**prog.extra, "lidarTiles": list(tiles)}
+        part = tiles[0] / tiles[1] if "lidar" in pending else 0
+        prog("fetch", (len(SOURCES) - len(pending) + part) / len(SOURCES), force=True)
     t0 = time.monotonic()
-    stream([PY, HERE / "town_fetch.py", rid, req["lat"], req["lon"], w, h], prog, "fetch", est=40 + w * h / 8000, on_line=fetched, env=env, cwd=HERE)
+    # --lidar-remote (2026-11-22): the LiDAR's tiles are not downloaded; the area's points are read on IGN's server by range
+    # requests in the fetch (townmap/terrain.py; Gif, 500 × 500 m: 131 MB in 55 requests instead of 771 MB), their grids
+    # kept in src/lidar_grids.npz for the map's terrain stage
+    stream([PY, HERE / "town_fetch.py", rid, req["lat"], req["lon"], w, h, "--lidar-remote"], prog, "fetch", est=40 + w * h / 8000,
+           on_line=fetched, env=env, cwd=HERE)
     timing = {"fetch": round(time.monotonic() - t0)}
     if not json.load(open(work / rid / "src" / "lidar.json", encoding="utf-8")):
         raise RuntimeError("no IGN LiDAR HD over this area yet")
     prog.extra = {"step": "points"}
     prog("map", 0)
 
-    fix = False                                                    # (the corrections' passes are gone, 2026-11-22)
-    steps = STEPS
-
     def stepped(line: str):
         parts = line.split()
         if parts[0] == "@@step":
             prog.extra = {"step": parts[1]}
-            prog("map", steps.get(parts[1], 0), force=True)
-        elif parts[0] == "@@pass" and fix:                          # the corrections' passes (town_map.py's markers)
-            n = int(parts[1])
-            prog.extra = {"step": "legibility", "pass": n}
-            prog("map", min(0.95, steps["legibility"] + (0.95 - steps["legibility"]) * n / FIX_PASSES), force=True)
+            prog("map", STEPS.get(parts[1], 0), force=True)
     t0 = time.monotonic()
-    # a corrected map keeps legibility.py's repair passes (its report is not passed on); the others: no check at all
     est = 20 + w * h / 15000
     stream([PY, HERE / "town_map.py", rid, "--clip", "--no-check", "--fresh"], prog, "map", est=est, on_line=stepped,
            env=env, cwd=HERE)
@@ -143,23 +146,19 @@ def make(req: dict, work: Path) -> dict:
     prog("upload", 0)
     data = gzip.compress(json.dumps(out, separators=(",", ":")).encode("utf-8"))
     ci.aws("cp", "-", f"{ci.BUCKET}/{OUT}{rid}.json.gz", "--content-type", "application/json", data=data)
-    return {"objects": len(out["objects"]), "bytes": len(data), "lidar": sorted(set(out["lidar"].values())), "s": timing, "fix": fix}
+    return {"objects": len(out["objects"]), "bytes": len(data), "lidar": sorted(set(out["lidar"].values())), "s": timing}
 
 
 # town_map.py's steps and the share of the map's time they usually start at (500 × 500 m of Gif, 2026-11-12)
 STEPS = {"vectors": 0.0, "points": 0.1, "areas": 0.2, "lines": 0.7, "contours": 0.85, "objects": 0.93}   # (townmap/run.py)
-# with the corrections (on Gif they took about 100 of the map's 120 minutes): the drawing a quarter of the bar, the passes the rest
-STEPS_FIX = {k: v * 0.3 for k, v in STEPS.items()} | {"legibility": 0.25}
-FIX_PASSES = 18                                                     # the passes usually run (17 on Gif, 20 at most)
-kind_of = lambda r: "quick"                                         # (one kind since 2026-11-22: no corrections' job)
 
 
-def setup(reqs: Path, kind: str | None = None):
+def setup(reqs: Path):
     """The job's first step: every request still waiting marked « setup » (the runner is installing Python's libraries), so that
     the page says so instead of « waiting for a server »."""
     for f in sorted(reqs.glob("*.json")):
         r = json.load(open(f, encoding="utf-8"))
-        if r.get("status") == "queued" and not r.get("progress") and kind in (None, kind_of(r)):
+        if r.get("status") == "queued" and not r.get("progress"):
             r["progress"] = {"stage": "setup", "frac": 0, "at": now_iso()}
             try:
                 ci.put_json(f"{Q}{r['id']}.json", r)
@@ -180,16 +179,15 @@ def main():
     ap.add_argument("--reqs", required=True, type=Path)
     ap.add_argument("--work", type=Path)
     ap.add_argument("--setup", action="store_true", help="only mark the waiting requests « setup »")
-    ap.add_argument("--kind", choices=["quick", "fix"], help="only the requests without / with the legibility corrections")
+    ap.add_argument("--kind", choices=["quick"], help="accepted for the workflow: one kind of request since 2026-11-22")
     a = ap.parse_args()
     if a.setup:
-        return setup(a.reqs, a.kind)
+        return setup(a.reqs)
     reqs = sorted((json.load(open(f, encoding="utf-8")) for f in a.reqs.glob("*.json")), key=lambda r: r.get("at", ""))
     sweep(reqs)
     # the queued ones, and those a run stopped short (no word of them for three hours)
     todo = [r for r in reqs if r.get("status") == "queued" and (not r.get("progress") or r["progress"].get("stage") == "setup"
-                                                              or age_days(r["progress"].get("at")) > 0.125)
-            and a.kind in (None, kind_of(r))]
+                                                              or age_days(r["progress"].get("at")) > 0.125)]
     print(len(todo), "town maps to make", flush=True)
     if not todo:
         sys.exit(3)

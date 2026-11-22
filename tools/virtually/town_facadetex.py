@@ -60,6 +60,7 @@ class FacadeTex:
         self.zv_at, self.zb_at, self.gnd_at = zv_at, zb_at, gnd_at
         self.log = log
         self.cache = OrderedDict()
+        self.dims = {}                                  # photo id → (h, w), read from the file's header
         self.refined = {}                               # photo id → refined pose, or None (not used)
         self.ref_file = src / "poses_refined.json"      # kept between runs: refining is the slow part
         # the poses are in the world's frame: kept only while the area is the same (a race enlarged moves its origin)
@@ -225,6 +226,17 @@ class FacadeTex:
             flat |= (tree & ~near).any(axis=0)
         return out
 
+    def size(self, p):
+        """The photo's (height, width) in pixels, without decoding it (a photo is decoded only where its pixels are read)."""
+        k = p["id"]
+        if k not in self.dims:
+            if k in self.cache:
+                self.dims[k] = self.cache[k].shape[:2]
+            else:
+                with Image.open(self.dir / f"{k}.jpg") as im:
+                    self.dims[k] = (im.height, im.width)
+        return self.dims[k]
+
     def gray(self, p):
         k = ("g", p["id"])
         if k not in self.cache:
@@ -239,7 +251,7 @@ class FacadeTex:
         its ends — the corners —, which straightness alone cannot tell from a wall slid up or down). A small grid of positions,
         then each of position, height, heading, pitch (and a panorama's roll) stepped while the score grows. None when no pose
         makes it straight enough."""
-        r = self.refined[p["id"]]; img = self.img(p); h, w = img.shape[:2]; gray = self.gray(p); pano = p["fov"] >= 359
+        r = self.refined[p["id"]]; h, w = self.size(p); gray = self.gray(p); pano = p["fov"] >= 359
         k = max(1, PXM // 6)
         Xs, Zs, Ys, Ts = X[::k, ::k], Z[::k, ::k], Y[::k, ::k], Tm[::k, ::k]
         below = Ys <= Ts + 0.05
@@ -321,7 +333,7 @@ class FacadeTex:
                 continue
             if self.refine(p) is None:
                 continue
-            img = self.img(p); h, w = img.shape[:2]
+            h, w = self.size(p)
             u, vv, ppm = self.project(p, CX, CZ, CY, h, w)
             ok = below & np.isfinite(u) & np.isfinite(vv)
             if ok.sum() < 3:
@@ -340,10 +352,11 @@ class FacadeTex:
         for sc, i in scored[:3]:
             if sc < 0.3 * scored[0][0] or have.all():
                 break
-            p = self.poses[i]; img = self.img(p); h, w = img.shape[:2]
+            p = self.poses[i]; h, w = self.size(p)
             cam = self.local(p, X, Z, Y, Tm)
             if cam is None:
                 continue
+            img = self.img(p)
             u, vv, _ = self.proj(p, X, Z, Y, h, w, *cam)
             ok = (Y <= Tm + 0.05) & np.isfinite(u) & np.isfinite(vv) & ~have
             if ok.sum() < 50:

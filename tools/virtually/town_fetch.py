@@ -1,10 +1,14 @@
 """The open data of a town for a sprint race of « Virtually » (town_map.py, then the usual build.py, then town_3d.py), into
 DATA/<race>/src/ (outside git; DATA = paths.DATA_DIR / "virtual", or env VIRTUAL_DATA):
 
-  py town_fetch.py <race> <lat> <lon> <width m> <height m>
+  py town_fetch.py <race> <lat> <lon> <width m> <height m> [--lidar-remote]
 
 - IGN LiDAR HD: the classified point clouds (COPC LAZ) of the 1 km tiles the area touches, into DATA/<race>/lidar/laz/ where
   build.py reads them (Licence Ouverte 2.0; the tile list from IGN's public WFS, one download a second, as mapgen does);
+  --lidar-remote (the town plan made on GitHub, townmap_ci.py; 2026-11-22): the tiles are not downloaded, src/lidar.json keeps
+  their addresses (« remote »), and townmap/terrain.py reads only the area's points on IGN's server by range requests, at once
+  in the LiDAR's thread, into src/lidar_grids.npz (a 500 × 500 m area of Gif: 131 MB in 55 requests instead of four tiles'
+  771 MB) — for town_map.py only: build.py and town_3d.py need the whole files;
 - IGN BD TOPO V3 (WFS, Licence Ouverte 2.0): buildings with their heights and uses, roads with their widths, walls, hedges,
   watercourses, sports grounds, parkings — GeoJSON in Lambert 93, one file a layer;
 - IGN BD ORTHO / ORTHO HR (WMS, Licence Ouverte 2.0): the colour photograph and the colour-infrared one at 0.2 m, for the
@@ -37,6 +41,7 @@ BDTOPO = ["batiment", "troncon_de_route", "construction_lineaire", "construction
           "zone_de_vegetation", "troncon_hydrographique", "surface_hydrographique", "terrain_de_sport", "equipement_de_transport",
           "ligne_orographique", "troncon_de_voie_ferree", "zone_d_activite_ou_d_interet"]
 MARGIN = 60                                                          # m fetched beyond the area (the 3D scene's horizon)
+REMOTE = False                                                       # --lidar-remote: the point clouds not downloaded
 
 
 class Pace:
@@ -81,7 +86,10 @@ def get(url, dest: Path, pace: str = "ign", **kw):
 
 
 def main():
-    race, lat, lon, w, h = sys.argv[1], float(sys.argv[2]), float(sys.argv[3]), float(sys.argv[4]), float(sys.argv[5])
+    global REMOTE
+    REMOTE = "--lidar-remote" in sys.argv
+    args = [a for a in sys.argv[1:] if not a.startswith("--")]
+    race, lat, lon, w, h = args[0], float(args[1]), float(args[2]), float(args[3]), float(args[4])
     rd = DATA / race; src = rd / "src"; src.mkdir(parents=True, exist_ok=True)
     cx, cy = lambert93.forward(lat, lon)
     box = [round(cx - w / 2), round(cy - h / 2), round(cx + w / 2), round(cy + h / 2)]
@@ -124,8 +132,21 @@ def lidar(rd: Path, src: Path, ext, ll):
         p = f["properties"]; tid = (p.get("coordonnees_nw") or "").replace("-", "_")
         if tid in tids:
             cat[tid] = {"laz": p.get("url_npl"), "date": (p.get("date_fin_acquisition") or "")[:10]}
+    if REMOTE:                                                       # read on IGN's server by townmap/terrain.py
+        for c in cat.values():
+            c["remote"] = True
     json.dump(cat, open(src / "lidar.json", "w"), indent=1)
-    print("LiDAR tiles", {k: v["date"] for k, v in cat.items()}, flush=True)
+    print("LiDAR tiles", {k: v["date"] for k, v in cat.items()}, "(the area's points read by ranges)" if REMOTE else "", flush=True)
+    if REMOTE:
+        # the area's points read on IGN's server now, beside the other sources (Overpass is often the slowest), into the grids
+        # town_map.py's terrain stage reads back (src/lidar_grids.npz); a tile not served by ranges is downloaded whole there
+        if cat:
+            os.environ["VIRTUAL_DATA"] = str(DATA)
+            from townmap.env import Env
+            from townmap import terrain
+            terrain.grids(Env(rd.name))
+        done("lidar")
+        return
 
     def one(item):
         tid, c = item
@@ -144,14 +165,25 @@ def ign(src: Path, ext):
             continue
         feats = []
         for page in range(20):
-            PACE["ign"].wait()
-            r = requests.get(WFS, headers=UA, timeout=120, params={"SERVICE": "WFS", "VERSION": "2.0.0", "REQUEST": "GetFeature",
-                             "TYPENAMES": f"BDTOPO_V3:{layer}", "SRSNAME": "EPSG:2154", "OUTPUTFORMAT": "application/json",
-                             "BBOX": f"{ext[0]},{ext[1]},{ext[2]},{ext[3]},urn:ogc:def:crs:EPSG::2154", "COUNT": "5000",
-                             "STARTINDEX": str(page * 5000)})
+            for attempt in range(4):                                  # a page that is not JSON (seen once: a 200 with no
+                PACE["ign"].wait()                                    # JSON, 2026-11-22) asked again
+                r = requests.get(WFS, headers=UA, timeout=120, params={"SERVICE": "WFS", "VERSION": "2.0.0", "REQUEST": "GetFeature",
+                                 "TYPENAMES": f"BDTOPO_V3:{layer}", "SRSNAME": "EPSG:2154", "OUTPUTFORMAT": "application/json",
+                                 "BBOX": f"{ext[0]},{ext[1]},{ext[2]},{ext[3]},urn:ogc:def:crs:EPSG::2154", "COUNT": "5000",
+                                 "STARTINDEX": str(page * 5000)})
+                if r.status_code != 200:
+                    break
+                try:
+                    body = r.json()
+                    break
+                except ValueError:
+                    print("  BD TOPO", layer, "not JSON:", repr(r.text[:120]), "retry", attempt + 1, flush=True)
+                    time.sleep(5 * (attempt + 1))
+            else:
+                raise RuntimeError(f"BD TOPO {layer}: the WFS answered no JSON")
             if r.status_code != 200:
                 print("  BD TOPO", layer, r.status_code, r.text[:200]); break
-            got = r.json().get("features", [])
+            got = body.get("features", [])
             feats += got
             if len(got) < 5000:
                 break

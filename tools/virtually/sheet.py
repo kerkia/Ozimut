@@ -148,11 +148,11 @@ table{{border-collapse:collapse}} td,th{{border-bottom:1px solid #ddd;padding:3p
 coordonnées en Lambert 93.</p>
 <p class="gate {'ok' if g['publishable'] else 'no'}">{g['error']} erreurs, {g['warn']} avertissements —
 {'publiable' if g['publishable'] else 'non publiable sans la liste des écarts'}</p>
-<h2>Résumé</h2><table><tr><th>Règle</th><th>Gravité</th><th>Restants</th><th>Corrigés</th><th>Référence</th></tr>"""]
+<h2>Résumé</h2><table><tr><th>Règle</th><th>Gravité</th><th>Restants</th><th>Référence</th></tr>"""]
     for key in order:
         v = ents[key]
         parts.append(f"<tr><td><a href='#{esc(key)}'>{esc(key)}</a></td><td class='sev-{v['sev']}'>{SEV_FR.get(v['sev'], v['sev'])}"
-                     f"</td><td>{v['left']}</td><td>{v['fixed'] or ''}</td><td class='ref'>{esc(v.get('ref') or '')}</td></tr>")
+                     f"</td><td>{v['left']}</td><td class='ref'>{esc(v.get('ref') or '')}</td></tr>")
     parts.append("</table>")
     n_img = 0
     for key in order:

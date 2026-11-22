@@ -295,7 +295,6 @@ function townStage(pr, p) {
     try { list = new Intl.ListFormat(locale(), { type: "conjunction" }).format(names); } catch (e) { /* an older browser */ }
     return t("map.data.town.stage.fetchList", { list });
   }
-  if (pr.stage === "map" && pr.step === "legibility" && pr.pass) return t("map.data.town.stage.mapStep", { step: t("map.data.town.step.legibilityPass", { n: pr.pass }) });
   if (pr.stage === "map" && pr.step) return t("map.data.town.stage.mapStep", { step: t(`map.data.town.step.${pr.step}`) });
   return t(`map.data.town.stage.${pr.stage}`);
 }

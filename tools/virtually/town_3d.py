@@ -21,6 +21,7 @@ town.bin: the arrays listed in town.json `arrays` (name, type, offset in bytes, 
 town.json: { arrays, chunks: { "a,b": { r: [v0, nv, i0, ni], w: [v0, nv, i0, ni] } }, foot: [[ [x, z]… ]…] (collision outlines),
   walls: [{ pts, kind, h, imp }], props: [[kind, x, z, angle]], credit }"""
 import json, math, os, sys, time
+from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
 import numpy as np
@@ -44,6 +45,14 @@ W, H = race["W"], race["H"]
 CH = 64
 T0 = time.time()
 log = lambda *a: print(f"[{time.time() - T0:5.0f}s]", *a, flush=True)
+TT = {}                                                            # seconds by step of the buildings' loop
+_tk = [time.perf_counter()]
+
+
+def tick(name):
+    t = time.perf_counter(); TT[name] = TT.get(name, 0.0) + t - _tk[0]; _tk[0] = t
+
+
 rng = np.random.default_rng(11)
 wx = lambda X: X - WX0
 wz = lambda Y: WZ0 - Y
@@ -109,6 +118,47 @@ FACADE = [  # plasters of the Île-de-France: cream, sand, grey, white, meulièr
 STONE = (188, 178, 160)
 
 
+NT = os.cpu_count() or 4
+POOL = ThreadPoolExecutor(NT)                                      # numpy and scipy.ndimage release the GIL: exact, in parallel
+
+
+def strips(fn, a, reach):
+    """fn(a) computed over strips of rows in parallel, each strip with `reach` rows of the input around it: the very same values
+    wherever a pixel of fn(a) depends only on the input within `reach` rows of it (a filter's kernel; the image's own edges are
+    handled by fn as before)."""
+    n = a.shape[0]
+    if n < 8 * NT or a.size < 2_000_000:
+        return fn(a)
+    cuts = np.linspace(0, n, NT + 1).astype(int)
+
+    def job(i):
+        lo, hi = cuts[i], cuts[i + 1]; a0, a1 = max(0, lo - reach), min(n, hi + reach)
+        return fn(a[a0:a1])[lo - a0:hi - a0]
+    return np.concatenate(list(POOL.map(job, range(NT))))
+
+
+def gauss(a, sigma, truncate=4.0):
+    """gaussian_filter(a, sigma), the same values, by strips in parallel."""
+    s0 = sigma[0] if isinstance(sigma, (tuple, list)) else sigma
+    return strips(lambda b: gaussian_filter(b, sigma, truncate=truncate), a, int(truncate * float(s0) + 0.5))
+
+
+def _inliers(a, b, c, Qx, Qy, Qz, tol, j0, j1, blk=1024):
+    """Each plane's inliers (|z − (a x + b y + c)| < tol, the residual computed as written, so exactly) among Q[j0:j1], by blocks
+    that stay in the cache."""
+    cnt = np.zeros(len(a), np.int64)
+    A, B, C = a[:, None], b[:, None], c[:, None]
+    for j in range(j0, j1, blk):
+        e = min(j1, j + blk)
+        r = A * Qx[None, j:e]
+        r += B * Qy[None, j:e]
+        r += C
+        np.subtract(Qz[None, j:e], r, out=r)
+        np.abs(r, out=r)
+        cnt += np.count_nonzero(r < tol, axis=1)
+    return cnt
+
+
 def ransac_planes(P, max_planes=8, tol=0.15):
     """Planes z = a x + b y + c over roof points P (n×3): [(a, b, c, inlier indices)]."""
     planes = []; left = np.arange(len(P)); n0 = len(P)
@@ -123,12 +173,19 @@ def ransac_planes(P, max_planes=8, tol=0.15):
         a = -nrm[:, 0] / np.where(ok, nrm[:, 2], 1); b = -nrm[:, 1] / np.where(ok, nrm[:, 2], 1)
         c = p1[:, 2] - a * p1[:, 0] - b * p1[:, 1]
         ok &= np.hypot(a, b) < 1.25                                # roofs steeper than 51° are walls
-        res = np.abs(Q[:, 2][None, :] - (a[:, None] * Q[:, 0][None, :] + b[:, None] * Q[:, 1][None, :] + c[:, None]))
-        cnt = (res < tol).sum(1) * ok
+        Qx, Qy, Qz = np.ascontiguousarray(Q[:, 0]), np.ascontiguousarray(Q[:, 1]), np.ascontiguousarray(Q[:, 2])
+        cnt = np.zeros(len(a), np.int64); act = np.nonzero(ok)[0]   # a hypothesis not ok counts 0
+        if len(act):
+            aa, bb, cc = a[act], b[act], c[act]
+            if len(Q) < 3000:
+                cnt[act] = _inliers(aa, bb, cc, Qx, Qy, Qz, tol, 0, len(Q))
+            else:
+                cuts = np.linspace(0, len(Q), NT + 1).astype(int)
+                cnt[act] = sum(POOL.map(lambda i: _inliers(aa, bb, cc, Qx, Qy, Qz, tol, cuts[i], cuts[i + 1]), range(NT)))
         k = int(np.argmax(cnt))
         if cnt[k] < max(18, 0.06 * n0):
             break
-        inl = res[k] < tol
+        inl = np.abs(Qz - (a[k] * Qx + b[k] * Qy + c[k])) < tol
         X = np.c_[Q[inl, 0], Q[inl, 1], np.ones(inl.sum())]
         sol = np.linalg.lstsq(X, Q[inl, 2], rcond=None)[0]
         inl = np.abs(Q[:, 2] - (sol[0] * Q[:, 0] + sol[1] * Q[:, 1] + sol[2])) < tol
@@ -218,6 +275,7 @@ def push(key, part, pos, col, idx, extra=None):
 _pf = SRC / "passages.json"
 PASSES = unary_union([shapely.transform(shape(g), lambda c: np.c_[wx(c[:, 0]), wz(c[:, 1])])
                       for g in (json.load(open(_pf))["passages"] if _pf.exists() else [])] or [Polygon()])
+_tk[0] = time.perf_counter()
 for f in feats:
     pr = f["properties"]; g = shapely.force_2d(shape(f["geometry"])).buffer(0)
     g = shapely.transform(g, lambda c: np.c_[wx(c[:, 0]), wz(c[:, 1])])
@@ -234,6 +292,7 @@ for f in feats:
         base = float(np.min(ground(rings[0][:, 0], rings[0][:, 1]))) - 0.3
         top_g = float(np.median(ground(rings[0][:, 0], rings[0][:, 1])))
         # the roof's points
+        tick("outline")
         cand = rtree.query_ball_point([cx, cz], math.sqrt(poly.area) * 1.2 + 10)
         P = roof[cand] if cand else np.zeros((0, 3), np.float32)
         if len(P):
@@ -250,9 +309,11 @@ for f in feats:
         nodes = np.vstack(bnd + [np.c_[xs[keep], zs[keep]]])
         nb = sum(len(b) for b in bnd)
         planes, cand = [], None
+        tick("points")
         if len(P) >= 15:
             planes = ransac_planes(P.astype(np.float64))
             stats["planes"] += len(planes); stats["fitted"] += 1
+        tick("ransac")
         if planes:
             pa = np.array([[p[0], p[1], p[2]] for p in planes])
             lab = np.full(len(P), -1)
@@ -264,16 +325,22 @@ for f in feats:
             pt = cKDTree(P[:, :2])
 
             def cands(q):
-                """Each point's candidate planes: those of its 8 nearest labelled points within 3 m (else the nearest's)."""
+                """Each point's candidate planes, as a mask (points × planes): those of its 8 nearest labelled points within 3 m
+                (else the nearest's)."""
                 d, ii = kt.query(q, k=min(8, int(Lm.sum())))
                 d, ii = np.atleast_2d(d), np.atleast_2d(ii)
-                return [set(plab[ii[r][d[r] < 3.0]]) or {plab[ii[r][0]]} for r in range(len(q))]
+                ok = d < 3.0
+                ok[~ok.any(1), 0] = True
+                m = np.zeros((len(d), len(pa)), bool)
+                m[np.broadcast_to(np.arange(len(d))[:, None], ok.shape)[ok], plab[ii[ok]]] = True
+                return m
 
             def envelope(q, cs):
-                """The roof's height at points q: the lowest of their candidate planes (a gable's or hip's ridge exact), the
-                points' own median where that is 0.8 m off (a step between two levels, a dormer)."""
-                z = np.array([min(pa[k, 0] * x + pa[k, 1] * y + pa[k, 2] for k in c) for (x, y), c in zip(q, cs)])
-                arg = np.array([min(c, key=lambda k: pa[k, 0] * x + pa[k, 1] * y + pa[k, 2]) for (x, y), c in zip(q, cs)])
+                """The roof's height at points q: the lowest of their candidate planes (a gable's or hip's ridge exact; the first
+                plane on a tie), the points' own median where that is 0.8 m off (a step between two levels, a dormer)."""
+                zp = np.where(cs, pa[:, 0][None, :] * q[:, 0:1] + pa[:, 1][None, :] * q[:, 1:2] + pa[:, 2][None, :], np.inf)
+                arg = zp.argmin(1)
+                z = zp[np.arange(len(zp)), arg]
                 dd, jj = pt.query(q, k=min(8, len(P)))
                 zloc = np.median(P[np.atleast_2d(jj), 2], axis=1)
                 bad = np.abs(z - zloc) > 0.8
@@ -289,6 +356,7 @@ for f in feats:
             stats["flat"] += 1
             z = float(pr.get("altitude_maximale_toit") or 0) or (top_g + max(hz, 3))
             nz = np.full(len(nodes), max(z, top_g + 2.5))
+        tick("heights")
         flat = (nz.max() - nz.min()) < 0.6
         # the roof's mesh: the eaves 0.35 m beyond the walls on a pitched roof, the creases (ridges, hips, valleys) as vertices
         rnodes, rz, rpoly = nodes, nz, poly
@@ -297,7 +365,7 @@ for f in feats:
             ob = shapely.segmentize(rpoly.exterior, 0.9); ob = np.array(ob.coords)[:-1]
             # each outer point takes the candidate planes of the outline's node nearest to it
             near = cKDTree(nodes[:nb]).query(ob)[1]
-            oz, _ = envelope(ob, [cand[k] for k in near])
+            oz, _ = envelope(ob, cand[near])
             inner_n = nodes[nb:]; inner_z = nz[nb:]; inner_a = arg[nb:]
             holes = [np.array(r.coords)[:-1] for r in shapely.segmentize(poly, 0.9).interiors]
             hz_ = [envelope(h_, cands(h_))[0] for h_ in holes]
@@ -306,10 +374,13 @@ for f in feats:
             try:
                 t0 = Delaunay(rnodes).simplices
                 extra = []
-                for a_, b_ in {tuple(sorted(e)) for t in t0 for e in ((t[0], t[1]), (t[1], t[2]), (t[0], t[2]))}:
+                # the triangles' edges, each once, in the order a set of them gives (the creases' order makes the mesh's); only those
+                # between two different planes can hold a crease
+                ed = np.sort(t0[:, [0, 1, 1, 2, 0, 2]].reshape(-1, 3, 2), axis=2).reshape(-1, 2)
+                E = np.array(list(set(map(tuple, ed.tolist()))), np.int64).reshape(-1, 2)
+                ke = ra[E]
+                for a_, b_ in E[(ke[:, 0] >= 0) & (ke[:, 1] >= 0) & (ke[:, 0] != ke[:, 1])]:
                     ka, kb = ra[a_], ra[b_]
-                    if ka < 0 or kb < 0 or ka == kb:
-                        continue
                     p0, p1 = rnodes[a_], rnodes[b_]
                     f0 = (pa[ka] - pa[kb]) @ [p0[0], p0[1], 1.0]; f1 = (pa[ka] - pa[kb]) @ [p1[0], p1[1], 1.0]
                     if f0 * f1 >= 0:
@@ -322,12 +393,15 @@ for f in feats:
                 stats["creases"] = stats.get("creases", 0) + len(extra)
             except Exception:
                 rnodes, rz, rpoly = nodes, nz, poly
+            tick("roof mesh")
             # chimneys: the points standing 0.6-3 m above their roof in a tight group
             res = P[:, 2] - envelope(P[:, :2].astype(np.float64), cands(P[:, :2]))[0]
             up = np.nonzero((res > 0.9) & (res < 3.5))[0]
+            tick("chimney heights")
             mine = []
             if len(up) >= 4:
                 ut = cKDTree(P[up, :2]); seen = set()
+                nbr = ut.query_ball_point(P[up, :2], 0.7, return_sorted=False)   # each point's neighbours, as one query each gives them
                 for s0 in range(len(up)):
                     if s0 in seen:
                         continue
@@ -336,7 +410,7 @@ for f in feats:
                         q_ = stack.pop()
                         if q_ in seen:
                             continue
-                        seen.add(q_); grp.append(q_); stack += ut.query_ball_point(P[up[q_], :2], 0.7)
+                        seen.add(q_); grp.append(q_); stack += nbr[q_]
                     if len(grp) < 5:
                         continue
                     G = P[up[grp]]
@@ -348,6 +422,7 @@ for f in feats:
                     mine.append([round(float(cxy[0]), 2), round(float(cxy[1]), 2), round(base_z - 0.3, 2), round(top - base_z + 0.3, 2),
                                      round(float(max(0.45, ext_[0])), 2), round(float(max(0.45, ext_[1])), 2)])
                 chimneys.extend(sorted(mine, key=lambda c_: -c_[3])[:3])   # three a building at most
+            tick("chimneys")
         try:
             tri = Delaunay(rnodes).simplices
         except Exception:
@@ -356,7 +431,9 @@ for f in feats:
         tri = tri[shapely.contains_xy(rpoly, cen[:, 0], cen[:, 1])]
         if not len(tri):
             continue
+        tick("triangles")
         rc = colour_over(poly)
+        tick("roof colour")
         use = (pr.get("usage_1") or "indifférencié").lower()
         nat = (pr.get("nature") or "").lower()
         kind = 2 if ("église" in nat or "chapelle" in nat or use.startswith("religieux")) else USE.get(use, 0)
@@ -373,6 +450,7 @@ for f in feats:
         rcol = np.tile(np.array([*rc, (1 if flat else 0) + 2 * rmat], np.uint8), (len(rnodes), 1))
         key = chunk_of(cx, cz)
         push(key, "r", rpos, rcol, tri.astype(np.uint32))
+        tick("kind")
         # walls: each ring's edge where the roof's edge bends (Douglas-Peucker on the height along it, 0.1 m)
         b0 = top_g                                                   # the façade's floors count from the ground's median
         eave = float(np.percentile(nz[:nb], 20)) - b0
@@ -417,9 +495,11 @@ for f in feats:
                 # the side's photo texture, if Panoramax's photos see it
                 sid = -1
                 if FT is not None:
+                    tick("walls")
                     got = FT.side(pts, zz, ground(pts[:, 0], pts[:, 1]), b0, poly)
                     if got is not None:
                         sid = len(TILES); TILES[sid] = got
+                    tick("façade photos")
                 # Douglas-Peucker on (s, z)
                 keepi = [0, len(s) - 1]
                 stack = [(0, len(s) - 1)]
@@ -441,10 +521,13 @@ for f in feats:
                     ws += [[Ls, eave, floor_h, seed]] * 4
                     wt += [sid] * 4
                     wi += [v, v + 1, v + 2, v, v + 2, v + 3]
+        tick("walls")
         if wp:
             push(key, "w", np.array(wp, np.float32), np.tile(np.array([*fc, style], np.uint8), (len(wp), 1)), np.array(wi, np.uint32),
                  extra=(np.array(wu, np.float32), np.array(ws, np.float32), np.array(wt, np.int32)))
+tick("walls")
 log("buildings", len(foot), stats)
+log("buildings by step (s)", {k: round(v, 1) for k, v in TT.items()})
 
 # ---- arrays -------------------------------------------------------------------------------------------------------------
 out = bytearray(); arrays = {}
@@ -503,6 +586,7 @@ for k, (tp, n) in NAMES.items():
     arrays[k] = [tp, len(out), int(a.size)]
     out += a.tobytes()
 (PKG / "town.bin").write_bytes(bytes(out))
+log("town.bin")
 
 # ---- walls, fences, hedges; street furniture -------------------------------------------------------------------------------
 WJ = json.load(open(SRC / "walls.json")); ox, oy = WJ["origin"]
@@ -549,7 +633,7 @@ if True:
 # 9 clay (a tennis court), 10 synthetic (a hard court, the athletics track)
 from rasterio.features import rasterize
 from rasterio.transform import Affine
-from scipy.ndimage import grey_opening, binary_erosion, label as nd_label
+from scipy.ndimage import grey_opening, binary_erosion, label as nd_label, find_objects
 cl1 = np.asarray(Image.open(PKG / "cls.png")); CN = race["classes"]
 SURF = {"paved": 3, "road": 1, "stairs": 3, "open": 4, "open_t": 4, "rough": 4, "rough_t": 4, "forest": 6, "slow": 6, "slow_vis": 6,
         "walk": 6, "walk_vis": 6, "fight": 6, "path": 5, "track": 5, "small_path": 5, "water": 7, "shallow": 7, "building": 8,
@@ -619,23 +703,25 @@ log("surfaces m²", {k: int((surf == k).sum() * GR * GR) for k in range(11)})
 # ---- the ground's picture: the photograph's shade lightened, its asphalt cleaned (no car lies flat on it), the road markings kept
 # and the zebra crossings painted; the class colours under the trees' crowns (the photograph shows their tops) and outside it --------
 lumi = photo.mean(axis=2)
-local = gaussian_filter(lumi, 40)                                  # 10 m
+local = gauss(lumi, 40)                                            # 10 m
 shade = np.clip(1 - lumi / np.maximum(local * 0.8, 1), 0, 0.75)
-shade = gaussian_filter(shade, 2)
+shade = gauss(shade, 2)
 img = photo * (1 + 1.6 * shade)[..., None]
 img[..., 2] *= 1 - 0.12 * shade                                    # shade is bluish
 mx_, mn_ = img.max(axis=2), img.min(axis=2); sat_ = (mx_ - mn_) / (mx_ + 1)
 lum2 = img.mean(axis=2)
 road_med = float(np.median(lum2[A_])) if A_.any() else 100.0
+log("ground: shade lightened")
 # asphalt: the road's own colour, blurred over ~4 m from its plain pixels only (cars, people, markings and shade left out)
 plain = A_ & (sat_ < 0.16) & (np.abs(lum2 - road_med) < 28)
-wgt = gaussian_filter(plain.astype(np.float32), 16) + 1e-3
-base = np.dstack([gaussian_filter(img[..., c] * plain, 16) / wgt for c in range(3)])
+wgt = gauss(plain.astype(np.float32), 16) + 1e-3
+base = np.dstack([gauss(img[..., c] * plain, 16) / wgt for c in range(3)])
 base[wgt < 0.02] = road_med
 # the markings: thin white strokes (a white top-hat 0.75 m across); cars and their shine are wider
-tophat = lum2 - grey_opening(lum2, size=(3, 3))
+tophat = lum2 - strips(lambda b: grey_opening(b, size=(3, 3)), lum2, 2)
 mark = A_ & (tophat > 38) & (sat_ < 0.18) & (lum2 > road_med + 45)
 mark &= ~binary_dilation(binary_erosion(mark, iterations=2), iterations=2)   # a blob over 1 m across is no marking
+log("ground: asphalt cleaned, markings found")
 road_img = base.copy()
 road_img[mark] = 0.55 * img[mark] + 0.45 * 235
 # zebra crossings OpenStreetMap marks: 0.5 m white bands across the carriageway, 3 m long
@@ -667,6 +753,7 @@ if bands:
     zm = rasterize([(b, 1) for b in bands], out_shape=(gh, gw), transform=TRW, fill=0, dtype="uint8") == 1
     road_img[zm & A_] = 232
 img[A_] = road_img[A_]
+log("ground: zebras", zebras)
 
 
 def crop_mask(g, pad=2.0, ss=1):
@@ -719,15 +806,21 @@ GC = {"paved": (112, 110, 106), "road": (100, 100, 98), "open": (98, 122, 64), "
 lut = np.array([GC.get(n, (96, 104, 70)) for n in CN] + [(96, 104, 70)] * (256 - len(CN)), np.float32)
 cg = np.repeat(np.repeat(lut[cl1], 4, axis=0), 4, axis=1)[:gh, :gw]
 can = (cz["chm"] > 2.5).astype(np.float32)
-canw = gaussian_filter(can, 1.5)[ri[:, None], ci[None, :]]
+canw = gauss(can, 1.5)[ri[:, None], ci[None, :]]
 canw[A_] = 0                                                       # the cleaned asphalt already shows the road under a street tree
 outside = ((gx < EX0) | (gx > EX1))[None, :] | ((gy < EY0) | (gy > EY1))[:, None]
-grain = np.clip(lumi / np.maximum(gaussian_filter(lumi, 6), 1), 0.75, 1.25)[..., None]
+grain = np.clip(lumi / np.maximum(gauss(lumi, 6), 1), 0.75, 1.25)[..., None]
 m = np.clip(np.maximum(canw * 1.3 - 0.15, outside.astype(np.float32)), 0, 1)[..., None]
-cg = gaussian_filter(cg, (3, 3, 0))
+cg = gauss(cg, (3, 3, 0))
+log("ground: class colours")
 img = (img * (1 - m) + cg * (0.9 + 0.1 * grain) * m) * 0.8          # the photograph's colours are lit already: the scene lights them again
 # the street's ambient occlusion: the ground darker where it meets a building (26 % at the wall, half that 0.8 m out)
-dwall = distance_transform_edt(surf != 8) * GR
+# (by strips with 50 m of rows around each: a distance over ~42 m darkens nothing — 1 − 0.26 e^(−d/1.15) rounds to 1 —, one under
+# 50 m is the same whether measured in the strip or the whole image, and a strip with no building within 50 m is all far)
+_nb = surf != 8
+dwall = (strips(lambda b: np.full(b.shape, np.inf) if b.all() else distance_transform_edt(b), _nb, int(50 / GR)) if not _nb.all()
+         else distance_transform_edt(_nb)) * GR
+log("ground: occlusion")
 img = img * (1 - 0.26 * np.exp(-dwall / 1.15) * (surf != 8))[..., None]
 img = np.clip(img, 0, 255).astype(np.uint8)
 Image.fromarray(img).save(PKG / "ground.jpg", quality=88)
@@ -741,6 +834,7 @@ for l in getattr(kerb, "geoms", [kerb]):
     if l.geom_type == "LineString" and l.length > 2:
         walls.append({"pts": [[round(x, 2), round(z, 2)] for x, z in l.simplify(0.15).coords], "kind": "kerb", "h": 0.13, "imp": False})
 
+log("kerbs")
 # ---- parked cars, from the LiDAR (2023): 1.1-2.3 m tall objects of a car's size and shape on paved ground ---------------------------
 Zl = np.load(SRC / "lidar_grids.npz")
 hgt = np.where(Zl["zo"] > -1e8, Zl["zo"] - Zl["dtm"], 0)
@@ -749,10 +843,16 @@ carm = (hgt > 1.1) & (hgt < 2.3) & (cz["cl"] == 8) & ~((vegh > 1.0) & (Zl["n4"] 
 lab_, n_ = nd_label(binary_dilation(carm, iterations=1))
 cars = []
 CARCOL = [(40, 42, 46), (210, 212, 214), (150, 152, 156), (90, 92, 96), (30, 50, 90), (120, 20, 24), (230, 230, 228), (60, 70, 60)]
-for k in range(1, n_ + 1):
-    ii, jj = np.nonzero(lab_ == k)
-    if not (14 <= len(ii) <= 70):                                   # 3.5-17.5 m² of 0.5 m cells
+# each component read within its own bounding box (find_objects), never over the whole grid; the sports grounds' and passages'
+# exclusion zones buffered once
+_size = np.bincount(lab_.ravel(), minlength=n_ + 1)
+_nocar = [s_["g"].buffer(5) for s_ in SPORTS] + [PASSES.buffer(4)]
+for g_ in _nocar:
+    shapely.prepare(g_)
+for k, sl in enumerate(find_objects(lab_), 1):
+    if sl is None or not (14 <= _size[k] <= 70):                    # 3.5-17.5 m² of 0.5 m cells
         continue
+    ii, jj = np.nonzero(lab_[sl] == k); ii = ii + sl[0].start; jj = jj + sl[1].start
     xw, zw = wx(EX0 + (jj + 0.5) * 0.5), wz(EY1 - (ii + 0.5) * 0.5)
     c_ = np.c_[xw, zw]; mu = c_.mean(0)
     ev, evec = np.linalg.eigh(np.cov((c_ - mu).T))
@@ -760,7 +860,7 @@ for k in range(1, n_ + 1):
     if not (3.2 <= Lc <= 5.8 and 1.3 <= Wc <= 2.5 and Lc / Wc > 1.5):
         continue
     ang = math.degrees(math.atan2(evec[0, 1], evec[1, 1]))
-    if 0 < mu[0] < W and 0 < mu[1] < H and not any(s_["g"].buffer(5).contains(Point(*mu)) for s_ in SPORTS)             and not PASSES.buffer(4).contains(Point(*mu)):                    # a pitch's dugouts, a tunnel's mouth are no cars
+    if 0 < mu[0] < W and 0 < mu[1] < H and not any(g_.contains(Point(*mu)) for g_ in _nocar):  # a pitch's dugouts, a tunnel's mouth are no cars
         cars.append([round(float(mu[0]), 2), round(float(mu[1]), 2), round(ang, 1), round(min(Lc, 4.8), 2), round(min(Wc, 1.9), 2),
                      int(rng.integers(len(CARCOL)))])
 log("cars", len(cars), "kerbs", sum(1 for w_ in walls if w_["kind"] == "kerb"))
