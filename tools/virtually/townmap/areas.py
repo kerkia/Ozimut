@@ -230,22 +230,23 @@ def run(env, s, t):
     out.n_faces = len(faces)
 
     # ---- generalised ---------------------------------------------------------------------------------------------------------
-    corr = []
-    for _ in range(2):                                     # (again: what a merge left thin or small)
-        faces, cls = thin_parts(env, faces, cls)
-        cls, c = merge_small(env, faces, cls)
-        corr.append(c)
-    corr = union(corr)
-    GEOM = {KNAME[k]: shapely.coverage_union_all(faces[cls == k]) for k in np.unique(cls)}
-    GEOM = {k: area_of(g) for k, g in GEOM.items()}
+    # a first pass on the faces; the ways widened and the ground no way reaches closed on the result; then a second pass, on
+    # the areas as they then are: the faces are made again from their outlines, which also drops the zero-width whiskers the
+    # two overlays leave (2026-11-22: 18 spikes in the paving)
+    faces, cls = thin_parts(env, faces=faces, cls=cls)
+    cls, corr = merge_small(env, faces, cls)
+    GEOM = {KNAME[int(k)]: area_of(shapely.coverage_union_all(faces[cls == k])) for k in np.unique(cls)}
     GEOM = widen(env, GEOM, corr)
     GEOM, why = reach(env, s, t, GEOM)
+    faces, cls = thin_parts(env, GEOM=GEOM)
+    cls, _ = merge_small(env, faces, cls)
+    GEOM = {KNAME[int(k)]: area_of(shapely.coverage_union_all(faces[cls == k])) for k in np.unique(cls)}
     GEOM = simplify(GEOM)
     out.GEOM = GEOM
     out.why = why
     out.cl = np.zeros((env.NY, env.NX), np.uint8)
-    for k, g in GEOM.items():
-        env.burn(g, K[k], out.cl)
+    for k, g in GEOM.items():                              # (a through road is paving to town_3d.py, which reads this raster)
+        env.burn(g, K["paved" if k == "heavy" else k], out.cl)
     out.canopy = canopy
     out.PAVED_ALL = union([GEOM.get(k) for k in ("paved", "heavy", "paved_t")])
     out.OLIVE = GEOM.get("private", shapely.Polygon())
@@ -255,13 +256,14 @@ def run(env, s, t):
     return out
 
 
-def thin_parts(env, faces, cls):
+def thin_parts(env, faces=None, cls=None, GEOM=None):
     """The faces cut again along the edge of each class's parts narrower than its minimum width: such a part becomes a face of
     its own, which merge_small() then gives to a neighbour. Returns the new faces and their classes (a thin one: class + 100)."""
     regions, rcls, cuts = [], [], []
-    for k in np.unique(cls):
-        name = KNAME[int(k)]
-        g = area_of(shapely.coverage_union_all(faces[cls == k]))
+    if GEOM is None:
+        GEOM = {KNAME[int(k)]: area_of(shapely.coverage_union_all(faces[cls == k])) for k in np.unique(cls)}
+    for name, g in GEOM.items():
+        k = K[name]
         ps = polys(g)
         regions += ps; rcls += [int(k)] * len(ps)
         w = MIN_W.get(name)
@@ -273,6 +275,7 @@ def thin_parts(env, faces, cls):
     f2, pts = polygonise(regions + extra, env.frame)
     r = lookup(pts, regions)
     c2 = np.array(rcls, np.int32)[np.maximum(r, 0)]
+    c2[r < 0] = K["forest"] + 100                         # (a crack between two regions: a thin face, given to a neighbour)
     for k, core in cuts:
         m = c2 == k
         inside = lookup(pts[m], [c for c in core if not c.is_empty]) >= 0
