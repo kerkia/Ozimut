@@ -135,6 +135,7 @@ function features() {
     <div class="tour-eyebrow">${t("tour.feat.eyebrow")}</div><h2>${t("tour.feat.title")}</h2><p class="tour-lede">${t("tour.feat.lede")}</p>
     <div class="tour-feat-grid"><table class="tour-feat-table"><thead><tr><th></th>${MODS.map((M) => html`<th data-mod="${M.id}">${t(`mod.${M.id}`)}<span>${t(M.id === "coach" ? "mod.coach.tag" : `mod.${M.id}.tag`)}</span></th>`)}</tr></thead>
       <tbody>${LEVELS.map((l) => html`<tr><th scope="row"><b>${t(`tour.lvl.${l}`)}</b><em class="tour-free">${t("tour.lvl.free")}</em><span>${t(`tour.lvl.${l}.sub`)}</span></th>${MODS.map((M) => cell(M.id, l))}</tr>`)}</tbody></table></div>
+    <p class="tour-feat-note tour-feat-later">${t("tour.feat.later")}</p>
     <p class="muted tour-feat-note"><span class="tour-star">*</span> ${t("tour.feat.note")}</p><p class="muted tour-feat-note">${t("tour.note")}</p></section>`;
 }
 

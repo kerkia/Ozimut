@@ -32,7 +32,8 @@ export const body = (SITE, { world = false } = {}) => `
         son visibles para todos, con o sin cuenta. Toda persona afectada puede pedir que deje de ser identificada en ellos (ver
         «Tus derechos»).</p>
       <h2 style="font-size:16px">Acceso e imágenes del sitio</h2>
-      <p>${SITE} es totalmente gratuito. Una parte del sitio se consulta sin cuenta; una cuenta da acceso a las alertas y a compartir
+      <p>${SITE} es gratis durante su lanzamiento. A medida que crezca su uso, algunas funciones avanzadas o costosas podrán pasar a ser de pago: lo anunciaremos con al menos dos meses de antelación, y lo que ya hayas guardado seguirá pudiendo consultarse y exportarse.</p>
+      <p>Una parte del sitio se consulta sin cuenta; una cuenta da acceso a las alertas y a compartir
         tracks GPS, y el historial completo de la clasificación está reservado a los federados de la federación: en Francia, una cuenta que se ha unido
         a Francia, con su número de licencia FFCO verificado a partir del nombre. Los países cuyos resultados son todos públicos (España)
         están abiertos a todos.</p>
@@ -288,5 +289,5 @@ export const body = (SITE, { world = false } = {}) => `
       <p><b>Créditos:</b> los símbolos y los textos de las descripciones de control (Coach › Descripciones de control, el trazado de recorridos)
         proceden de Purple Pen, de Peter Golde (<a href="https://github.com/petergolde/PurplePen" target="_blank" rel="noopener">github.com/petergolde/PurplePen</a>),
         bajo <a href="assets/tracer/LICENSE-PurplePen.txt" target="_blank" rel="noopener">licencia BSD</a>.</p>
-      <p class="muted">Última actualización: 21 de noviembre de 2026.</p>
+      <p class="muted">Última actualización: 22 de noviembre de 2026.</p>
 `;

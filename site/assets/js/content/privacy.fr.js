@@ -33,7 +33,8 @@ export const body = (SITE, { world = false } = {}) => `
         sont visibles par tous, avec ou sans compte. Toute personne concernée peut demander à ne plus y être identifiée (voir
         « Vos droits »).</p>
       <h2 style="font-size:16px">Accès et images du site</h2>
-      <p>${SITE} est entièrement gratuit. Une partie du site se consulte sans compte ; un compte ouvre les alertes et le partage de
+      <p>${SITE} est gratuit pendant son lancement. À mesure que l'usage grandit, certaines fonctions avancées ou coûteuses pourront devenir payantes : nous l'annoncerons au moins deux mois avant, et ce que vous avez déjà enregistré restera consultable et exportable.</p>
+      <p>Une partie du site se consulte sans compte ; un compte ouvre les alertes et le partage de
         traces, et l'historique complet du classement est réservé aux licenciés de la fédération : en France, un compte qui a rejoint
         la France, son numéro de licence FFCO vérifié d'après le nom. Les pays dont tous les résultats sont publics (l'Espagne)
         s'ouvrent à tous.</p>
@@ -291,5 +292,5 @@ export const body = (SITE, { world = false } = {}) => `
       <p><b>Crédits :</b> les symboles et les textes des définitions de postes (Coach › Définitions de postes, le tracé des circuits)
         viennent de Purple Pen, de Peter Golde (<a href="https://github.com/petergolde/PurplePen" target="_blank" rel="noopener">github.com/petergolde/PurplePen</a>),
         sous <a href="assets/tracer/LICENSE-PurplePen.txt" target="_blank" rel="noopener">licence BSD</a>.</p>
-      <p class="muted">Dernière mise à jour : 21 novembre 2026.</p>
+      <p class="muted">Dernière mise à jour : 22 novembre 2026.</p>
 `;

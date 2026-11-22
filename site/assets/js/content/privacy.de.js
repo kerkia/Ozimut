@@ -34,7 +34,8 @@ export const body = (SITE, { world = false } = {}) => `
         sind sie für alle sichtbar, mit oder ohne Konto. Jede betroffene Person kann verlangen, dort nicht mehr identifiziert zu
         werden (siehe „Deine Rechte“).</p>
       <h2 style="font-size:16px">Zugang und Bilder der Website</h2>
-      <p>${SITE} ist vollständig kostenlos. Ein Teil der Website ist ohne Konto zugänglich; ein Konto öffnet die Benachrichtigungen und das Teilen von
+      <p>${SITE} ist während seines Starts kostenlos. Mit wachsender Nutzung können einige fortgeschrittene oder kostspielige Funktionen kostenpflichtig werden: Wir kündigen das mindestens zwei Monate vorher an, und was du bereits gespeichert hast, bleibt einsehbar und exportierbar.</p>
+      <p>Ein Teil der Website ist ohne Konto zugänglich; ein Konto öffnet die Benachrichtigungen und das Teilen von
         GPS-Tracks, und der vollständige Verlauf der Rangliste ist den Lizenzinhabern des Verbands vorbehalten: in Frankreich einem Konto, das
         Frankreich beigetreten ist und dessen FFCO-Lizenznummer anhand des Namens geprüft wurde. Länder, deren Ergebnisse alle öffentlich sind (Spanien),
         stehen allen offen.</p>
@@ -296,5 +297,5 @@ export const body = (SITE, { world = false } = {}) => `
       <p><b>Danksagung:</b> Die Symbole und Texte der Postenbeschreibungen (Coach › Postenbeschreibungen, die Bahnlegung)
         stammen aus Purple Pen von Peter Golde (<a href="https://github.com/petergolde/PurplePen" target="_blank" rel="noopener">github.com/petergolde/PurplePen</a>),
         unter der <a href="assets/tracer/LICENSE-PurplePen.txt" target="_blank" rel="noopener">BSD-Lizenz</a>.</p>
-      <p class="muted">Letzte Aktualisierung: 21. November 2026.</p>
+      <p class="muted">Letzte Aktualisierung: 22. November 2026.</p>
 `;

@@ -3631,10 +3631,11 @@ export default {
   "tour.mod.coach.lede": "Coach transforme vos traces en leçons : rejouez votre course sur votre carte, voyez où filent les secondes, comparez vos choix d'itinéraire à ceux des autres. Révisez les définitions de postes, entraînez votre lecture de carte avec treize jeux et calculez votre VMA.",
   "tour.mod.orga.title": "Organiser, sans s'épuiser",
   "tour.mod.orga.lede": "Orga est une page, vos événements, chacun avec ses outils du jour J et d'après\u00a0: tracer les circuits dans le navigateur, publier horaires et résultats, ouvrir la réservation des horaires, diffuser le direct depuis MeOS, vérifier les temps et offrir aux coureurs leur analyse, avec l'équipe de l'événement. Il s'active à l'inscription ou dans vos réglages, sur ordinateur.",
-  "tour.feat.eyebrow": "Tarifs", "tour.feat.title": "Tout est gratuit, module par module",
+  "tour.feat.eyebrow": "Tarifs", "tour.feat.title": "Gratuit aujourd'hui, module par module",
   "tour.feat.lede": "Chaque ligne ajoute à la précédente. Sans compte, Ozimut montre ce qui est public ; un compte ouvre les alertes, le partage de traces et Pixel, et les modules Orga et Carto les outils des organisateurs et des cartographes. Ce qui porte un astérisque demande aussi d'être licencié de la fédération.",
   "tour.feat.note": "Réservé aux licenciés de la fédération : en France, un compte qui a rejoint la France, son numéro de licence FFCO vérifié d'après le nom. Les pays dont tous les résultats sont publics (l'Espagne) s'ouvrent à tous.",
   "tour.feat.star": "Licenciés de la fédération",
+  "tour.feat.later": "Ozimut est gratuit pendant son lancement. À mesure que l'usage grandit, certaines fonctions avancées ou coûteuses pourront devenir payantes : nous l'annoncerons au moins deux mois avant, et ce que vous avez déjà enregistré restera consultable et exportable.",
   "hub.guest.enter": "Entrer sans compte",
   "home.guest.or": "ou", "home.guest.hint": "Sans compte, de nombreuses fonctions restent réservées aux inscrits : la plupart des fonctions avancées ne sont pas visibles.",
   // the home page's new pictures (2026-10-30)
@@ -3760,7 +3761,7 @@ export default {
   "tour.f.orga.orga.8": "Le tracé des circuits de chaque événement dans le navigateur\u00a0: fichiers Purple Pen, OCAD et Mapper, PDF, définitions, contrôles IOF",
   "tour.f.orga.orga.9": "Une équipe de traçage à part, chiffrée si l'on veut, et le mode terrain sur téléphone",
   "tour.ov.menu": "Aperçu",
-  "tour.lvl.free": "Gratuit pour tous",
+  "tour.lvl.free": "Gratuit aujourd'hui",
   // the Ozimut index over the years (owner, 2026-10-30)
   "tour.method.long": "Votre niveau sur la durée",
   "tour.method.long.1.b": "Quinze saisons, une seule règle.", "tour.method.long.1": "L'indice Ozimut est recalculé depuis 2010 avec les mêmes règles, forêt, sprint, VTT et ski chacun à part : votre courbe se lit d'un bout à l'autre, sans rupture le jour où une règle officielle change.",

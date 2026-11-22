@@ -763,6 +763,7 @@ export function welcomeMail(env, user, { fr = false } = {}) {
     alerts: "In Settings, choose your alerts: one of your races online, your start time, new races in your regions — as notifications on your phone or computer. Ozimut also installs as an app.",
     feedback: ["Ozimut is young and changes every week. An idea, a mistake, a page that is unclear? Just reply to this message, or write to us from the ", "Contact us", " page. Every message is read."],
     open: "Open Ozimut",
+    later: "Ozimut is free during its launch. As usage grows, some advanced or costly features may become paid: we will say so at least two months ahead, and what you have already stored will stay readable and exportable.",
     sign: "See you soon on the courses,",
     team: "The Ozimut team",
     colon: ": ",
@@ -780,6 +781,7 @@ export function welcomeMail(env, user, { fr = false } = {}) {
     alerts: `Dans Réglages, choisissez vos alertes${NB}: une de vos courses en ligne, votre heure de départ, les nouvelles courses de vos régions — par notification sur votre téléphone ou votre ordinateur. Ozimut s'installe aussi comme une application.`,
     feedback: [`Ozimut est jeune et évolue chaque semaine. Une idée, une erreur, une page peu claire${NB}? Répondez simplement à ce message, ou écrivez-nous depuis la page «${NB}`, "Nous écrire", `${NB}». Chaque message est lu.`],
     open: "Ouvrir Ozimut",
+    later: `Ozimut est gratuit pendant son lancement. À mesure que l'usage grandit, certaines fonctions avancées ou coûteuses pourront devenir payantes${NB}: nous l'annoncerons au moins deux mois avant, et ce que vous avez déjà enregistré restera consultable et exportable.`,
     sign: "À bientôt sur les circuits,",
     team: "L'équipe Ozimut",
     colon: `${NB}: `,
@@ -797,6 +799,7 @@ export function welcomeMail(env, user, { fr = false } = {}) {
     alerts: "Wähle in den Einstellungen deine Benachrichtigungen: einer deiner Läufe ist online, deine Startzeit, neue Läufe in deinen Regionen — als Mitteilung auf deinem Handy oder Computer. Ozimut lässt sich auch als App installieren.",
     feedback: ["Ozimut ist jung und entwickelt sich jede Woche weiter. Eine Idee, ein Fehler, eine unklare Seite? Antworte einfach auf diese Nachricht oder schreib uns über die Seite „", "Kontakt", "“. Jede Nachricht wird gelesen."],
     open: "Ozimut öffnen",
+    later: "Ozimut ist während seines Starts kostenlos. Mit wachsender Nutzung können einige fortgeschrittene oder kostspielige Funktionen kostenpflichtig werden: Wir kündigen das mindestens zwei Monate vorher an, und was du bereits gespeichert hast, bleibt einsehbar und exportierbar.",
     sign: "Bis bald im Gelände,",
     team: "Das Ozimut-Team",
     colon: ": ",
@@ -814,6 +817,7 @@ export function welcomeMail(env, user, { fr = false } = {}) {
     alerts: "En Ajustes, elige tus alertas: una de tus carreras en línea, tu hora de salida, las nuevas carreras de tus regiones — como notificaciones en tu móvil o tu ordenador. Ozimut también se instala como aplicación.",
     feedback: ["Ozimut es joven y cambia cada semana. ¿Una idea, un error, una página poco clara? Responde simplemente a este mensaje o escríbenos desde la página «", "Contacto", "». Leemos todos los mensajes."],
     open: "Abrir Ozimut",
+    later: "Ozimut es gratis durante su lanzamiento. A medida que crezca su uso, algunas funciones avanzadas o costosas podrán pasar a ser de pago: lo anunciaremos con al menos dos meses de antelación, y lo que ya hayas guardado seguirá pudiendo consultarse y exportarse.",
     sign: "Hasta pronto en los recorridos,",
     team: "El equipo de Ozimut",
     colon: ": ",
@@ -825,9 +829,10 @@ export function welcomeMail(env, user, { fr = false } = {}) {
 <ul style="padding-left:20px;margin:0 0 12px">${W.items.map(([k, v]) => `<li style="margin:0 0 6px"><b>${esc(k)}</b>${esc(W.colon)}${esc(v)}</li>`).join("")}</ul>
 <p>${esc(W.alerts)}</p>${button(home, W.open, user.lang)}
 <p>${esc(f0)}<a href="${esc(contact)}">${esc(fLink)}</a>${esc(f1)}</p>
+<p>${esc(W.later)}</p>
 <p>${esc(W.sign)}<br>${esc(W.team)}</p>`;
   const text = [hello, "", W.intro, ...W.items.map(([k, v]) => `- ${k}${W.colon}${v}`), "", W.alerts, "", `${W.open}${W.colon}${home}`, "",
-    `${f0}${fLink}${f1}`, `${fLink}${W.colon}${contact}`, "", W.sign, W.team].join("\n");
+    `${f0}${fLink}${f1}`, `${fLink}${W.colon}${contact}`, "", W.later, "", W.sign, W.team].join("\n");
   return { subject: W.subject, html: wrap(env, W.subject, html, user.lang), text };
 }
 

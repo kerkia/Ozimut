@@ -28,7 +28,8 @@ export const body = (SITE, { world = false } = {}) => `
         (name, club, regional federation, licence and card numbers), of which it shows no number. These results being public, everyone can see them, with or without an account.
         Anyone concerned may ask no longer to be identified in them (see “Your rights”).</p>
       <h2 style="font-size:16px">Access and pictures of the site</h2>
-      <p>${SITE} is entirely free. Part of the site can be read without an account; an account opens alerts and track sharing,
+      <p>${SITE} is free during its launch. As usage grows, some advanced or costly features may become paid: we will say so at least two months ahead, and what you have already stored will stay readable and exportable.</p>
+      <p>Part of the site can be read without an account; an account opens alerts and track sharing,
         and the ranking's whole history is kept to the federation's licence holders: in France, an account that joined France, its
         FFCO licence number checked against the name. Countries whose results are all public (Spain) are open to everyone.</p>
       <p>The screenshots on the home page are taken on a scrambled copy of the data: names, licences, clubs and times are invented
@@ -264,5 +265,5 @@ export const body = (SITE, { world = false } = {}) => `
       <p><b>Credits:</b> the control description symbols and texts (Coach › Control descriptions, the course setting) come from Purple
         Pen, by Peter Golde (<a href="https://github.com/petergolde/PurplePen" target="_blank" rel="noopener">github.com/petergolde/PurplePen</a>),
         under the <a href="assets/tracer/LICENSE-PurplePen.txt" target="_blank" rel="noopener">BSD licence</a>.</p>
-      <p class="muted">Last updated: 21 November 2026.</p>
+      <p class="muted">Last updated: 22 November 2026.</p>
 `;

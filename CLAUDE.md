@@ -507,7 +507,11 @@ real iPhone or Android phone; on a phone
 hero has « Se connecter », « Créer un compte », « Entrer sans compte » (`data-guest-enter`, `app.enterAsGuest`). Each section is a
 course of its own (`tour.js` `mod`: the start triangle beside its introduction, its legs numbered from 1, its finish holding the
 way in; the line's length measured to the finish, `--line`). « Tarifs » is a table, the modules as columns and the access levels
-as rows (without an account, with one, with Orga), each row adding to the one above and marked « Gratuit pour tous »; each cell
+as rows (without an account, with one, with Orga), each row adding to the one above and marked « Gratuit pour tous » — **since 2026-11-22 (owner) « Gratuit aujourd'hui »**, the table
+titled « Gratuit aujourd'hui, module par module », with the note `tour.feat.later` under it (free during the launch; some advanced or
+costly features may become paid, announced at least two months ahead, nothing stored taken back: it stays readable and exportable),
+the same sentence in the rules page's « Accès et images du site » and the welcome e-mail, after the study of paid plans
+(`C:\Kerkia\Ozimut\work\study\payments`); each cell
 lists what it adds (`CAPS`, the keys `tour.f.<module>.<level>.<n>` it names: change both together); what only a federation's
 licensee sees (`<module>.fed.<n>`) has no row of its own since 2026-10-31 (owner): an asterisk in the row it opens from, the note
 under the table (`tour.feat.note`) explaining it. A link

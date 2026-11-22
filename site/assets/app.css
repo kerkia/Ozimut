@@ -3608,6 +3608,7 @@ button.cd-letter:hover { background: var(--grp, var(--ink)); color: var(--surfac
 .tour-long li b { display: block; color: var(--ink); font-size: 15px; margin-bottom: 3px; }
 @media (max-width: 760px) { .tour-long ul { grid-template-columns: minmax(0, 1fr); } }
 .tour-feat-note + .tour-feat-note { margin-top: 0; }
+.tour-feat-later + .tour-feat-note { margin-top: 8px; }
 /* Orga › Analyses de carte: the list at the page's width (2026-10-30; competitions and trainings in one list, 2026-11-04) */
 .sh-orglist { table-layout: fixed; width: 100%; }
 .sh-orglist .c-date { width: 96px; } .sh-orglist .c-type { width: 130px; } .sh-orglist .c-org { width: 18%; } .sh-orglist .c-status { width: 220px; } .sh-orglist .c-by { width: 16%; } .sh-orglist .c-act { width: 220px; }

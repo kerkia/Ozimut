@@ -4459,10 +4459,11 @@ export default {
   "tour.mod.coach.lede": "Coach turns your tracks into lessons: replay your race on your map, see where the seconds slip away, compare your route choices with others'. Revise the control descriptions, train your map reading with thirteen games and work out your VMA.",
   "tour.mod.orga.title": "Organise without wearing yourself out",
   "tour.mod.orga.lede": "Orga is one page, your events, each with its tools for race day and after: set courses in the browser, publish start lists and results, open start-time booking, broadcast live from MeOS, check the times and give runners their analysis, with the event's team. Turn it on when you register or in your settings, on a computer.",
-  "tour.feat.eyebrow": "Pricing", "tour.feat.title": "Everything is free, module by module",
+  "tour.feat.eyebrow": "Pricing", "tour.feat.title": "Free today, module by module",
   "tour.feat.lede": "Each row adds to the one above. Without an account Ozimut shows what is public; an account opens alerts, track sharing and Pixel, and the Orga and Carto modules the tools of organisers and mappers. What carries an asterisk also needs a federation's licence.",
   "tour.feat.note": "For a federation's licensees only: in France, an account that joined France, its FFCO licence number checked against the name. Countries whose results are all public (Spain) are open to everyone.",
   "tour.feat.star": "Federation licensees",
+  "tour.feat.later": "Ozimut is free during its launch. As usage grows, some advanced or costly features may become paid: we will say so at least two months ahead, and what you have already stored will stay readable and exportable.",
   "hub.guest.enter": "Enter without an account",
   "home.guest.or": "or", "home.guest.hint": "Without an account, many features are for registered users only: most advanced features are not shown.",
   // the home page's new pictures (2026-10-30)
@@ -4588,7 +4589,7 @@ export default {
   "tour.f.orga.orga.8": "Each event's course setting in the browser: Purple Pen, OCAD and Mapper files, PDFs, descriptions, IOF checks",
   "tour.f.orga.orga.9": "A setting team of its own, encrypted if wished, and the field mode on a phone",
   "tour.ov.menu": "Overview",
-  "tour.lvl.free": "Free for all",
+  "tour.lvl.free": "Free today",
   // the Ozimut index over the years (owner, 2026-10-30)
   "tour.method.long": "Your level over the years",
   "tour.method.long.1.b": "Fifteen seasons, one set of rules.", "tour.method.long.1": "The Ozimut index is recomputed from 2010 with the same rules, forest, sprint, MTBO and ski each on its own: your curve reads from end to end, with no break on the day an official rule changes.",
