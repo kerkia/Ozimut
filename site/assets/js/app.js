@@ -98,9 +98,9 @@ const FR_ROUTES = new Set(["runner", "ranking", "categories", "courses", "compar
 const PUBLIC_STATS = new Set(["runner", "ranking", "courses"]);
 /** May the account open the site's country's ranking pages? */
 const ranksHere = () => country.ranks() && auth.sees(country.current());
-/** « Suivi GPS » in Coach's menu: every account once the tracking opens, before that those it concerns (an administrator, a
- *  child account, an account that opened its page once: an invitation or a child's account made by an administrator). */
-const trackShown = (me) => { try { return !!(me.trackOpen || me.admin || me.child || localStorage.getItem("ocn.track.seen")); } catch (e) { return !!(me.trackOpen || me.admin || me.child); } };
+/** « Suivi GPS » (Coach): every account once the tracking opens (TRACK_OPEN "1"), the administrators only until then (owner,
+ *  2026-11-22) — its menu entry, its page, its documentation chapter. */
+export const trackShown = (me) => !!(me && (me.trackOpen || me.admin));
 /** Where a signed-in account or a visitor without one lands: the modules page (owner, 2026-10-30; the agenda from 2026-10-21). */
 const homeOf = () => "#/modules";
 // The pages a visitor without an account may open (owner, 2026-10-30): those of public data — Arena, Coach but « Analyse
@@ -476,8 +476,8 @@ export function moduleMenus() {
     coach: [["mapAnalysis", "#/analyses", t("nav.mapAnalysis")],
       // « Mes cartes » (owner, 2026-11-01): an account's own archive (a link shared opens it to anyone: GUEST_ROUTES)
       ...(me ? [["myMaps", "#/mes-cartes", t("nav.myMaps")]] : []),
-      // « Suivi GPS » (2026-11-21): while TRACK_OPEN is "0" the administrators', a child's and the accounts the tracking reached
-      ...(me && trackShown(me) ? [["track", "#/suivi", t("nav.track")]] : []),
+      // « Suivi GPS » (2026-11-21): the administrators' while TRACK_OPEN is "0"
+      ...(trackShown(me) ? [["track", "#/suivi", t("nav.track")]] : []),
       ["learn", "#/apprendre", t("nav.learn")], ["games", "#/jeux", t("nav.games")], ["vma", "#/vma", t("nav.vma")],
       // « Santé » to the accounts given it; its authors reach « Rédaction » from its page, not from the menu (owner, 2026-11-01)
       ["nutrition", "#/sante", t("nav.nutrition")]]
@@ -970,7 +970,8 @@ async function route_() {
   }
   // a right granted since this device signed in (« Nutrition »): read the account again before turning the address away
   if (me && NUTRITION_ROUTES[r.route] && !NUTRITION_ROUTES[r.route]()) await auth.refresh();
-  if ((OWNER_ROUTES.has(r.route) && !ownerOnly()) || (NUTRITION_ROUTES[r.route] && !NUTRITION_ROUTES[r.route]())) {
+  if ((OWNER_ROUTES.has(r.route) && !ownerOnly()) || (NUTRITION_ROUTES[r.route] && !NUTRITION_ROUTES[r.route]())
+    || (r.route === "track" && !trackShown(me))) {
     history.replaceState(null, "", "#/modules");
     r = parseHash();
   }

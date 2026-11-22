@@ -198,7 +198,8 @@ export async function render(main, { query = {} } = {}) {
   const fr = sees("FR");                      // France's ranking: its official CN and the ranking's calculations
   // one documentation per module (owner, 2026-10-31): `?module=` names it; without, the documentation's home
   const mod = DOC_MODS.includes(query.module) ? query.module : null;
-  const G = (await import(`../content/guide.${lang()}.js`).catch(() => import("../content/guide.en.js"))).build({ html, raw, subTabs, fr, admin: !!session()?.admin, owner: true });
+  const G = (await import(`../content/guide.${lang()}.js`).catch(() => import("../content/guide.en.js"))).build({ html, raw, subTabs, fr, admin: !!session()?.admin, owner: true,
+    track: !!(session()?.admin || session()?.trackOpen) });     // « Suivi GPS »: the administrators' until TRACK_OPEN is "1" (app.trackShown)
   if (!mod) return home(main, G, query);
   // the address keeps the module: every change of tab or chapter writes it again
   const rq = (q) => replaceQuery({ module: mod, ...q });

@@ -112,7 +112,6 @@ export async function render(main, { arg = null, query = {}, path = "" } = {}) {
     main.innerHTML = html`<section class="card"><p>${st.status === 403 ? t("trk.notOpen") : st.status === 503 ? t("trk.notReady") : errText(st)}</p></section>`.s;
     return;
   }
-  try { localStorage.setItem("ocn.track.seen", "1"); } catch (e) { /* this visit */ }
   const S = st.data;
   if (await takeCodes(query)) return render(main, { query: {}, path });
   const head = (path || location.hash).split("?")[0];

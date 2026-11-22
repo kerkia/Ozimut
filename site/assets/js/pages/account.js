@@ -51,10 +51,10 @@ const dropDraft = () => { try { sessionStorage.removeItem(DRAFT); } catch (e) { 
 async function register(main) {
   // world: registration open to every orienteer (WORLD_OPEN; owner, 2026-10-20) — countries to join, none required; until
   // then France alone, its licence checked as always
-  let open = true, siteKey = null, world = false;
+  let open = true, siteKey = null, world = false, track = false;
   try {
     const st = await (await fetch("api/account/status")).json();
-    open = st.registration; siteKey = st.turnstile || null; world = !!st.world;
+    open = st.registration; siteKey = st.turnstile || null; world = !!st.world; track = !!st.track;
   } catch (e) { open = false; }
   main.innerHTML = card(t("ac.reg.title"), !open
     ? html`<div class="notice info">${t("ac.reg.closed")}</div><a class="btn" href="#/" style="justify-content:center">${t("ac.toLogin")}</a>`
@@ -67,7 +67,7 @@ async function register(main) {
           <label class="field" style="flex:1"><span>${t("ac.reg.first")}</span><input name="first" type="text" autocomplete="given-name" required maxlength="60"></label>
           <label class="field" style="flex:1"><span>${t("ac.reg.last")}</span><input name="last" type="text" autocomplete="family-name" required maxlength="60"></label>
         </div>
-        <label class="field"><span>${t("ac.reg.birthYear")} <span class="muted">· ${t("ac.reg.birthYear.hint")}</span></span><input name="birthYear" type="number" inputmode="numeric" autocomplete="bday-year" required min="${new Date().getFullYear() - 110}" max="${new Date().getFullYear()}"></label>
+        ${track ? html`<label class="field"><span>${t("ac.reg.birthYear")} <span class="muted">· ${t("ac.reg.birthYear.hint")}</span></span><input name="birthYear" type="number" inputmode="numeric" autocomplete="bday-year" required min="${new Date().getFullYear() - 110}" max="${new Date().getFullYear()}"></label>` : ""}
         <fieldset class="cty-set"><legend>${t(world ? "ac.reg.countries" : "ac.reg.country")}</legend>
           ${world ? html`<p class="muted" style="margin:0 0 6px;font-size:12.5px">${t("ac.reg.countries.hint")}</p>` : ""}
           <div id="reg-cty">${membershipFields("c0", { fixed: !world, allowNone: world, row: world ? {} : { cc: "FR" } })}</div>
@@ -123,7 +123,7 @@ async function register(main) {
       email: f.get("email"), password: f.get("password"), first: f.get("first"), last: f.get("last"),
       countries: Array.from({ length: rows }, (_, i) => readMembership(form, `c${i}`)).filter(Boolean),
       consent: f.get("consent") === "on", website: f.get("website"), creator: f.get("creator") === "on",
-      birthYear: Number(f.get("birthYear")) || null,
+      birthYear: track ? Number(f.get("birthYear")) || null : null,
       lang: lang(), turnstile: tsToken,
     });
     if (!r.ok && tsWidget !== null) { try { window.turnstile.reset(tsWidget); } catch (e) { /* gone */ } tsToken = ""; }

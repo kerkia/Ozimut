@@ -24,9 +24,10 @@ pages and the native code (`track/android`, `track/ios`, `track/garmin`). Change
 
 ## Feature flag
 
-`TRACK_OPEN` (wrangler.toml `[vars]`, "0" until the owner opens it): "0" → every tracking page and API is the
-administrators' (and the accounts they manage or that follow them: a child account created by an administrator, its
-watchers); "1" → every account, **and the under-15 registration rule applies**. The device endpoints (`pair`, `push`,
+`TRACK_OPEN` (wrangler.toml `[vars]`, "0" until the owner opens it): "0" → every tracking page, API and documentation chapter
+is the administrators' (owner, 2026-11-22: « visible to admin only for now »), and the child accounts they create (a child's
+phone pairs its own watch); "1" → every account, the registration form asks the year of birth, **and the under-15
+registration rule applies**. The device endpoints (`pair`, `push`,
 `osmand`, `claim`) work whatever the flag: a device only exists if an allowed account made it.
 
 ## Data (D1, migration `0029_track.sql`)

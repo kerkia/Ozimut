@@ -52,7 +52,8 @@ at another server: change `OZ_BASE_URL` under `configs: Debug:` in `project.yml`
    `APNS_KEY_ID`, `APNS_TEAM_ID`, `APNS_TOPIC` (= `com.ozimut.app`) — design.md « Native push tokens ». The app sends
    `env: "dev"` from Debug builds and `"prod"` from Release builds; the entitlement `aps-environment` is `development` in
    `project.yml` and becomes `production` when exported for the App Store.
-6. An **app icon** (1024 × 1024, no transparency) in an asset catalog: there is none yet (the builds use the default).
+6. The **app icon** is the Ozimut mark, `Resources/Assets.xcassets/AppIcon` (one 1024 px picture for the iPhone and the watch, no
+   transparency), drawn by `track/tools/make_icons.py`.
 7. HealthKit and location purpose strings are written; App Review will ask why the app tracks in the background:
    « live tracking of a run for the people the runner chose, only between Start and Stop ».
 
@@ -88,7 +89,7 @@ at another server: change `OZ_BASE_URL` under `configs: Debug:` in `project.yml`
 - Never run on a real iPhone or Apple Watch (no Mac, no signing): the background behaviour, the Live Activity, push and
   HealthKit are only compiled. The first signed build must be tried with the two-minute test, the phone locked.
 - No signing, archive or TestFlight upload in CI (needs the owner's account and secrets above).
-- No app icon or launch artwork.
+- No launch artwork (the system's plain launch screen).
 - The watch does not take over a workout session the system ended (after a crash it starts a new one on relaunch).
 - Gzip of the push body (accepted by the server, not needed at one batch every 30 s).
 - The web view's language follows the site's own setting; the native screens follow the account's language.

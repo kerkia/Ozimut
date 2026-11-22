@@ -6,7 +6,7 @@
 import APP from "../chrono/doc/app.fr.js";
 
 export function build(X) {
-  const { html, raw, subTabs, fr = true, admin = false, owner = false } = X;
+  const { html, raw, subTabs, fr = true, admin = false, owner = false, track = false } = X;
   // a page of the site, as the menus name it
   const P = (href, label) => html`<a href="${href}">${label}</a>`;
   // a module's documentation
@@ -186,7 +186,7 @@ export function build(X) {
   // Coach
   // ======================================================================================================
   const COACH = [["carte", "Analyse"], ["solo", "Analyse solo"], ["multi", "Comparer avec les autres coureurs"], ["cartes", "Mes cartes"], ...(owner ? [["definitions", "Définitions de postes"], ["symboles", "Symboles de carte"]] : []),     // (the accounts named Le Helloco only, auth.owner)
-    ["jeux", "Jeux"], ["vma", "VMA"], ["routes", "Itinéraires calculés"]];     // (every account's since 2026-11-04)
+    ["jeux", "Jeux"], ["vma", "VMA"], ["routes", "Itinéraires calculés"], ...(track ? [["suivi", "Suivi GPS"]] : [])];     // (every account's since 2026-11-04)
   function coach() {
     return chapters(COACH, {
       carte: () => html`
@@ -420,6 +420,77 @@ export function build(X) {
             pas absorber les erreurs que l'exécution veut montrer. Les itinéraires sont ensuite recalculés avec ces vitesses : A est le meilleur
             itinéraire <i>pour ce coureur</i>, le choix se mesure contre lui, l'exécution contre ses vitesses habituelles. Dans « Comparer avec les autres coureurs », la
             vitesse sur les chemins et la montée se calibrent sur tout le groupe (tous les postes de tous les coureurs), et chacun garde son allure.</p>`)}`,
+      suivi: () => html`
+        <div class="mx-callout"><b>En essai, pour les administrateurs seulement.</b> Le suivi GPS ne s'affiche pour l'instant qu'aux
+          administrateurs d'Ozimut. Les applications Android, iPhone, Apple Watch et Garmin n'ont encore jamais été essayées sur un vrai
+          appareil.</div>
+        ${slide("Coach", "1. À quoi sert le suivi GPS", html`
+          <p>Le ${P("#/suivi", "Suivi GPS")} sert à deux choses : <b>enregistrer sa course</b> sans montre GPS, avec son téléphone, et
+            <b>suivre en direct</b> un coureur — d'abord un enfant en forêt, que ses parents veulent voir avancer et retrouver s'il se perd.
+            La même trace, une position par seconde, sert ensuite aux analyses.</p>
+          ${list([
+            html`<b>Suivre</b> : les comptes que vous pouvez suivre — vous, vos enfants, ceux qui vous l'ont permis — et leur course en cours.`,
+            html`<b>Mes traces</b> : vos courses enregistrées, et celles de vos enfants, à revoir, à télécharger ou à ouvrir dans l'Analyse solo.`,
+            html`<b>Famille et appareils</b> : les comptes de vos enfants, les appareils associés, les personnes qui peuvent suivre, les réglages.`,
+          ])}`)}
+        ${slide("Coach", "2. Avec quoi on enregistre", html`
+          <p>Une page web ne peut pas enregistrer une position écran verrouillé. L'enregistrement se fait donc avec :</p>
+          ${list([
+            html`<b>l'application Ozimut</b> sur Android ou iPhone : tout le site, plus le suivi. On démarre, on range le téléphone dans une poche
+              ou un brassard, on arrête en gardant le bouton appuyé deux secondes. Un bouton « J'ai besoin d'aide » prévient aussitôt les suiveurs ;`,
+            html`<b>une Apple Watch</b> avec l'application Ozimut : elle enregistre seule, et envoie seule si elle a le réseau mobile ;`,
+            html`<b>une montre Garmin</b> avec le champ de données Ozimut, ajouté à l'écran d'une activité de course : il envoie par le téléphone
+              resté en Bluetooth (une Garmin n'a pas d'accès mobile pour les applications) ;`,
+            html`<b>Traccar Client</b>, une application gratuite, pour essayer sans l'application Ozimut.`,
+          ])}
+          <p>Avant la première course, faites le <b>test de deux minutes</b> de l'application : écran verrouillé, il vérifie que le téléphone
+            enregistre bien. Sur certains téléphones Android, il faut autoriser l'application à fonctionner en arrière-plan dans les réglages de
+            batterie ; le test le dit et ouvre le bon écran.</p>`)}
+        ${slide("Coach", "3. Associer un appareil", html`
+          <p>Un appareil appartient toujours à un compte : rien n'est enregistré sans compte. Dans « Famille et appareils » :</p>
+          ${list([
+            html`<b>un téléphone</b> : « Associer un téléphone » montre un code QR ; on le scanne avec l'application Ozimut du téléphone (ou on
+              tape ses 8 caractères). Le code sert une fois et dure 15 minutes. Dans l'application elle-même, « Associer ce téléphone » suffit ;`,
+            html`<b>une montre</b> : la montre affiche un code de 6 caractères ; on le tape dans « Associer une montre ». Une Apple Watch peut aussi
+              être associée par l'iPhone qui l'accompagne ;`,
+            html`<b>Traccar Client</b> : « Traccar Client » donne une adresse et un code QR qui règlent l'application.`,
+          ])}
+          <p>« Retirer » arrête aussitôt un appareil : il ne peut plus envoyer de positions.</p>`)}
+        ${slide("Coach", "4. Les comptes des enfants", html`
+          <p>Un enfant a son propre compte, que ses parents gèrent : pas d'adresse e-mail ni de mot de passe. « Créer le compte d'un enfant »
+            demande son prénom, son nom et son année de naissance. Ensuite, sur le téléphone de l'enfant, on associe le téléphone à son compte ;
+            l'application peut s'ouvrir directement sur le suivi (« Mode suivi seul »).</p>
+          ${list([
+            html`<b>Un second parent</b> : « Inviter l'autre parent » donne un lien ; ouvert avec son propre compte, il gère l'enfant à égalité.`,
+            html`<b>Qui peut suivre</b> : « Inviter quelqu'un à suivre » donne un lien d'invitation, valable 7 jours et une seule fois ; la
+              personne l'ouvre avec son compte Ozimut. Personne ne suit sans y avoir été invité, et on retire un suiveur quand on veut.`,
+            html`<b>Les réglages</b> : la fréquence des envois quand quelqu'un regarde (30 s par défaut), la durée maximale d'un suivi, le
+              numéro que l'écran d'aide propose d'appeler, et une zone : une alerte part si l'enfant en sort.`,
+          ])}
+          <p>Lorsque le suivi sera ouvert à tous, personne ne pourra créer seul un compte avant 15 ans : c'est un parent qui le crée. À partir
+            de 15 ans, le jeune peut prendre son compte en main (« Gérer mon compte moi-même ») ; ses traces restent les siennes et ses parents
+            deviennent des personnes qui peuvent le suivre.</p>`)}
+        ${slide("Coach", "5. Suivre en direct", html`
+          <p>Un clic sur un compte dans « Suivre » ouvre sa course sur un fond de carte (OpenStreetMap, jamais la carte de course d'orientation) :
+            la trace, le point du coureur et la précision de sa position, sa durée, sa distance, sa batterie.</p>
+          ${list([
+            html`<b>Le décalage</b> : le téléphone envoie ses positions par paquets (toutes les 30 s quand quelqu'un regarde, toutes les 2 minutes
+              sinon : la batterie dure plus longtemps). La page rejoue donc la course avec environ 40 s de retard, de façon fluide, sans saut.`,
+            html`<b>Les alertes</b> arrivent en notification aux suiveurs : départ, arrivée, demande d'aide, plus de position depuis 3 minutes,
+              immobile depuis 5 minutes, batterie faible, retour au départ, sortie de la zone.`,
+            html`<b>Terminer ce suivi</b> : un parent peut arrêter l'enregistrement à distance ; l'appareil s'arrête à son envoi suivant.`,
+          ])}`)}
+        ${slide("Coach", "6. Mes traces", html`
+          <p>Chaque course enregistrée est gardée 30 jours ; celles ouvertes dans une analyse sont gardées tant que vous les gardez. Pour
+            chacune : la voir, la télécharger en GPX, l'ouvrir dans l'${P("#/analyse-solo", "Analyse solo")}, la renommer, la supprimer.</p>
+          ${list([
+            html`<b>Importer</b> : un fichier GPX, FIT ou TCX ;`,
+            html`<b>Importer depuis Santé</b> (dans l'application iPhone) : les séances d'une Apple Watch ou d'une autre montre qui écrit son
+              parcours dans Santé ;`,
+            html`<b>Relier Polar</b> : chaque séance d'une montre Polar arrive d'elle-même dans « Mes traces ».`,
+          ])}
+          <p>Une trace importée reste privée. Une course enregistrée n'est vue que des personnes que vous avez invitées, ou de personne si elle est
+            marquée privée.</p>`)}`,
     });
   }
 

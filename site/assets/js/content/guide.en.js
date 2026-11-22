@@ -4,7 +4,7 @@
 import APP from "../chrono/doc/app.en.js";
 
 export function build(X) {
-  const { html, raw, subTabs, fr = true, admin = false, owner = false } = X;
+  const { html, raw, subTabs, fr = true, admin = false, owner = false, track = false } = X;
   // a page of the site, as the menus name it
   const P = (href, label) => html`<a href="${href}">${label}</a>`;
   // a module's documentation
@@ -181,7 +181,7 @@ export function build(X) {
   // Coach
   // ======================================================================================================
   const COACH = [["carte", "Analysis"], ["solo", "Solo analysis"], ["multi", "Compare with the other runners"], ["cartes", "My maps"], ...(owner ? [["definitions", "Control descriptions"], ["symboles", "Map symbols"]] : []),     // (the accounts named Le Helloco only, auth.owner)
-    ["jeux", "Games"], ["vma", "MAS"], ["routes", "Computed routes"]];     // (every account's since 2026-11-04)
+    ["jeux", "Games"], ["vma", "MAS"], ["routes", "Computed routes"], ...(track ? [["suivi", "GPS tracking"]] : [])];     // (every account's since 2026-11-04)
   function coach() {
     return chapters(COACH, {
       carte: () => html`
@@ -403,6 +403,74 @@ export function build(X) {
             to show. The routes are then computed again with these speeds: A is the best route <i>for this runner</i>, the choice is measured against
             it, the execution against their usual speeds. In “Compare with the other runners”, the speed on paths and the climb are calibrated on the whole group
             (every leg of every runner), and each runner keeps their own pace.</p>`)}`,
+      suivi: () => html`
+        <div class="mx-callout"><b>On trial, for administrators only.</b> GPS tracking is shown for now only to Ozimut's administrators.
+          The Android, iPhone, Apple Watch and Garmin apps have never yet been tried on a real device.</div>
+        ${slide("Coach", "1. What GPS tracking is for", html`
+          <p>${P("#/suivi", "GPS tracking")} does two things: <b>recording your run</b> without a GPS watch, with your phone, and
+            <b>following a runner live</b> — first of all a child in the forest, whose parents want to see them progress and find them if they
+            get lost. The same track, one position a second, then serves the analyses.</p>
+          ${list([
+            html`<b>Follow</b>: the accounts you may follow — yourself, your children, those who allowed you — and their run under way.`,
+            html`<b>My tracks</b>: your recorded runs, and your children's, to view, download or open in the Solo analysis.`,
+            html`<b>Family and devices</b>: your children's accounts, the paired devices, the people who may follow, the settings.`,
+          ])}`)}
+        ${slide("Coach", "2. What records", html`
+          <p>A web page cannot record a position with the screen locked. Recording is therefore done with:</p>
+          ${list([
+            html`<b>the Ozimut app</b> on Android or iPhone: the whole site, plus tracking. Start, put the phone in a pocket or an armband,
+              stop by holding the button for two seconds. An « I need help » button warns the followers at once;`,
+            html`<b>an Apple Watch</b> with the Ozimut app: it records on its own, and sends on its own if it has mobile data;`,
+            html`<b>a Garmin watch</b> with the Ozimut data field, added to a running activity's screen: it sends through the phone kept on
+              Bluetooth (a Garmin gives apps no mobile access);`,
+            html`<b>Traccar Client</b>, a free app, to try without the Ozimut app.`,
+          ])}
+          <p>Before the first run, do the app's <b>two-minute test</b>: with the screen locked, it checks that the phone records properly. On
+            some Android phones the app must be allowed to run in the background in the battery settings; the test says so and opens the
+            right screen.</p>`)}
+        ${slide("Coach", "3. Pairing a device", html`
+          <p>A device always belongs to an account: nothing is recorded without one. In « Family and devices »:</p>
+          ${list([
+            html`<b>a phone</b>: « Pair a phone » shows a QR code; scan it with the phone's Ozimut app (or type its 8 characters). The code works
+              once and lasts 15 minutes. In the app itself, « Pair this phone » is enough;`,
+            html`<b>a watch</b>: the watch shows a 6-character code; type it in « Pair a watch ». An Apple Watch can also be paired by the
+              iPhone it goes with;`,
+            html`<b>Traccar Client</b>: « Traccar Client » gives an address and a QR code that set the app up.`,
+          ])}
+          <p>« Remove » stops a device at once: it can no longer send positions.</p>`)}
+        ${slide("Coach", "4. Children's accounts", html`
+          <p>A child has an account of their own, managed by their parents: no email address or password. « Create a child's account » asks for
+            their first name, last name and year of birth. Then, on the child's phone, pair the phone with their account; the app can open
+            straight on tracking (« Tracking-only mode »).</p>
+          ${list([
+            html`<b>A second parent</b>: « Invite the other parent » gives a link; opened with their own account, they manage the child equally.`,
+            html`<b>Who may follow</b>: « Invite someone to follow » gives an invitation link, valid 7 days and once; the person opens it with
+              their Ozimut account. Nobody follows without being invited, and a follower can be removed at any time.`,
+            html`<b>The settings</b>: how often positions are sent while someone watches (30 s by default), the longest tracking, the number the
+              help screen offers to call, and an area: an alert goes if the child leaves it.`,
+          ])}
+          <p>Once tracking is open to everyone, nobody under 15 will be able to create an account alone: a parent creates it. From 15 the young
+            person can take the account in hand (« Manage my account myself »); their tracks stay theirs and their parents become people who
+            may follow them.</p>`)}
+        ${slide("Coach", "5. Following live", html`
+          <p>A click on an account in « Follow » opens its run on a base map (OpenStreetMap, never the orienteering map): the track, the runner's
+            dot and the accuracy of their position, the duration, the distance, the battery.</p>
+          ${list([
+            html`<b>The delay</b>: the phone sends its positions in batches (every 30 s while someone watches, every 2 minutes otherwise: the
+              battery lasts longer). The page therefore replays the run about 40 s behind, smoothly, without jumps.`,
+            html`<b>The alerts</b> reach the followers as notifications: start, finish, call for help, no position for 3 minutes, not moving
+              for 5 minutes, low battery, back at the start, leaving the area.`,
+            html`<b>End this tracking</b>: a parent can stop the recording remotely; the device stops at its next send.`,
+          ])}`)}
+        ${slide("Coach", "6. My tracks", html`
+          <p>Each recorded run is kept 30 days; those opened in an analysis are kept as long as you keep them. For each: view it, download it
+            as GPX, open it in the ${P("#/analyse-solo", "Solo analysis")}, rename it, delete it.</p>
+          ${list([
+            html`<b>Import</b>: a GPX, FIT or TCX file;`,
+            html`<b>Import from Health</b> (in the iPhone app): the workouts of an Apple Watch or another watch that writes its route to Health;`,
+            html`<b>Link Polar</b>: every workout of a Polar watch arrives by itself in « My tracks ».`,
+          ])}
+          <p>An imported track stays private. A recorded run is seen only by the people you invited, or by nobody if it is marked private.</p>`)}`,
     });
   }
 

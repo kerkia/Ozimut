@@ -826,6 +826,14 @@ banner asking a parent), a child taking the account over from 15 (`POST /api/tra
   CLBackgroundActivitySession, HealthKit routes, APNs, WatchConnectivity pairing of the watch; the watch records with an
   HKWorkoutSession and sends alone on cellular), Garmin data field (claim code, sends through the phone; 37 products). **Only
   built and unit-tested in CI, never run on a device**; signing, stores, icons and the owner's accounts still to come.
+- **Administrators only for now** (owner, 2026-11-22: « make all this visible to admin only for now »): while `TRACK_OPEN` is "0" the
+  menu entry, the page (`app.trackShown`, the router sends others to the modules page), the Coach guide's chapter « Suivi GPS »
+  (`content/guide.*.js` `suivi`, `track` passed by `pages/methods.js`) and the API (`trackAllowed`: administrators and the child accounts
+  they create) are the administrators'; the registration form asks the year of birth only when it is "1" (`/api/account/status`
+  `track`). **The apps' icons** are the Ozimut mark (`favicon.svg`), drawn by `track/tools/make_icons.py` (Pillow): the iPhone and
+  watch's `Resources/Assets.xcassets/AppIcon` (1024 px, no alpha), the Garmin launcher icon (70 px, light ink on black), Android's
+  `ic_fg.xml` and `ic_stat.xml`. **The owner's steps** (relay, Traccar test, sideloaded Android APK, Garmin beta, Firebase, Apple,
+  Polar, Play, opening): `docs/track/setup.md`.
 - **Local test**: launch configs `ocn-live-track` (8771) then `pages-dev-track` (8774, a copy of the local state with 0029
   applied, the relay bound with `--do LIVE_TRACK=LiveTrack@ocn-live`); scripts `t_track.mjs` (the API, 31 checks) and
   `t_ws.mjs` (the relay) kept in `C:\Kerkia\Ozimut\work\scratch-scripts`.

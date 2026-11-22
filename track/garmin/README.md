@@ -112,5 +112,5 @@ data-field memory and screen, and fails on a product missing or below API 5.0.0.
 - `bat` is the watch's battery; `lp` is always false, `left` always 0 (the field does not know the phone's state).
 - `al` is sent when the watch gives an altitude; before its first altitude the field sends 0.
 - No help button (a data field takes no input), no settings: the batch interval is the server's.
-- The launcher icon is 40 × 40; most devices ask 54-70 px and scale it (compiler warnings). `tools/make_icon.py`
-  draws it.
+- The launcher icon is the Ozimut mark, 70 × 70 (the largest size the watches ask; the SDK scales it down), drawn with the
+  other apps' icons by `track/tools/make_icons.py`.

@@ -25,16 +25,12 @@ export const missing = (e) => /no such (table|column)/i.test(String(e?.message |
 export const ageOf = (u) => (u?.birth_year ? new Date().getUTCFullYear() - Number(u.birth_year) : null);
 export const UNDER = 15;
 
-/** May this account use the tracking pages at all? Everyone with TRACK_OPEN "1"; else the administrators and the accounts tied
- *  to them by the tracking (a child an administrator manages, a watcher an administrator invited…). */
+/** May this account use the tracking pages at all? Everyone with TRACK_OPEN "1"; until then the administrators (owner,
+ *  2026-11-22: « visible to admin only for now ») and the child accounts they made (a child's phone pairs its own watch). */
 export async function trackAllowed(env, user) {
   if (!user) return false;
   if (env.TRACK_OPEN === "1" || isAdmin(env, user)) return true;
-  try {
-    const r = await env.DB.prepare(`SELECT 1 FROM track_guardians WHERE child_id = ?1 OR parent_id = ?1
-      UNION SELECT 1 FROM track_watchers WHERE user_id = ?1 OR watcher_id = ?1 LIMIT 1`).bind(user.id).first();
-    return !!r;
-  } catch (e) { return false; }
+  return user.child === 1;
 }
 
 /** The accounts this one manages (its children). */
