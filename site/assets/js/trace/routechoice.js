@@ -861,7 +861,9 @@ export function classify(rgba0, w, h, mpp, opt = {}, progress = () => {}) {
     for (let i = 0; i < N; i++) if (kind[i] === I_PURPLE) { m[i] = 1; any = 1; }
     if (any) {
       inkNear = morph(m, w, h, 2, false);
-      for (let i = 0; i < N; i++) if (inkNear[i] && (area[i] === A.WHITE || area[i] === A.OPEN || area[i] === A.ROUGH)) area[i] = UNKNOWN;
+      // (on a sharp image the outline alone, which is white: a street's own colour beside the line stays the street's — a leg
+      // printed along a street 2 m wide left nothing of it, and the houses on both sides closed it: the Auray scan's 12-13)
+      for (let i = 0; i < N; i++) if (inkNear[i] && (area[i] === A.WHITE || (!sharp && (area[i] === A.OPEN || area[i] === A.ROUGH)))) area[i] = UNKNOWN;
     }
   }
   // a photographed sprint map's paper — its margin, the legend's box — is no white forest: the routes of the Quiberon photo ran
