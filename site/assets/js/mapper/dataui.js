@@ -205,11 +205,6 @@ async function ensureTownSymbols(E) {
   E.live.transact(t("map.undo.data"), () => { for (const s of add) E.live.addSymbol({ ...s, set: "issprom2019-2" }); });
 }
 const TOWN_API = "/api/townmap", TOWN_MAX = 2000;           // metres a side (the workflow's limit)
-// the legibility corrections asked with the map (owner, 2026-11-18: offered, never by default, with their time said): the developer's
-// repair passes (tools/virtually/legibility.py), an hour or more a km², so 1 km² at most (the workflow's job « fix »)
-const FIX_MAX = 1e6;                                          // m²
-/** The minutes the corrections add for an area of a m² (about 1 h 30 a km² on GitHub's runner, rounded up to 5). */
-export const fixMinutes = (a) => Math.max(5, Math.ceil((a / 1e6) * 90 / 5) * 5);
 /** The area asked for, in m², from the data area at the map's scale. */
 function townArea(E) { const b = areaOf(E), k = (E.doc.scale || 4000) / 1000; return [(b[2] - b[0]) * k, (b[3] - b[1]) * k]; }
 const townKey = (E) => `ocn.map.town.${E.id || "local"}`;
@@ -221,20 +216,17 @@ async function townDialog(E) {
   if ((await nationalSource(E, f)) !== "bdtopo") { E.say(t("map.data.town.notFrance"), "bad"); return; }
   const pending = readTown(E);
   if (pending) return waitTown(E, pending);
-  const [w, h] = townArea(E), fixOk = w * h <= FIX_MAX;
   const v = await modal(E, { title: t("map.rib.data-town"), ok: t("map.ok.add"), body: `<p class="mp-hint">${esc(t("map.data.town.hint"))}</p>
     <p class="mp-hint">${esc(t("map.data.town.time"))}</p>
-    <label class="mp-row"><input type="checkbox" name="contours" checked> ${esc(t("map.data.town.src.contours"))}</label>
-    <label class="mp-row"><input type="checkbox" name="fix" ${fixOk ? "" : "disabled"}> ${esc(t("map.data.town.fix"))}</label>
-    <p class="mp-hint">${esc(fixOk ? t("map.data.town.fixTip", { n: fixMinutes(w * h) }) : t("map.data.town.fixTooLarge"))}</p>` });
+    <label class="mp-row"><input type="checkbox" name="contours" checked> ${esc(t("map.data.town.src.contours"))}</label>` });
   if (!v) return;
-  return town(E, { contours: !!v.contours, fix: fixOk && !!v.fix });
+  return town(E, { contours: !!v.contours });
 }
 /**
  * A town's sprint map (owner, 2026-11-12: one engine, the generator Pixel's town races use — tools/virtually/town_map.py on
  * IGN's LiDAR HD, BD TOPO, BD ORTHO's infrared, the cadastre and OpenStreetMap —, quality before speed): the area's centre and
  * size asked of /api/townmap, the GitHub workflow townmap.yml making it (several minutes), then its objects brought into the draft
- * part. o: { contours, fix } — the contours kept, the legibility corrections asked for. The request is kept in this browser (`ocn.map.town.<map>`): a page closed meanwhile
+ * part. o: { contours } — the contours kept. The request is kept in this browser (`ocn.map.town.<map>`): a page closed meanwhile
  * takes the map when the editor opens again (resumeTown).
  */
 export async function town(E, o = {}) {
@@ -242,17 +234,16 @@ export async function town(E, o = {}) {
   if ((await nationalSource(E, f)) !== "bdtopo") { E.say(t("map.data.town.notFrance"), "bad"); return; }
   const b = areaOf(E), [w, h] = townArea(E);
   if (w > TOWN_MAX || h > TOWN_MAX) { E.say(t("map.data.town.tooLarge"), "bad"); return; }
-  const fix = !!o.fix && w * h <= FIX_MAX;
   const [lat, lon] = f.toLatLon((b[0] + b[2]) / 2, (b[1] + b[3]) / 2);
   progress(E)(t("map.data.town.asking"));
   let r;
   try {
     const res = await fetch(TOWN_API, { method: "POST", credentials: "same-origin", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ lat, lon, w: Math.round(w), h: Math.round(h), ...(fix ? { fix } : {}) }) });
+      body: JSON.stringify({ lat, lon, w: Math.round(w), h: Math.round(h) }) });
     r = await res.json().catch(() => ({}));
-    if (!res.ok) throw new Error(res.status === 429 ? t("map.data.town.limit") : r.error === "not france" ? t("map.data.town.notFrance") : r.error === "fix too large" ? t("map.data.town.fixTooLarge") : r.error || `HTTP ${res.status}`);
+    if (!res.ok) throw new Error(res.status === 429 ? t("map.data.town.limit") : r.error === "not france" ? t("map.data.town.notFrance") : r.error || `HTTP ${res.status}`);
   } catch (e) { E.say(e.message, "bad"); return; }
-  const pending = { req: r.req, contours: !!o.contours, fix, ...(fix ? { fixMin: fixMinutes(w * h) + 5 } : {}), at: Date.now() };
+  const pending = { req: r.req, contours: !!o.contours, at: Date.now() };
   keepTown(E, pending);
   return waitTown(E, pending);
 }
@@ -292,8 +283,8 @@ async function waitTown(E, p) {
     E.say(tn("map.data.brought", n) + ` · ${t("map.data.town.credit", { date: lidarYear(j) })}`);
   } finally { if (E._townWait === p.req) E._townWait = null; }
 }
-/** « Preparing », with the whole time to expect: a few minutes, or the corrections' (`fixMin`, kept with the request). */
-const preparing = (p) => (p?.fix ? t("map.data.town.preparingFix", { n: p.fixMin || 60 }) : t("map.data.town.preparing"));
+/** « Preparing », with the time to expect (a few minutes). */
+const preparing = () => t("map.data.town.preparing");
 /** What the workflow is doing (townmap_ci.py's progress, 2026-11-12): « setup » (the runner installing) said as the preparation, the
  *  sources still awaited while they download (read at the same time), the map's step while it is computed. */
 function townStage(pr, p) {

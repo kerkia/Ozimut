@@ -2,8 +2,8 @@
 town's sprint map — the generator Pixel's races use —, quality before speed): each request the site wrote (functions/api/townmap:
 R2 townmap/req/<id>.json, { id, lat, lon, w, h, by, at, status }) made by town_fetch.py (IGN's LiDAR HD, BD TOPO, BD ORTHO and
 its infrared, the cadastre, OpenStreetMap) and town_map.py --clip --no-check (the ISSprOM 2019-2 objects, cut to the area asked
-for; no legibility check: the developer's tests, owner 2026-11-18 — a request with « fix » keeps its repair passes, without the
-report, in a job of its own: --kind fix), the objects written gzipped to R2 townmap/out/<id>.json.gz, the request marked done or
+for; no legibility check: the developer's tests, owner 2026-11-18 — the « fix » option and its repair passes are gone since
+2026-11-22, the generator townmap/ needing none), the objects written gzipped to R2 townmap/out/<id>.json.gz, the request marked done or
 failed, its progress written into it as it goes.
 
   python tools/virtually/townmap_ci.py [--kind quick|fix] --reqs <folder of the requests> --work <work folder>
@@ -115,8 +115,8 @@ def make(req: dict, work: Path) -> dict:
     prog.extra = {"step": "points"}
     prog("map", 0)
 
-    fix = bool(req.get("fix"))
-    steps = STEPS_FIX if fix else STEPS
+    fix = False                                                    # (the corrections' passes are gone, 2026-11-22)
+    steps = STEPS
 
     def stepped(line: str):
         parts = line.split()
@@ -129,8 +129,8 @@ def make(req: dict, work: Path) -> dict:
             prog("map", min(0.95, steps["legibility"] + (0.95 - steps["legibility"]) * n / FIX_PASSES), force=True)
     t0 = time.monotonic()
     # a corrected map keeps legibility.py's repair passes (its report is not passed on); the others: no check at all
-    est = 30 + w * h / 5000 + (w * h * 0.0055 if fix else 0)
-    stream([PY, HERE / "town_map.py", rid, "--clip"] + (["--fix"] if fix else ["--no-check"]), prog, "map", est=est, on_line=stepped,
+    est = 20 + w * h / 15000
+    stream([PY, HERE / "town_map.py", rid, "--clip", "--no-check", "--fresh"], prog, "map", est=est, on_line=stepped,
            env=env, cwd=HERE)
     timing["map"] = round(time.monotonic() - t0)
     prog.extra = {}
@@ -147,12 +147,11 @@ def make(req: dict, work: Path) -> dict:
 
 
 # town_map.py's steps and the share of the map's time they usually start at (500 × 500 m of Gif, 2026-11-12)
-STEPS = {"points": 0.0, "photo": 0.1, "vectors": 0.12, "areas": 0.2, "enclosures": 0.35, "lines": 0.45, "contours": 0.75,
-         "objects": 0.82}
+STEPS = {"vectors": 0.0, "points": 0.1, "areas": 0.2, "lines": 0.7, "contours": 0.85, "objects": 0.93}   # (townmap/run.py)
 # with the corrections (on Gif they took about 100 of the map's 120 minutes): the drawing a quarter of the bar, the passes the rest
 STEPS_FIX = {k: v * 0.3 for k, v in STEPS.items()} | {"legibility": 0.25}
 FIX_PASSES = 18                                                     # the passes usually run (17 on Gif, 20 at most)
-kind_of = lambda r: "fix" if r.get("fix") else "quick"
+kind_of = lambda r: "quick"                                         # (one kind since 2026-11-22: no corrections' job)
 
 
 def setup(reqs: Path, kind: str | None = None):

@@ -501,7 +501,9 @@ def t14(M):
             b = o.get("bez")
             an = anchors(o)
             if not b or not any(len(p) > 2 and p[2] in (1, 2) for p in b[0]):
-                if not all(on_sport(a) for a in an):                # (a pitch: straight sides, kept corners)
+                # (a pitch: straight sides, kept corners; an area all of whose points lie on something built — a lawn in a
+                # square — has only man-made edges: straight, by townmap/export.py's rule, 2026-11-22)
+                if not all(on_sport(a) or on_mm(a) for a in an):
                     flat.append(rp(g))
                 continue
             hard = [a for a in an[1:-1] if not a[4] and not a[5] and not on_sport(a) and not on_mm(a)]
@@ -846,7 +848,7 @@ def t34(M):
         raise Skip("not Gif")
     z = M.near(636320, 6844960, 20)
     g = z.difference(M.local(["521"], z))
-    s = g.intersection(M.local(["401"], z)).area / max(g.area, 1)
+    s = g.intersection(M.local(["401", "402"], z)).area / max(g.area, 1)     # (402: its trees stand over the grass)
     return [] if s >= 0.4 else [f"the town hall lawns {s:.0%} open land"]
 
 
@@ -913,6 +915,7 @@ def t37(M):
     for g_ in (pave, path, stair, wall, hedge, water):
         shapely.prepare(g_)
     frame = M.box.buffer(-5)
+    olive_in = M.union("520").buffer(0.5)
     res, worst = {}, []
     for e in d.get("elements", []):
         t = e.get("tags") or {}; geo = e.get("geometry")
@@ -939,6 +942,8 @@ def t37(M):
             continue
         xs, ys = tr.transform([p["lon"] for p in geo], [p["lat"] for p in geo])
         L = LineString(list(zip(xs, ys))).intersection(frame)
+        if hw:                                             # what lies in ground not to be entered is not mapped (ISSprOM 520): a house's drive
+            L = L.difference(olive_in)
         if L.is_empty or L.length < 1:
             continue
         okl = shapely.clip_by_rect(ok, *L.buffer(3).bounds)

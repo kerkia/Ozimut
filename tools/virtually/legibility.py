@@ -3,8 +3,9 @@ generator may break, counted rule by rule with the first places in Lambert 93, a
 
   py legibility.py <race> [--fix] [--in FILE] [--out FILE]     DATA/<race>/map_objects.json, the report DATA/<race>/src/legibility.json
 
-town_map.py runs it on its objects before writing them (`check(doc, fix=True)`), so every town map — Pixel's races and
-Cartographier's « Plan de ville (sprint) » — comes out checked. The rules (symbols, the 0.4 mm gap…) are
+The generator (townmap/run.py) runs it as a report on its objects before writing them (`check(doc, fix=False)`), unless
+--no-check. Since 2026-11-22 nothing calls its repairs (`fix=True`, described below): the generator's areas are one partition,
+generalised to the minimum sizes by themselves (townmap/areas.py), and what this check still finds is fixed there. The rules (symbols, the 0.4 mm gap…) are
 site/assets/js/mapper/sets/legibility.json, which Cartographier's checks (mapper/checks.js) read too; the minimum sizes per symbol
 are minimums.json's (docs/mapper/sets.mjs, from the specification).
 
@@ -164,12 +165,14 @@ class Local:
 
 
 def opened_away(U, w):
-    """The parts of U narrower than w (an opening by w/2, polygon by polygon)."""
+    """The parts of U narrower than w (an opening by w/2, polygon by polygon) — with mitred joins: an area's corner, which
+    a round opening cuts off, is no narrow part (2026-11-22: every right angle of a forest's edge counted as a white strip
+    « 0.1 m wide » once the areas had straight edges)."""
     out = []
     for p in as_polys(U):
         if p.area < 0.3:
             continue
-        o = p.buffer(-w / 2).buffer(w / 2)
+        o = p.buffer(-w / 2, join_style="mitre").buffer(w / 2, join_style="mitre")
         r = p.difference(o) if not o.is_empty else p
         out += as_polys(r)
     return out

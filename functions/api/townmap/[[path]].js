@@ -6,8 +6,8 @@
 //   townmap/out/<id>.json.gz  the map's objects (town_map.py's map_objects.json: { scale, realWorld: { x, y } in Lambert 93, objects:
 //                             [{ sym, otp, ang, rings (map mm about realWorld at that scale), curve }], area, lidar, cadastre }), gzipped
 //   POST { lat, lon, w, h, fix }  a map asked for: the area's centre and size in metres (France only: IGN's data) → { req, started };
-//                             fix: with the legibility corrections (legibility.py's repair passes, an hour or more a km²: 1 km² at
-//                             most; townmap.yml's job « fix », apart from the quick maps; owner, 2026-11-18)
+//                             (`fix`, the legibility corrections of 2026-11-18, is ignored since 2026-11-22: the generator —
+//                             tools/virtually/townmap/ — meets the minimum sizes by itself, and the repair passes are gone)
 //   GET ?req=<id>             a request's state (the page asks while it waits) — its owner's, or an administrator's
 //   GET /out/<id>             the objects, once done
 // Only the area's centre and size are sent by the page. Every signed-in account (Carto is every account's), 3 maps a day, the
@@ -16,7 +16,6 @@ import { allow, isAdmin, json, nowIso, readBody, withUser } from "../../_lib/api
 
 const Q = "townmap/req/", OUT = "townmap/out/";
 const MIN = 100, MAX = 2000;                                  // a side, metres (the runner's disk and memory: 2 × 2 km at most)
-const FIX_MAX = 1e6;                                          // m², with the corrections (the job's 5½ hours)
 // metropolitan France and Corsica, roughly (IGN's LiDAR HD and BD TOPO): the page asks only there, and the workflow checks the
 // border itself (townmap_ci.py: « outside metropolitan France »)
 const inFrance = (lat, lon) => lat >= 41.3 && lat <= 51.2 && lon >= -5.3 && lon <= 9.7;
@@ -57,8 +56,7 @@ export const onRequestPost = withUser(async ({ request, env }, user) => {
   if (![lat, lon, w, h].every(Number.isFinite) || w < MIN || h < MIN) return json({ error: "bad area" }, 400);
   if (w > MAX || h > MAX) return json({ error: "too large", max: MAX }, 400);
   if (!inFrance(lat, lon)) return json({ error: "not france" }, 400);
-  const fix = b?.fix === true;
-  if (fix && w * h > FIX_MAX) return json({ error: "fix too large", max: FIX_MAX }, 400);
+  const fix = false;                                           // (the corrections' option is gone, 2026-11-22: an older page's `fix` is ignored)
   if (!(await allow(env, `townmap:${user.id}`, isAdmin(env, user) ? 20 : 3, 86400))) return json({ error: "too many requests" }, 429);
   const id = `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`;
   await env.BUCKET.put(`${Q}${id}.json`, JSON.stringify({ id, lat: +lat.toFixed(6), lon: +lon.toFixed(6), w, h, ...(fix ? { fix } : {}), by: user.id, at: nowIso(), status: "queued" }),
