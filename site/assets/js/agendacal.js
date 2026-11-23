@@ -211,12 +211,14 @@ export function mount(el, { today, name = (e) => e.name, flag = () => "", onPick
   grid.addEventListener("mouseleave", () => { hideTip(); onHover?.(null); });
 
   return {
-    /** The competitions the table shows (each with its `key`), and the one chosen. */
-    show(events, selected) {
+    /** The competitions the table shows (each with its `key`), and the one chosen; `reset`: another list, the calendar
+     *  back on today (or the competition chosen). */
+    show(events, selected, { reset = false } = {}) {
       st.events = events;
       index(events);
       st.selected = selected || null;
-      if (st.anchor == null) {
+      if (st.anchor == null || reset) {
+        st.openDay = null;
         const pick = st.selected && st.byKey.get(st.selected)?.[0];
         st.anchor = anchorFor(pick ? msOf(pick) : todayMs);
       }

@@ -389,14 +389,22 @@ export async function render(main, { query }) {
     drawTable();
   });
 
+  // today's and past competitions are drawn on the map only while their row is under the mouse — but for one runner's
+  // competitions (« Mes courses », another runner), mostly past ones, all of them (owner, 2026-11-23: the map was empty)
+  const ghostOf = () => (RF.one() ? () => false : (e) => periodOf(e) !== "coming");
+  let shownSig = null;
   function drawTable() {
     shown = sortedList(visible());
     const n = activeFilters();
     $("#fold-badge").hidden = !n;
     $("#fold-badge").textContent = n;
     $("#count").textContent = tn("agd.count", shown.length);
-    map?.show(shown, st.selected, (e) => periodOf(e) !== "coming");      // today's and past ones: only on hover
-    cal?.show(shown, st.selected);
+    map?.show(shown, st.selected, ghostOf());
+    // another list (a filter, the periods): the calendar back on today's month (owner, 2026-11-23); a redraw of the same
+    // list (live races, start lists found later) leaves it where it is
+    const sig = shown.map((e) => e.key).join("|");
+    cal?.show(shown, st.selected, { reset: sig !== shownSig });
+    shownSig = sig;
     // a redraw (live races, start lists found later) keeps the row at the list's top where it was: rows above it may have grown
     const box0 = $("#table"), top0 = box0.getBoundingClientRect().top;
     const anchor = !toToday && box0.scrollTop > 0 ? $$("#table tbody tr").find((r) => r.getBoundingClientRect().bottom > top0 + 1) : null;
@@ -551,7 +559,7 @@ export async function render(main, { query }) {
       onPick: (key) => { select(key); $(`#table tr[data-key="${CSS.escape(key)}"]`)?.scrollIntoView({ block: "nearest" }); },
       onHover: (key) => { lightRows(key ? [key] : null); cal?.hover(key); },
     });
-    map?.show(shown, st.selected, (e) => periodOf(e) !== "coming");      // today's and past ones: only on hover
+    map?.show(shown, st.selected, ghostOf());
   }
   const lightRows = (keys) => {
     $$("#table tr.map-hover").forEach((r) => r.classList.remove("map-hover"));
@@ -582,10 +590,12 @@ export async function render(main, { query }) {
     });
     cal.show(shown, st.selected);
   }
-  // the list scrolled by hand: the calendar goes to its first row in sight (by date only)
-  let followT = 0;
+  // the list scrolled by hand: the calendar goes to its first row in sight (by date only). Only the reader's own scrolling
+  // (wheel, touch, keys, the scrollbar): the page placing the list on today after a change is not followed
+  let followT = 0, byHand = 0;
+  for (const ev of ["wheel", "touchmove", "keydown", "pointerdown"]) $("#table").addEventListener(ev, () => { byHand = Date.now(); }, { passive: true });
   $("#table").addEventListener("scroll", () => {
-    if (!cal || Date.now() - calScroll < 400 || !byDefault()) return;
+    if (!cal || Date.now() - calScroll < 400 || Date.now() - byHand > 1500 || !byDefault()) return;
     clearTimeout(followT);
     followT = setTimeout(() => {
       const box = $("#table"), top = box.getBoundingClientRect().top + ($("#table thead")?.offsetHeight || 0);
