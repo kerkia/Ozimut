@@ -103,7 +103,6 @@ export default {
   "trk.email": "E-Mail-Adresse",
   "trk.password": "Passwort",
   "trk.kids.text": "Ein Kind hat ein eigenes Konto, das du verwaltest: ohne E-Mail-Adresse und ohne Passwort. Du verbindest seine Geräte und wählst, wer es verfolgen darf.",
-  "trk.kids.add": "Konto für ein Kind anlegen",
   "trk.kids.create": "Konto anlegen",
   "trk.first": "Vorname",
   "trk.last": "Nachname",

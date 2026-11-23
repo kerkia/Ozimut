@@ -5,7 +5,10 @@ owner's accounts, keys and devices. Do the steps in order: each part can be test
 the secrets are typed into the tools, never into this file or a chat.
 
 Everything is visible only to administrators while `TRACK_OPEN` is "0" (wrangler.toml): Coach › « Suivi GPS », its
-documentation chapter, the API. Nobody else sees anything until step 9.
+documentation chapter, the API. Nobody else sees anything until step 9, except the testers: accounts whose `users.preview`
+in D1 names `track` (Alec and Nadejda since 2026-11-23). To add one, ask Claude, or run in `C:\Kerkia\Ozimut\Ozimut`
+`npx wrangler d1 execute ocn --remote --command "UPDATE users SET preview = 'track' WHERE id = <id>"` (keep any feature
+already in that column, separated by a comma).
 
 ## 0. Already done
 

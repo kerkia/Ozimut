@@ -833,7 +833,9 @@ banner asking a parent), a child taking the account over from 15 (`POST /api/tra
 - **Administrators only for now** (owner, 2026-11-22: « make all this visible to admin only for now »): while `TRACK_OPEN` is "0" the
   menu entry, the page (`app.trackShown`, the router sends others to the modules page), the Coach guide's chapter « Suivi GPS »
   (`content/guide.*.js` `suivi`, `track` passed by `pages/methods.js`) and the API (`trackAllowed`: administrators and the child accounts
-  they create) are the administrators'; the registration form asks the year of birth only when it is "1" (`/api/account/status`
+  they create) are the administrators' — and **testers'**, the accounts whose D1 `users.preview` names `track` (owner, 2026-11-23: Alec
+  and Nadejda Le Helloco; `_lib/track.js trackTester`, `publicUser.trackOpen`; set by hand: `UPDATE users SET preview = … WHERE id = …`,
+  keeping the other features in the list); the registration form asks the year of birth only when it is "1" (`/api/account/status`
   `track`). **The apps' icons** are the Ozimut mark (`favicon.svg`), drawn by `track/tools/make_icons.py` (Pillow): the iPhone and
   watch's `Resources/Assets.xcassets/AppIcon` (1024 px, no alpha), the Garmin launcher icon (70 px, light ink on black), Android's
   `ic_fg.xml` and `ic_stat.xml`. **The owner's steps** (relay, Traccar test, sideloaded Android APK, Garmin beta, Firebase, Apple,

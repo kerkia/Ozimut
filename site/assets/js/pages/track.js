@@ -462,7 +462,7 @@ async function familyTab(el, S, redraw) {
   }
   const kid = S.children.find((c) => c.id === who);
   if (who === "new") {
-    blocks.push(html`<section class="card trk-person" role="tabpanel"><div class="trk-person-head"><h3>${t("trk.kids.add")}</h3><p class="dim">${t("trk.kids.text")}</p></div>
+    blocks.push(html`<section class="card trk-person" role="tabpanel"><div class="trk-person-head"><p class="dim">${t("trk.kids.text")}</p></div>
       <form id="trk-kid-new" class="trk-form trk-person-body"><label>${t("trk.first")} <input name="first" required maxlength="60"></label>
         <label>${t("trk.last")} <input name="last" maxlength="60" value="${S.me.last}"></label>
         <label>${t("trk.birthYear")} <input name="birthYear" type="number" min="${new Date().getFullYear() - 25}" max="${new Date().getFullYear()}" required></label>
@@ -471,10 +471,10 @@ async function familyTab(el, S, redraw) {
   } else {
     const acc = kid || S.me;
     const name = kid ? `${kid.name} ${kid.last}`.trim() : meName;
-    // the chosen person's own part, framed in the module's colour from its name down to its last setting, so that what follows
-    // (« Je suis », « J'ai reçu un code ») reads as the account's, not the person's (owner, 2026-11-23)
-    blocks.push(html`<section class="card trk-person" role="tabpanel" data-acc="${acc.id}"><div class="trk-person-head"><h3>${kid ? name : t("trk.person.meTitle", { name })}
-      ${kid ? html` <span class="tag">${kid.birthYear ? t("trk.people.kid", { year: kid.birthYear }) : t("trk.child")}</span>` : ""}</h3>
+    // the chosen person's own part, framed in the module's colour down to its last setting, so that what follows (« Je suis »,
+    // « J'ai reçu un code ») reads as the account's, not the person's; its tab names the person, so the band only says what the
+    // part holds — a child's own account, which has no tabs, keeps its name there (owner, 2026-11-23)
+    blocks.push(html`<section class="card trk-person" role="tabpanel" data-acc="${acc.id}"><div class="trk-person-head">${S.me.child ? html`<h3>${t("trk.person.meTitle", { name })}</h3>` : ""}
       <p class="dim">${kid ? t("trk.person.kid", { name: kid.name }) : S.me.child ? t("trk.person.meChild") : t("trk.person.me")}</p></div>
       <div class="trk-acc-body trk-person-body"></div></section>`);
   }

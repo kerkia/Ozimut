@@ -1,7 +1,7 @@
 // Live GPS tracking (docs/track/design.md): who may use it, who may see whom, the devices' keys, the batches of fixes and
 // the runs kept in R2. Shared by functions/api/track/[[path]].js, functions/ws/track/[user].js and functions/t/[[path]].js.
 
-import { isAdmin, nowIso } from "./api.js";
+import { isAdmin, nowIso, previewOf } from "./api.js";
 import { b64url, randomBytes, sha256hex } from "./crypto.js";
 
 export const CODE_ALPHA = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";       // no 0/O, 1/I: read on a watch, typed by hand
@@ -26,10 +26,12 @@ export const ageOf = (u) => (u?.birth_year ? new Date().getUTCFullYear() - Numbe
 export const UNDER = 15;
 
 /** May this account use the tracking pages at all? Everyone with TRACK_OPEN "1"; until then the administrators (owner,
- *  2026-11-22: « visible to admin only for now ») and the child accounts they made (a child's phone pairs its own watch). */
+ *  2026-11-22: « visible to admin only for now »), the accounts whose users.preview names « track » (owner, 2026-11-23: two
+ *  family testers, set by hand in D1) and the child accounts they made (a child's phone pairs its own watch). */
+export const trackTester = (user) => previewOf(user).includes("track");
 export async function trackAllowed(env, user) {
   if (!user) return false;
-  if (env.TRACK_OPEN === "1" || isAdmin(env, user)) return true;
+  if (env.TRACK_OPEN === "1" || isAdmin(env, user) || trackTester(user)) return true;
   return user.child === 1;
 }
 

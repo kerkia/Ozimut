@@ -75,7 +75,8 @@ export const publicUser = (env, u, countries = []) => ({
   carto: u.carto === undefined ? (u.orga === undefined ? true : u.orga === 1) : u.carto === 1,
   hiddenModules: hiddenOf(u),
   // the tracking (migration 0029): a child account managed by its parents; an under-15's own account waiting for a parent
-  child: u.child === 1, guardianWanted: u.guardian_wanted === 1, birthYear: u.birth_year || null, trackOpen: env.TRACK_OPEN === "1",
+  child: u.child === 1, guardianWanted: u.guardian_wanted === 1, birthYear: u.birth_year || null,
+  trackOpen: env.TRACK_OPEN === "1" || previewOf(u).includes("track"),   // or a tester's preview « track » (owner, 2026-11-23)
   // the countries joined (migration 0014): { cc, club, id, status } — status "ok" opens that country's data
   countries: countries.map((c) => ({ cc: c.country, club: c.club, id: c.member_id, status: c.status })),
 });

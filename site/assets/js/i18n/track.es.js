@@ -103,7 +103,6 @@ export default {
   "trk.email": "Dirección de correo electrónico",
   "trk.password": "Contraseña",
   "trk.kids.text": "Un niño tiene su propia cuenta, que gestionas tú: sin dirección de correo electrónico ni contraseña. Vinculas sus dispositivos y eliges quién puede seguirlo.",
-  "trk.kids.add": "Crear la cuenta de un niño",
   "trk.kids.create": "Crear la cuenta",
   "trk.first": "Nombre",
   "trk.last": "Apellidos",
