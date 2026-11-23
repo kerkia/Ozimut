@@ -7,6 +7,7 @@
 // account), then each module its own course — its start beside its introduction, its controls numbered from 1, its finish
 // holding the way in —, then who sees what; a rule between them, each a link of the bar (#/?s=overview|arena|…|features). The analysis's phone picture (phone-analysis) is the invented run of assets/reel-trace.webp on a phone.
 
+import * as offers from "./offers.js";
 import { html, raw, $, $$, fmt } from "./util.js";
 import { t, lang } from "./i18n.js";
 
@@ -123,21 +124,7 @@ function mod(M) {
     ${M.legs.map((id, i) => leg(LEGS.find((L) => L.id === id), i))}
     <div class="tour-leg tour-mod-end">${raw(FINISH)}<div class="tour-mod-cta">${cta}</div></div></div></div>`;
 }
-/** Who sees what: the modules as columns, the access levels as rows, in each cell what that level adds. */
-function features() {
-  const cell = (m, l) => {
-    const keys = CAPS[m][l];
-    const star = (k) => (k.includes(".fed.") ? html`<span class="tour-star" title="${t("tour.feat.star")}">*</span>` : "");
-    return html`<td data-mod="${m}"><span class="tour-feat-m">${t(`mod.${m}`)}</span>${keys.length ? html`<ul>${keys.map((k) => html`<li>${t(`tour.f.${k}`)}${star(k)}</li>`)}</ul>`
-      : html`<span class="tour-no">${t(`tour.f.none.${l}`)}</span>`}</td>`;
-  };
-  return html`<section class="tour-sec tour-features" id="mod-features">
-    <div class="tour-eyebrow">${t("tour.feat.eyebrow")}</div><h2>${t("tour.feat.title")}</h2><p class="tour-lede">${t("tour.feat.lede")}</p>
-    <div class="tour-feat-grid"><table class="tour-feat-table"><thead><tr><th></th>${MODS.map((M) => html`<th data-mod="${M.id}">${t(`mod.${M.id}`)}<span>${t(M.id === "coach" ? "mod.coach.tag" : `mod.${M.id}.tag`)}</span></th>`)}</tr></thead>
-      <tbody>${LEVELS.map((l) => html`<tr><th scope="row"><b>${t(`tour.lvl.${l}`)}</b><em class="tour-free">${t("tour.lvl.free")}</em><span>${t(`tour.lvl.${l}.sub`)}</span></th>${MODS.map((M) => cell(M.id, l))}</tr>`)}</tbody></table></div>
-    <p class="tour-feat-note tour-feat-later">${t("tour.feat.later")}</p>
-    <p class="muted tour-feat-note"><span class="tour-star">*</span> ${t("tour.feat.note")}</p><p class="muted tour-feat-note">${t("tour.note")}</p></section>`;
-}
+// (who sees what, « Tarifs »: drawn by offers.js, the purchase gate — docs/app/design.md)
 
 /** The section, under the hero. counts: meta.json's { runners, competitions, results }. */
 /** `world`: registration open to every orienteer (WORLD_OPEN): the pledge about who sees the results follows it. */
@@ -165,7 +152,7 @@ export function tourHtml(counts = {}, { world = false } = {}) {
         </div>
       </section></div></div>
     ${MODS.map((M) => mod(M))}
-    ${features()}
+    ${offers.pricingSection({ MODS, LEVELS, CAPS })}
     <dialog class="tour-box" id="tour-box"><img alt=""><p></p></dialog>
   </section>`;
 }

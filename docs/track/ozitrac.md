@@ -111,4 +111,10 @@ orienteering map.
 are.
 
 **The watch** (Wear OS) is a watchee only: its channel of its own, its code shown as a QR code on the watch for a watcher's
-phone, its watchers listed and removable, Ozimut by its claim code as before.
+phone, its watchers listed and removable, Ozimut by its claim code as before. **Its runs reach the paired phone by
+themselves** whenever the two are connected (Bluetooth, Wi-Fi or the platform's cloud), never through the relay or Ozimut:
+each finished run's file is a Wear OS Data Layer item `/ozitrac/run/<run>` holding it as an asset (`wear` `RunSync`), which
+the phone's Ozitrac files in « Mes courses », marked « Enregistrée sur la montre », and then deletes (`app` `WatchRuns`); the
+system keeps the item on the watch until then (20 waiting at most, the oldest dropped). Both apps must carry the same
+application id and be signed with the same key (the Data Layer's rule). The Apple Watch does the same with WatchConnectivity's
+`transferFile`.

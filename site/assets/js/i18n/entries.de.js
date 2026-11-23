@@ -485,4 +485,6 @@ export default {
   "ent.org.pub.noRace": "Ein Vereinstraining hat keine Laufseite: Lade die Liste herunter.",
   "ent.org.oldDeposit": "Startliste hochladen (Datei)",
   "ent.org.oldDeposit.hint": "Für einen Lauf, dessen Anmeldung anderswo läuft: die Startliste so veröffentlicht, wie sie ist.",
+  // the Ozimut app: no account made with an entry
+  "ent.guest.app": "Melde dich an, um dich anzumelden.",
 };

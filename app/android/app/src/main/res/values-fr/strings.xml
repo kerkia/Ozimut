@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="net_offline_title">Ozimut est injoignable</string>
+    <string name="net_offline_text">Vérifiez votre réseau, puis réessayez.</string>
+    <string name="net_retry">Réessayer</string>
+    <string name="download_started">Téléchargement…</string>
+    <string name="choose_file">Choisir un fichier</string>
+    <string name="share_file">Enregistrer ou partager</string>
+    <string name="notif_channel_alerts">Alertes</string>
+    <string name="notif_channel_help">Alertes urgentes</string>
+</resources>

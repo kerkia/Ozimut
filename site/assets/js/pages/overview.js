@@ -11,6 +11,7 @@ import { signedIn, SITE } from "../app.js";
 import { reelHtml, mountReel } from "../reel.js";
 import { tourHtml, mountTour } from "../tour.js";
 import * as data from "../data.js";
+import { inApp } from "../appbridge.js";
 
 // The landscape, drawn once: colours come from CSS (.ls-*), so it has a day and a night version.
 const tree = (x, y, h) => `<path d="M${x} ${y} l${h * 0.36} -${h} l${h * 0.36} ${h}Z"/>`;
@@ -79,8 +80,10 @@ function onSectionLink(e) {
 
 export async function render(main, { query = {} } = {}) {
   // registration open to every orienteer (WORLD_OPEN): the tour's pledge about who sees the results follows it
+  // the Ozimut app (docs/app/design.md): the sign-in card alone — no presentation, no account made there
+  const app = !!inApp();
   let world = false;
-  try { world = !!(await (await fetch("api/account/status")).json()).world; } catch (e) { /* as before */ }
+  if (!app) try { world = !!(await (await fetch("api/account/status")).json()).world; } catch (e) { /* as before */ }
   main.innerHTML = html`
     <section class="home-hero">
       ${raw(LANDSCAPE)}
@@ -88,7 +91,7 @@ export async function render(main, { query = {} } = {}) {
         <div class="home-intro">
           <h1>${SITE}</h1>
           <p class="home-tag">${t("home.tag")}</p>
-          ${raw(reelHtml())}
+          ${app ? "" : raw(reelHtml())}
         </div>
         <div class="login-box home-login">
           <h2>${t("auth.title")}</h2>
@@ -99,7 +102,7 @@ export async function render(main, { query = {} } = {}) {
               <input type="password" id="acct-pw" name="password" autocomplete="current-password" required></label>
             <div class="notice" id="acct-error" hidden></div>
             <button class="btn btn-primary" type="submit" id="acct-btn">${t("ac.login")}</button>
-            <p class="links"><a href="#/compte/inscription">${t("ac.register")}</a><a href="#/compte/mot-de-passe">${t("ac.forgot")}</a></p>
+            <p class="links">${app ? "" : html`<a href="#/compte/inscription">${t("ac.register")}</a>`}<a href="#/compte/mot-de-passe">${t("ac.forgot")}</a></p>
           </form>
           <div class="home-guest"><span class="muted">${t("home.guest.or")}</span>
             <button type="button" class="btn" data-guest-enter="">${t("hub.guest.enter")}</button>
@@ -107,10 +110,9 @@ export async function render(main, { query = {} } = {}) {
         </div>
       </div>
     </section>
-    ${raw(tourHtml(data.meta()?.counts, { world }))}`;
+    ${app ? "" : raw(tourHtml(data.meta()?.counts, { world }))}`;
 
-  mountReel(main);
-  mountTour(main);
+  if (!app) { mountReel(main); mountTour(main); }
   if (query.s) setTimeout(() => goTo(query.s), 50); else $("#acct-email").focus();
   const aform = $("#acct-form"), aerr = $("#acct-error"), abtn = $("#acct-btn");
   aform.addEventListener("submit", async (e) => {

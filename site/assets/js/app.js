@@ -12,6 +12,7 @@ import * as auth from "./auth.js";
 import * as bridge from "./bridge.js";
 import * as pwa from "./pwa.js";
 import * as appbridge from "./appbridge.js";
+import * as offers from "./offers.js";
 import * as country from "./country.js";
 import { watchTables } from "./fit.js";
 import { watch as watchDates } from "./datewords.js";
@@ -473,7 +474,7 @@ export function moduleMenus() {
         ["categories", "#/categories", t("nav.categories")], ["compare", "#/comparer", t("nav.compare")], ["clubs", "#/clubs", t("nav.clubs")],
         ["relayHistory", "#/relais-nationaux", t("nav.relayHistory")], ["network", "#/reseau", t("nav.network")],
         // « IA » (2026-10-15): France's tables only (/api/ask is France's, _middleware.js FR_API)
-        ...(country.current() === "FR" ? [["ask", "#/ia", t("nav.ask")]] : []),
+        ...(country.current() === "FR" && !isPhone() ? [["ask", "#/ia", t("nav.ask")]] : []),      // « IA »: never on a phone (owner, 2026-11-23)
       // without the country's data (no account, or the country not joined): the pages its public copy serves
       ].filter(([k]) => auth.sees(country.current()) || PUBLIC_STATS.has(k)),
     ],
@@ -574,9 +575,11 @@ function renderHeader(r) {
   const off = mod === "orga" && !orgaOpen();
   // the home page (no visitor yet): its sections — the modules (Pixel too since 2026-11-17, owner), who sees what — in the bar
   // (owner, 2026-10-30)
-  const items = mod ? moduleMenus()[mod] : !visitor && route === "overview"
+  // (the link to the pricing table is the purchase gate's, offers.js; in the Ozimut app the home page is the sign-in card alone)
+  const inApp = !!appbridge.inApp();
+  const items = mod ? moduleMenus()[mod] : !visitor && route === "overview" && !inApp
     ? [["home-overview", "#/?s=overview", t("tour.ov.menu")], ...MODULES.map((m) => [`home-${m}`, `#/?s=${m}`, t(`mod.${m}`)]),
-      ["home-features", "#/?s=features", t("tour.feat.eyebrow")]] : [];
+      offers.navItem()].filter(Boolean) : [];
   const current = menuKey(r);
   document.body.dataset.group = mod || "";
   const caret = raw(`<svg class="caret" width="10" height="10" viewBox="0 0 10 10" aria-hidden="true"><path d="M2 3.5 5 6.5 8 3.5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>`);
@@ -620,7 +623,7 @@ function renderHeader(r) {
           <a href="#/reglages" ${raw(route === "settings" ? 'aria-current="page"' : "")}>${t("st.link")}</a>
           ${me.demo ? "" : html`<a href="#/monclub" ${raw(route === "myClub" ? 'aria-current="page"' : "")}>${t("cl.myClub")}</a>`}
           ${me.demo ? "" : html`<a href="#/mes-inscriptions" ${raw(route === "myEntries" ? 'aria-current="page"' : "")}>${t("nav.myEntries")}</a>`}
-          ${me.demo ? "" : html`<button type="button" id="install-btn" ${raw(pwa.installState() === "ready" ? "" : "hidden")}>${t("pwa.menu")}</button>`}
+          ${me.demo || inApp ? "" : html`<button type="button" id="install-btn" ${raw(pwa.installState() === "ready" ? "" : "hidden")}>${t("pwa.menu")}</button>`}
           <a href="#/contact?${new URLSearchParams({ from: location.hash || "#/" })}" ${raw(route === "contact" ? 'aria-current="page"' : "")}>${t("ct.link.menu")}</a>
           ${me.admin ? html`<a href="#/admin" ${raw(route === "admin" ? 'aria-current="page"' : "")}>${t("admin.link")}</a>` : ""}
           <button type="button" id="logout-btn">${t("auth.logout")}</button>
@@ -629,7 +632,7 @@ function renderHeader(r) {
         // signed out: sign in, create an account, or enter without one (owner, 2026-10-30) — not on the home page, whose login
         // card under the hero offers the three (owner, 2026-10-30)
         : route === "overview" ? "" : html`<div class="home-ways"><a class="btn btn-sm" href="#/?s=login">${t("hub.login")}</a>
-          <a class="btn btn-sm home-way-reg" href="#/compte/inscription">${t("hub.register")}</a>
+          ${inApp ? "" : html`<a class="btn btn-sm home-way-reg" href="#/compte/inscription">${t("hub.register")}</a>`}
           <button type="button" class="btn btn-sm btn-primary" data-guest-enter="">${t("hub.guest.enter")}</button></div>`}
       <div class="nav-group user-menu visitor-menu" data-group="me">
         <button type="button" class="icon-btn nav-top" aria-expanded="false" aria-haspopup="menu" aria-label="${t("auth.menu.visitor")}" title="${t("auth.menu.visitor")}">
@@ -640,7 +643,7 @@ function renderHeader(r) {
           <a href="${docHref}" ${raw(route === "methods" ? 'aria-current="page"' : "")}>${t("nav.docs")}</a>
           <a href="#/contact?${new URLSearchParams({ from: location.hash || "#/" })}" ${raw(route === "contact" ? 'aria-current="page"' : "")}>${t("ct.link.menu")}</a>
           ${visitor ? "" : html`<a href="#/?s=login">${t("hub.login")}</a>`}
-          <a href="#/compte/inscription">${t("hub.register")}</a>
+          ${inApp ? "" : html`<a href="#/compte/inscription">${t("hub.register")}</a>`}
         </div>
       </div>`}
     </div>
@@ -976,6 +979,18 @@ async function route_() {
     history.replaceState(null, "", "#/");
     r.route = "overview"; r.arg = null; r.query = {};
   }
+  // the Ozimut app is a companion (docs/app/design.md): no account is made there — the sign-in screen instead
+  if (appbridge.inApp() && r.route === "account" && r.arg === "inscription") {
+    history.replaceState(null, "", me || guest ? homeOf() : "#/");
+    r = parseHash();
+  }
+  // « IA » is not offered on a phone, in the app or in a browser (owner, 2026-11-23)
+  if (r.route === "ask" && isPhone()) {
+    history.replaceState(null, "", "#/modules");
+    r = parseHash();
+  }
+  // the purchase gate's texts, before the home page and its bar are drawn (offers.js; nothing in the app)
+  if (r.route === "overview") await offers.ready();
   // a right granted since this device signed in (« Nutrition »): read the account again before turning the address away
   if (me && NUTRITION_ROUTES[r.route] && !NUTRITION_ROUTES[r.route]()) await auth.refresh();
   if ((OWNER_ROUTES.has(r.route) && !ownerOnly()) || (NUTRITION_ROUTES[r.route] && !NUTRITION_ROUTES[r.route]())

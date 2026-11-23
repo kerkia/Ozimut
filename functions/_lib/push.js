@@ -8,7 +8,7 @@
 
 import { siteUrl } from "./api.js";
 
-import { nativeReady, nativeToUser } from "./nativepush.js";
+import { appToUser, nativeReady, nativeToUser } from "./nativepush.js";
 
 const enc = new TextEncoder();
 
@@ -105,6 +105,8 @@ export async function pushToUser(env, userId, msg, opts) {
   // the tracking's alerts also go natively to the account's tracking phones (Ozitrac linked to Ozimut, _lib/nativepush.js);
   // nothing else of the site goes to the app (owner, 2026-11-23: Ozitrac shows tracking only, docs/track/ozitrac.md)
   let reached = opts?.native ? await nativeToUser(env, userId, msg, opts) : 0;
+  // the Ozimut app (docs/app/design.md): every notification of the account, on the phones where it turned them on
+  reached += await appToUser(env, userId, msg, opts);
   if (!pushReady(env)) return reached;
   const { results: subs } = await env.DB.prepare("SELECT * FROM push_subs WHERE user_id = ?").bind(userId).all();
   for (const s of subs) {

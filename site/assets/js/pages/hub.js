@@ -4,6 +4,7 @@
 // the page an Orga address shows without an account, or on a phone (route « orgaOff »): signed in on a computer, it opens
 // whether the module is shown or not (2026-11-12).
 
+import { inApp } from "../appbridge.js";
 import { html, raw, $, $$, nameParts } from "../util.js";
 import { t } from "../i18n.js";
 import * as auth from "../auth.js";
@@ -35,7 +36,8 @@ async function turnOn(btn, m) {
  *  or not (app.moduleShown), Orga opens for any signed-in account on a computer (owner, 2026-11-12: hidden never blocks). */
 function orgaState() {
   const me = auth.session();
-  if (!me) return { note: t("hub.orga.guest"), action: html`<a class="btn btn-primary" href="#/compte/inscription">${t("hub.orga.register")}</a>` };
+  if (!me) return inApp() ? { note: t("hub.orga.guest.app") }      // (the Ozimut app makes no account: docs/app/design.md)
+    : { note: t("hub.orga.guest"), action: html`<a class="btn btn-primary" href="#/compte/inscription">${t("hub.orga.register")}</a>` };
   if (isPhone()) return { note: t("hub.orga.phone") };
   return null;
 }
@@ -88,7 +90,7 @@ function session() {
   }
   return html`<div class="hub-session"><span>${t("hub.guestAs")}</span>
     <a class="btn btn-sm btn-primary hub-login" href="#/?s=login">${t("hub.login")}</a>
-    <a class="btn btn-sm" href="#/compte/inscription">${t("hub.register")}</a>
+    ${inApp() ? "" : html`<a class="btn btn-sm" href="#/compte/inscription">${t("hub.register")}</a>`}
     <button type="button" class="btn btn-sm btn-ghost" data-hub-leave>${t("hub.leave")}</button></div>`;
 }
 

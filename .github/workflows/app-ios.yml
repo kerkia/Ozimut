@@ -1,0 +1,222 @@
+# The Ozimut companion app for iPhone (app/ios, docs/app/design.md): an unsigned build for the simulator and the unit
+# tests on every push touching it; by hand, with « upload » ticked and the signing secrets set, an archive sent to
+# TestFlight (docs/app/setup.md, app/ios/README.md).
+name: app-ios
+
+on:
+  push:
+    paths:
+      - "app/ios/**"
+      - ".github/workflows/app-ios.yml"
+  workflow_dispatch:
+    inputs:
+      upload:
+        description: "Archive, sign and upload to TestFlight (needs the Apple secrets)"
+        type: boolean
+        default: false
+
+concurrency:
+  group: app-ios-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: macos-15
+    timeout-minutes: 45
+    defaults:
+      run:
+        working-directory: app/ios
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Xcode
+        run: |
+          latest=$(ls -d /Applications/Xcode_*.app 2>/dev/null | grep -v -i beta | sort -V | tail -1)
+          if [ -n "$latest" ]; then sudo xcode-select -s "$latest"; fi
+          xcodebuild -version
+          xcodebuild -showsdks | grep -E "iphonesimulator" || true
+
+      - name: XcodeGen
+        run: |
+          brew install xcodegen
+          xcodegen --version
+          xcodegen generate
+
+      - name: The texts are those of tools/strings.py
+        run: |
+          python3 tools/strings.py
+          git diff --exit-code -- Resources || { echo "::error::Resources differ from tools/strings.py: run it and commit"; exit 1; }
+
+      - name: Error annotations helper
+        run: |
+          cat > "$RUNNER_TEMP/annotate.sh" <<'EOF'
+          #!/bin/bash
+          # Turns the compiler's « file:line:col: error: message » lines into GitHub annotations.
+          log="$1"
+          grep -E '^/[^:]+:[0-9]+(:[0-9]+)?: (fatal )?error: ' "$log" | sort -u | head -50 | while IFS= read -r line; do
+            file=$(echo "$line" | sed -E 's/^([^:]+):([0-9]+).*/\1/')
+            ln=$(echo "$line" | sed -E 's/^([^:]+):([0-9]+).*/\2/')
+            msg=$(echo "$line" | sed -E 's/^[^:]+:[0-9]+(:[0-9]+)?: (fatal )?error: //')
+            rel=${file#"$GITHUB_WORKSPACE/"}
+            echo "::error file=$rel,line=$ln::$msg"
+          done
+          grep -E '^(error|xcodebuild: error|.*\*\* BUILD FAILED|.*\*\* TEST FAILED|.*\*\* ARCHIVE FAILED|.*\*\* EXPORT FAILED)' "$log" | head -20 | while IFS= read -r line; do
+            echo "::error::$line"
+          done
+          grep -E ': error: |error: ' "$log" | grep -v '^/' | sort -u | head -20 || true
+          EOF
+          chmod +x "$RUNNER_TEMP/annotate.sh"
+
+      - name: Build the app for the simulator
+        run: |
+          set +e
+          xcodebuild build -project Ozimut.xcodeproj -scheme Ozimut -configuration Debug \
+            -destination 'generic/platform=iOS Simulator' -derivedDataPath build/dd \
+            CODE_SIGNING_ALLOWED=NO > build-ios.log 2>&1
+          status=$?
+          "$RUNNER_TEMP/annotate.sh" build-ios.log
+          grep -E 'warning: ' build-ios.log | grep -v '^ld: ' | sort -u | head -60 || true
+          tail -40 build-ios.log
+          if [ $status -eq 0 ]; then
+            app=$(find build/dd/Build/Products -name 'Ozimut.app' -maxdepth 3 | head -1)
+            echo "Built: $app"; ls "$app" 2>/dev/null || true
+            /usr/libexec/PlistBuddy -c "Print :WKAppBoundDomains" "$app/Info.plist" || true
+          fi
+          exit $status
+
+      - name: Unit tests (navigation policy, bridge messages, MIME types) on an iPhone simulator
+        if: always()
+        run: |
+          set +e
+          udid=$(xcrun simctl list devices available -j | python3 -c '
+          import json, sys
+          d = json.load(sys.stdin)["devices"]
+          ios = sorted((k for k in d if "iOS" in k), key=lambda k: [int(x) for x in k.split("iOS-")[-1].split("-")])
+          for k in reversed(ios):
+              for dev in d[k]:
+                  if dev["name"].startswith("iPhone"):
+                      print(dev["udid"]); sys.exit()
+          ')
+          echo "Simulator: $udid"
+          xcodebuild test -project Ozimut.xcodeproj -scheme OzimutTests -configuration Debug \
+            -destination "id=$udid" -derivedDataPath build/ddt CODE_SIGNING_ALLOWED=NO > test.log 2>&1
+          status=$?
+          "$RUNNER_TEMP/annotate.sh" test.log
+          grep -E "Test Case .*(passed|failed)|error: -\[|XCTAssert|Executed [0-9]+ test" test.log | tail -60
+          tail -20 test.log
+          exit $status
+
+      - name: Keep the logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: app-ios-logs
+          path: app/ios/*.log
+          retention-days: 7
+
+  # By hand only: the Release archive, signed by Xcode's automatic signing with an App Store Connect API key, sent to
+  # TestFlight. The build number is the run's number, so every upload has a new one.
+  release:
+    if: github.event_name == 'workflow_dispatch' && inputs.upload
+    needs: build
+    runs-on: macos-15
+    timeout-minutes: 60
+    defaults:
+      run:
+        working-directory: app/ios
+    env:
+      APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+      ASC_KEY_ID: ${{ secrets.APP_STORE_CONNECT_KEY_ID }}
+      ASC_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
+      ASC_KEY: ${{ secrets.APP_STORE_CONNECT_KEY }}
+    steps:
+      - name: The signing secrets
+        id: secrets
+        working-directory: .
+        run: |
+          missing=""
+          [ -n "$APPLE_TEAM_ID" ] || missing="$missing APPLE_TEAM_ID"
+          [ -n "$ASC_KEY_ID" ] || missing="$missing APP_STORE_CONNECT_KEY_ID"
+          [ -n "$ASC_ISSUER_ID" ] || missing="$missing APP_STORE_CONNECT_ISSUER_ID"
+          [ -n "$ASC_KEY" ] || missing="$missing APP_STORE_CONNECT_KEY"
+          if [ -n "$missing" ]; then
+            echo "::warning::Nothing uploaded: these repository secrets are not set:$missing (docs/app/setup.md)"
+            echo "ok=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "ok=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - uses: actions/checkout@v4
+        if: steps.secrets.outputs.ok == 'true'
+
+      - name: Xcode and XcodeGen
+        if: steps.secrets.outputs.ok == 'true'
+        run: |
+          latest=$(ls -d /Applications/Xcode_*.app 2>/dev/null | grep -v -i beta | sort -V | tail -1)
+          if [ -n "$latest" ]; then sudo xcode-select -s "$latest"; fi
+          xcodebuild -version
+          brew install xcodegen
+          xcodegen generate
+
+      - name: The App Store Connect key
+        if: steps.secrets.outputs.ok == 'true'
+        run: |
+          mkdir -p "$RUNNER_TEMP/asc"
+          # the .p8 file's text as the secret (its line breaks kept, or written « \n »)
+          printf '%b' "$ASC_KEY" > "$RUNNER_TEMP/asc/AuthKey_${ASC_KEY_ID}.p8"
+          grep -q "BEGIN PRIVATE KEY" "$RUNNER_TEMP/asc/AuthKey_${ASC_KEY_ID}.p8" || { echo "::error::APP_STORE_CONNECT_KEY is not the text of a .p8 key"; exit 1; }
+
+      - name: Archive (Release, signed)
+        if: steps.secrets.outputs.ok == 'true'
+        run: |
+          set +e
+          xcodebuild archive -project Ozimut.xcodeproj -scheme Ozimut -configuration Release \
+            -destination 'generic/platform=iOS' -archivePath build/Ozimut.xcarchive -derivedDataPath build/dda \
+            DEVELOPMENT_TEAM="$APPLE_TEAM_ID" CURRENT_PROJECT_VERSION="${{ github.run_number }}" \
+            -allowProvisioningUpdates \
+            -authenticationKeyPath "$RUNNER_TEMP/asc/AuthKey_${ASC_KEY_ID}.p8" \
+            -authenticationKeyID "$ASC_KEY_ID" -authenticationKeyIssuerID "$ASC_ISSUER_ID" > archive.log 2>&1
+          status=$?
+          grep -E '^/[^:]+:[0-9]+(:[0-9]+)?: (fatal )?error: |^error: |xcodebuild: error|ARCHIVE FAILED' archive.log | sort -u | head -30 | while IFS= read -r line; do echo "::error::$line"; done
+          tail -40 archive.log
+          exit $status
+
+      - name: Export and upload to TestFlight
+        if: steps.secrets.outputs.ok == 'true'
+        run: |
+          set +e
+          cat > build/export.plist <<EOF
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0">
+          <dict>
+            <key>method</key><string>app-store-connect</string>
+            <key>destination</key><string>upload</string>
+            <key>teamID</key><string>${APPLE_TEAM_ID}</string>
+            <key>signingStyle</key><string>automatic</string>
+            <key>uploadSymbols</key><true/>
+            <key>manageAppVersionAndBuildNumber</key><false/>
+          </dict>
+          </plist>
+          EOF
+          xcodebuild -exportArchive -archivePath build/Ozimut.xcarchive -exportOptionsPlist build/export.plist \
+            -exportPath build/export -allowProvisioningUpdates \
+            -authenticationKeyPath "$RUNNER_TEMP/asc/AuthKey_${ASC_KEY_ID}.p8" \
+            -authenticationKeyID "$ASC_KEY_ID" -authenticationKeyIssuerID "$ASC_ISSUER_ID" > export.log 2>&1
+          status=$?
+          grep -E '^error: |xcodebuild: error|EXPORT FAILED|Upload failed|ERROR ITMS' export.log | sort -u | head -30 | while IFS= read -r line; do echo "::error::$line"; done
+          tail -40 export.log
+          if [ $status -eq 0 ]; then echo "::notice::Build ${{ github.run_number }} sent to App Store Connect: it shows in TestFlight once Apple has processed it (a few minutes)."; fi
+          exit $status
+
+      - name: Forget the key
+        if: always()
+        run: rm -rf "$RUNNER_TEMP/asc"
+
+      - name: Keep the logs
+        if: always() && steps.secrets.outputs.ok == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: app-ios-release-logs
+          path: app/ios/*.log
+          retention-days: 14

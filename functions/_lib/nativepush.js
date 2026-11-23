@@ -112,6 +112,23 @@ export async function sendData(env, p, data, { urgent = false, ttl = 3600 } = {}
   }
 }
 
+/** The Ozimut app's devices of an account (docs/app/design.md « Native notifications »; table app_push, migration 0032):
+ *  every notification the site sends to the account. -> number reached */
+export async function appToUser(env, userId, msg, opts) {
+  if (!nativeReady(env)) return 0;
+  let rows = [];
+  try {
+    ({ results: rows } = await env.DB.prepare("SELECT id, kind, token, env FROM app_push WHERE user_id = ?").bind(userId).all());
+  } catch (e) { return 0; }                     // before migration 0032
+  let reached = 0;
+  for (const d of rows) {
+    const r = await sendNative(env, { push_kind: d.kind, push_token: d.token, push_env: d.env }, msg, opts);
+    if (r === "ok") { reached++; await env.DB.prepare("UPDATE app_push SET last_ok = ? WHERE id = ?").bind(Date.now(), d.id).run(); }
+    else if (r === "gone") await env.DB.prepare("DELETE FROM app_push WHERE id = ?").bind(d.id).run();
+  }
+  return reached;
+}
+
 /** Every native device of an account. -> number reached */
 export async function nativeToUser(env, userId, msg, opts) {
   if (!nativeReady(env)) return 0;

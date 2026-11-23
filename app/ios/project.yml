@@ -1,0 +1,152 @@
+# The Ozimut companion app for iPhone (docs/app/design.md is the contract): the live site in a web view, plus what a
+# page cannot do. It does not track (that is Ozitrac, track/).
+# Generated into Ozimut.xcodeproj by XcodeGen: `xcodegen generate` in this folder. Never edit the .xcodeproj by hand.
+name: Ozimut
+options:
+  bundleIdPrefix: com.ozimut
+  developmentLanguage: en
+  createIntermediateGroups: true
+  deploymentTarget:
+    iOS: "17.0"
+
+settings:
+  base:
+    SWIFT_VERSION: "5.0"
+    SWIFT_STRICT_CONCURRENCY: minimal
+    MARKETING_VERSION: "1.0.0"
+    CURRENT_PROJECT_VERSION: "1"
+    # The owner's Apple Developer team (empty: unsigned builds only; see README.md).
+    DEVELOPMENT_TEAM: ""
+    CODE_SIGN_STYLE: Automatic
+    LOCALIZATION_PREFERS_STRING_CATALOGS: YES
+    SWIFT_EMIT_LOC_STRINGS: YES
+    ENABLE_USER_SCRIPT_SANDBOXING: YES
+    # The site the app shows. A Debug build may point elsewhere (https only): change OZ_BASE_URL and OZ_DEV_HOST
+    # together under configs › Debug — the host must be one of WKAppBoundDomains, or the bridge does not exist.
+    OZ_BASE_URL: "https://ozimut.com/"
+    OZ_DEV_HOST: "localhost"
+  configs:
+    Debug:
+      OZ_BASE_URL: "https://ozimut.com/"
+      OZ_DEV_HOST: "localhost"
+      OZ_APS_ENV: dev
+    Release:
+      OZ_APS_ENV: prod
+
+targets:
+  Ozimut:
+    type: application
+    platform: iOS
+    sources:
+      - path: App
+      - path: Core
+      - path: Resources
+    info:
+      path: App/Info.plist
+      properties:
+        CFBundleDisplayName: Ozimut
+        CFBundleShortVersionString: $(MARKETING_VERSION)
+        CFBundleVersion: $(CURRENT_PROJECT_VERSION)
+        CFBundleDevelopmentRegion: en
+        CFBundleLocalizations: [en, fr, de, es]
+        ITSAppUsesNonExemptEncryption: false
+        LSRequiresIPhoneOS: true
+        UILaunchScreen: {}
+        UIApplicationSceneManifest:
+          UIApplicationSupportsMultipleScenes: false
+        UISupportedInterfaceOrientations:
+          - UIInterfaceOrientationPortrait
+          - UIInterfaceOrientationLandscapeLeft
+          - UIInterfaceOrientationLandscapeRight
+        OZBaseURL: $(OZ_BASE_URL)
+        OZApsEnvironment: $(OZ_APS_ENV)
+        # The site's own domain is « app-bound »: its service worker works in the web view (offline pages), and the
+        # web view's main frame never leaves it (WebController sets limitsNavigationsToAppBoundDomains).
+        WKAppBoundDomains: [ozimut.com, $(OZ_DEV_HOST)]
+        NSLocationWhenInUseUsageDescription: "Ozimut shows your position on the map you are looking at, only while that page is open."
+        NSCameraUsageDescription: "The camera photographs and scans your orienteering maps."
+        NSPhotoLibraryUsageDescription: "Choose a map photo to analyse your race."
+        NSMicrophoneUsageDescription: "A video you record for your race analysis may include sound."
+        NSHealthShareUsageDescription: "Ozimut reads the routes of the workouts your watch recorded, so that you can analyse a race on its map."
+        LSSupportsOpeningDocumentsInPlace: false
+        CFBundleDocumentTypes:
+          - CFBundleTypeName: GPS track
+            LSHandlerRank: Alternate
+            LSItemContentTypes: [com.topografix.gpx, com.garmin.fit, com.garmin.tcx]
+          - CFBundleTypeName: Map overlay
+            LSHandlerRank: Alternate
+            LSItemContentTypes: [com.google.earth.kmz, com.google.earth.kml]
+          - CFBundleTypeName: Map or document
+            LSHandlerRank: Alternate
+            LSItemContentTypes: [com.adobe.pdf, public.image]
+        UTImportedTypeDeclarations:
+          - UTTypeIdentifier: com.topografix.gpx
+            UTTypeDescription: GPX track
+            UTTypeConformsTo: [public.xml]
+            UTTypeTagSpecification:
+              public.filename-extension: [gpx]
+              public.mime-type: [application/gpx+xml]
+          - UTTypeIdentifier: com.garmin.fit
+            UTTypeDescription: FIT activity
+            UTTypeConformsTo: [public.data]
+            UTTypeTagSpecification:
+              public.filename-extension: [fit]
+              public.mime-type: [application/vnd.ant.fit]
+          - UTTypeIdentifier: com.garmin.tcx
+            UTTypeDescription: TCX activity
+            UTTypeConformsTo: [public.xml]
+            UTTypeTagSpecification:
+              public.filename-extension: [tcx]
+              public.mime-type: [application/vnd.garmin.tcx+xml]
+          - UTTypeIdentifier: com.google.earth.kmz
+            UTTypeDescription: KMZ map
+            UTTypeConformsTo: [public.data, public.zip-archive]
+            UTTypeTagSpecification:
+              public.filename-extension: [kmz]
+              public.mime-type: [application/vnd.google-earth.kmz]
+          - UTTypeIdentifier: com.google.earth.kml
+            UTTypeDescription: KML map
+            UTTypeConformsTo: [public.xml]
+            UTTypeTagSpecification:
+              public.filename-extension: [kml]
+              public.mime-type: [application/vnd.google-earth.kml+xml]
+    entitlements:
+      path: App/Ozimut.entitlements
+      properties:
+        aps-environment: development
+        com.apple.developer.healthkit: true
+        com.apple.developer.healthkit.access: []
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.ozimut.app
+        TARGETED_DEVICE_FAMILY: "1"
+        PRODUCT_NAME: Ozimut
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+
+  OzimutTests:
+    type: bundle.unit-test
+    platform: iOS
+    sources:
+      - path: Core
+      - path: Tests
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.ozimut.app.tests
+        GENERATE_INFOPLIST_FILE: YES
+
+schemes:
+  Ozimut:
+    build:
+      targets:
+        Ozimut: all
+    run:
+      config: Debug
+    archive:
+      config: Release
+  OzimutTests:
+    build:
+      targets:
+        OzimutTests: [test]
+    test:
+      config: Debug
+      targets: [OzimutTests]

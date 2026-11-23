@@ -204,6 +204,8 @@ Bundled into the APKs the CI builds, under their own licences:
 - ZXing Android Embedded 4.3.0 (JourneyApps, Apache-2.0) and ZXing core (ZXing authors, Apache-2.0): scanning and drawing
   QR codes.
 - Firebase Cloud Messaging (Google, Apache-2.0), only in a build made with the owner's `google-services.json`.
+- Google Play services' Wearable library (`play-services-wearable`, Google, under the Android Software Development Kit
+  License): the Wear OS watch handing its runs to the phone.
 
 The map's tiles are not bundled: the app reads them from the provider `/api/ozitrac/config` names (OpenStreetMap's standard
 tiles by default, © OpenStreetMap contributors, ODbL; the credit is drawn on the map).

@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="net_offline_title">No se puede acceder a Ozimut</string>
+    <string name="net_offline_text">Revisa tu red y vuelve a intentarlo.</string>
+    <string name="net_retry">Reintentar</string>
+    <string name="download_started">Descargando…</string>
+    <string name="choose_file">Elegir un archivo</string>
+    <string name="share_file">Guardar o compartir</string>
+    <string name="notif_channel_alerts">Alertas</string>
+    <string name="notif_channel_help">Alertas urgentes</string>
+</resources>

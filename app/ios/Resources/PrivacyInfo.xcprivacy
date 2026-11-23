@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<!-- The shell tracks nobody and talks to no server of its own: the site's page does, as in a browser. -->
+	<key>NSPrivacyTracking</key>
+	<false/>
+	<key>NSPrivacyTrackingDomains</key>
+	<array/>
+	<!-- What the app's own code collects: nothing. What the site keeps of an account is declared in App Store Connect
+	     (the privacy « nutrition label »), from the site's privacy page. -->
+	<key>NSPrivacyCollectedDataTypes</key>
+	<array/>
+	<!-- Required-reason APIs the app's own code calls: none (no UserDefaults, no file timestamps, no disk space,
+	     no boot time, no active keyboards). Add an entry here before using one. -->
+	<key>NSPrivacyAccessedAPITypes</key>
+	<array/>
+</dict>
+</plist>

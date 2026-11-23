@@ -281,6 +281,7 @@ export const onRequestPost = withUser(async ({ request, env }, user) => {
       env.DB.prepare("DELETE FROM push_sent WHERE user_id = ?").bind(user.id),
       env.DB.prepare("DELETE FROM push_queue WHERE user_id = ?").bind(user.id)]);
   } catch (e) {}
+  try { await env.DB.prepare("DELETE FROM app_push WHERE user_id = ?").bind(user.id).run(); } catch (e) { /* before migration 0032 */ }   // the Ozimut app's phones
   await env.DB.batch([
     env.DB.prepare("DELETE FROM notified WHERE user_id = ?").bind(user.id),
     env.DB.prepare("DELETE FROM user_countries WHERE user_id = ?").bind(user.id),

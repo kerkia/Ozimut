@@ -1,7 +1,7 @@
 // The privacy policy and legal notices, in English — a translation for information; the French version (privacy.fr.js)
 // prevails. Keep the two in step.
 // world: registration open to every orienteer (privacy.fr.js, which prevails).
-export const body = (SITE, { world = false } = {}) => `
+export const body = (SITE, { world = false, later = "" } = {}) => `
       <p class="muted"><i>This English version is provided for information; the French version prevails.</i></p>
       <p>${SITE} is an independent site, not affiliated with the French orienteering federation (FFCO). It is published on a
         personal, non-commercial basis by <b>Yann Le Helloco</b>, controller of the personal data described below within the
@@ -28,7 +28,7 @@ export const body = (SITE, { world = false } = {}) => `
         (name, club, regional federation, licence and card numbers), of which it shows no number. These results being public, everyone can see them, with or without an account.
         Anyone concerned may ask no longer to be identified in them (see “Your rights”).</p>
       <h2 style="font-size:16px">Access and pictures of the site</h2>
-      <p>${SITE} is free during its launch. As usage grows, some advanced or costly features may become paid: we will say so at least two months ahead, and what you have already stored will stay readable and exportable.</p>
+      ${later ? `<p>${later}</p>` : ""}
       <p>Part of the site can be read without an account; an account opens alerts and track sharing,
         and the ranking's whole history is kept to the federation's licence holders: in France, an account that joined France, its
         FFCO licence number checked against the name. Countries whose results are all public (Spain) are open to everyone.</p>
@@ -223,6 +223,8 @@ export const body = (SITE, { world = false } = {}) => `
       </ul>
       <p>A message sent through the “Contact us” page reaches the publisher by email, with your address, your name and the browser
         used; it is kept in their mailbox for as long as needed to handle the request.</p>
+      <h2 style="font-size:16px">The Ozimut app</h2>
+      <p>The Ozimut app for phones shows this site and does not track your position. If you turn notifications on there, the site keeps, for that phone, the sending identifier given by the phone's notification service (Google on Android, Apple on iPhone) and the kind of device; it is erased when you turn them off, sign out of the app or delete your account. The map you scan, the files you share to it and the routes read from Health (iPhone, with your consent, read only) stay on the phone, as on the site, as long as you neither save nor share the analysis. No account is created or deleted in the app: that is done on the site.</p>
       <h2 style="font-size:16px">Notifications</h2>
       <p>If you allow Ozimut's notifications on a device, the site keeps, for that device, the sending address given to it by your
         browser's notification service (Google for Chrome and Android, Apple for Safari, Mozilla for Firefox, Microsoft for Edge), the

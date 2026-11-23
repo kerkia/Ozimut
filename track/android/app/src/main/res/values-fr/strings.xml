@@ -107,6 +107,7 @@
     <string name="runs_text">Tes courses sont gardées sur ce téléphone seulement. Partage-les ou enregistre-les en GPX.</string>
     <string name="runs_none">Aucune course gardée pour l\'instant.</string>
     <string name="runs_line">%1$s · %2$s km</string>
+    <string name="runs_watch">Enregistrée sur la montre</string>
     <string name="runs_view">Voir</string>
     <string name="runs_share">Partager</string>
     <string name="runs_save">Enregistrer</string>

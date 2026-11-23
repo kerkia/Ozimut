@@ -6,14 +6,20 @@ import java.io.FileOutputStream
 
 /**
  * Every run kept on this phone (docs/track/ozitrac.md rule 3): `filesDir/runs/<run>.csv`, a line a fix « t,la,lo,ac,al »,
- * written as the fixes come. A GPX file is made from it when the runner wants one.
+ * written as the fixes come. A GPX file is made from it when the runner wants one. A run recorded on the Wear OS watch and
+ * handed over by it (`WatchRuns`) is kept the same way, with an empty `<run>.watch` beside it.
  */
 object RunLog {
-    class Info(val run: String, val file: File, val start: Long, val end: Long, val points: Int, val metres: Double)
+    class Info(val run: String, val file: File, val start: Long, val end: Long, val points: Int, val metres: Double,
+               val watch: Boolean = false)
 
     fun dir(c: Context) = File(c.filesDir, "runs").apply { mkdirs() }
 
-    private fun file(c: Context, run: String) = File(dir(c), run.filter { it.isLetterOrDigit() || it == '_' } + ".csv")
+    private fun safe(run: String) = run.filter { it.isLetterOrDigit() || it == '_' }
+
+    private fun file(c: Context, run: String) = File(dir(c), safe(run) + ".csv")
+
+    private fun watchMark(c: Context, run: String) = File(dir(c), safe(run) + ".watch")
 
     @Synchronized fun append(c: Context, run: String, f: Fix) {
         try {
@@ -46,10 +52,30 @@ object RunLog {
         (dir(c).listFiles { f -> f.name.endsWith(".csv") } ?: emptyArray()).mapNotNull { f ->
             val fixes = read(f)
             if (fixes.isEmpty()) return@mapNotNull null
-            Info(f.name.removeSuffix(".csv"), f, fixes.first().t, fixes.last().t, fixes.size, Geo.length(fixes))
+            val run = f.name.removeSuffix(".csv")
+            Info(run, f, fixes.first().t, fixes.last().t, fixes.size, Geo.length(fixes), watchMark(c, run).exists())
         }.sortedByDescending { it.start }
 
-    fun delete(c: Context, run: String) { file(c, run).delete() }
+    fun delete(c: Context, run: String) {
+        file(c, run).delete()
+        watchMark(c, run).delete()
+    }
+
+    /** A run the watch handed over, kept as the phone's own (a second copy of the same run replaces the first). */
+    @Synchronized fun importWatch(c: Context, run: String, csv: ByteArray): Boolean {
+        if (safe(run).isEmpty() || csv.isEmpty()) return false
+        return try {
+            val tmp = File(dir(c), safe(run) + ".part")
+            tmp.writeBytes(csv)
+            val f = file(c, run)
+            f.delete()
+            if (!tmp.renameTo(f)) { tmp.delete(); return false }
+            watchMark(c, run).createNewFile()
+            true
+        } catch (e: Exception) {
+            false
+        }
+    }
 
     /** Keeps the [keep] latest runs (the watch's small storage). */
     fun prune(c: Context, keep: Int) {

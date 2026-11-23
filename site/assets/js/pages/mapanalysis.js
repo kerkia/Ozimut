@@ -8,6 +8,9 @@
 // track (#/analyse-solo). The tiles of 2026-11-01 are gone (`?choix=` addresses lead here); a race's analysis with its
 // published times (#/analyse?course=) stays Arena's.
 
+import { appKey } from "../appbridge.js";
+// (the wordings appKey chooses, named here for the per-page texts of a deploy: front_build reads the keys written as strings)
+export const APP_KEYS = ["ma.guest.account.app", "ma.guest.club.app", "ma.guest.locked.app", "ma.go.account.app"];
 import { html, raw, esc, $, $$, fmt, fmtDate, normalise } from "../util.js";
 import { t, tn, has } from "../i18n.js";
 import * as auth from "../auth.js";
@@ -124,7 +127,7 @@ export async function render(main, r) {
   const clubTag = (e) => (e.clubOnly ? html` <span class="tag ma-club-only" title="${clubName(e.org) ? t("ma.clubOnly.tip", { club: clubName(e.org) }) : t("ma.clubOnly.tip0")}">${t("ma.clubOnly")}</span>`
     : e.needs ? html` <span class="tag ma-club-only" title="${t("ma.accOnly.tip")}">${t("ma.accOnly")}</span>` : "");
   // a visitor without an account on an event they cannot open: why, and the two ways to an account
-  const guestAsk = (e) => raw(t(e.needs ? "ma.guest.account" : e.shut ? "ma.guest.club" : "ma.guest.locked",
+  const guestAsk = (e) => raw(t(appKey(e.needs ? "ma.guest.account" : e.shut ? "ma.guest.club" : "ma.guest.locked"),
     { club: esc(clubName(e.org) || t("ma.club.club0")), a: `<a href="#/compte/inscription">`, b: "</a>", c: `<a href="#/?s=login">`, d: "</a>" }));
   const seg = (name, list, cur) => html`<div class="seg" role="group" aria-label="${t(`ma.${name}`)}">${list.map(([k, l]) =>
     html`<button type="button" class="seg-btn${k === cur ? " on" : ""}" data-${name}="${k}" aria-pressed="${k === cur}">${l}</button>`)}</div>`;
@@ -218,7 +221,7 @@ export async function render(main, r) {
         ${way(multiHref(a), t("ma.go.view"), t("ma.go.view.hint"), !me)}
         ${me && a.upload !== false ? way(multiHref(a, true), t("ma.go.add"), t("ma.go.add.hint"), true) : ""}
         ${me && a.solo !== false ? way(orgaHref(a.id), t("ma.go.solo"), t("ma.go.solo.hint")) : ""}
-        ${!me ? html`<p class="muted">${raw(t("ma.go.account", { a: `<a href="#/compte/inscription">`, b: "</a>" }))}</p>`
+        ${!me ? html`<p class="muted">${raw(t(appKey("ma.go.account"), { a: `<a href="#/compte/inscription">`, b: "</a>", c: `<a href="#/?s=login">`, d: "</a>" }))}</p>`
           : a.upload === false && !a.organiser ? html`<p class="muted">${t("ma.go.closed")}</p>` : ""}</div>`}
       <div class="ma-d-thumb" id="ma-d-thumb" hidden><img alt="${t("ma.thumb.alt", { name: e.name })}"></div></div>`;
     thumbOf(e).then((url) => { const b = $("#ma-d-thumb"); if (url && b && selected === e.key) { $("img", b).src = url; b.hidden = false; } });

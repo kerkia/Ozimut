@@ -50,6 +50,7 @@ class RunsActivity : ComponentActivity() {
         root.addView(Ui.full(Ui.text(this, getString(R.string.runs_title), 24f, bold = true)))
         root.addView(Ui.full(Ui.text(this, getString(R.string.runs_text), 14f, color = Ui.GREY)))
         io.execute {
+            WatchRuns.collect(applicationContext)          // a watch's runs the system has not handed over yet
             val running = RunState.get(applicationContext).let { if (it.active) it.run else "" }
             val list = RunLog.runs(applicationContext).filter { it.run != running }
             ui.post { show(list) }
@@ -65,6 +66,7 @@ class RunsActivity : ComponentActivity() {
             val card = Ui.column(this, 14).apply { background = Ui.round(Ui.PALE, Ui.dp(this@RunsActivity, 12).toFloat()) }
             card.addView(Ui.text(this, Screens.dateTime(this, r.start), 18f, bold = true))
             card.addView(Ui.text(this, getString(R.string.runs_line, Ui.clock((r.end - r.start) * 1000), Ui.km(r.metres)), 15f, color = Ui.GREY))
+            if (r.watch) card.addView(Ui.text(this, getString(R.string.runs_watch), 14f, color = Ui.GREY))
             val row = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
             fun btn(label: String, onClick: () -> Unit) = row.addView(Ui.button(this, label, onClick = onClick),
                 LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f).apply { setMargins(4, 4, 4, 4) })

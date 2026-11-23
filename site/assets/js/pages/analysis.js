@@ -44,6 +44,7 @@ import { takeInbox, handOver } from "../pwa.js";
 import { gridPlan, loadGrid, CREDIT } from "../trace/terrain.js";
 import { bar, setBar } from "../waitbar.js";
 import * as phone from "../phonelink.js";
+import { appRow } from "../appfiles.js";
 import * as LM from "../trace/lidarmap.js";
 import * as RC from "../trace/routeplan.js";
 import { panelHtml, bindPanel, bindSplitter, PAN_ICON, drawers, stripArrow, floatBar, clearHandle, ICONS, legPickHtml, bindLegPick, legArrows, mapOnlyButton, bindMapOnly, leaveMapOnly } from "../trace/sidepanel.js";
@@ -505,6 +506,7 @@ export async function render(main, { query = {}, route } = {}) {
       ${matchMedia("(pointer: coarse)").matches && !orgaMode ? html`<div class="an-cam-row"><label class="btn btn-primary an-cam"><input type="file" id="an-cam" accept="image/*" capture="environment" hidden>${t("an.cam")}</label>
         <span class="muted">${t("an.cam.hint")}</span></div>` : ""}
       ${phone.offered() ? html`<div class="an-cam-row">${phone.button("an-phone")}<span class="muted">${t(orgaMode ? "ph.hint.trace" : "ph.hint.any")}</span></div>` : ""}
+      <div id="an-app"></div>
       <p class="hint an-fit-tip">${t("an.fitTip")}</p>
       ${touchScreen()
         // a phone (owner, 2026-11-06): a button opens its file picker — nothing is dropped there; on the organiser's map a trace
@@ -518,6 +520,8 @@ export async function render(main, { query = {}, route } = {}) {
     $("#an-in").addEventListener("change", (e) => { take([...e.target.files]); e.target.value = ""; });
     bindKeepBox($("#an-files"));
     $("#an-cam")?.addEventListener("change", (e) => { take([...e.target.files]); e.target.value = ""; });
+    // the Ozimut app: the map through the phone's document scanner, the watch's routes from Apple Health (appfiles.js)
+    appRow($("#an-app"), { map: !orgaMode, onFiles: (f) => take(f) });
     phone.bind("an-phone", { kind: orgaMode ? "trace" : "any", multiple: !orgaMode, onFiles: (f) => take(f) });
     $("#an-forget")?.addEventListener("click", () => {
       stop(); prepToken++;                                  // a calibration under way stops with its files

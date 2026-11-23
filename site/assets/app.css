@@ -5174,3 +5174,9 @@ table.data tr.mc-past td { color: var(--ink-3); }
   .ac-owe-sum { margin-left: 0; }
   .ac-bank .ac-label { max-width: 160px; }
 }
+
+/* The Ozimut app (appfiles.js): the workouts of Apple Health, one to choose */
+.appf-list { display: flex; flex-direction: column; gap: 6px; max-height: 50vh; overflow: auto; margin: 10px 0; }
+.appf-item { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; height: auto; padding: 8px 10px; text-align: left; }
+.appf-item .muted { font-size: 12.5px; }
+.an-fit-tip { font-size: 12.5px; color: var(--ink-3); margin: 6px 0 0; }

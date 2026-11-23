@@ -8,6 +8,7 @@
 // « Mes inscriptions » (#/mes-inscriptions): to come and past, the amounts, what is paid, changes until the closing.
 // The start-time booking's address of before (#/horaire?course=<race key>) leads to the event holding the race.
 
+import { inApp } from "../appbridge.js";
 import { html, raw, $, $$, fmt, fmtDate, fmtCat, normalise } from "../util.js";
 import { t, tn, loadArea, lang, locale } from "../i18n.js";
 import * as auth from "../auth.js";
@@ -266,6 +267,12 @@ async function formPage(main, id, q) {
     const box = $("#en-book");
     try { const s = await (await fetch("api/account/status")).json(); ts.key = s.turnstile || null; ts.world = !!s.world; ts.open = !!s.registration; } catch (e) { ts.open = false; }
     const cls = F.classes;
+    // the Ozimut app makes no account (docs/app/design.md): signing in is asked first
+    if (inApp()) {
+      box.innerHTML = html`<div class="card-head"><div><h2>${t("ent.guest.title")}</h2><div class="hint">${t("ent.guest.app")}</div></div></div>
+        <div class="card-body"><a class="btn btn-sm btn-primary" href="#/?s=login" data-after="1">${t("hub.login")}</a></div>`;
+      return;
+    }
     box.innerHTML = html`<div class="card-head"><div><h2>${t("ent.guest.title")}</h2><div class="hint">${t("ent.guest.hint")}</div></div></div>
       <div class="card-body">
         <p class="row" style="gap:8px;flex-wrap:wrap"><a class="btn btn-sm btn-primary" href="#/?s=login" data-after="1">${t("hub.login")}</a>

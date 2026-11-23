@@ -10,6 +10,7 @@ import * as store from "../store.js";
 import { link, MODULES, CREATOR_MODULES } from "../app.js";
 import { methodShort } from "../ui.js";
 import * as pwa from "../pwa.js";
+import { inApp, call as appCall } from "../appbridge.js";
 import { name as countryName, membershipFields, bindMembershipFields, readMembership, flagImg } from "../country.js";
 
 // The alerts of the table: the user's field for each channel (publicUser, /api/account/settings); `gated`: the e-mail
@@ -58,6 +59,7 @@ export async function render(main, { query = {} } = {}) {
       <div class="notice info">${t("st.legacy")}</div><a class="btn" href="#/compte/inscription">${t("ac.register")}</a>`;
     return { title: t("st.title") };
   }
+  const app = !!inApp();
   const r = await fetch("api/account/me", { credentials: "same-origin", cache: "no-store" });
   const user = r.ok ? await r.json() : null;
   // only an expired session signs out (owner, 2026-10-21: any failure did, a busy server included)
@@ -66,7 +68,7 @@ export async function render(main, { query = {} } = {}) {
   if (user.demo) return demoPage(main, user);
 
   main.innerHTML = html`
-    <div class="page-head"><div><h1>${t("st.title")}</h1><p class="lede">${t("st.lede")}</p></div></div>
+    <div class="page-head"><div><h1>${t("st.title")}</h1><p class="lede">${t(app ? "st.lede.app" : "st.lede")}</p></div></div>
     <div class="stack" style="max-width:640px">
       <section class="card"><div class="card-head"><h2>${t("st.account")}</h2></div><div class="card-body stack" style="gap:10px">
         <div><span class="muted">${t("ac.email")}</span><br><b>${user.email}</b></div>
@@ -77,7 +79,7 @@ export async function render(main, { query = {} } = {}) {
           <span class="muted" style="font-size:12.5px">${t("st.lang.hint")}</span></label>` : ""}
       </div></section>
 
-      <section class="card" id="st-countries"><div class="card-head"><h2>${t("st.cty.title")}</h2></div><div class="card-body stack" style="gap:12px">
+      <section class="card" data-web-only id="st-countries"><div class="card-head"><h2>${t("st.cty.title")}</h2></div><div class="card-body stack" style="gap:12px">
         <p class="soft" style="margin:0">${t("st.cty.hint")}</p>
         <div id="cty-list" class="stack" style="gap:8px"></div>
         <form id="cty-add" class="stack" style="gap:10px"></form>
@@ -104,7 +106,7 @@ export async function render(main, { query = {} } = {}) {
         <div class="notice ok" id="alerts-ok" hidden>${t("st.saved")}</div>
       </div></section>
 
-      <section class="card" id="st-modules"><div class="card-head"><h2>${t("st.mod.title")}</h2></div><div class="card-body stack" style="gap:8px">
+      <section class="card" data-web-only id="st-modules"><div class="card-head"><h2>${t("st.mod.title")}</h2></div><div class="card-body stack" style="gap:8px">
         <p class="muted" style="margin:0;font-size:12.5px">${t("st.mod.lede")}</p>
         <b class="st-mod-h">${t("st.mod.consumers")}</b>
         ${MODULES.filter((m) => !CREATOR_MODULES.includes(m) && (m !== "pixel" || user.admin)).map((m) => html`<label class="check"><input type="checkbox" data-mod-box="${m}" ${(user.hiddenModules || []).includes(m) ? "" : "checked"}><span><b>${t(`mod.${m}`)}</b> · ${t(`mod.${m}.tag`)}</span></label>`)}
@@ -113,7 +115,7 @@ export async function render(main, { query = {} } = {}) {
         <p class="muted" style="margin:0;font-size:12.5px">${t("st.mod.hint")}</p>
       </div></section>
 
-      ${store.METHODS.every((m) => store.available().includes(m)) && auth.sees("FR") ? html`<section class="card"><div class="card-head"><h2>${t("st.arenaM.title")}</h2></div><div class="card-body stack" style="gap:8px">
+      ${store.METHODS.every((m) => store.available().includes(m)) && auth.sees("FR") ? html`<section class="card" data-web-only><div class="card-head"><h2>${t("st.arenaM.title")}</h2></div><div class="card-body stack" style="gap:8px">
         <div class="seg" role="group" aria-label="${t("st.arenaM.title")}">${store.METHODS.map((m) => html`<button type="button" data-arena-m="${m}" aria-pressed="${String(store.arenaMethod() === m)}" title="${t(`m.${m}.tip`)}">${methodShort(m)}</button>`)}</div>
         <p class="muted" style="margin:0;font-size:12.5px">${t("st.arenaM.hint")}</p>
       </div></section>` : ""}
@@ -123,12 +125,12 @@ export async function render(main, { query = {} } = {}) {
         <div id="push-device" class="stack" style="gap:8px"></div>
       </div></section>
 
-      <section class="card"><div class="card-head"><h2>${t("st.app.title")}</h2></div><div class="card-body stack" style="gap:8px">
+      <section class="card" data-web-only><div class="card-head"><h2>${t("st.app.title")}</h2></div><div class="card-body stack" style="gap:8px">
         <p class="soft" style="margin:0">${t("st.app.hint")}</p>
         <div id="app-device" class="stack" style="gap:8px"></div>
       </div></section>
 
-      <section class="card"><div class="card-head"><h2>${t("st.pw.title")}</h2></div><div class="card-body">
+      <section class="card" data-web-only><div class="card-head"><h2>${t("st.pw.title")}</h2></div><div class="card-body">
         <form id="pw" class="stack" style="gap:12px;max-width:360px">
           <label class="field"><span>${t("st.pw.old")}</span><input name="old" type="password" autocomplete="current-password" required></label>
           <label class="field"><span>${t("st.pw.new")} <span class="muted">· ${t("ac.password.hint")}</span></span><input name="password" type="password" autocomplete="new-password" required minlength="6" maxlength="200"></label>
@@ -136,7 +138,7 @@ export async function render(main, { query = {} } = {}) {
           <button class="btn" type="submit">${t("st.pw.submit")}</button>
         </form></div></section>
 
-      <section class="card"><div class="card-head"><h2>${t("st.del.title")}</h2></div><div class="card-body">
+      <section class="card" data-web-only><div class="card-head"><h2>${t("st.del.title")}</h2></div><div class="card-body">
         <p class="soft" style="margin:0 0 12px">${t("st.del.lede")}</p>
         <form id="del" class="stack" style="gap:12px;max-width:360px">
           <label class="field"><span>${t("ac.password")}</span><input name="password" type="password" autocomplete="current-password" required></label>
@@ -144,8 +146,13 @@ export async function render(main, { query = {} } = {}) {
           <button class="btn" type="submit" style="color:var(--bad)">${t("st.del.submit")}</button>
         </form></div></section>
 
+      ${app ? html`<div><button type="button" class="btn" id="st-logout">${t("auth.logout")}</button></div>` : ""}
       <p class="muted"><a href="#/compte/confidentialite">${t("pv.title")}</a></p>
     </div>`;
+  // the Ozimut app is a companion (docs/app/design.md): the settings that belong to the phone — the alerts, its notifications,
+  // the language, signing out; the account itself (password, countries, modules, deletion) is the website's
+  if (app) $$("[data-web-only]", main).forEach((el) => el.parentNode.removeChild(el));
+  $("#st-logout")?.addEventListener("click", async () => { await auth.logout(); location.hash = "#/"; location.reload(); });
 
   const flash = (el, text, ok) => { el.textContent = text; el.className = `notice${ok ? " ok" : ""}`; el.hidden = false; };
 
@@ -201,8 +208,8 @@ export async function render(main, { query = {} } = {}) {
     const res = await auth.api("api/account/countries", m);
     if (res.ok) restart(); else { btn.disabled = false; flash(err, errText(res)); }
   }
-  drawCountries();
-  if (query.onglet === "pays") $("#st-countries").scrollIntoView({ block: "start" });
+  if (!app) drawCountries();
+  if (query.onglet === "pays") $("#st-countries")?.scrollIntoView({ block: "start" });
   if (query.onglet === "modules") $("#st-modules")?.scrollIntoView({ block: "start" });
 
   // the language: on the account (its e-mails), then on this device, the page drawn again in it
@@ -259,7 +266,8 @@ export async function render(main, { query = {} } = {}) {
     const [state, cfg] = await Promise.all([push.deviceState(), push.getConfig(true)]);
     const n = cfg?.devices || 0;
     const wanted = $$("[data-alert]").some((i) => i.checked && i.dataset.alert.startsWith("push"));
-    box.innerHTML = html`<p style="margin:0"><b>${t("st.push.dev.title")}</b> ${t(`st.push.dev.${state}`)}</p>
+    box.innerHTML = html`<p style="margin:0"><b>${t("st.push.dev.title")}</b> ${t(app && state === "denied" ? "st.push.dev.denied.app" : app && state === "unsupported" ? "st.push.dev.unsupported.app" : `st.push.dev.${state}`)}</p>
+      ${app && state === "denied" ? html`<div><button type="button" class="btn btn-sm" id="push-sys">${t("st.push.sys")}</button></div>` : ""}
       ${state === "on" ? html`<div class="row" style="gap:8px;flex-wrap:wrap">
           <button type="button" class="btn btn-sm" id="push-test">${t("st.push.test")}</button>
           <button type="button" class="btn btn-ghost btn-sm" id="push-off">${t("st.push.off")}</button></div>`
@@ -267,6 +275,7 @@ export async function render(main, { query = {} } = {}) {
       ${n ? html`<p class="muted" style="margin:0;font-size:12.5px">${tn("st.push.devices", n)}</p>` : ""}
       ${state === "on" && !wanted ? html`<p class="muted" style="margin:0;font-size:12.5px">${t("st.push.noneWanted")}</p>` : ""}
       ${note ? html`<div class="notice">${note}</div>` : ""}`;
+    $("#push-sys")?.addEventListener("click", () => appCall("openSettings").catch(() => {}));
     $("#push-on")?.addEventListener("click", async (e) => {
       e.target.disabled = true;
       const s = await push.enable();
@@ -293,7 +302,7 @@ export async function render(main, { query = {} } = {}) {
   drawApp();
   window.addEventListener("ocn:install", drawApp);
 
-  $("#pw").addEventListener("submit", async (e) => {
+  $("#pw")?.addEventListener("submit", async (e) => {
     e.preventDefault();
     const f = new FormData(e.target), err = $(".notice", e.target);
     const res = await auth.api("api/account/password", { old: f.get("old"), password: f.get("password") });
@@ -301,7 +310,7 @@ export async function render(main, { query = {} } = {}) {
     else flash(err, res.status === 401 ? t("st.pw.bad") : res.status === 422 ? t("ac.reg.err.password") : res.status === 429 ? t("ac.err.rate") : t("ac.err.generic"));
   });
 
-  $("#del").addEventListener("submit", async (e) => {
+  $("#del")?.addEventListener("submit", async (e) => {
     e.preventDefault();
     if (!confirm(t("st.del.confirm"))) return;
     const err = $(".notice", e.target);
