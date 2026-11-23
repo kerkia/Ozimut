@@ -447,13 +447,13 @@ export function build(X) {
             some Android phones the app must be allowed to run in the background in the battery settings; the test says so and opens the
             right screen.</p>`)}
         ${slide("Coach", "3. Pairing a device", html`
-          <p>A device always belongs to an account: nothing is recorded without one. In « Family and devices »:</p>
+          <p>A device always belongs to an account: nothing is recorded without one. In « Family and devices », first choose the person under « For whom? » — yourself or one of your children: each has their own devices, their own followers and their own settings. Then:</p>
           ${list([
             html`<b>a phone</b>: « Pair a phone » shows a QR code; scan it with the phone's Ozimut app (or type its 8 characters). The code works
               once and lasts 15 minutes. In the app itself, « Pair this phone » is enough;`,
             html`<b>a watch</b>: the watch shows a 6-character code; type it in « Pair a watch ». An Apple Watch can also be paired by the
               iPhone it goes with;`,
-            html`<b>Traccar Client</b>: « Traccar Client » gives an address and a QR code that set the app up.`,
+            html`<b>Traccar Client</b>: « Traccar Client » gives a QR code to scan from Traccar Client's settings (the icon at the top of the screen), not with the phone's camera, or an address to paste into « Server URL ».`,
           ])}
           <p>« Remove » stops a device at once: it can no longer send positions.</p>`)}
         ${slide("Coach", "4. Children's accounts", html`

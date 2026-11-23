@@ -125,8 +125,15 @@ An iPhone app may pair its own Apple Watch directly: it makes a pair code for it
 
 ### Traccar Client (phase 0 pilot): `GET|POST /api/track/osmand/<key>`
 OsmAnd protocol (`id`, `timestamp`, `lat`, `lon`, `accuracy`, `altitude`, `speed`, `bearing`, `batt`); one fix a request;
-a device of kind "osmand" made by « Mes appareils › Traccar Client » (its QR code configures the app:
-`https://ozimut.com/api/track/osmand/<key>?id=<device>&interval=5&distance=0&accuracy=highest&buffer=true&stopDetection=false`).
+a device of kind "osmand" made by « Famille et appareils › <person> › Traccar Client » (its QR code configures the app when
+read by **Traccar Client's own scanner** — its settings, the QR icon at the top —:
+`https://ozimut.com/api/track/osmand/<key>?id=<device>&interval=5&distance=0&accuracy=highest&buffer=true&wakelock=true&stop_detection=false`;
+the client keeps the origin and path as its server address and reads the query as its settings, the names and values as
+traccar-client's `configuration_service.dart` reads them: `accuracy` in lower case, `stop_detection` in snake case). The same
+settings as a deep link, `org.traccar.client://config?url=<server>&id=…` (an `intent://` on Android), open the app from a page
+on the phone. **A browser opening the address** (the QR code read by the phone's camera; `GET`, no `lat`, `Accept: text/html`)
+gets a page instead of « OK » (`functions/_lib/traccarpage.js`, four languages): the deep link's button, how to scan from the
+app, the server address to copy with the accuracy and interval to set by hand, the stores.
 A run opens at the first fix and closes after 10 minutes of silence.
 
 ### Native push tokens: `POST /api/track/pushtoken`

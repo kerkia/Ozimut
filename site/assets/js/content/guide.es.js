@@ -462,13 +462,13 @@ export function build(X) {
             teléfono registra bien. En algunos teléfonos Android hay que permitir que la aplicación funcione en segundo plano en los ajustes de
             batería; la prueba lo dice y abre la pantalla correcta.</p>`)}
         ${slide("Coach", "3. Vincular un dispositivo", html`
-          <p>Un dispositivo siempre pertenece a una cuenta: sin cuenta no se registra nada. En « Familia y dispositivos »:</p>
+          <p>Un dispositivo siempre pertenece a una cuenta: sin cuenta no se registra nada. En « Familia y dispositivos », elige primero en « ¿Para quién? » la persona — tú o uno de tus hijos: cada una tiene sus propios dispositivos, sus propios seguidores y sus propios ajustes. Luego:</p>
           ${list([
             html`<b>un teléfono</b>: « Vincular un teléfono » muestra un código QR; se escanea con la aplicación Ozimut del teléfono (o se
               escriben sus 8 caracteres). El código sirve una vez y dura 15 minutos. En la propia aplicación basta con « Vincular este teléfono »;`,
             html`<b>un reloj</b>: el reloj muestra un código de 6 caracteres; se escribe en « Vincular un reloj ». Un Apple Watch también se
               puede vincular desde el iPhone que lo acompaña;`,
-            html`<b>Traccar Client</b>: « Traccar Client » da una dirección y un código QR que configuran la aplicación.`,
+            html`<b>Traccar Client</b>: « Traccar Client » da un código QR que se escanea desde los ajustes de Traccar Client (el icono arriba de la pantalla), no con la cámara del teléfono, o una dirección para pegar en « URL del servidor ».`,
           ])}
           <p>« Quitar » detiene un dispositivo al instante: ya no puede enviar posiciones.</p>`)}
         ${slide("Coach", "4. Las cuentas de los niños", html`

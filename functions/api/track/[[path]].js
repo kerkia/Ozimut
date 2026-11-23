@@ -36,6 +36,7 @@ import { pushToUser } from "../../_lib/push.js";
 import { sendOrQueue } from "../../_lib/mail.js";
 import { takeoverMail, trackPush } from "../../_lib/templates.js";
 import * as T from "../../_lib/track.js";
+import { TRACCAR_SETTINGS, traccarLink, traccarPage } from "../../_lib/traccarpage.js";
 import { onRequestPost as pageView } from "../track.js";
 
 const NEED = { error: "not ready" };              // before migration 0029
@@ -243,6 +244,9 @@ async function osmand(ctx, key) {
         timestamp: loc.timestamp, batt: loc.battery?.level != null ? Math.round(loc.battery.level * 100) : undefined })) if (v != null) q.set(k, v);
     } else for (const [k, v] of new URLSearchParams(await request.text())) q.set(k, v);
   }
+  // a browser (the QR code read by the phone's camera, the address pasted in a tab): what to do instead
+  if (request.method === "GET" && !q.has("lat") && /text\/html/.test(request.headers.get("Accept") || ""))
+    return traccarPage(request, `${new URL(request.url).origin}/api/track/osmand/${key}`, q.get("id") || d.id);
   const lat = Number(q.get("lat")), lon = Number(q.get("lon"));
   if (!Number.isFinite(lat) || !Number.isFinite(lon)) return new Response("OK");
   const ts = q.get("timestamp");
@@ -501,9 +505,11 @@ async function deviceOsmand(ctx, me) {
   const id = T.newId("d_"), key = T.newKey();
   await ctx.env.DB.prepare(`INSERT INTO track_devices (id, user_id, kind, label, key_hash, created_at) VALUES (?, ?, 'osmand', ?, ?, ?)`)
     .bind(id, t.id, T.clean(b?.label, 40) || "Traccar Client", await T.hashOf(key), nowIso()).run();
+  // the QR code is read by Traccar Client's own scanner: a plain address, the server its origin and path, its query the settings
+  // (names and values as traccar-client's configuration_service reads them: lower-case « highest », snake_case stop_detection)
   const base = `${siteUrl(ctx.env)}/api/track/osmand/${key}`;
-  return json({ device: id, server: base,
-    config: `${base}?id=${id}&interval=5&distance=0&accuracy=highest&buffer=true&stopDetection=false` });
+  const q = new URLSearchParams({ id, ...Object.fromEntries(Object.entries(TRACCAR_SETTINGS).map(([k, v]) => [k, String(v)])) });
+  return json({ device: id, server: base, config: `${base}?${q}`, link: traccarLink(base, id), intent: traccarLink(base, id, true) });
 }
 
 async function deviceEdit(ctx, me, id) {

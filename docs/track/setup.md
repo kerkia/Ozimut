@@ -34,11 +34,14 @@ Without it, runs are kept and the watch page reads them every 20 s, but no alert
 
 This tests the server, the live page and the alerts with a free app, before the Ozimut apps.
 
-1. On ozimut.com, signed in as an administrator: Coach › Suivi GPS › « Famille et appareils » › « Créer le compte d'un
-   enfant » (a test child: any first name, a year of birth). Open its card.
-2. In the child's card: « Traccar Client ». A QR code appears.
-3. On a phone, install « Traccar Client » (Android: Google Play; iPhone: App Store). In its settings, scan the QR code (or
-   copy the address into « Server URL »). Set the accuracy to « Highest », the interval to 5 s. Turn the service on.
+1. On ozimut.com, signed in as an administrator: Coach › Suivi GPS › « Famille et appareils » › « Pour qui ? » ›
+   « + Ajouter un enfant » (a test child: any first name, a year of birth). The page then shows that child.
+2. Under the child's name: « Traccar Client pour <prénom> ». A QR code appears.
+3. On a phone, install « Traccar Client » (Android: Google Play; iPhone: App Store). **In Traccar Client**, open its settings
+   and tap the QR code icon at the top, then scan the code on the computer — not with the phone's camera, which opens a page
+   of Ozimut explaining this (its « Ouvrir dans Traccar Client » button also works when that page is on the phone). The code
+   sets the address, the accuracy « highest » and the 5 s interval. Without scanning: paste the address into « Server URL »,
+   set the accuracy to « highest » (« medium » by default) and the interval to 5 s. Turn the service on.
 4. Walk a few minutes outside. On the computer, Coach › Suivi GPS › « Suivre » › the child: the track appears (about
    40 s behind). Stop the service: after 3 minutes, the alert « plus de position » appears on the page (and as a
    notification once step 5 or 6 is done for your own phone).

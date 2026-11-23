@@ -419,8 +419,18 @@ async function importHealth(who) {
 
 // ---- Famille et appareils -------------------------------------------------------------------------------------------
 
+// The person whose devices, followers and settings are shown (owner, 2026-11-23: « Qui peut suivre » under one's own account
+// read as the child's just created — each person, oneself and every child, has their own, chosen one at a time). Kept for the
+// visit and in the address (?qui=<account id>, « nouveau » for the new child's form).
+let famWho = null;
+
 async function familyTab(el, S, redraw) {
   const app = bridge.inApp() ? await bridge.info() : null;
+  const q = new URLSearchParams(location.hash.split("?")[1] || "");
+  const ids = [S.me.id, ...S.children.map((c) => c.id)];
+  let who = famWho ?? (q.get("qui") === "nouveau" ? "new" : Number(q.get("qui")) || S.me.id);
+  if (who !== "new" && !ids.includes(who)) who = S.me.id;
+  if (who === "new" && S.me.child) who = S.me.id;
   const blocks = [];
   // this phone (in the app)
   if (app) {
@@ -439,18 +449,32 @@ async function familyTab(el, S, redraw) {
         <label>${t("trk.password")} <input type="password" name="password" minlength="6" required autocomplete="new-password"></label>
         <button class="btn btn-primary">${t("trk.take.go")}</button></form></section>`);
   }
+  // who: oneself, each child, a new child
+  const chip = (id, label, sub) => html`<button type="button" class="trk-who${who === id ? " on" : ""}" data-who="${id}" aria-pressed="${who === id ? "true" : "false"}">
+    <b>${label}</b>${sub ? html`<span>${sub}</span>` : ""}</button>`;
+  const meName = `${S.me.name || ""} ${S.me.last || ""}`.trim();
   if (!S.me.child) {
-    blocks.push(html`<section class="card"><h3>${t("trk.kids.title")}</h3><p class="dim">${t("trk.kids.text")}</p>
-      <div id="trk-kids">${S.children.map((c) => html`<details class="trk-kid" data-id="${c.id}"><summary>${c.name} ${c.last}
-        ${c.birthYear ? html`<span class="dim">(${c.birthYear})</span>` : ""}</summary><div class="trk-kid-body"></div></details>`)}</div>
-      <details class="trk-add"><summary>${t("trk.kids.add")}</summary>
-        <form id="trk-kid-new" class="trk-form"><label>${t("trk.first")} <input name="first" required maxlength="60"></label>
-          <label>${t("trk.last")} <input name="last" maxlength="60" value="${S.me.last}"></label>
-          <label>${t("trk.birthYear")} <input name="birthYear" type="number" min="${new Date().getFullYear() - 25}" max="${new Date().getFullYear()}" required></label>
-          <label>${t("trk.licence")} <input name="licence" maxlength="12"></label>
-          <button class="btn btn-primary">${t("trk.kids.create")}</button></form></details></section>`);
+    blocks.push(html`<section class="card trk-people"><h3>${t("trk.people.title")}</h3><p class="dim">${t("trk.people.text")}</p>
+      <div class="trk-whos">${chip(S.me.id, t("trk.people.me"), meName)}
+        ${S.children.map((c) => chip(c.id, `${c.name} ${c.last}`.trim(), c.birthYear ? t("trk.people.kid", { year: c.birthYear }) : t("trk.child")))}
+        ${chip("new", t("trk.people.add"), "")}</div></section>`);
   }
-  blocks.push(html`<section class="card" data-acc="${S.me.id}"><h3>${t("trk.mine.title")}</h3><div class="trk-acc-body"></div></section>`);
+  const kid = S.children.find((c) => c.id === who);
+  if (who === "new") {
+    blocks.push(html`<section class="card"><h3>${t("trk.kids.add")}</h3><p class="dim">${t("trk.kids.text")}</p>
+      <form id="trk-kid-new" class="trk-form"><label>${t("trk.first")} <input name="first" required maxlength="60"></label>
+        <label>${t("trk.last")} <input name="last" maxlength="60" value="${S.me.last}"></label>
+        <label>${t("trk.birthYear")} <input name="birthYear" type="number" min="${new Date().getFullYear() - 25}" max="${new Date().getFullYear()}" required></label>
+        <label>${t("trk.licence")} <input name="licence" maxlength="12"></label>
+        <button class="btn btn-primary">${t("trk.kids.create")}</button></form></section>`);
+  } else {
+    const acc = kid || S.me;
+    const name = kid ? `${kid.name} ${kid.last}`.trim() : meName;
+    blocks.push(html`<section class="card trk-person" data-acc="${acc.id}"><h3>${kid ? name : t("trk.person.meTitle", { name })}
+      ${kid ? html` <span class="tag">${kid.birthYear ? t("trk.people.kid", { year: kid.birthYear }) : t("trk.child")}</span>` : ""}</h3>
+      <p class="dim">${kid ? t("trk.person.kid", { name: kid.name }) : S.me.child ? t("trk.person.meChild") : t("trk.person.me")}</p>
+      <div class="trk-acc-body"></div></section>`);
+  }
   if (S.following.length) {
     blocks.push(html`<section class="card"><h3>${t("trk.following.title")}</h3><ul class="trk-list">${S.following.map((f) =>
       html`<li>${f.name} ${f.last} <a class="btn btn-sm" href="#/suivi/${f.id}">${t("trk.see")}</a>
@@ -461,6 +485,14 @@ async function familyTab(el, S, redraw) {
     <button class="btn btn-sm">${t("trk.accept")}</button></form></section>`);
   el.innerHTML = blocks.map((b) => b.s).join("");
 
+  const choose = (w) => {
+    famWho = w;
+    const h = location.hash.split("?")[0], p = new URLSearchParams(location.hash.split("?")[1] || "");
+    if (w === S.me.id) p.delete("qui"); else p.set("qui", w === "new" ? "nouveau" : String(w));
+    history.replaceState(null, "", `${h}${p.toString() ? `?${p}` : ""}`);
+    familyTab(el, S, redraw);
+  };
+  $$("[data-who]", el).forEach((b) => b.addEventListener("click", () => choose(b.dataset.who === "new" ? "new" : Number(b.dataset.who))));
   $("[data-act=tracker]", el)?.addEventListener("click", () => bridge.call("openTracker").catch(() => {}));
   $("[data-act=test]", el)?.addEventListener("click", () => bridge.call("selfTest").catch(() => {}));
   $("[data-act=battery]", el)?.addEventListener("click", () => bridge.call("openSettings", { which: "battery" }).catch(() => {}));
@@ -481,6 +513,7 @@ async function familyTab(el, S, redraw) {
     const f = Object.fromEntries(new FormData(e.target));
     const r = await api("children", f);
     if (!r.ok) return alertBox(errText(r));
+    famWho = r.data.child?.id ?? null;            // the new child's own devices and followers come next
     redraw();
   });
   $$("[data-leave]", el).forEach((b) => b.addEventListener("click", async () => {
@@ -498,42 +531,37 @@ async function familyTab(el, S, redraw) {
     }
     alertBox(t("trk.err.code"));
   });
-  // each account's parts, drawn when opened
-  accountBody($(`[data-acc="${S.me.id}"] .trk-acc-body`, el), S.me, S, true, redraw);
-  $$(".trk-kid", el).forEach((d) => d.addEventListener("toggle", () => {
-    if (!d.open || d.dataset.drawn) return;
-    d.dataset.drawn = "1";
-    const c = S.children.find((x) => x.id === Number(d.dataset.id));
-    accountBody($(".trk-kid-body", d), c, S, false, redraw);
-  }));
+  const body = $(".trk-person .trk-acc-body", el);
+  if (body) accountBody(body, kid || S.me, S, !kid, () => { famWho = kid ? kid.id : null; redraw(); });
 }
 
-/** An account's devices, watchers and settings (mine, or a child's). */
+/** One person's devices, followers and settings (oneself, or a child), every heading and button naming them. */
 async function accountBody(el, acc, S, mine, redraw) {
   el.innerHTML = html`<div class="spinner"></div>`.s;
   const q = `account=${acc.id}`;
   const [dv, wt, st] = await Promise.all([api(`devices?${q}`), api(`watchers?${q}`), api(`settings?${q}`)]);
   if (!dv.ok) { el.innerHTML = html`<p>${errText(dv)}</p>`.s; return; }
-  const s = st.data, kid = !mine;
+  const s = st.data, kid = !mine, name = acc.name;
   const can = !S.me.child || !mine;           // a child's own page shows, its parents decide
+  const L = (me, of) => t(kid ? of : me, { name });     // the same words for oneself or for the child shown
   el.innerHTML = html`
-    <h4>${t("trk.dev.title")}</h4>
+    <h4>${L("trk.dev.titleMe", "trk.dev.titleOf")}</h4>
     ${dv.data.devices.length ? html`<ul class="trk-list">${dv.data.devices.map((d) => html`<li>
       <b>${d.label || t(`trk.kind.${d.kind}`)}</b> <span class="dim">${t(`trk.kind.${d.kind}`)}${d.battery != null ? ` · ${pctN(d.battery)}` : ""} · ${d.lastSeen ? t("trk.seen", { at: dayTime(d.lastSeen) }) : t("trk.never")}</span>
-      ${can ? html`<button type="button" class="btn btn-sm" data-rm="${d.id}">${t("trk.remove")}</button>` : ""}</li>`)}</ul>` : html`<p class="dim">${t("trk.dev.none")}</p>`}
+      ${can ? html`<button type="button" class="btn btn-sm" data-rm="${d.id}">${t("trk.remove")}</button>` : ""}</li>`)}</ul>` : html`<p class="dim">${L("trk.dev.noneMe", "trk.dev.noneOf")}</p>`}
     ${can ? html`<p class="trk-btns">
-      ${bridge.inApp() ? html`<button type="button" class="btn btn-sm" data-a="here">${t(kid ? "trk.dev.pairHereKid" : "trk.dev.pairHere", { name: acc.name })}</button>` : ""}
-      <button type="button" class="btn btn-sm" data-a="phone">${t("trk.dev.phone")}</button>
-      <button type="button" class="btn btn-sm" data-a="watch">${t("trk.dev.watch")}</button>
-      <button type="button" class="btn btn-sm" data-a="osmand">${t("trk.dev.traccar")}</button></p>` : ""}
-    <h4>${t("trk.watchers.title")}</h4>
-    ${wt.ok && (wt.data.guardians.length || wt.data.watchers.length) ? html`<ul class="trk-list">
-      ${wt.data.guardians.filter((g) => g.id !== acc.id).map((g) => html`<li>${g.name} <span class="tag">${t("trk.parent")}</span></li>`)}
+      ${bridge.inApp() ? html`<button type="button" class="btn btn-sm" data-a="here">${t(kid ? "trk.dev.pairHereKid" : "trk.dev.pairHere", { name })}</button>` : ""}
+      <button type="button" class="btn btn-sm" data-a="phone">${L("trk.dev.phoneMe", "trk.dev.phoneOf")}</button>
+      <button type="button" class="btn btn-sm" data-a="watch">${L("trk.dev.watchMe", "trk.dev.watchOf")}</button>
+      <button type="button" class="btn btn-sm" data-a="osmand">${L("trk.dev.traccarMe", "trk.dev.traccarOf")}</button></p>` : ""}
+    <h4>${L("trk.watchers.titleMe", "trk.watchers.titleOf")}</h4>
+    ${wt.ok && (wt.data.guardians.filter((g) => g.id !== acc.id).length || wt.data.watchers.length) ? html`<ul class="trk-list">
+      ${wt.data.guardians.filter((g) => g.id !== acc.id).map((g) => html`<li>${g.name}${g.id === S.me.id ? html` <span class="dim">(${t("trk.you")})</span>` : ""} <span class="tag">${t("trk.parent")}</span></li>`)}
       ${wt.data.watchers.map((w) => html`<li>${w.name} ${can ? html`<button type="button" class="btn btn-sm" data-unwatch="${w.id}">${t("trk.remove")}</button>` : ""}</li>`)}
-      </ul>` : html`<p class="dim">${t("trk.watchers.none")}</p>`}
-    ${can ? html`<p class="trk-btns"><button type="button" class="btn btn-sm" data-a="invite">${t("trk.watchers.invite")}</button>
-      ${kid ? html`<button type="button" class="btn btn-sm" data-a="parent">${t("trk.watchers.parent")}</button>` : ""}</p>` : ""}
-    ${can ? html`<h4>${t("trk.set.title")}</h4><form class="trk-form trk-set">
+      </ul>` : html`<p class="dim">${L("trk.watchers.noneMe", "trk.watchers.noneOf")}</p>`}
+    ${can ? html`<p class="trk-btns"><button type="button" class="btn btn-sm" data-a="invite">${L("trk.watchers.inviteMe", "trk.watchers.inviteOf")}</button>
+      ${kid ? html`<button type="button" class="btn btn-sm" data-a="parent">${t("trk.watchers.parentOf", { name })}</button>` : ""}</p>` : ""}
+    ${can ? html`<h4>${L("trk.set.titleMe", "trk.set.titleOf")}</h4><form class="trk-form trk-set">
       <label>${t("trk.set.batch")} <select name="batch">${[10, 20, 30, 45, 60].map((n) => html`<option value="${n}" ${raw(n === s.batch ? "selected" : "")}>${t("trk.set.sec", { n })}</option>`)}</select></label>
       <label>${t("trk.set.cap")} <select name="cap">${[1800, 3600, 5400, 7200, 9000, 10800, 14400, 21600].map((n) => html`<option value="${n}" ${raw(n === s.cap ? "selected" : "")}>${fmtTime(n)}</option>`)}</select></label>
       ${kid ? html`<label>${t("trk.set.call")} <input name="call" type="tel" maxlength="20" value="${s.call || ""}"></label>
@@ -544,7 +572,7 @@ async function accountBody(el, acc, S, mine, redraw) {
           <label>${t("trk.set.radius")} <input name="ar" type="number" min="100" max="20000" step="50" value="${s.area?.r ?? ""}"></label>
           <button type="button" class="btn btn-sm" data-a="here-pos">${t("trk.set.herePos")}</button></fieldset>` : ""}
       <button class="btn btn-sm btn-primary">${t("trk.save")}</button></form>` : ""}
-    ${kid ? html`<h4>${t("trk.kid.edit")}</h4><form class="trk-form trk-kidedit">
+    ${kid ? html`<h4>${t("trk.kid.edit", { name })}</h4><form class="trk-form trk-kidedit">
       <label>${t("trk.first")} <input name="first" value="${acc.name}" maxlength="60"></label>
       <label>${t("trk.last")} <input name="last" value="${acc.last}" maxlength="60"></label>
       <label>${t("trk.birthYear")} <input name="birthYear" type="number" value="${acc.birthYear || ""}"></label>
@@ -565,10 +593,10 @@ async function accountBody(el, acc, S, mine, redraw) {
   on("[data-a=phone]", async () => {
     const r = await api("pair-code", { account: acc.id });
     if (!r.ok) return alertBox(errText(r));
-    showCode(t("trk.pair.title", { name: acc.name }), t("trk.pair.text"), r.data.url, r.data.code);
+    showCode(L("trk.pair.titleMe", "trk.pair.titleOf"), t("trk.pair.text"), r.data.url, r.data.code);
   });
   on("[data-a=watch]", async () => {
-    const code = await askText(t("trk.watch.ask"), "", { max: 6 });
+    const code = await askText(L("trk.watch.askMe", "trk.watch.askOf"), "", { max: 6 });
     if (!code) return;
     const r = await api("devices/claim", { account: acc.id, code });
     await alertBox(r.ok ? t("trk.watch.ok") : errText(r));
@@ -577,18 +605,18 @@ async function accountBody(el, acc, S, mine, redraw) {
   on("[data-a=osmand]", async () => {
     const r = await api("devices/osmand", { account: acc.id });
     if (!r.ok) return alertBox(errText(r));
-    showCode(t("trk.traccar.title"), t("trk.traccar.text"), r.data.config);
+    await traccarDialog(L("trk.traccar.titleMe", "trk.traccar.titleOf"), r.data);
     accountBody(el, acc, S, mine, redraw);
   });
   on("[data-a=invite]", async () => {
     const r = await api("invite-code", { account: acc.id });
     if (!r.ok) return alertBox(errText(r));
-    showCode(t("trk.invite.title", { name: acc.name }), t("trk.invite.text"), r.data.url);
+    showCode(L("trk.invite.titleMe", "trk.invite.titleOf"), L("trk.invite.textMe", "trk.invite.textOf"), r.data.url);
   });
   on("[data-a=parent]", async () => {
     const r = await api("guardian-code", { account: acc.id });
     if (!r.ok) return alertBox(errText(r));
-    showCode(t("trk.parentCode.title", { name: acc.name }), t("trk.parentCode.text"), r.data.url);
+    showCode(t("trk.parentCode.title", { name }), t("trk.parentCode.text"), r.data.url);
   });
   on("[data-a=here-pos]", () => navigator.geolocation?.getCurrentPosition((p) => {
     $("[name=alat]", el).value = p.coords.latitude.toFixed(5); $("[name=alon]", el).value = p.coords.longitude.toFixed(5);
@@ -613,11 +641,37 @@ async function accountBody(el, acc, S, mine, redraw) {
     redraw();
   });
   on("[data-a=delkid]", async () => {
-    if (!(await confirmBox(t("trk.kid.deleteAsk", { name: acc.name }), { ok: t("trk.kid.delete") }))) return;
+    if (!(await confirmBox(t("trk.kid.deleteAsk", { name }), { ok: t("trk.kid.delete") }))) return;
     const r = await api(`children/${acc.id}`, null, "DELETE");
     if (!r.ok) return alertBox(errText(r));
+    famWho = null;
     redraw();
   });
+}
+
+/**
+ * Traccar Client for an account: the QR code is for Traccar Client's own scanner (its settings, the icon at the top), never the
+ * phone's camera; the server address to copy, set by hand with the accuracy and the interval; on a phone, a button opening the
+ * app with the same settings (its deep link, an intent on Android). The address opened in a browser explains the same
+ * (functions/_lib/traccarpage.js).
+ */
+async function traccarDialog(title, r) {
+  const touch = matchMedia("(pointer: coarse)").matches;
+  const link = /android/i.test(navigator.userAgent) ? r.intent : r.link;
+  const d = dialog(html`<h3>${title}</h3>
+    ${touch && link ? html`<p class="dim">${t("trk.traccar.openText")}</p><p><a class="btn btn-primary" href="${link}">${t("trk.traccar.open")}</a></p>` : ""}
+    <p>${t("trk.traccar.scan")}</p>
+    <div class="trk-qr">${raw(await qrSvg(r.config).catch(() => ""))}</div>
+    <p>${t("trk.traccar.copy")}</p>
+    <div class="trk-copy"><input type="text" readonly value="${r.server}"><button type="button" class="btn btn-sm">${t("trk.copy")}</button></div>
+    <p class="dim">${t("trk.traccar.get")} <a href="https://play.google.com/store/apps/details?id=org.traccar.client" target="_blank" rel="noopener">Google Play</a>
+      · <a href="https://apps.apple.com/app/traccar-client/id843156974" target="_blank" rel="noopener">App Store</a></p>`.s);
+  const inp = $(".trk-copy input", d);
+  $(".trk-copy button", d).addEventListener("click", async () => {
+    try { await navigator.clipboard.writeText(r.server); } catch (e) { inp.select(); document.execCommand("copy"); }
+    $(".trk-copy button", d).textContent = t("trk.copied");
+  });
+  return new Promise((ok) => d.addEventListener("close", ok));
 }
 
 /** This phone (the Ozimut app) paired to an account: a code made here, handed to the native side. */

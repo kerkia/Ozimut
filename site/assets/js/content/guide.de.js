@@ -469,13 +469,13 @@ export function build(X) {
             aufzeichnet. Bei manchen Android-Telefonen muss die App in den Akku-Einstellungen im Hintergrund laufen dürfen; der Test sagt es
             und öffnet den richtigen Bildschirm.</p>`)}
         ${slide("Coach", "3. Ein Gerät verbinden", html`
-          <p>Ein Gerät gehört immer zu einem Konto: Ohne Konto wird nichts aufgezeichnet. Unter « Familie und Geräte »:</p>
+          <p>Ein Gerät gehört immer zu einem Konto: Ohne Konto wird nichts aufgezeichnet. Wähle unter « Familie und Geräte » zuerst bei « Für wen? » die Person — dich selbst oder eines deiner Kinder: Jede hat ihre eigenen Geräte, ihre eigenen Verfolger und ihre eigenen Einstellungen. Dann:</p>
           ${list([
             html`<b>ein Telefon</b>: « Ein Telefon verbinden » zeigt einen QR-Code; scanne ihn mit der Ozimut-App des Telefons (oder tippe
               seine 8 Zeichen ein). Der Code gilt einmal und 15 Minuten lang. In der App selbst genügt « Dieses Telefon verbinden »;`,
             html`<b>eine Uhr</b>: Die Uhr zeigt einen Code mit 6 Zeichen; tippe ihn unter « Eine Uhr verbinden » ein. Eine Apple Watch kann
               auch über das zugehörige iPhone verbunden werden;`,
-            html`<b>Traccar Client</b>: « Traccar Client » gibt eine Adresse und einen QR-Code, die die App einrichten.`,
+            html`<b>Traccar Client</b>: « Traccar Client » gibt einen QR-Code, den man in den Einstellungen von Traccar Client scannt (das Symbol oben auf dem Bildschirm), nicht mit der Kamera des Telefons, oder eine Adresse zum Einfügen in « Server-URL ».`,
           ])}
           <p>« Entfernen » stoppt ein Gerät sofort: Es kann keine Positionen mehr senden.</p>`)}
         ${slide("Coach", "4. Konten von Kindern", html`

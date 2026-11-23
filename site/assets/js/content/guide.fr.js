@@ -465,13 +465,13 @@ export function build(X) {
             enregistre bien. Sur certains téléphones Android, il faut autoriser l'application à fonctionner en arrière-plan dans les réglages de
             batterie ; le test le dit et ouvre le bon écran.</p>`)}
         ${slide("Coach", "3. Associer un appareil", html`
-          <p>Un appareil appartient toujours à un compte : rien n'est enregistré sans compte. Dans « Famille et appareils » :</p>
+          <p>Un appareil appartient toujours à un compte : rien n'est enregistré sans compte. Dans « Famille et appareils », choisissez d'abord sous « Pour qui ? » la personne — vous-même ou un de vos enfants : chacun a ses propres appareils, ses propres suiveurs et ses propres réglages. Puis :</p>
           ${list([
             html`<b>un téléphone</b> : « Associer un téléphone » montre un code QR ; on le scanne avec l'application Ozimut du téléphone (ou on
               tape ses 8 caractères). Le code sert une fois et dure 15 minutes. Dans l'application elle-même, « Associer ce téléphone » suffit ;`,
             html`<b>une montre</b> : la montre affiche un code de 6 caractères ; on le tape dans « Associer une montre ». Une Apple Watch peut aussi
               être associée par l'iPhone qui l'accompagne ;`,
-            html`<b>Traccar Client</b> : « Traccar Client » donne une adresse et un code QR qui règlent l'application.`,
+            html`<b>Traccar Client</b> : « Traccar Client » donne un code QR à scanner depuis les réglages de Traccar Client (l'icône en haut de l'écran), pas avec l'appareil photo du téléphone, ou une adresse à coller dans « URL du serveur ».`,
           ])}
           <p>« Retirer » arrête aussitôt un appareil : il ne peut plus envoyer de positions.</p>`)}
         ${slide("Coach", "4. Les comptes des enfants", html`
