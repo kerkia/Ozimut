@@ -849,7 +849,11 @@ banner asking a parent), a child taking the account over from 15 (`POST /api/tra
   Relier à Ozimut, « Effacer mes données ») and « Je suis » (`FollowActivity`: the person's live map), `Relay.kt` (channel,
   invites, `RelaySender` beside Ozimut's `Uploader`, device alerts), `TrackForm.kt` (sealing, delta form, code links),
   `TileMapView` (its own raster map, tiles from `/api/ozitrac/config`), `RunLog.kt` (runs as CSV, GPX on demand); the Wear
-  app compiles those files too (`SHARED`). Artifacts `ozitrac-android-apks`, `ozitrac-wearos-apks`; never run on a device yet. Site notifications no
+  app compiles those files too (`SHARED`); **its runs reach the phone by themselves** when the two are connected (owner,
+  2026-11-23): the Wear OS Data Layer, an item `/ozitrac/run/<run>` with the run's CSV as an asset (`wear` `RunSync`, after
+  each run's end), filed in « Mes courses » by the phone (`WatchRuns`, a `WearableListenerService`; « Mes courses » collects
+  what a missed wake-up left) — both APKs must be signed with the same key, so from the same CI run until a release keystore
+  exists. Artifacts `ozitrac-android-apks`, `ozitrac-wearos-apks`; never run on a device yet. Site notifications no
   longer go to the native devices: only the tracking's alerts (`pushToUser`'s `native`). Relay test: `C:\Kerkia\Ozimut\work\scratch-scripts\t_ozitrac.mjs`
   (30 checks), launch configs `ocn-live-track` + `pages-dev-track-open` (binds `OZITRAC=TracChannel@ocn-live`).
 - **Administrators only for now** (owner, 2026-11-22: « make all this visible to admin only for now »): while `TRACK_OPEN` is "0" the

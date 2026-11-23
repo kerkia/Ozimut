@@ -87,6 +87,8 @@ dependencies {
     // QR codes (Apache-2.0)
     implementation("com.journeyapps:zxing-android-embedded:4.3.0")
     if (hasFcm) implementation("com.google.firebase:firebase-messaging:24.1.1")
+    // the runs the Wear OS watch hands over (WatchRuns; Google Play services)
+    implementation("com.google.android.gms:play-services-wearable:19.0.0")
 
     testImplementation("junit:junit:4.13.2")
     testImplementation("org.json:json:20240303")

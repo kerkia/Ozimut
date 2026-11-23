@@ -93,8 +93,14 @@ A watch without 4G works too on Wi-Fi, which is enough to test at home.
    « Famille et appareils » › the person › « Associer une montre ». Then the watch shows « Démarrer ».
 6. « Démarrer » (allow the location), walk outside, watch it live from the computer; « Aide » and « Arrêter » are each
    held two seconds. To test without a phone, turn the phone's Bluetooth off: the watch then uses its own 4G (or Wi-Fi).
+7. **The run on the phone**: once the run has ended and the watch and its paired phone are connected again (Bluetooth on),
+   the run appears by itself in the phone's Ozitrac › « Mes courses », marked « Enregistrée sur la montre », ready to share
+   or save as GPX (open « Mes courses » to see it at once). Needs Google Play services on both (every Wear OS watch and
+   nearly every Android phone) and **the phone's and the watch's APKs from the same CI run**: the Data Layer only passes
+   between apps signed with the same key, and each run signs with a new one (a release keystore, once there, ends that).
 
-Each CI build signs its debug APK with a new key: uninstall the old one first (`adb uninstall com.ozimut.ozitrac`).
+Each CI build signs its debug APK with a new key: uninstall the old one first (`adb uninstall com.ozimut.ozitrac`), on the
+watch and on the phone together.
 
 ## 4. The Garmin data field — set aside (2026-11-23)
 

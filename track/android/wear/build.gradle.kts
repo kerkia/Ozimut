@@ -113,6 +113,8 @@ dependencies {
     implementation("androidx.activity:activity-ktx:1.10.1")
     // QR codes drawn on the watch (Apache-2.0)
     implementation("com.google.zxing:core:3.5.3")
+    // the runs handed to the phone (RunSync; Google Play services)
+    implementation("com.google.android.gms:play-services-wearable:19.0.0")
 
     testImplementation("junit:junit:4.13.2")
 }

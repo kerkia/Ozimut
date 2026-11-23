@@ -107,6 +107,7 @@
     <string name="runs_text">Tus carreras se guardan solo en este móvil. Compártelas o guárdalas en GPX.</string>
     <string name="runs_none">Todavía no hay ninguna carrera guardada.</string>
     <string name="runs_line">%1$s · %2$s km</string>
+    <string name="runs_watch">Grabada en el reloj</string>
     <string name="runs_view">Ver</string>
     <string name="runs_share">Compartir</string>
     <string name="runs_save">Guardar</string>

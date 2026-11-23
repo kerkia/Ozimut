@@ -102,6 +102,16 @@
             android:exported="false"
             android:label="@string/test_title" />
 
+        <!-- The runs the Wear OS watch hands over through the Data Layer (WatchRuns, docs/track/ozitrac.md « The watch ») -->
+        <service
+            android:name=".WatchRuns"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="com.google.android.gms.wearable.DATA_CHANGED" />
+                <data android:scheme="wear" android:host="*" android:pathPrefix="/ozitrac/run" />
+            </intent-filter>
+        </service>
+
         <!-- The QR scanner turns with the phone -->
         <activity
             android:name="com.journeyapps.barcodescanner.CaptureActivity"
