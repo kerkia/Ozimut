@@ -1,6 +1,6 @@
 name: track-android
 
-# The Ozimut Android app (track/android): built and tested on every push touching it, on any branch.
+# The Ozimut Android app and its Wear OS app (track/android: modules app and wear): built and tested on every push touching it.
 on:
   push:
     paths:
@@ -113,6 +113,8 @@ jobs:
           path: |
             track/android/app/build/reports/tests/
             track/android/app/build/reports/lint-results-debug.html
+            track/android/wear/build/reports/tests/
+            track/android/wear/build/reports/lint-results-debug.html
           if-no-files-found: ignore
 
       - name: APKs
@@ -120,4 +122,11 @@ jobs:
         with:
           name: ozimut-android-apks
           path: track/android/app/build/outputs/apk/**/*.apk
+          if-no-files-found: error
+
+      - name: Wear OS APKs
+        uses: actions/upload-artifact@v7
+        with:
+          name: ozimut-wearos-apks
+          path: track/android/wear/build/outputs/apk/**/*.apk
           if-no-files-found: error

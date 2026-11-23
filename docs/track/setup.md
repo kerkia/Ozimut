@@ -67,6 +67,26 @@ This tests the server, the live page and the alerts with a free app, before the 
 
 Notifications on the phone need step 6.
 
+## 3b. The Wear OS app on a watch with 4G, installed by hand (about 20 minutes)
+
+For a Wear OS watch with its own mobile connection (Samsung Galaxy Watch 4 or later in LTE, Google Pixel Watch LTE…).
+A watch without 4G works too on Wi-Fi, which is enough to test at home.
+
+1. On github.com/kerkia/Ozimut › Actions › « track-android » › the latest green run › « Artifacts » ›
+   `ozimut-wearos-apks` (a zip). Inside: `wear-debug.apk`.
+2. On the PC, install Google's adb once: `winget install Google.PlatformTools`, then open a new PowerShell.
+3. On the watch: Settings › System › About › tap « Build number » (Samsung: « Software information » › « Software
+   version ») seven times; then Settings › Developer options › turn on « ADB debugging » and « Wireless debugging »
+   (the watch and the PC on the same Wi-Fi). « Wireless debugging » › « Pair new device » shows an address and a code.
+4. On the PC: `adb pair <address:port shown> <code shown>`, then `adb connect <address:port of « Wireless debugging »>`,
+   then `adb install <path>\wear-debug.apk`.
+5. Open « Ozimut » on the watch: it shows a code « ABC DEF ». On ozimut.com › Suivi GPS › « Famille et appareils » ›
+   the person › « Associer une montre », type it. Within ten seconds the watch shows « Démarrer ».
+6. « Démarrer » (allow the location), walk outside, watch it live from the computer; « Aide » and « Arrêter » are each
+   held two seconds. To test without a phone, turn the phone's Bluetooth off: the watch then uses its own 4G (or Wi-Fi).
+
+Each CI build signs its debug APK with a new key: uninstall the old one first (`adb uninstall com.ozimut.app`).
+
 ## 4. The Garmin data field — set aside (2026-11-23)
 
 The owner set it aside: a Garmin watch sends only through its phone, which can then track by itself (step 3). The code stays

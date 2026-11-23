@@ -23,11 +23,24 @@ Nothing GPL.
 
 The device key is encrypted with an AES key that never leaves the Android Keystore; nothing of the app is backed up.
 
+## The Wear OS app (`wear/`, 2026-11-23)
+
+A watch with its own mobile connection (Samsung Galaxy Watch LTE, Google Pixel Watch LTE…) records and sends without a
+phone. Same package `com.ozimut.app` (Play lists it with the phone app), minSdk 30 (Wear OS 3), standalone, version codes
+300 000 000 + the build's number. **The recording and the sending are the phone app's own files** — `Batch.kt`,
+`FixDb.kt`, `Device.kt`, `Http.kt`, `Uploader.kt`, `Tracker.kt`, `Phone.kt`, `TrackerService.kt` — compiled into the
+watch app as they are (`wear/build.gradle.kts` `SHARED`, a task copying them into `build/generated/shared`): change them in
+`app/`, both apps follow. The watch's own: `WatchActivity.kt` (one screen: the claim code « ABC DEF » while unpaired, asked
+every 10 s; Start, which asks the location; during a run the clock, the distance, the GPS, whether positions get through,
+and Help and Stop each held two seconds), `Claim.kt` (the key and the code, kept encrypted, `POST /api/track/claim` with
+`kind` "wearos"), `Notifs.kt` (the service's notifications, opening the screen). Strings in English, French, German and
+Spanish. Paired on the site by « Associer une montre » with the code the watch shows.
+
 ## Building
 
 Only in CI (the PC has no JDK or Android SDK): `.github/workflows/track-android.yml` runs on every push touching
 `track/android/**` or the workflow, on any branch, and by hand. It runs the unit tests (the batch encoder and the queue),
-`assembleDebug`, `assembleRelease` and lint (warnings not fatal), turns compiler errors into annotations, and uploads the
+`assembleDebug`, `assembleRelease` and lint (warnings not fatal) for both modules, turns compiler errors into annotations, and uploads the
 APKs and the reports as artifacts.
 
 Locally, with JDK 17, the Android SDK and Gradle 8.14: `cd track/android && gradle testDebugUnitTest assembleDebug`.

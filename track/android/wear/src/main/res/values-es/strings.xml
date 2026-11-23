@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="notif_channel_run">Registro de la carrera</string>
+    <string name="notif_run_title">Ozimut registra tu carrera</string>
+    <string name="notif_run_text">Para parar, mantén Parar en el reloj.</string>
+    <string name="notif_sending_title">Enviando tu carrera</string>
+    <string name="notif_sending_text">Las posiciones se envían en cuanto hay red.</string>
+    <string name="notif_resume_title">Tu carrera se interrumpió</string>
+    <string name="notif_resume_text">Toca para reanudar el registro.</string>
+    <string name="w_code_title">Vincular este reloj</string>
+    <string name="w_code_text">En ozimut.com › Seguimiento GPS › Vincular un reloj, escribe este código.</string>
+    <string name="w_new_code">Nuevo código</string>
+    <string name="w_offline">Sin red: el reloj necesita datos móviles o Wi-Fi.</string>
+    <string name="w_too_many">Demasiados intentos: espera un poco.</string>
+    <string name="w_for">Para %1$s</string>
+    <string name="w_watchers">Te siguen: %1$s</string>
+    <string name="w_nobody">Todavía nadie te sigue en directo.</string>
+    <string name="w_start">Empezar</string>
+    <string name="w_need_location">Permite la ubicación para registrar tu carrera.</string>
+    <string name="w_help">Ayuda (mantener)</string>
+    <string name="w_stop">Parar (mantener)</string>
+    <string name="w_hold">Sigue pulsando… %1$d</string>
+    <string name="w_help_sent">Ayuda enviada a quienes te siguen</string>
+    <string name="w_acc">GPS ±%1$d m</string>
+    <string name="w_gps_wait">Buscando el GPS…</string>
+    <string name="w_net_ok">Posiciones enviadas</string>
+    <string name="w_net_fail">Sin red: posiciones guardadas para más tarde</string>
+    <string name="w_sending">Enviando las últimas posiciones…</string>
+    <string name="w_sent">Carrera enviada.</string>
+    <string name="w_closed">La carrera se terminó en el sitio.</string>
+</resources>

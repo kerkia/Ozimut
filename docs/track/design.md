@@ -1,7 +1,8 @@
 # Ozimut tracking — the contract
 
 The live GPS tracking of runners without a watch and of children followed by their parents, the « Mes traces » list, and
-the devices that feed them (the Ozimut app on Android and iPhone, the Apple Watch app, the Garmin data field). Decided by
+the devices that feed them (the Ozimut app on Android and iPhone, the Wear OS app, the Apple Watch app; the Garmin data
+field, set aside on 2026-11-23). Decided by
 the owner on 2026-11-21 after the study `C:\Kerkia\Ozimut\work\study\gps-tracking\ozimut-gps-tracking-from-a-phone.pdf`
 (second version). This file is the contract between the server (`functions/api/track`, `live/src/track.js`), the site's
 pages and the native code (`track/android`, `track/ios`, `track/garmin`). Change it first, then the code.
@@ -114,12 +115,14 @@ Authorization: Bearer <key>      Content-Type: application/json   (Content-Encod
 - A run opens at its first batch, closes with `state: "end"`, the cap (`cap` seconds from its start) or 30 min of silence
   after the cap.
 
-### Watches: claim codes (`kind` "garmin" | "applewatch")
+### Watches: claim codes (`kind` "wearos" | "applewatch" | "garmin")
 A watch has no keyboard: it makes its own key (32 random base64url) and a claim code (6 letters/digits from
 `ABCDEFGHJKLMNPQRSTUVWXYZ23456789`), keeps both, shows the code while unpaired, and sends
 `POST /api/track/claim { claim, key, kind, model, version }` → `202 { paired: false }` until an account claims it on the
 site (« Famille » or « Mes appareils » › « Associer une montre », the code typed) → then `200 { paired: true, account, settings }`.
 It asks again every 10 s while the code is shown. From then on it pushes as a phone does (`Bearer <key>`).
+The Wear OS app (`track/android/wear`, 2026-11-23) pairs only so: a watch with LTE records and sends alone, with the phone
+app's own tracker and queue.
 An iPhone app may pair its own Apple Watch directly: it makes a pair code for its account, the watch posts
 `/api/track/pair` with it (sent over WatchConnectivity).
 

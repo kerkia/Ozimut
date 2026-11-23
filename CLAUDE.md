@@ -830,8 +830,10 @@ banner asking a parent), a child taking the account over from 15 (`POST /api/tra
   CLBackgroundActivitySession, HealthKit routes, APNs, WatchConnectivity pairing of the watch; the watch records with an
   HKWorkoutSession and sends alone on cellular), Garmin data field (claim code, sends through the phone; 37 products) — **set aside** (owner, 2026-11-23: it needs the phone, which can
   then track by itself; its code stays, nothing on the site offers it). « Associer une montre » explains which watches can track alone:
-  only a cellular Apple Watch lets an app use the mobile network (`trk.watch.*`); a Wear OS watch with LTE could too, with an app not
-  written yet. **Only
+  a Wear OS watch with LTE and a cellular Apple Watch let an app use the mobile network (`trk.watch.*`). **The Wear OS app**
+  (`track/android/wear`, owner 2026-11-23: « Oui, écris-la »): standalone, the same package, pairing by claim code (`kind` "wearos"),
+  the phone app's tracker files compiled into it as they are (`SHARED` in its build file); built by `track-android.yml`, artifact
+  `ozimut-wearos-apks`; installed by hand (`docs/track/setup.md` 3b). **Only
   built and unit-tested in CI, never run on a device**; signing, stores, icons and the owner's accounts still to come.
 - **Administrators only for now** (owner, 2026-11-22: « make all this visible to admin only for now »): while `TRACK_OPEN` is "0" the
   menu entry, the page (`app.trackShown`, the router sends others to the modules page), the Coach guide's chapter « Suivi GPS »

@@ -16,3 +16,4 @@ dependencyResolutionManagement {
 
 rootProject.name = "Ozimut"
 include(":app")
+include(":wear")

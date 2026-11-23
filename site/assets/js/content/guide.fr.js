@@ -440,7 +440,7 @@ export function build(X) {
             vitesse sur les chemins et la montée se calibrent sur tout le groupe (tous les postes de tous les coureurs), et chacun garde son allure.</p>`)}`,
       suivi: () => html`
         <div class="mx-callout"><b>En essai.</b> Le suivi GPS ne s'affiche pour l'instant qu'aux
-          administrateurs d'Ozimut et à quelques testeurs. Les applications Android, iPhone et Apple Watch n'ont encore jamais été essayées sur un vrai
+          administrateurs d'Ozimut et à quelques testeurs. Les applications Android, Wear OS, iPhone et Apple Watch n'ont encore jamais été essayées sur un vrai
           appareil.</div>
         ${slide("Coach", "1. À quoi sert le suivi GPS", html`
           <p>Le ${P("#/suivi", "Suivi GPS")} sert à deux choses : <b>enregistrer sa course</b> sans montre GPS, avec son téléphone, et
@@ -456,6 +456,8 @@ export function build(X) {
           ${list([
             html`<b>l'application Ozimut</b> sur Android ou iPhone : tout le site, plus le suivi. On démarre, on range le téléphone dans une poche
               ou un brassard, on arrête en gardant le bouton appuyé deux secondes. Un bouton « J'ai besoin d'aide » prévient aussitôt les suiveurs ;`,
+            html`<b>une montre Wear OS avec 4G</b> (Samsung Galaxy Watch LTE, Google Pixel Watch LTE…) avec l'application Ozimut : elle enregistre et
+              envoie seule, sans téléphone, si elle a un abonnement mobile ;`,
             html`<b>une Apple Watch</b> avec l'application Ozimut : elle enregistre seule, et envoie seule si elle a le réseau mobile ;`,
             html`les autres montres (Garmin, Polar, Suunto, Coros…) ne donnent pas aux applications d'accès au réseau mobile : elles ne peuvent
               envoyer leur position que par un téléphone, qui peut alors enregistrer seul. Leur trace s'ajoute après la course ;`,

@@ -423,7 +423,7 @@ export function build(X) {
             (every leg of every runner), and each runner keeps their own pace.</p>`)}`,
       suivi: () => html`
         <div class="mx-callout"><b>On trial.</b> GPS tracking is shown for now only to Ozimut's administrators and a few testers.
-          The Android, iPhone and Apple Watch apps have never yet been tried on a real device.</div>
+          The Android, Wear OS, iPhone and Apple Watch apps have never yet been tried on a real device.</div>
         ${slide("Coach", "1. What GPS tracking is for", html`
           <p>${P("#/suivi", "GPS tracking")} does two things: <b>recording your run</b> without a GPS watch, with your phone, and
             <b>following a runner live</b> — first of all a child in the forest, whose parents want to see them progress and find them if they
@@ -438,6 +438,8 @@ export function build(X) {
           ${list([
             html`<b>the Ozimut app</b> on Android or iPhone: the whole site, plus tracking. Start, put the phone in a pocket or an armband,
               stop by holding the button for two seconds. An « I need help » button warns the followers at once;`,
+            html`<b>a Wear OS watch with 4G</b> (Samsung Galaxy Watch LTE, Google Pixel Watch LTE…) with the Ozimut app: it records and sends
+              on its own, without a phone, if it has a mobile plan;`,
             html`<b>an Apple Watch</b> with the Ozimut app: it records on its own, and sends on its own if it has mobile data;`,
             html`other watches (Garmin, Polar, Suunto, Coros…) give apps no access to the mobile network: they can only send their position
               through a phone, which can then record on its own. Their track is added after the run;`,

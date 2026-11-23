@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="notif_channel_run">Enregistrement de la course</string>
+    <string name="notif_run_title">Ozimut enregistre ta course</string>
+    <string name="notif_run_text">Pour arrêter, maintiens Arrêter sur la montre.</string>
+    <string name="notif_sending_title">Envoi de ta course</string>
+    <string name="notif_sending_text">Les positions partent dès qu\'il y a du réseau.</string>
+    <string name="notif_resume_title">Ta course a été interrompue</string>
+    <string name="notif_resume_text">Touche pour reprendre l\'enregistrement.</string>
+    <string name="w_code_title">Associer cette montre</string>
+    <string name="w_code_text">Sur ozimut.com › Suivi GPS › Associer une montre, tape ce code.</string>
+    <string name="w_new_code">Nouveau code</string>
+    <string name="w_offline">Pas de réseau : la montre a besoin de données mobiles ou du Wi-Fi.</string>
+    <string name="w_too_many">Trop d\'essais : attends un peu.</string>
+    <string name="w_for">Pour %1$s</string>
+    <string name="w_watchers">Suivi(e) par %1$s</string>
+    <string name="w_nobody">Personne ne te suit encore en direct.</string>
+    <string name="w_start">Démarrer</string>
+    <string name="w_need_location">Autorise la position pour enregistrer ta course.</string>
+    <string name="w_help">Aide (maintenir)</string>
+    <string name="w_stop">Arrêter (maintenir)</string>
+    <string name="w_hold">Maintiens… %1$d</string>
+    <string name="w_help_sent">Aide envoyée à ceux qui te suivent</string>
+    <string name="w_acc">GPS ±%1$d m</string>
+    <string name="w_gps_wait">Recherche du GPS…</string>
+    <string name="w_net_ok">Positions envoyées</string>
+    <string name="w_net_fail">Pas de réseau : positions gardées pour plus tard</string>
+    <string name="w_sending">Envoi des dernières positions…</string>
+    <string name="w_sent">Course envoyée.</string>
+    <string name="w_closed">La course a été arrêtée sur le site.</string>
+</resources>

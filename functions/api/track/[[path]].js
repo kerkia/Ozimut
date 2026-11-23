@@ -134,7 +134,7 @@ async function pair({ request, env }) {
   const user = row && await userById(env, row.user_id);
   if (!user) return json({ error: "code" }, 400);
   const d = b.device || {};
-  const kind = ["phone", "applewatch", "garmin"].includes(d.kind) ? d.kind : "phone";
+  const kind = ["phone", "applewatch", "garmin", "wearos"].includes(d.kind) ? d.kind : "phone";
   const id = T.newId("d_"), key = T.newKey();
   await env.DB.prepare(`INSERT INTO track_devices (id, user_id, kind, label, key_hash, platform, model, app_version, created_at, last_seen)
     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`).bind(id, user.id, kind, T.clean(d.model, 60) || null, await T.hashOf(key),
@@ -296,7 +296,7 @@ async function claim({ request, env }) {
   const b = await readBody(request);
   const key = String(b?.key || ""), code = T.cleanCode(b?.claim);
   if (!/^[A-Za-z0-9_-]{32,80}$/.test(key) || code.length !== 6) return json({ error: "bad request" }, 400);
-  const kind = ["garmin", "applewatch"].includes(b.kind) ? b.kind : "garmin";
+  const kind = ["garmin", "applewatch", "wearos"].includes(b.kind) ? b.kind : "garmin";
   const h = await T.hashOf(key);
   const d = await env.DB.prepare("SELECT * FROM track_devices WHERE key_hash = ?").bind(h).first();
   if (d?.revoked_at) return json({ error: "device" }, 401);
