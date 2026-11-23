@@ -17,8 +17,8 @@ from shapely.geometry import LineString, Point
 from .env import S, lines, union
 
 NATURAL = {S(101), S(102), S(103), S(305), S(306), S(301), S(301, 9), S(302), S(308), S(401), S(402), S(403), S(406), S(408),
-           S(410), S(505), S(506)}
-PRIO = [S(301), S(301, 9), S(305), S(306), S(101), S(102), S(308), S(410), S(408), S(406), S(402), S(401)]
+           S(410), S(411), S(505), S(506)}                 # (a hedge grows: no angle on its outline either — the remarks' test 14)
+PRIO = [S(301), S(301, 9), S(305), S(306), S(101), S(102), S(308), S(411), S(410), S(408), S(406), S(402), S(401)]
 SKIP = {S(990), S(991), S(993), S(601, 1)}
 TOL_MM = 0.25                                              # how far a curve may stray from the chord between two of its points
 TOL_PATH_MM = 0.075                                        # … a path's (0.3 m: OpenStreetMap's line is the path)

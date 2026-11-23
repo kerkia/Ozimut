@@ -946,7 +946,10 @@ def t37(M):
             L = L.difference(olive_in)
         if L.is_empty or L.length < 1:
             continue
-        okl = shapely.clip_by_rect(ok, *L.buffer(3).bounds)
+        try:
+            okl = shapely.clip_by_rect(ok, *L.buffer(3).bounds)
+        except shapely.errors.GEOSException:                # (GEOS's fast clip can leave a ring of three points: the exact one)
+            okl = ok.intersection(sbox(*L.buffer(3).bounds))
         shown = L.intersection(okl).length
         r = res.setdefault(kind, [0.0, 0.0]); r[0] += L.length; r[1] += shown
         if L.length - shown > 5:
