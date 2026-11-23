@@ -46,7 +46,8 @@ async function apnsToken(env) {
 }
 
 /** One notification to one device row. -> "ok" | "gone" (the token is no more: forget it) | "failed" | "off" */
-export async function sendNative(env, d, msg, { ttl = 4 * 86400 } = {}) {
+/** [topic]: the app the token belongs to (APNs); the Ozimut app's by default. */
+export async function sendNative(env, d, msg, { ttl = 4 * 86400, topic } = {}) {
   try {
     if (d.push_kind === "fcm" && fcmReady(env)) {
       const sa = JSON.parse(env.FCM_SERVICE_ACCOUNT);
@@ -66,7 +67,7 @@ export async function sendNative(env, d, msg, { ttl = 4 * 86400 } = {}) {
     if (d.push_kind === "apns" && apnsReady(env)) {
       const host = d.push_env === "dev" ? "api.sandbox.push.apple.com" : "api.push.apple.com";
       const res = await fetch(`https://${host}/3/device/${d.push_token}`, { method: "POST",
-        headers: { authorization: `bearer ${await apnsToken(env)}`, "apns-topic": env.APNS_TOPIC || "com.ozimut.app",
+        headers: { authorization: `bearer ${await apnsToken(env)}`, "apns-topic": topic || env.APNS_TOPIC || "com.ozimut.app",
           "apns-push-type": "alert", "apns-priority": "10", "apns-expiration": String(Math.floor(Date.now() / 1000) + ttl),
           ...(msg.tag ? { "apns-collapse-id": String(msg.tag).slice(0, 64) } : {}) },
         body: JSON.stringify({ aps: { alert: { title: msg.title, body: msg.body }, sound: "default",
@@ -129,7 +130,8 @@ export async function appToUser(env, userId, msg, opts) {
   return reached;
 }
 
-/** Every native device of an account. -> number reached */
+/** Every tracking device of an account (track_devices: Ozitrac's phones and watches linked to it, docs/track/ozitrac.md;
+ *  an iPhone's token is Ozitrac's, so APNs is asked under Ozitrac's topic). -> number reached */
 export async function nativeToUser(env, userId, msg, opts) {
   if (!nativeReady(env)) return 0;
   let rows = [];
@@ -139,7 +141,7 @@ export async function nativeToUser(env, userId, msg, opts) {
   } catch (e) { return 0; }                     // before migration 0029
   let reached = 0;
   for (const d of rows) {
-    const r = await sendNative(env, d, msg, opts);
+    const r = await sendNative(env, d, msg, { ...opts, topic: env.OZITRAC_APNS_TOPIC || "com.ozimut.ozitrac" });
     if (r === "ok") reached++;
     else if (r === "gone") await env.DB.prepare("UPDATE track_devices SET push_token = NULL WHERE id = ?").bind(d.id).run();
   }
