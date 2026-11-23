@@ -4143,6 +4143,33 @@ Every multiple-choice game was played through to its score page at phone size, w
   pixel) —; the course's crossing-point marks; a viaduct's edges. Not checked in the page itself this round. Bench tools
   added: `scans/trk.py <n> <leg> x0 y0 x1 y1` (a leg's track over the cells), `perf/adump.mjs` (kinds and the area after
   each stage), `perf/odump.mjs` (the overprint's areas).
+  **The owner's review of the three maps, the same day** (« step back and understand what conceptual issues may need to be
+  addressed … not just those specifics »). (1) **A control opened a 3 m disc round itself** when its own cell read closed (a
+  wall, a house's corner, a tree symbol), so routes stepped over what it stands by (map 1's 6, 10, 11, 14, 20). Now a control
+  is reached at one place (`punchCell`, `sideCandidates`): its cell when open and not shut in, else for each separate stretch of
+  open ground within 3 m its cell nearest the control; of those, `controlSides` (the worker's `rebuild`, `X.sides`) keeps the
+  one from which the previous and the next control cost least together, so the leg in and the leg out meet on one side (the
+  control description says which; it is not read); the runner's track is laid from the side its corridor joins (`matchRoute`
+  tries each: GPS is a few metres off, either side of a wall). The disc stays only for a control shut in by a misread outline.
+  (2) **Routes hugged obstacles**: an edge cell, half wall and half street, counts as open, and the line between cell centres
+  clipped outlines, olive and houses' corners (map 1's 4, 10-11). On a sharp image a cell touching closed ground costs 15 %
+  more (`EDGE_COST`, in the risk factor: the times shown unchanged); on the photos it moved routes onto misread ground as often.
+  (3) **The gate was blind to most of these**: it measured the best route only, 15 m away from the controls, and no
+  buildings. It now also measures every route, all but 1.5 m at each end (`aOlive`, `aGrey` — a building's grey —, `aCross`).
+  Scans, every route: olive 136 → 94 m, dark lines crossed 72 → 55, grey 6 → 12 m; tracks laid 57 of 59 unchanged; photos
+  unchanged (baseline accepted, the one before in `baseline_2026-11-23_before_sides.json`). **Tried and dropped**: olive strips
+  narrower than the test (60 % olive with a core a metre wide) — map 3's pale green strip by 8, (212, 211, 56), passed as olive
+  (174-198 red, the same hue band) and shut the runners' way: colour rules cannot tell them apart at 0.33 m a pixel; ISSprOM's
+  0.4 mm minimum gap between impassable features (`PAPER` 0.6 → 1.4 m) — it closed two passages the runners used on map 3,
+  a gap being measured to ±0.3 m. The Itinéraires tab's line above the routes (the pace in white forest, the columns' terms:
+  the guide's) is now `rc.caveat`: the routes may be wrong where the map's resolution did not allow a precise reading. **Still
+  open** (the owner's points): stairways not read (map 2's 5-6 and the way to 14); the two levels at 14 (the quay and the street
+  above); the course's ink over olive (brown-orange) and the scan's sharpening halos (a lighter rim beside every line) read as
+  open ground — corridors along the circles in the gardens; per-map colour calibration (olive, pale green, yellow); map 1's
+  control 24 lost in the page (suspect: analysis.js looks for the finish within 50 m of where the track ends and removes a
+  control within 0.6 radii of what it finds — control 24's circle is 30 m from the finish; the course bench reads it); route C
+  to 20 along a contour through a house; hatched areas crossed near the controls (`releaseAround`'s 30 m); map 3's fence end
+  at 8 (a 1.3 m gap), the narrow passages to 16 and 17, the wall to 7; map 2's other side at 16 now offered.
 - **Languages: French, English, German and Spanish** (owner, 2026-10-17 French and English, open to everyone since 2026-10-18,
   `i18n.OPEN` true; **German and Spanish since 2026-11-01**: `i18n.LANGS`, catalogues `i18n/de.js`, `es.js`, `tracer.de.js`,
   `tracer.es.js`, long texts `content/<name>.de.js` / `.es.js`, e-mails in `_lib/templates.js`, `manifest.de|es.webmanifest`;

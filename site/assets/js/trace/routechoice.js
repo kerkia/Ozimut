@@ -1788,6 +1788,24 @@ export function costs(G, s, mpc) {
   }
   const R = Math.max(0, Math.min(100, s.risk ?? DEFAULTS.risk)) / 100, r = new Float32Array(M);
   for (let k = 0; k < M; k++) r[k] = 1 + (isPath[k] ? 0 : R * VIS[cls[k]] * Math.min(1, (d[k] * mpc) / RISK_DIST));
+  // on a sprint map a runner keeps off walls and houses: a cell touching what is closed costs a little more (the cost alone, not
+  // the time shown), so that a route runs down a street rather than along its edge — on the edge's cells, half wall and half
+  // street, the line drawn between their centres clipped the outlines, the gardens' olive and the houses' corners (owner,
+  // 2026-11-23, the Auray scan's 4, 10-11). A lane a cell wide costs that throughout, a little: it is still taken. On a sharp image
+  // only (a scan: its pixel a third of a metre or less, mpc / cs): on the photos it moved the routes onto misread ground as often
+  if (s.map === "sprint" && G.cs && 1.6 / (mpc / G.cs) >= 4) {
+    const shut = (k) => !(f[k] < Infinity);
+    for (let j = 0; j < ny; j++) for (let i = 0; i < nx; i++) {
+      const k = j * nx + i;
+      if (shut(k)) continue;
+      let by = false;
+      for (let dj = -1; dj <= 1 && !by; dj++) for (let di = -1; di <= 1; di++) {
+        const I = i + di, J = j + dj;
+        if ((di || dj) && I >= 0 && J >= 0 && I < nx && J < ny && shut(J * nx + I)) { by = true; break; }
+      }
+      if (by) r[k] *= EDGE_COST;
+    }
+  }
   // the passable lines slow to cross (an OCAD map's): their cells, a path over them apart (a gate, a way through), and the time a
   // crossing takes in the model's units (metres of white forest; `cross` seconds at CROSS_PACE)
   const xp = G.cross ? Math.max(0, s.cross ?? DEFAULTS.cross) / CROSS_PACE : 0;
@@ -1812,7 +1830,8 @@ function crosses(cr, nx, k, q, n) {
   const sx = dx > 0 ? 1 : -1, sy = dy > 0 ? 1 : -1, m1 = dx === 2 || dx === -2 ? k + sx : k + sy * nx;
   return cr[m1] === 1 || cr[k + sy * nx + sx] === 1;
 }
-export const RISK_DIST = 50;                              // metres from a handrail at which the risk is full
+export const RISK_DIST = 50;
+const EDGE_COST = 1.15;                                  // a sprint map's cell beside a wall or a house: 15 % more to run along                              // metres from a handrail at which the risk is full
 const FORBIDDEN_ROUTE = 2.5;                             // a forbidden route's cells: 40 % of white forest's speed (crossed, not followed)
 /**
  * Where the overprint is the course itself (map px of its controls, in the course's order): 1 within `radius` metres of a control
@@ -2182,21 +2201,100 @@ function near(X, path, r, into) {
  * one, 5 px from it: every route stepped over it — 2026-11-18).
  */
 function freeAround(X, k0, saved) {
+  const f = X.C.f;
+  if (wayOut(X, k0)) return;
+  near(X, [k0], 3, (k) => { if (!(f[k] < Infinity)) { saved.push([k, f[k]]); f[k] = 2; } });
+}
+/** Whether cell k0 is open and not shut in: a way out to 6 cells, through passable cells. */
+function wayOut(X, k0) {
   const { nx, ny } = X.G, f = X.C.f;
-  if (f[k0] < Infinity) {
-    // a way out to 6 cells, through passable cells
-    const i0 = k0 % nx, j0 = (k0 - i0) / nx, seen = new Set([k0]), q = [k0];
-    for (let h = 0; h < q.length; h++) {
-      const k = q[h], i = k % nx, j = (k - i) / nx;
-      if (Math.abs(i - i0) >= 6 || Math.abs(j - j0) >= 6) return;
-      for (const [di, dj] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
-        const I = i + di, J = j + dj, m = J * nx + I;
-        if (I < 0 || J < 0 || I >= nx || J >= ny || seen.has(m) || !(f[m] < Infinity)) continue;
-        seen.add(m); q.push(m);
-      }
+  if (!(f[k0] < Infinity)) return false;
+  const i0 = k0 % nx, j0 = (k0 - i0) / nx, seen = new Set([k0]), q = [k0];
+  for (let h = 0; h < q.length; h++) {
+    const k = q[h], i = k % nx, j = (k - i) / nx;
+    if (Math.abs(i - i0) >= 6 || Math.abs(j - j0) >= 6) return true;
+    for (const [di, dj] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+      const I = i + di, J = j + dj, m = J * nx + I;
+      if (I < 0 || J < 0 || I >= nx || J >= ny || seen.has(m) || !(f[m] < Infinity)) continue;
+      seen.add(m); q.push(m);
     }
   }
-  near(X, [k0], 3, (k) => { if (!(f[k] < Infinity)) { saved.push([k, f[k]]); f[k] = 2; } });
+  return false;
+}
+/**
+ * Where a leg reaches the control at map px p: its own cell when open and not shut in; else the nearest open cell within 3 m
+ * that is (the place beside the feature where the flag hangs: a wall's side, a house's corner) — the leg in and the leg out
+ * reach the control at that one place, from the same side, never across what it stands on (owner, 2026-11-23: the routes
+ * stepped over the wall beside the Auray scan's 6, 14 and 20, the cells within 3 m having been opened); else, as before, the
+ * cells within 3 m opened (a control shut in by a misread outline). Returns the cell.
+ */
+function punchCell(X, p, saved, toward = null) {
+  const cell = cellOf(X, p), side = toward ? null : X.sides?.get(cell);
+  if (side != null && X.C.f[side] < Infinity) return side;
+  const c = sideCandidates(X, p);
+  if (!c.length) { freeAround(X, cell, saved); return cell; }
+  // (a runner's track laid on the map: the side the track arrives on or leaves by)
+  if (toward && c.length > 1) {
+    const { nx, cs } = X.G, d = (k) => { const i = k % nx; return Math.hypot((i + 0.5) * cs - toward[0], ((k - i) / nx + 0.5) * cs - toward[1]); };
+    return c.reduce((u, v) => (d(v) < d(u) ? v : u));
+  }
+  return c[0];
+}
+/**
+ * The places a control at map px p can be reached at: its own cell when open and not shut in; else, for each separate stretch
+ * of open ground within 3 m of it (a wall's two sides, the street and the yard by a house's corner — separate within 6 m round
+ * it), its cell nearest the control, the nearest first, those under 1.5 m farther than the nearest only. [] when none.
+ */
+function sideCandidates(X, p) {
+  const { nx, ny, cs } = X.G, f = X.C.f, cell = cellOf(X, p);
+  if (wayOut(X, cell)) return [cell];
+  const mPerPx = X.mpc / cs, R = Math.ceil(6 / X.mpc), ci = cell % nx, cj = (cell - ci) / nx;
+  const dOf = (k) => { const i = k % nx; return Math.hypot((i + 0.5) * cs - p[0], ((k - i) / nx + 0.5) * cs - p[1]) * mPerPx; };
+  const inWin = (i, j) => i >= Math.max(0, ci - R) && i <= Math.min(nx - 1, ci + R) && j >= Math.max(0, cj - R) && j <= Math.min(ny - 1, cj + R);
+  const comp = new Map(), out = [];
+  for (let j = Math.max(0, cj - R); j <= Math.min(ny - 1, cj + R); j++) for (let i = Math.max(0, ci - R); i <= Math.min(nx - 1, ci + R); i++) {
+    const k0 = j * nx + i;
+    if (comp.has(k0) || !(f[k0] < Infinity)) continue;
+    const id = out.length, q = [k0];
+    let best = -1, bd = Infinity;
+    comp.set(k0, id);
+    for (let h = 0; h < q.length; h++) {
+      const k = q[h], I = k % nx, J = (k - I) / nx, d = dOf(k);
+      if (d <= 3 && d < bd) { bd = d; best = k; }
+      for (const [di, dj] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+        const A = I + di, B = J + dj, m = B * nx + A;
+        if (!inWin(A, B) || comp.has(m) || !(f[m] < Infinity)) continue;
+        comp.set(m, id); q.push(m);
+      }
+    }
+    out.push(best >= 0 && wayOut(X, best) ? [bd, best] : null);
+  }
+  const c = out.filter(Boolean).sort((u, v) => u[0] - v[0]);
+  return c.filter(([d]) => d <= c[0][0] + 1.5).map(([, k]) => k);
+}
+/**
+ * Each control's side, from its two legs (owner, 2026-11-23: « the control description says what side of the wall the control
+ * is »; the description is not read, the course is): of the places a control can be reached at (sideCandidates), the one from
+ * which the previous control and the next cost least together — the leg in and the leg out then meet there. pts: the course's
+ * controls (map px) in its order. Returns a Map, the control's cell → the cell to reach it at (punchCell reads it as X.sides).
+ */
+export function controlSides(X, pts) {
+  const out = new Map(), S = {}, cand = pts.map((p) => sideCandidates(X, p));
+  for (let i = 0; i < pts.length; i++) {
+    const c = cand[i];
+    if (c.length < 2) continue;
+    const nb = [i - 1, i + 1].filter((j) => j >= 0 && j < pts.length).map((j) => cand[j][0] ?? cellOf(X, pts[j]));
+    if (!nb.length) continue;
+    const far = Math.max(...nb.map((k) => cellMetres(X, c[0], k)));
+    let best = c[0], bc = Infinity;
+    for (const k of c) {
+      const r = costsFrom(X, k, nb, nb.map((_, q) => q), 6 * far + 600, S);
+      const tot = r.reduce((a, [v]) => a + v, 0);
+      if (tot < bc) { bc = tot; best = k; }
+    }
+    out.set(cellOf(X, pts[i]), best);
+  }
+  return out;
 }
 
 /** The metres between two cells. */
@@ -2261,12 +2359,10 @@ export function legSearch(X, pa, pb) {
 function legSearchOnce(X, pa, pb, relax) {
   const { nx, ny, cs } = X.G;
   const cell = (p) => Math.min(ny - 1, Math.max(0, Math.floor(p[1] / cs))) * nx + Math.min(nx - 1, Math.max(0, Math.floor(p[0] / cs)));
-  const a = cell(pa), b = cell(pb), L = cellMetres(X, a, b);
+  // each control reached at its place (punchCell: beside a wall or a house, the nearest open cell, from that side alone)
+  const saved = [], a0 = cell(pa), b0 = cell(pb), a = punchCell(X, pa, saved), b = punchCell(X, pb, saved), L = cellMetres(X, a, b);
   // the region: an ellipse around the leg, wide enough for a detour round a lake or by a track some way off
   const reg = ellipse(X, a, b, 0.75 * L + 150);
-  // the controls' own cells always passable: a control on a boulder, by a wall
-  const saved = [];
-  for (const k0 of [a, b]) freeAround(X, k0, saved);
   if (relax) {
     // the control circle's radius on the ground: 6 mm at 1:4000 in sprint, about 20 m in forest
     const R = ((X.s.map === "sprint" ? 12 : 20) * (relax === 1 ? 1 : 0.5)) / X.mpc, f = X.C.f;
@@ -2390,7 +2486,9 @@ function legSearchOnce(X, pa, pb, relax) {
     const routes = found.map((r) => {
       const P = tighten(X, r.cells, r.cum), m = polyline(X, P, 4);
       const pts = P.map(([x, y]) => [x * cs, y * cs]);
-      pts[0] = [pa[0], pa[1]]; pts[pts.length - 1] = [pb[0], pb[1]];
+      // drawn to the circle's centre: from the place beside the feature, the last metre to its centre
+      if (a === a0) pts[0] = [pa[0], pa[1]]; else pts.unshift([pa[0], pa[1]]);
+      if (b === b0) pts[pts.length - 1] = [pb[0], pb[1]]; else pts.push([pb[0], pb[1]]);
       return { pts, ...m, how: r.how, side: sideOf(pts, pa, pb) };
     }).sort((x, y) => x.cost - y.cost);
     return { routes, dec: { i0, j0, rw, rh, T, best, cs } };
@@ -2452,21 +2550,32 @@ export function lineRoute(X, pts) {
 export function matchRoute(X, pa, pb, pts, tolM, routes = []) {
   const { nx, ny, cs } = X.G;
   const cell = (p) => Math.min(ny - 1, Math.max(0, Math.floor(p[1] / cs))) * nx + Math.min(nx - 1, Math.max(0, Math.floor(p[0] / cs)));
-  const a = cell(pa), b = cell(pb);
+  // the places each control can be reached at (sideCandidates): the runner's side is the one the track's corridor joins — GPS
+  // puts the track a few metres off, on either side of a wall
+  const saved = [], ends = [[pa, pts[0] || pb], [pb, pts[pts.length - 1] || pa]].map(([p, t]) => {
+    const c = sideCandidates(X, p);
+    if (!c.length) return [punchCell(X, p, saved)];
+    const d = (k) => { const i = k % nx; return Math.hypot((i + 0.5) * cs - t[0], ((k - i) / nx + 0.5) * cs - t[1]); };
+    return c.sort((u, v) => d(u) - d(v));
+  });
+  let a = ends[0][0], b = ends[1][0];
   // the trace's cells every half cell, from the start control to the finish control
   const line = [], seq = [pa, ...pts, pb];
   for (let i = 1; i < seq.length; i++) {
     const [x0, y0] = seq[i - 1], [x1, y1] = seq[i], n = Math.max(1, Math.ceil((Math.hypot(x1 - x0, y1 - y0) * 2) / cs));
     for (let s = 0; s <= n; s++) { const k = cell([x0 + ((x1 - x0) * s) / n, y0 + ((y1 - y0) * s) / n]); if (line[line.length - 1] !== k) line.push(k); }
   }
-  const saved = [];
-  for (const k0 of [a, b]) freeAround(X, k0, saved);
   let q = null;
   try {
     // the corridor, widened once if the trace crosses what the model takes for impassable, then the slantwise lanes between two
     // closed cells opened as for a leg that found no way (legSearch)
-    for (const f of [1, 2]) { q = astar(X, a, b, around(X, line, (f * tolM) / X.mpc)); if (q) break; }
-    if (!q) { X.loose = true; try { q = astar(X, a, b, around(X, line, (2 * tolM) / X.mpc)); } finally { X.loose = false; } }
+    const tryAll = (f) => {
+      const reg = around(X, line, (f * tolM) / X.mpc);
+      for (const u of ends[0]) for (const v of ends[1]) { const r = astar(X, u, v, reg); if (r) { a = u; b = v; return r; } }
+      return null;
+    };
+    for (const f of [1, 2]) { q = tryAll(f); if (q) break; }
+    if (!q) { X.loose = true; try { q = tryAll(2); } finally { X.loose = false; } }
   } finally { for (const [k, v] of saved) X.C.f[k] = v; }
   let P, m, snapped = !!q;
   if (q) { P = tighten(X, q, measure(X, q).cum); m = polyline(X, P, 4); }

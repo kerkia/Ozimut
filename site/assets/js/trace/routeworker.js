@@ -7,7 +7,7 @@
 // and boundaries, kept over a new reading), tour (the costs from each control to its nearest ones), path (one leg's best route).
 
 import { classify, cells, cellSize, costs, context, legSearch, lineRoute, matchRoute, picture, decisionPicture, releaseAround, DEFAULTS,
-  freeCells, cellOf, costsFrom, bestPath, forbidCells, courseInk, sprintObjects, sprintLayers, SPRINT_SCALE } from "./routechoice.js";
+  freeCells, cellOf, costsFrom, bestPath, forbidCells, courseInk, sprintObjects, sprintLayers, controlSides, SPRINT_SCALE } from "./routechoice.js";
 import { heightAt } from "./terrain.js";
 
 let G = null, h = null, em = null, mpc = 1, cs = 1, W = 0, H = 0, settings = { ...DEFAULTS }, X = null;
@@ -49,7 +49,13 @@ function finish(px) {
   facts = { cs, mpc, nx: G.nx, ny: G.ny, lw: px.lw, ms: px.ms, counts, paths, north: px.northLines?.length || 0, chains: px.lines?.chains || 0, kind: kindRead };
   return facts;
 }
-function rebuild() { decisions.clear(); if (G) X = context(G, costs(G, settings, mpc), h, em, settings); }
+function rebuild() {
+  decisions.clear();
+  if (!G) return;
+  X = context(G, costs(G, settings, mpc), h, em, settings);
+  // each control's side, from its two legs (routechoice controlSides): the leg in and the leg out meet there
+  if (ctrlPts.length > 1) X.sides = controlSides(X, ctrlPts);
+}
 function read(id) {
   const P = classify(image, W, H, mppRead, { map: kindRead }, (f) => postMessage({ id, progress: f }));
   sprintRead = null;

@@ -2839,7 +2839,7 @@ export default {
   "an.traceAlpha": "Opacidad del track",
   "an.traceColour": "Color del track",
   "an.traceColour.any": "otro color",
-  "rc.list.hint": "Tiempos a un ritmo de {p} min/km en bosque limpio y llano ({how}). Para cada corredor, la ruta tomada (la calculada que su track sigue en el 80 % de su longitud, si no, la parte que sigue de cada una), su tiempo, luego la elección (ese tiempo menos el de A) y la ejecución (su tiempo real menos ese tiempo).",
+  "rc.caveat": "Itinerarios calculados a partir de la lectura automática del mapa: pueden ser erróneos donde su resolución no permitió una lectura precisa (muros, vallas, pasos estrechos, escaleras).",
   "rc.st.leg": "Tramo calculado en {s} s · celdas de {c} m · relieve: {r}",
   "rc.st.computing": "Calculando las rutas…",
   "an.role.vector": "Mapa OCAD/Mapper",
@@ -3045,7 +3045,7 @@ export default {
   "rc.side.right": "por la derecha",
   "rc.side.straight": "recto",
   "rc.table": "Rutas calculadas",
-  "rc.table.hint": "Tiempos estimados a un ritmo de {p} min/km en bosque limpio y llano ({how}). Tu ruta: tu track colocado sobre el mapa (dentro del margen de error del GPS, sobre el camino que sigue); si sigue una ruta calculada en el 80 % de su longitud, es esa, si no, la parte que sigue de cada una. Elección: el tiempo de la ruta tomada menos el de la ruta A, la mejor con la prudencia elegida. Ejecución: tu tiempo real menos el tiempo de la ruta tomada.",
+  
   "rc.pace.typed": "ritmo introducido",
   "rc.pace.auto": "según tus tramos",
   "rc.pace.default": "ritmo por defecto",

@@ -2876,9 +2876,9 @@ export async function render(main, { query = {}, route } = {}) {
     const rows = legs.map((l, i) => ({ l, i, routes: rcs.routes[i], mine: rcs.mine[i] })).filter((x) => x.routes?.length);
     if (!rcs.on || !rows.length) { el.innerHTML = html`<p class="hint sp-hint">${t(rcs.on ? "rc.tab.wait" : "rc.tab.off")}</p>`; return; }
     const pace = rcPace();
-    const how = rcs.s.pace > 0 ? "rc.pace.typed" : rcs.calib?.ok ? "rc.pace.calib" : rcs.auto ? "rc.pace.auto" : "rc.pace.default";
     const dot = (n) => html`<span class="rc-dot" style="background:${n >= 0 ? RC.ROUTE_COLOURS[n] : "#999"}"></span>`;
-    el.innerHTML = html`<p class="hint sp-hint">${t("rc.table.hint", { p: RC.minKm(pace), how: t(how) })}</p>
+    // (the computation's details are the guide's: its pace in white forest meant nothing on a sprint map — owner, 2026-11-23)
+    el.innerHTML = html`<p class="hint sp-hint rc-caveat">⚠ ${t("rc.caveat")}</p>
       ${rows.map(({ l, i, routes, mine }) => html`<div class="rc-lb" data-leg="${i}">
         <div class="rc-lb-head"><b>${l.label}</b>${l.code ? html` <span class="muted">${l.code}</span>` : ""}</div>
         ${routes.map((r, n) => html`<div class="rc-lb-row">${dot(n)}<b>${RC.LETTERS[n]}</b> <span class="num">${RC.routeFacts(r, pace, clock)}</span> <span class="muted">· ${RC.sideLabel(r)}</span></div>`)}

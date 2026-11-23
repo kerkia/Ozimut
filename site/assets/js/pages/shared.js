@@ -2938,7 +2938,6 @@ async function replay(box, { A, id, course, race, init = {}, traces, allTraces =
     if (!legs.length || (leg && !rcm.routes[leg]?.length)) { el.innerHTML = html`<div class="rc-wait">${raw(rcmWait())}</div>`; return; }
     const signed = (v) => `${v >= 0 ? "+" : "−"}${clock(Math.abs(v))}`;
     const dot = (n) => html`<span class="rc-dot" style="background:${n >= 0 ? RC.ROUTE_COLOURS[n] : "#999"}"></span>`;
-    const how = (j) => (rcm.s.pace > 0 ? t("rc.pace.typed") : rcm.calib?.ok ? t("rc.pace.calibMulti") : rcm.auto[j] ? t("rc.pace.median") : t("rc.pace.default"));
     // one leg: its routes, then the runners shown with the route they took
     const block = (j) => {
       const routes = rcm.routes[j], pace = RC.paceOf(rcm.s, rcm.auto[j]), mine = rcm.mine[j] || new Map();
@@ -2951,8 +2950,8 @@ async function replay(box, { A, id, course, race, init = {}, traces, allTraces =
               <span title="${t("rc.col.choice.hint")}">${t("rc.col.choice")} <b class="num">${signed(Math.round((m.time - routes[0].time) * (m.pace || pace)))}</b></span>
               <span title="${t("rc.col.exec.hint")}">${t("rc.col.exec")} <b class="num">${signed(Math.round(m.actual - m.time * (m.pace || pace)))}</b></span></div></div>`; })}` : ""}</div>`;
     };
-    const first = leg || legs[0];
-    el.innerHTML = html`<p class="hint sp-hint">${t("rc.list.hint", { p: RC.minKm(RC.paceOf(rcm.s, rcm.auto[first])), how: how(first) })}</p>
+    // (the computation's details are the guide's: its pace in white forest meant nothing on a sprint map — owner, 2026-11-23)
+    el.innerHTML = html`<p class="hint sp-hint rc-caveat">⚠ ${t("rc.caveat")}</p>
       ${legs.length < legsN ? html`<p class="muted">${t("rc.st.legsOf", { k: legs.length, n: legsN })}</p>` : ""}
       <button type="button" class="rc-leg-go rc-leg-all${leg ? "" : " cur"}" data-rc-leg="0">${t("sh.leg.all")}</button>
       ${legs.map(block)}`;

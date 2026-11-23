@@ -2839,7 +2839,7 @@ export default {
   "an.traceAlpha": "Deckkraft des Tracks",
   "an.traceColour": "Farbe des Tracks",
   "an.traceColour.any": "eine andere Farbe",
-  "rc.list.hint": "Zeiten bei einem Tempo von {p} min/km in flachem, gut belaufbarem Wald ({how}). Für jeden Läufer die gewählte Route (die berechnete, der sein Track auf 80 % seiner Länge folgt, sonst der Anteil, dem er folgt), ihre Zeit, dann die Wahl (diese Zeit minus die von A) und die Ausführung (seine tatsächliche Zeit minus diese Zeit).",
+  "rc.caveat": "Routen aus der automatisch gelesenen Karte berechnet: Sie können falsch sein, wo ihre Auflösung kein genaues Lesen erlaubte (Mauern, Zäune, enge Durchgänge, Treppen).",
   "rc.st.leg": "Teilstrecke berechnet in {s} s · Zellen von {c} m · Relief: {r}",
   "rc.st.computing": "Routen werden berechnet…",
   "an.role.vector": "OCAD/Mapper-Karte",
@@ -3045,7 +3045,7 @@ export default {
   "rc.side.right": "rechts herum",
   "rc.side.straight": "geradeaus",
   "rc.table": "Berechnete Routen",
-  "rc.table.hint": "Geschätzte Zeiten bei einem Tempo von {p} min/km in flachem, gut belaufbarem Wald ({how}). Deine Route: dein Track auf die Karte gelegt (innerhalb der Fehlergrenze des GPS, auf dem Weg, dem er folgt); folgt er auf 80 % seiner Länge einer berechneten Route, ist es diese, sonst der Anteil, dem er folgt. Wahl: die Zeit der gewählten Route minus die von Route A, der besten bei der gewählten Vorsicht. Ausführung: deine tatsächliche Zeit minus die Zeit der gewählten Route.",
+  
   "rc.pace.typed": "eingegebenes Tempo",
   "rc.pace.auto": "nach deinen Teilstrecken",
   "rc.pace.default": "Standardtempo",
