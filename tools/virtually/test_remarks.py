@@ -509,10 +509,21 @@ def t14(M):
             hard = [a for a in an[1:-1] if not a[4] and not a[5] and not on_sport(a) and not on_mm(a)]
             if len(hard) > max(1, len(an) // 4):
                 flat.append(rp(g))
+    # what is built round is the exception (2026-11-23: an athletics track, a bridge on a bend): curves only through the points
+    # of an arc drawn as a polyline (townmap/export.py's arcs)
+    from townmap.export import arcs
     for c in STRAIGHT:
         for o, g in M.objs(c):
-            if any(len(p) > 2 and p[2] in (1, 2) for r in (o.get("bez") or []) for p in r):
-                curved.append(rp(g))
+            for k, r in enumerate(o.get("bez") or []):
+                if not any(len(p) > 2 and p[2] in (1, 2) for p in r):
+                    continue
+                an = anchors(o, k)
+                closed = o["otp"] == 3 or (len(an) >= 4 and an[0][:2] == an[-1][:2])
+                pts = [a[:2] for a in (an[:-1] if closed and an[0][:2] == an[-1][:2] else an)]
+                on = arcs(pts, closed)
+                if any((a[4] or a[5]) and i % len(pts) not in on and not ((i - 1) % len(pts) in on or (i + 1) % len(pts) in on)
+                       for i, a in enumerate(an)):
+                    curved.append(rp(g)); break
     out = [fail_list(flat, "objects that should be curved drawn with angles"),
            fail_list(curved, "man-made objects drawn as curves")]
     return [m for m in out if m]
@@ -966,6 +977,154 @@ def t37(M):
         worst.sort(key=lambda w: -w[0])
         msgs.append("most missing: " + "; ".join(f"{k_} {m:.0f} m at E {p.x:.0f} N {p.y:.0f}" for m, k_, p in worst[:5]))
     return msgs
+
+
+def osm_outlines(M, pred):
+    """OSM's closed ways and multipolygon relations whose tags pass pred: [(tags, outline as lines, Lambert 93)]."""
+    d = M.src("osm.json")
+    if d is None:
+        return None
+    from l93 import transformer
+    tr = transformer(4326, 2154)
+    ways = {e["id"]: e for e in d.get("elements", []) if e.get("type") == "way"}
+
+    def line(geo):
+        xs, ys = tr.transform([q["lon"] for q in geo], [q["lat"] for q in geo])
+        return LineString(list(zip(xs, ys)))
+
+    out = []
+    for e in d.get("elements", []):
+        t = e.get("tags") or {}
+        if not pred(t):
+            continue
+        if e.get("type") == "way" and e.get("geometry") and len(e["geometry"]) >= 4 and e["geometry"][0] == e["geometry"][-1]:
+            out.append((t, line(e["geometry"])))
+        elif e.get("type") == "relation":
+            ls = [line(g_) for m in e.get("members", []) if m.get("type") == "way"
+                  for g_ in [m.get("geometry") or (ways.get(m.get("ref")) or {}).get("geometry")] if g_ and len(g_) >= 2]
+            if ls:
+                out.append((t, unary_union(ls)))
+    return out
+
+
+@test(38, "a street or a path is not cut by the water it crosses (it is on a bridge from bank to bank)")
+def t38(M):
+    d = M.src("osm.json")
+    if d is None:
+        raise Skip("no src/osm.json")
+    from l93 import transformer
+    tr = transformer(4326, 2154)
+    water = M.union("301").buffer(-0.5)
+    if water.is_empty:
+        return []
+    shapely.prepare(water)
+    frame = M.box.buffer(-5)
+    bad = []
+    for e in d.get("elements", []):
+        t = e.get("tags") or {}; geo = e.get("geometry"); hw = t.get("highway")
+        if e.get("type") != "way" or not hw or not geo or len(geo) < 2 or hw in ("steps", "proposed", "construction") \
+                or t.get("tunnel") not in (None, "no") or str(t.get("layer", "0")).startswith("-") or t.get("area") == "yes" \
+                or t.get("ford") not in (None, "no") or t.get("access") in ("private", "no"):
+            continue
+        xs, ys = tr.transform([q["lon"] for q in geo], [q["lat"] for q in geo])
+        L = LineString(list(zip(xs, ys))).intersection(frame)
+        if L.is_empty or not water.intersects(L):
+            continue
+        for wet in [q for q in getattr(L.intersection(water), "geoms", [L.intersection(water)]) if q.geom_type == "LineString" and q.length > 2]:
+            a_, b_ = Point(wet.coords[0]), Point(wet.coords[-1])       # (across the water, not along its bank)
+            mid = Point((a_.x + b_.x) / 2, (a_.y + b_.y) / 2)
+            if water.contains(mid) and water.boundary.distance(mid) >= 0.25 * a_.distance(b_):
+                bad.append((wet.length, f"{hw} {t.get('name', '')} {wet.length:.0f} m under water at E {wet.centroid.x:.0f} N {wet.centroid.y:.0f}"))
+    bad.sort(reverse=True)
+    return [f"{len(bad)} ways drawn under water: " + "; ".join(m for _, m in bad[:5])] if bad else []
+
+
+@test(39, "OpenStreetMap's outlines are kept as drawn: sports grounds and tracks, buildings, water")
+def t39(M):
+    frame = M.box.buffer(-5)
+    olive = M.union("520").buffer(-1.0)
+    allb = [M.geom(o) for o in M.doc["objects"] if o["otp"] in (2, 3) and code(o["sym"])[0] not in "689"]
+    edges = unary_union([g.boundary if g.geom_type.endswith("Polygon") else g for g in allb if g is not None and not g.is_empty])
+    msgs = []
+    for name, pred, tol, least, target in (
+            ("sports grounds", lambda t: t.get("leisure") in ("pitch", "track"), 0.8, 0.85, edges),
+            ("buildings", lambda t: t.get("building") not in (None, "no") and t.get("location") != "underground", 0.8, 0.5, M.union("521").boundary),
+            ("water", lambda t: t.get("natural") == "water" and t.get("intermittent") != "yes", 1.5, 0.6, M.union("301").boundary)):
+        items = osm_outlines(M, pred)
+        if items is None:
+            raise Skip("no src/osm.json")
+        if name == "buildings":                            # buildings that touch are drawn as one: the outline of them together
+            ps = [q for t, ln in items if t.get("building") not in ("construction", "roof", "carport") for q in shapely.get_parts(shapely.polygonize([ln] if ln.geom_type == "LineString" else list(ln.geoms)))]
+            U = unary_union([shapely.make_valid(q) for q in ps]).buffer(0.35, join_style="mitre").buffer(-0.35, join_style="mitre")
+            # (their outer outline: a closed courtyard is drawn as part of the building — the remarks' test 6)
+            items = [({"building": "yes"}, q.exterior) for q in (U.geoms if hasattr(U, "geoms") else [U]) if q.area >= 20]
+        tot = sh = 0.0; worst = []
+        for t, ln in items:
+            ln = ln.intersection(frame).difference(olive)
+            if ln.is_empty or ln.length < 8:
+                continue
+            if name == "buildings" and ln.length < 25:
+                continue                                   # (a shed: generalised)
+            near = shapely.clip_by_rect(target, *ln.buffer(tol + 1).bounds).buffer(tol)
+            ok = ln.intersection(near).length
+            tot += ln.length; sh += ok
+            if ok < least * ln.length and ln.length - ok > 8:
+                c = ln.difference(near); c = c.representative_point() if not c.is_empty else ln.centroid
+                worst.append((ln.length - ok, f"{t.get('sport') or t.get('leisure') or t.get('building') or name} {ln.length - ok:.0f} m of {ln.length:.0f} off at E {c.x:.0f} N {c.y:.0f}"))
+        if tot and sh / tot < 0.95 and name != "water":
+            msgs.append(f"{name}: {100 * sh / tot:.1f} % of {tot:.0f} m of outline within {tol} m of the map's (95 % at least)")
+        worst.sort(reverse=True)
+        msgs += [f"{name}: {m}" for _, m in worst[:5]] + ([f"{name}: … {len(worst) - 5} more"] if len(worst) > 5 else [])
+    return msgs
+
+
+@test(40, "a street inside the paving keeps its edges (the carriageway's 501.1 where paving runs on beyond it)")
+def t40(M):
+    d = M.src("osm.json")
+    if d is None:
+        raise Skip("no src/osm.json")
+    from l93 import transformer
+    tr = transformer(4326, 2154)
+    pave = shapely.make_valid(unary_union(M.gs("501", "501.3", "501.4", otp=3)))
+    shapely.prepare(pave)
+    black = M.gs("501.1", otp=2) + M.gs("515", otp=2) + M.gs("513.1", "513.2", "516", "518", otp=2)
+    tree = shapely.STRtree(black) if black else None
+    frame = M.box.buffer(-10)
+    W = {"primary": 9, "secondary": 8, "tertiary": 7, "unclassified": 6, "residential": 6, "living_street": 5}
+    need = got = 0; miss = []
+    for e in d.get("elements", []):
+        t = e.get("tags") or {}; geo = e.get("geometry"); hw = t.get("highway")
+        if e.get("type") != "way" or hw not in W or not geo or len(geo) < 2 or t.get("tunnel") not in (None, "no") \
+                or t.get("bridge") not in (None, "no") or t.get("area") == "yes" or t.get("access") in ("private", "no"):
+            continue
+        xs, ys = tr.transform([q["lon"] for q in geo], [q["lat"] for q in geo])
+        L = LineString(list(zip(xs, ys))).intersection(frame)
+        for part in ([L] if L.geom_type == "LineString" else list(getattr(L, "geoms", []))):
+            if part.geom_type != "LineString" or part.length < 15:
+                continue
+            far = W[hw] / 2 + 3.0
+            for k in range(1, int(part.length // 5)):
+                a_, m, b_ = part.interpolate(k * 5 - 1), part.interpolate(k * 5), part.interpolate(k * 5 + 1)
+                dx, dy = b_.x - a_.x, b_.y - a_.y; n_ = math.hypot(dx, dy)
+                if n_ < 1e-6:
+                    continue
+                nx, ny = -dy / n_, dx / n_
+                for sg in (1, -1):
+                    # paving all the way to 3 m beyond the usual carriageway edge: the street's edge must be a line of its own
+                    if not all(pave.contains(Point(m.x + sg * nx * r, m.y + sg * ny * r)) for r in (0.5, far / 2, far)):
+                        continue
+                    ray = LineString([(m.x + sg * nx * 1.0, m.y + sg * ny * 1.0), (m.x + sg * nx * far, m.y + sg * ny * far)])
+                    need += 1
+                    if tree is not None and any(black[j].intersects(ray) for j in tree.query(ray)):
+                        got += 1
+                    else:
+                        miss.append((m.x, m.y))
+    if need < 20:
+        return []
+    if got / need < 0.8:
+        ex = "; ".join(f"E {x:.0f} N {y:.0f}" for x, y in miss[:: max(1, len(miss) // 5)][:5])
+        return [f"{100 * got / need:.0f} % of {need} street sides with paving beyond them have an edge line (80 % at least); without: {ex}"]
+    return []
 
 
 def run(M, only=None):

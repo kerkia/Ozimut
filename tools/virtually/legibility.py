@@ -151,7 +151,15 @@ def opened_away(U, w):
         if p.area < 0.3:
             continue
         o = p.buffer(-w / 2, join_style="mitre").buffer(w / 2, join_style="mitre")
-        r = p.difference(o) if not o.is_empty else p
+        try:
+            r = p.difference(o) if not o.is_empty else p
+        except shapely.errors.GEOSException:               # (two rings a hair apart: the pieces made valid, then closed by 1 mm)
+            try:
+                p2 = shapely.make_valid(p).buffer(0.001).buffer(-0.001)
+                o = p2.buffer(-w / 2, join_style="mitre").buffer(w / 2, join_style="mitre")
+                r = p2.difference(o.buffer(0)) if not o.is_empty else p2
+            except shapely.errors.GEOSException:
+                continue
         out += as_polys(r)
     return out
 

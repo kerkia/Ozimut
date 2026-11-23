@@ -12,7 +12,7 @@ from types import SimpleNamespace
 import numpy as np
 import shapely
 from shapely.geometry import shape, LineString, Polygon, Point
-from shapely.ops import unary_union
+from shapely.ops import substring, unary_union
 
 from . import tagmap
 from .env import polys, lines, union, merge_lines
@@ -56,27 +56,6 @@ def layer_of(t, d=0):
         return int(float(str(t.get("layer", d)).split(";")[0]))
     except ValueError:
         return d
-
-
-def stadium(g):
-    """An athletics track's outline as the shape it is built to — two straights, two half circles — fitted to the drawn oval
-    (the owner, 2026-11-18: OpenStreetMap's oval, traced node by node, wobbled); kept only if within 10 % of the drawn area."""
-    shell = Polygon(g.exterior) if g.geom_type == "Polygon" else g
-    c = list(shell.minimum_rotated_rectangle.exterior.coords)[:4]
-    e = [math.dist(c[i], c[(i + 1) % 4]) for i in range(4)]
-    i = 0 if e[0] >= e[1] else 1
-    L, W = e[i], e[(i + 1) % 4]
-    if L <= W * 1.05:
-        return g
-    ux, uy = (c[i + 1][0] - c[i][0]) / L, (c[i + 1][1] - c[i][1]) / L
-    m = shell.centroid; h = L / 2 - W / 2
-    fit = LineString([(m.x - ux * h, m.y - uy * h), (m.x + ux * h, m.y + uy * h)]).buffer(W / 2, quad_segs=32)
-    if fit.symmetric_difference(shell).area > 0.1 * shell.area:
-        return g
-    if g.geom_type == "Polygon" and g.interiors:           # a drawn infield: the lanes' width kept
-        lane = max(1.0, (shell.area - Polygon(g.interiors[0]).area) / shell.length)
-        return fit.difference(fit.buffer(-lane))
-    return fit
 
 
 class Osm:
@@ -176,7 +155,7 @@ def load(env):
     s.public_ways = []      # ways open to all: a right of way through ground not to be entered
     s.carr = []             # the carriageways: (area, BD TOPO's importance, in town)
     s.carr_lines = {}       # (half width, importance, in town) → the sections' centre lines
-    s.under, bd_under, bd_paths, bd_steps, osm_hw = [], [], [], [], []
+    s.under, bd_under, bd_paths, bd_steps, osm_hw, bd_secs = [], [], [], [], [], []
 
     def put_way(g, hw, t, is_area):
         """An OSM way of a path's kind: a stairway, a sidewalk or a paved area, a paved footway (a line at its width), an unpaved
@@ -222,9 +201,8 @@ def load(env):
         if "sentier" in nat or "chemin" in nat or "empierr" in nat:
             bd_paths.append(g); continue
         w = float(p.get("largeur_de_chaussee") or 0) or {"route à 1 chaussée": 5.5, "rond-point": 7, "bretelle": 6, "piste cyclable": 2.5}.get(nat, 5)
-        side = 1.8 if p.get("urbain") not in (False, "false", 0) else 0.3        # sidewalks in town
-        s.carr_lines.setdefault((round(w / 2, 2), int(p.get("importance") or 6), side > 1), []).append(g)
-        s.paved.append(g.buffer(w / 2 + side, cap_style="flat", join_style="round"))
+        if g.geom_type == "LineString":
+            bd_secs.append((g, w, int(p.get("importance") or 6), p.get("urbain") not in (False, "false", 0)))
     for e in o.el:
         t = tags(e); hw = t.get("highway")
         if e["type"] != "way" or not e.get("geometry"):
@@ -250,20 +228,41 @@ def load(env):
         g = o.geom(e, True)
         if g is not None and g.geom_type.endswith("Polygon"):
             s.paved.append(g)
-    # OpenStreetMap's streets where BD TOPO has no road within 4 m: paved at their width, piece by piece
-    bd_roads = union([g.buffer(4) for gs in s.carr_lines.values() for g in gs])
+    # The streets are OpenStreetMap's lines (the owner, 2026-11-23: « OSM (correct) inputs are not captured properly » — they were
+    # BD TOPO's sections, metres off OSM's in places, OSM's only where BD TOPO had none), bridges included; BD TOPO gives what
+    # OSM seldom has, the carriageway's width, its importance and whether it is in town, from the section lying along the way.
+    # A BD TOPO section with no OSM way of any kind within 6 m is still a street.
+    def carriageway(g, w, imp, urb):
+        s.carr_lines.setdefault((round(w / 2, 2), imp, urb), []).append(g)
+        s.paved.append(g.buffer(w / 2 + (1.8 if urb else 0.3), cap_style="flat", join_style="round"))   # (sidewalks in town)
+
+    sec_tree = shapely.STRtree([q[0] for q in bd_secs]) if bd_secs else None
     n = 0
     for e in o.of("street", ("way",)):
         t = tags(e)
-        if t.get("bridge") not in (None, "no") or is_lower(t) or t.get("area") == "yes" or closed_to_all(t):
+        if is_lower(t) or t.get("area") == "yes" or closed_to_all(t):
             continue
         g = o.geom(e)
-        if g is None or g.geom_type != "LineString":
+        if g is None or g.geom_type != "LineString" or g.length < 1:
             continue
-        for q in lines(g.difference(bd_roads)):
-            if q.length >= 5:
-                s.paved.append(q.buffer(width_of(t, ROAD_W.get(t["highway"], 6.0)) / 2, cap_style="round", join_style="round")); n += 1
-    env.log("OSM streets BD TOPO lacks", n)
+        best, along = None, 0.0
+        for j in (sec_tree.query(g.buffer(6)) if sec_tree is not None else []):
+            l_ = g.intersection(bd_secs[j][0].buffer(6)).length
+            if l_ > along:
+                best, along = bd_secs[j], l_
+        if best is not None and along >= min(5.0, 0.3 * g.length):
+            carriageway(g, width_of(t, best[1]), best[2], best[3])
+        else:
+            hw = t["highway"]
+            carriageway(g, width_of(t, ROAD_W.get(hw, 6.0)), {"motorway": 1, "trunk": 1, "primary": 2, "secondary": 3, "tertiary": 4}.get(hw, 5), True)
+        n += 1
+    OSM_WAYS = union([g.buffer(6) for g in osm_hw])
+    nb = 0
+    for g, w, imp, urb in bd_secs:
+        for q in lines(g.difference(OSM_WAYS)):
+            if q.length >= 10:
+                carriageway(q, w, imp, urb); nb += 1
+    env.log("streets: OpenStreetMap's", n, "BD TOPO's where OSM has no way", nb)
     for f in bdtopo("equipement_de_transport"):
         if "parking" in (f["properties"].get("nature") or "").lower():
             g = g2(f["geometry"])
@@ -283,6 +282,7 @@ def load(env):
     s.CARR = union([c for c, _, _ in s.carr])
     s.STREET = union([c.buffer(1.8 if urb else 0.3) for c, _, urb in s.carr]).buffer(0.2)
 
+    _water_areas(env, s, bdtopo, g2)
     _levels(env, s, bdtopo, g2, bd_under)
 
     # BD TOPO's paths where OSM has no way within 10 m (they lie metres off: the same path), its stairways where OSM has none
@@ -352,6 +352,51 @@ def _levels(env, s, bdtopo, g2, bd_under):
                 continue
             w = max(w, MINW)
             decks.append({"g": g.buffer(w / 2, cap_style="flat"), "axis": g, "w": w, "layer": 1, "kind": kind})
+    # A way that crosses water is on a bridge from bank to bank, whatever length OSM's bridge way has (the owner, 2026-11-23: the
+    # main street stopped at the Yvette — its bridge way is 6 m long, the river's area 15 m wide, and the water was drawn over
+    # the rest). The ways of a kind joined end to end, each stretch inside the water that runs across it (the middle of its
+    # chord well inside the water: not a path along the bank) is a deck, 1.5 m onto each bank; a tagged bridge on it is carried on.
+    W = s.WATER_ALL
+    if not W.is_empty:
+        Wb = W.boundary
+        groups = {"road": [], "path": []}
+        for e in o.el:
+            t = tags(e); hw = t.get("highway")
+            if e["type"] != "way" or not hw or is_lower(t) or t.get("area") == "yes" or t.get("ford") not in (None, "no") or hw == "steps":
+                continue
+            g = o.geom(e)
+            if g is not None and g.geom_type == "LineString" and g.intersects(W.buffer(2)):
+                groups["path" if hw in PATH_KINDS else "road"].append((g, width_of(t, ROAD_W.get(hw, 6.0))))
+        for (half, _, urb), gs in s.carr_lines.items():    # (the streets as wide as they are paved: carriageway and sidewalks)
+            groups["road"] += [(g, 2 * half + (3.6 if urb else 0.6)) for g in gs if g.intersects(W.buffer(2))]
+        n_x = 0
+        for kind, ws in groups.items():
+            if not ws:
+                continue
+            wt = shapely.STRtree([g for g, _ in ws])
+            for ln in lines(merge_lines(unary_union([g for g, _ in ws]))):
+                for pc in lines(ln.intersection(W)):
+                    if pc.length < 1.0 or pc.length > 150:
+                        continue
+                    a_, b_ = Point(pc.coords[0]), Point(pc.coords[-1])
+                    mid = Point((a_.x + b_.x) / 2, (a_.y + b_.y) / 2); ch = a_.distance(b_)
+                    if ch < 1.0 or not W.contains(mid) or Wb.distance(mid) < 0.25 * ch or Wb.distance(a_) > 0.5 or Wb.distance(b_) > 0.5:
+                        continue
+                    s0, s1 = sorted((ln.project(a_), ln.project(b_)))
+                    ext = substring(ln, max(0.0, s0 - 1.5), min(ln.length, s1 + 1.5))
+                    if ext.geom_type != "LineString" or ext.length < 2:
+                        continue
+                    w = max([ws[j][1] for j in wt.query(pc.buffer(0.3)) if ws[j][0].intersection(pc.buffer(0.3)).length > 0.5 * min(pc.length, ws[j][0].length)] or [2.0])
+                    w = max(w, MINW)
+                    hit = [d for d in decks if d["kind"] != "rail" and (d["axis"].intersection(ext.buffer(3)).length >= 0.6 * d["axis"].length
+                                                                         or ext.intersection(d["g"].buffer(1)).length >= 0.6 * ext.length)]
+                    if hit:
+                        d = max(hit, key=lambda d: d["w"])
+                        if ext.length > d["axis"].intersection(ext.buffer(3)).length + 0.5:
+                            d["w"] = max(d["w"], w); d["axis"] = ext; d["g"] = ext.buffer(d["w"] / 2, cap_style="flat"); n_x += 1
+                    else:
+                        decks.append({"g": ext.buffer(w / 2, cap_style="flat"), "axis": ext, "w": w, "layer": 1, "kind": kind}); n_x += 1
+        env.log("decks carried across the water they cross", n_x)
     # one deck a bridge: the widest kept, a deck whose axis lies for 60 % within one kept dropped
     kept = []
     for d in sorted(decks, key=lambda d: -d["w"]):
@@ -453,7 +498,7 @@ def _levels(env, s, bdtopo, g2, bd_under):
     env.log("decks", len(decks), {k: sum(1 for d in decks if d["kind"] == k) for k in ("road", "path", "rail")}, "passages", len(s.passages))
 
 
-def _water(env, s, bdtopo, g2):
+def _water_areas(env, s, bdtopo, g2):
     o = s.osm
     tags = lambda e: e.get("tags", {})
     # OpenStreetMap's water areas, and BD TOPO's permanent ones where OSM has none over them (an intermittent « Retenue » of
@@ -467,6 +512,13 @@ def _water(env, s, bdtopo, g2):
     s.pools = [g for g, e in o.areas("pool") if not closed_to_all(tags(e))]
     water = union(osm_water + [g.difference(OW.buffer(2)) for g in bd_water])
     s.WATER_ALL = water                                    # with what the decks cover, for their sides
+    s.n_water = (len(osm_water), len(bd_water))
+
+
+def _water(env, s, bdtopo, g2):
+    o = s.osm
+    tags = lambda e: e.get("tags", {})
+    water = s.WATER_ALL
     s.water = water.difference(s.DECK_ALL)
     culverts, osm_streams, s.ditches = [], [], []
     for e in o.el:
@@ -496,7 +548,7 @@ def _water(env, s, bdtopo, g2):
     s.streams = [off_culverts(g) for g in osm_streams + extra]
     s.ditches = [off_culverts(g) for g in s.ditches]
     s.WET = union([g for g, _ in o.areas("wetland")])
-    env.log("water: OSM areas", len(osm_water), "BD TOPO's beside", len(bd_water), "streams", len(s.streams), "ditches", len(s.ditches),
+    env.log("water: OSM areas", s.n_water[0], "BD TOPO's beside", s.n_water[1], "streams", len(s.streams), "ditches", len(s.ditches),
             "culverts", len(culverts), "wetland", round(s.WET.area), "m²")
 
 
@@ -537,8 +589,7 @@ def _sports(env, s, bdtopo, g2):
         if g is None or g.is_empty or not g.geom_type.endswith("Polygon") or not g.intersects(frame):
             continue
         sp = name((t.get("sport") or ("athletics" if t.get("leisure") == "track" else "multi")).split(";")[0])
-        if sp == "athletics" and g.geom_type == "Polygon":
-            g = stadium(g)
+        if sp == "athletics" and g.geom_type == "Polygon":   # (as OSM draws it, its 100 m straight's ends included)
             if not g.interiors and g.buffer(-9).area > 0:  # a filled oval: its lanes, ~7; the infield cut exactly to them
                 s.infields.append(g.buffer(-8.5)); g = g.difference(g.buffer(-8.5))
         s.sports.append({"sport": sp, "surface": SPORT_SURF.get(t.get("surface", ""), SPORT_DEFAULT.get(sp, "sand")), "g": g, "src": "osm"})
@@ -551,7 +602,6 @@ def _sports(env, s, bdtopo, g2):
             continue                                       # OpenStreetMap has it, with its surface
         sp = BD_SPORT.get((p.get("nature_detaillee") or p.get("nature") or "").lower(), "multi")
         if sp == "athletics" and g.geom_type == "Polygon":
-            g = stadium(g)
             if g.buffer(-9).area > 0:
                 g = g.difference(g.buffer(-8.5))
         s.sports.append({"sport": sp, "surface": SPORT_DEFAULT.get(sp, "sand"), "g": g, "src": "bdtopo"})

@@ -3,7 +3,9 @@
 A man-made edge is straight on the ground and in its sources (a building, a paved area, a parcel's limit, a wall): it stays a
 polyline with its corners. Contours, water, vegetation and open land have no angle: Bézier curves through their points
 (Catmull-Rom tangents) — but a point that also belongs to a man-made object is a corner in every object through it, so two areas
-that share an edge still share it exactly. (The first generator curved every outline, then clamped the curves: 575 000 curve
+that share an edge still share it exactly. What is built round is the exception (the owner, 2026-11-23, of an athletics track: « partie
+segment, partie courbe — le bord de la piste n'est pas C² »): a run of points turning the same way by a few degrees each is an arc,
+written as curves through those points, tangent to the straights it joins; the straights stay segments. (The first generator curved every outline, then clamped the curves: 575 000 curve
 points for Gif; the owner, 2026-11-19: « information that is clean in OSM becomes wrongly distorted ».)
 
 Also here, on the finished lines: the unpaved paths' junctions opened (505 is a double line), and the paved edge cut where a
@@ -24,7 +26,62 @@ TOL_MM = 0.25                                              # how far a curve may
 TOL_PATH_MM = 0.075                                        # … a path's (0.3 m: OpenStreetMap's line is the path)
 PLAIN = {S(521), S(522), S(512, 3), S(993)}                # areas written as plain rings (no corner flags: no pattern on their edge)
 DBL_HALF, DBL_EDGE = 0.31, 0.25                            # 505: its half width and an edge's middle from the centre line, mm
+ARC_SEG_MM, ARC_TURN, ARC_MIN, ARC_SUM = 3.0, (1.5, 25.0), 4, 30.0   # an arc drawn as a polyline: its steps, each turn (°), points, whole turn
 _K = lambda p: (round(p[0], 3), round(p[1], 3))
+
+
+def _sturn(a, b, c):
+    """The signed turn at b, degrees (left positive)."""
+    u, v = (b[0] - a[0], b[1] - a[1]), (c[0] - b[0], c[1] - b[1])
+    return math.degrees(math.atan2(u[0] * v[1] - u[1] * v[0], u[0] * v[0] + u[1] * v[1]))
+
+
+def arcs(pts, closed):
+    """{index: unit tangent} for the points of a polyline that lie on an arc: runs of ARC_MIN points or more turning the same way
+    by ARC_TURN each, next to a step of ARC_SEG_MM at most, ARC_SUM in all. A run's end point next to a long straight takes the
+    straight's direction (the arc is tangent to it), the others the bisector of their two steps."""
+    n = len(pts)
+    if n < ARC_MIN + 1:
+        return {}
+    idx = range(n) if closed else range(1, n - 1)
+    tv, ok = {}, {}
+    for i in idx:
+        a, bb, c = pts[(i - 1) % n], pts[i], pts[(i + 1) % n]
+        tv[i] = _sturn(a, bb, c)
+        ok[i] = ARC_TURN[0] <= abs(tv[i]) <= ARC_TURN[1] and min(math.dist(a, bb), math.dist(bb, c)) <= ARC_SEG_MM
+    runs, cur = [], []
+    for i in idx:
+        if ok[i] and (not cur or (tv[i] > 0) == (tv[cur[-1]] > 0)):
+            cur.append(i)
+        else:
+            if cur:
+                runs.append(cur)
+            cur = [i] if ok[i] else []
+    if cur:
+        runs.append(cur)
+    if closed and len(runs) >= 2 and runs[0][0] == 0 and runs[-1][-1] == n - 1 and (tv[0] > 0) == (tv[n - 1] > 0):
+        runs[0] = runs.pop() + runs[0]
+    out = {}
+    for run in runs:
+        if len(run) < ARC_MIN or abs(sum(tv[i] for i in run)) < ARC_SUM:
+            continue
+        whole = closed and len(run) == n
+        for k, i in enumerate(run):
+            a, bb, c = pts[(i - 1) % n], pts[i], pts[(i + 1) % n]
+            la, lc = math.dist(a, bb), math.dist(bb, c)
+            if la < 1e-9 or lc < 1e-9:
+                continue
+            u, v = ((bb[0] - a[0]) / la, (bb[1] - a[1]) / la), ((c[0] - bb[0]) / lc, (c[1] - bb[1]) / lc)
+            if not whole and k == 0 and la >= 2 * lc:
+                t = u
+            elif not whole and k == len(run) - 1 and lc >= 2 * la:
+                t = v
+            else:
+                t = (u[0] + v[0], u[1] + v[1])
+            tn = math.hypot(*t)
+            if tn > 1e-9:
+                out[i] = (t[0] / tn, t[1] / tn)
+    return out
 
 
 def _rings(o):
@@ -119,6 +176,24 @@ def curves(objects, log):
                 if tn > 1e-9:
                     VT[kk] = (tx / tn, ty / tn)
 
+    # what is built round: the arcs' points and their tangents (a point of a plain ring — a building — stays a corner)
+    ARC, fixed = {}, set()
+    for o in objects:
+        if o["otp"] != 1 and o["sym"] in PLAIN:
+            for r in _rings(o):
+                fixed.update(_K(p) for p in r)
+    n_arc = 0
+    for o in objects:
+        if o["otp"] == 1 or o["sym"] in NATURAL or o["sym"] in SKIP or o["sym"] in PLAIN:
+            continue
+        for r in _rings(o):
+            cl = o["otp"] == 3 or _closed(r); pts = r[:-1] if cl and _K(r[0]) == _K(r[-1]) else r
+            for i, tg in arcs(pts, cl).items():
+                kk = _K(pts[i])
+                if kk not in fixed and kk not in ARC:
+                    ARC[kk] = tg; n_arc += 1
+    VT.update(ARC)
+
     def bez(r, closed, nolr=None, tol=TOL_MM):
         pts = r[:-1] if closed and _K(r[0]) == _K(r[-1]) else list(r); n = len(pts)
         if n < 3:
@@ -129,6 +204,8 @@ def curves(objects, log):
             tx, ty = VT[_K(pts[i])]; L = math.dist(pts[i], pts[j]) / 3
             cx, cy = pts[j][0] - pts[i][0], pts[j][1] - pts[i][1]
             sg = 1 if cx * tx + cy * ty >= 0 else -1
+            if _K(pts[i]) in ARC and abs(cx * tx + cy * ty) < 0.9 * math.hypot(cx, cy):
+                return [pts[i][0], pts[i][1]]              # (an arc's point met from another side: this segment leaves it straight)
             hx, hy = sg * tx * L, sg * ty * L
             cn = math.hypot(cx, cy)
             if cn > 1e-9:                                  # (the same in both objects that share the segment)
@@ -166,9 +243,10 @@ def curves(objects, log):
             tol = TOL_PATH_MM if o["sym"] in (S(505), S(506)) else TOL_MM
             o["bez"] = [bez(r, o["otp"] == 3 or _closed(r), o.get("nolr") if k == 0 else None, tol) for k, r in enumerate(_rings(o))]; n_c += 1
         elif o["otp"] == 2 or o["sym"] not in PLAIN:
-            o["bez"] = [straight(r, o["otp"] == 3 or _closed(r)) for r in _rings(o)]
+            o["bez"] = [bez(r, o["otp"] == 3 or _closed(r), None, TOL_PATH_MM) if any(_K(q) in ARC for q in r)
+                        else straight(r, o["otp"] == 3 or _closed(r)) for r in _rings(o)]
         o.pop("nolr", None); o.pop("curve", None)
-    log("curved objects", n_c, "of", len(objects))
+    log("curved objects", n_c, "of", len(objects), "· points on built arcs", n_arc)
 
 
 def rounded(objects):

@@ -226,6 +226,18 @@ def run(env, s, t, a, d):
         if piece.length >= 2:
             d.line(piece, S(501, 1), 2); n += 1
     log("paved area edges", n)
+    # The carriageways' edges inside the paving (the owner, 2026-11-23: without them a town centre is one flat brown, its streets
+    # gone — « le bord des routes a disparu, ce qui n'est pas bon »): the outline of the carriageways put together (closed and
+    # opened by 1 m: no spike where two sections meet), where paving lies on both sides and no other black line — the paved
+    # area's own edge, a building, a wall, a bridge's side — runs within 0.3 mm (there that line is the street's edge).
+    KERB_GAP = 0.3 * k_
+    carr = s.CARR.buffer(1.0, join_style="round").buffer(-2.0, join_style="round").buffer(1.0, join_style="round")
+    k_no = union([no_line.buffer(KERB_GAP - LINE_GAP * k_), a.PAVED_ALL.boundary.buffer(KERB_GAP + 0.07 * k_), union(PASS).buffer(0.5), B])
+    n = 0
+    for piece in lines(carr.boundary.intersection(a.PAVED_ALL).difference(k_no)):
+        if piece.length >= 6:                               # (a shorter piece between two other lines says nothing)
+            d.line(piece.simplify(0.1), S(501, 1), 2); n += 1
+    log("carriageway edges", n)
     # a passage's side (512.2) only where no other black line bounds the lower level (ISSprOM 512.2), as the lines are drawn
     OB = [LineString([(env.CX + x * k_, env.CY + y * k_) for x, y in o["rings"][0]]) for o in d.objects if o["otp"] == 2
           and o["sym"] in (S(521, 9), S(515), S(501, 1), S(513, 1), S(513, 2), S(516), S(518)) and len(o["rings"][0]) >= 2]
