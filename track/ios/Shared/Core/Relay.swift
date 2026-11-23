@@ -81,10 +81,19 @@ enum RelayConfig {
             idle: (d.object(forKey: "oz.cfg.idle") as? Int) ?? 120)
     }
 
-    /// Asks the relay again when a day has passed.
+    /// The relay's last answer, for the map's layers (MapLayers); "" when it gave none.
+    static var mapsJson: String? { d.string(forKey: "oz.cfg.maps") }
+
+    /// Asks the relay again when a day has passed, or when its map layers were never read.
     static func refresh() async {
-        if Date().timeIntervalSince1970 - d.double(forKey: "oz.cfg.at") < 86_400 { return }
+        if Date().timeIntervalSince1970 - d.double(forKey: "oz.cfg.at") < 86_400 && d.string(forKey: "oz.cfg.maps") != nil { return }
         guard let a = await RelayHTTP.shared.call("GET", "config"), a.status == 200, let j = a.json else { return }
+        let whole = (try? JSONSerialization.data(withJSONObject: j)).flatMap { String(data: $0, encoding: .utf8) }
+        let maps = j["layers"] != nil ? (whole ?? "") : ""
+        if maps != d.string(forKey: "oz.cfg.maps") {
+            d.set(maps, forKey: "oz.cfg.maps")
+            DispatchQueue.main.async { NotificationCenter.default.post(name: MapLayers.changed, object: nil) }
+        }
         let tiles = (j["tiles"] as? String) ?? ""
         d.set(tiles.contains("{z}") && tiles.hasPrefix("https://") ? tiles : osm, forKey: "oz.cfg.tiles")
         let credit = (j["attribution"] as? String) ?? ""

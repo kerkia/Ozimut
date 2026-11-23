@@ -20,11 +20,13 @@ struct ZoneView: View {
                 .padding(.horizontal)
                 .padding(.bottom, 8)
             if ready {
-                TileMap(follow: $follow, zoneRadius: Int(radius) ?? 0, onCentre: { centre = $0 }, start: start, goTo: goTo)
-                    .overlay {
-                        Image(systemName: "plus").font(.title.weight(.light)).foregroundColor(.red).allowsHitTesting(false)
-                    }
-                    .overlay(alignment: .bottomTrailing) { MapCredit() }
+                OzMap { version, shown in
+                    TileMap(follow: $follow, zoneRadius: Int(radius) ?? 0, onCentre: { centre = $0 }, start: start, goTo: goTo,
+                            layersVersion: version, onShown: shown)
+                }
+                .overlay {
+                    Image(systemName: "plus").font(.title.weight(.light)).foregroundColor(.red).allowsHitTesting(false)
+                }
             } else {
                 Spacer()
             }

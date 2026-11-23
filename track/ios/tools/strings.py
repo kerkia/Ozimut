@@ -198,6 +198,9 @@ TEXTS = {
     "follow.nothing": ("Rien de reçu pour l'instant.", "Nothing received yet.", "Noch nichts empfangen.",
                        "Todavía no se ha recibido nada."),
     "map.follow": ("Suivre", "Follow", "Folgen", "Seguir"),
+    "map.layers": ("Fond de carte", "Base map", "Kartenhintergrund", "Mapa base"),
+    "map.elsewhere": ("Ailleurs", "Elsewhere", "Anderswo", "En otros lugares"),
+    "map.done": ("Terminé", "Done", "Fertig", "Hecho"),
 
     "alert.start": ("%@ a démarré une course", "%@ has started a run", "%@ hat einen Lauf gestartet",
                     "%@ ha empezado una carrera"),
