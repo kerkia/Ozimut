@@ -166,9 +166,9 @@ details). What it needs from you:
    `com.ozimut.ozitrac.widget` (none) and `com.ozimut.ozitrac.watchkitapp` (HealthKit).
 3. Keys › « + » › Apple Push Notifications service (APNs) › download the `.p8` key, note its Key ID. Then:
    `npx wrangler pages secret put APNS_KEY --project-name observatoire-cn` (paste the .p8 file's whole text),
-   `APNS_KEY_ID` (the key's id), `APNS_TEAM_ID` (the Team ID), `OZITRAC_APNS_TOPIC` (`com.ozimut.ozitrac`: the relay's
-   alerts to the people following) and `APNS_TOPIC` (`com.ozimut.ozitrac` too: Ozimut's own tracking alerts to an iPhone
-   linked to an account).
+   `APNS_KEY_ID` (the key's id), `APNS_TEAM_ID` (the Team ID) — the same key serves the Ozimut app (docs/app/setup.md) —
+   and `OZITRAC_APNS_TOPIC` (`com.ozimut.ozitrac`: the relay's alerts to the people following). `APNS_TOPIC` is the Ozimut
+   app's (`com.ozimut.app`).
 4. App Store Connect (appstoreconnect.apple.com) › Users and Access › Integrations › App Store Connect API › generate a key
    (role App Manager): note the Issuer ID and Key ID, download the `.p8`. GitHub secrets `APPLE_TEAM_ID`,
    `APP_STORE_CONNECT_KEY_ID`, `APP_STORE_CONNECT_ISSUER_ID`, `APP_STORE_CONNECT_KEY` (the .p8's text).

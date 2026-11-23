@@ -50,8 +50,10 @@ In this order, once the Apple Developer Program membership (99 USD a year) is ac
    - `com.ozimut.ozitrac.watchkitapp` — HealthKit (the workout keeps the watch app running wrist down).
 4. **An APNs key** (Keys › « Apple Push Notifications service »: one .p8 for the team), then the Pages secrets (by
    `npx wrangler pages secret put <NAME> --project-name observatoire-cn`): `APNS_KEY` (the .p8's text), `APNS_KEY_ID`,
-   `APNS_TEAM_ID`, `OZITRAC_APNS_TOPIC` = `com.ozimut.ozitrac` (the relay's alerts to the people following), and
-   `APNS_TOPIC` = `com.ozimut.ozitrac` as well (Ozimut's own tracking alerts to an iPhone linked to an account). The app
+   `APNS_TEAM_ID` (shared with the Ozimut app, `app/ios`) and `OZITRAC_APNS_TOPIC` = `com.ozimut.ozitrac` (the relay's
+   alerts to the people following). `APNS_TOPIC` stays the Ozimut app's (`com.ozimut.app`, docs/app/setup.md): Ozimut's own
+   tracking alerts to an Ozitrac iPhone linked to an account would need the server to send them under Ozitrac's topic
+   (not done: see « Not done yet »). The app
    sends `env: "dev"` from Debug builds and `"prod"` from Release builds; the entitlement `aps-environment` is `development`
    in `project.yml` and becomes `production` when exported for the App Store.
 5. **App Store Connect**: an app record « Ozitrac » for `com.ozimut.ozitrac` (the watch app goes with it). Its export
@@ -99,6 +101,9 @@ between Start and Stop ». The app icon is the Ozimut mark (`Resources/Assets.xc
   notification extension, WatchConnectivity and HealthKit are only compiled. The first signed build must be tried as step 7
   says.
 - No signing, archive or TestFlight upload in CI (needs the owner's account and secrets above).
+- Ozimut's own tracking alerts (an account's watchers on the site) to an Ozitrac iPhone linked to that account: the iPhone
+  gives Ozimut its APNs token (`/api/track/pushtoken`), but `functions/_lib/nativepush.js` sends native alerts under
+  `APNS_TOPIC`, the Ozimut app's bundle id, which Apple refuses for an Ozitrac token. The relay's alerts are not affected.
 - Unlinking from Ozimut is on the device only (the account removes the device on the site), as on Android.
 - The watch does not take over a workout session the system ended (after a crash it starts a new one on relaunch).
 - No launch artwork (the system's plain launch screen).
