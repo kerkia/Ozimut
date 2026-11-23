@@ -4122,6 +4122,27 @@ Every multiple-choice game was played through to its score page at phone size, w
   edges as uncrossable. Not checked again in the page for this round (the local browser pane, hidden, starved its worker);
   bench tools `scans/reach.py` (cells reached from a control, the first thing to look at), `pair.py`, `zc.py`,
   `perf/kdump.mjs` (kinds and areas of a window).
+  **Map 3 and the open points, 2026-11-23** (owner: « complete the still open points, and the move to map 3 »). (1) **The
+  course's own lines make no area out of bounds** (`sprintLayers`): two legs converging or crossing at a narrow angle are closed
+  together by `overprint()`'s closing, and the street between them read as hatching (map 3's 12-13 and 13-14 shut); an area
+  whose purple ink lies on the course's legs and circles (`onCourse`, drawn once into a mask) for 80 % of it is released — a
+  hatched area holds ink all over it. (2) **On a sharp image open ground wins a tie** in the fill that gives the inks an area
+  (`classify`'s breadth-first fill seeded with the open areas first): a thin line across a lane's mouth between two houses was
+  as near the lane as the houses and took the house's grey from the row above (map 2's leg to 5). (3) **A line's ink takes the
+  ground across it** (the overprint's both-sides fill, sharp images only: of the four ways through a pixel the shortest finding
+  one ground on both sides): a control's circle across a lane took the gardens' olive from along its own arc (map 1's 21-22);
+  on the photos the diagonals found wrong ground (the photo's 3-4 lost), so they keep left-right, else up-down. (4) **The
+  finish's arrival** (`track.finishArrival`): the zone entered (1.5 tolerances), the first point within a few metres of the
+  least distance in the next 30 s — a last control 30 m from the finish put the runner in the zone at once and the three
+  Morbihan analyses had the finish at the last control's second; the bench's finish times were timed again by the new rule
+  (`route-bench/bak_2026-11-23` the data before). Gate (baseline accepted 2026-11-23): tracks laid 100 → 106 of 118 (the scans
+  51 → 57 of 59: every leg of maps 1 and 3), dark lines crossed 99 → 96, olive 175 → 176 m; photos and forest maps unchanged;
+  the reading's time unchanged. **Still not read**: map 2's control 14 — the way to it is a yellow strip a metre wide between
+  two walls, three pixels of the page blended to olive, then the stairway (white steps between black bars) up to the street;
+  a stairway reading would not help while the strip is lost (its colour cannot be told from the gardens' olive at 0.33 m a
+  pixel) —; the course's crossing-point marks; a viaduct's edges. Not checked in the page itself this round. Bench tools
+  added: `scans/trk.py <n> <leg> x0 y0 x1 y1` (a leg's track over the cells), `perf/adump.mjs` (kinds and the area after
+  each stage), `perf/odump.mjs` (the overprint's areas).
 - **Languages: French, English, German and Spanish** (owner, 2026-10-17 French and English, open to everyone since 2026-10-18,
   `i18n.OPEN` true; **German and Spanish since 2026-11-01**: `i18n.LANGS`, catalogues `i18n/de.js`, `es.js`, `tracer.de.js`,
   `tracer.es.js`, long texts `content/<name>.de.js` / `.es.js`, e-mails in `_lib/templates.js`, `manifest.de|es.webmanifest`;

@@ -279,6 +279,9 @@ export const valueAt = (tr, c, s) => (tr.ch[c] ? tr.ch[c][indexAt(tr, s)] : null
  * (the trace ends within a minute, or the next minute goes at under 60 % of the speed of the two minutes before); else
  * the last entry after which the runner stays near; else -1. A course often runs past its finish: such a pass, the
  * runner going on to further controls, never ends the race (owner, 2026-10-14: the race stopped after control 8).
+ * The zone entered, the arrival is where the runner comes nearest the finish: the first point within a few metres of the
+ * least distance in the next 30 s — its edge lies up to `lim` before the finish, and a last control near the finish
+ * put the runner in it at once (the three Morbihan sprints of 2026-11: the finish timed at the last control's second).
  * d: each trace point's distance to the finish, in metres.
  */
 export function finishArrival(tr, d, k0 = 0, lim = 25, far = 300) {
@@ -289,7 +292,14 @@ export function finishArrival(tr, d, k0 = 0, lim = 25, far = 300) {
   const near = [];
   for (let k = k0; k < n; k++) if (d[k] <= lim && (k === k0 || d[k - 1] > lim) && farAfter[k] <= far) near.push(k);
   if (!near.length) return -1;
-  return near.find((k) => stopsAt(tr, k)) ?? near[near.length - 1];
+  const k = near.find((q) => stopsAt(tr, q)) ?? near[near.length - 1];
+  let m = d[k];
+  const T = tr.t, end = T[k] + 30;                             // the run in: the zone crossed within 30 s (a walk back later apart)
+  for (let q = k; q < n && d[q] <= lim && T[q] <= end; q++) if (d[q] < m) m = d[q];
+  const slack = Math.max(3, 0.15 * lim);
+  let e = k;
+  while (e + 1 < n && d[e] > m + slack && d[e + 1] <= lim && T[e + 1] <= end) e++;
+  return e;
 }
 /**
  * Every control passed, the runner going on afterwards (the walk back with the watch running): the first entry into the

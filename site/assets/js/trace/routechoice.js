@@ -883,24 +883,36 @@ export function classify(rgba0, w, h, mpp, opt = {}, progress = () => {}) {
   }
   // on a sprint map the overprint's ink (and its outline) takes the ground found on both sides of it — left and right, else above
   // and below — before the nearest: a control's number printed across a narrow street (the Quiberon photo's 4) filled from the
-  // gardens above and the house below shut the street; the ground on both sides of a line is what lies under it (2026-11-18)
+  // gardens above and the house below shut the street; the ground on both sides of a line is what lies under it (2026-11-18).
+  // The sides across the line: of the four ways through the pixel (across, down, both diagonals) those finding one ground on both
+  // sides, the shortest — looking along the line runs on its ink to the ground at its far ends: a control's circle drawn across a
+  // lane between two gardens took the gardens' olive from left and right, and shut the lane (the Auray scan's leg 21-22,
+  // 2026-11-23). On a sharp image only: a photo's blurred lines found nearer, wrong ground by the diagonals (the Auray photo's
+  // 3-4 lost); there left and right, else above and below, as before
   if (sprintInk && inkNear) {
     const D = Math.max(8, Math.round(30 / mpp)), fill = [];
+    let lt = 0;
     const look = (x, y, dx, dy) => {
       for (let t = 1; t <= D; t++) {
         const X = x + dx * t, Y = y + dy * t;
         if (X < 0 || Y < 0 || X >= w || Y >= h) return -1;
         const v = area[Y * w + X];
-        if (v !== UNKNOWN) return v;
+        if (v !== UNKNOWN) { lt = t * (dx && dy ? Math.SQRT2 : 1); return v; }
       }
       return -1;
     };
     for (let i = 0; i < N; i++) {
       if (!inkNear[i] || area[i] !== UNKNOWN || (kind[i] !== I_PURPLE && kind[i] >= 20)) continue;   // a wall beside it stays a line
-      const x = i % w, y = (i - x) / w, l = look(x, y, -1, 0), r = look(x, y, 1, 0);
-      if (l >= 0 && l === r) { fill.push(i, l); continue; }
-      const u = look(x, y, 0, -1), d = look(x, y, 0, 1);
-      if (u >= 0 && u === d) fill.push(i, u);
+      const x = i % w, y = (i - x) / w;
+      let best = -1, bd = Infinity;
+      for (const [dx, dy] of sharp ? [[1, 0], [0, 1], [1, 1], [1, -1]] : [[1, 0], [0, 1]]) {
+        const a = look(x, y, -dx, -dy), ta = lt;
+        if (a < 0) continue;
+        const b = look(x, y, dx, dy), tb = lt;
+        if (b === a && ta + tb < bd) { bd = ta + tb; best = a; }
+        if (!sharp && best >= 0) break;
+      }
+      if (best >= 0) fill.push(i, best);
     }
     for (let j = 0; j < fill.length; j += 2) area[fill[j]] = fill[j + 1];
   }
@@ -919,10 +931,17 @@ export function classify(rgba0, w, h, mpp, opt = {}, progress = () => {}) {
   progress(0.85);
   const blue = new Uint8Array(N);
   for (let i = 0; i < N; i++) if (kind[i] === I_BLUE && area[i] === UNKNOWN) blue[i] = 1;
-  // the inks painted over: each unknown pixel takes the nearest area (a breadth-first fill from every known pixel)
+  // the inks painted over: each unknown pixel takes the nearest area (a breadth-first fill from every known pixel). On a sharp
+  // image open ground wins a tie with closed ground (the fill goes out from it first): the ink of a thin line across a lane's
+  // mouth between two houses was as near the lane as the houses, and took the grey of the house on the row above it — the
+  // first in the fill's order —, which shut the lane (the Auray scan's leg to 5, 2026-11-23)
   const q = new Int32Array(N);
   let qh = 0, qt = 0;
-  for (let i = 0; i < N; i++) if (area[i] !== UNKNOWN) q[qt++] = i;
+  if (sharp) {
+    const closedA = (v) => v === A.GREY || v === A.BUILDING || v === A.OOB || v === A.WATER || v === A.G3;
+    for (let i = 0; i < N; i++) if (area[i] !== UNKNOWN && !closedA(area[i])) q[qt++] = i;
+    for (let i = 0; i < N; i++) if (area[i] !== UNKNOWN && closedA(area[i])) q[qt++] = i;
+  } else for (let i = 0; i < N; i++) if (area[i] !== UNKNOWN) q[qt++] = i;
   if (!qt) area.fill(A.WHITE);
   while (qh < qt) {
     const i = q[qh++], x = i % w, v = area[i];
@@ -1552,8 +1571,60 @@ export function sprintLayers(O, P, pts = [], r = 0) {
     }
     for (const k of banks) block[k] = 1;
   }
+  // the course's own lines make no area out of bounds: two legs converging or crossing at a narrow angle are closed together by
+  // the overprint's reading (overprint(): its closing joins inks a few metres apart), and the ground between them — a street of
+  // the Auray scan, legs 12-13 and 13-14 shut, 2026-11-23 — read as hatching. An area whose overprint ink lies on the course's
+  // legs and circles for 80 % of it is the course's, not an area out of bounds (a hatched area holds ink all over it)
+  let over = P.over;
+  if (over && r > 0 && pts.length > 1) {
+    // the course drawn once (onCourse's rings, the start's and finish's discs, the legs' bands), then each area of the overprint
+    // (its pixels are few: labelled by a fill from each, not over the whole image)
+    const course = new Uint8Array(N), lastQ = pts.length - 1;
+    for (let q = 0; q < pts.length; q++) {
+      const [px0, py0] = pts[q], end = q === 0 || q === lastQ, R = (end ? 1.3 * r : r) + near;
+      const lo2 = Math.max(0, r - near) ** 2, hi2 = (r + near) ** 2, disc2 = (1.3 * r + near) ** 2;
+      for (let y = Math.max(0, Math.floor(py0 - R)); y <= Math.min(h - 1, Math.ceil(py0 + R)); y++)
+        for (let x = Math.max(0, Math.floor(px0 - R)); x <= Math.min(w - 1, Math.ceil(px0 + R)); x++) {
+          const d2 = (x - px0) ** 2 + (y - py0) ** 2;
+          if ((d2 >= lo2 && d2 <= hi2) || (end && d2 <= disc2)) course[y * w + x] = 1;
+        }
+      if (q === lastQ) continue;
+      const [bx, by] = pts[q + 1], vx = bx - px0, vy = by - py0, L2 = vx * vx + vy * vy, n2 = near * near;
+      if (!L2) continue;
+      for (let y = Math.max(0, Math.floor(Math.min(py0, by) - near)); y <= Math.min(h - 1, Math.ceil(Math.max(py0, by) + near)); y++) {
+        // the band's span on this row (a leg's box would hold many rows of nothing on a long diagonal leg)
+        let xa = Math.min(px0, bx) - near, xb = Math.max(px0, bx) + near;
+        if (Math.abs(vy) > 1e-9) { const t0 = (y - py0) / vy, sl = Math.abs(vx / vy), xc = px0 + t0 * vx, half = near * Math.hypot(1, sl); xa = Math.max(xa, xc - half); xb = Math.min(xb, xc + half); }
+        for (let x = Math.max(0, Math.floor(xa)); x <= Math.min(w - 1, Math.ceil(xb)); x++) {
+          const t = ((x - px0) * vx + (y - py0) * vy) / L2;
+          if (t <= 0 || t >= 1) continue;
+          const ex = x - px0 - t * vx, ey = y - py0 - t * vy;
+          if (ex * ex + ey * ey <= n2) course[y * w + x] = 1;
+        }
+      }
+    }
+    const seen = new Uint8Array(N), stack = [];
+    for (let s0 = 0; s0 < N; s0++) {
+      if (over[s0] !== 1 || seen[s0]) continue;
+      const px = [s0];
+      let ink = 0, on = 0;
+      seen[s0] = 1; stack.push(s0);
+      while (stack.length) {
+        const i = stack.pop(), x = i % w;
+        if (P.kind[i] === I_PURPLE) { ink++; on += course[i]; }
+        if (x > 0 && !seen[i - 1] && over[i - 1] === 1) { seen[i - 1] = 1; stack.push(i - 1); px.push(i - 1); }
+        if (x < w - 1 && !seen[i + 1] && over[i + 1] === 1) { seen[i + 1] = 1; stack.push(i + 1); px.push(i + 1); }
+        if (i >= w && !seen[i - w] && over[i - w] === 1) { seen[i - w] = 1; stack.push(i - w); px.push(i - w); }
+        if (i + w < N && !seen[i + w] && over[i + w] === 1) { seen[i + w] = 1; stack.push(i + w); px.push(i + w); }
+      }
+      if (ink && on >= 0.8 * ink) {
+        if (over === P.over) over = over.slice();
+        for (const i of px) over[i] = 0;
+      }
+    }
+  }
   const z = () => new Uint8Array(N);
-  return { area: O.area, path: z(), blue: P.blue, over: P.over, north: P.north, block, hand: block.slice(), cross: z(), slow: z(), lane,
+  return { area: O.area, path: z(), blue: P.blue, over, north: P.north, block, hand: block.slice(), cross: z(), slow: z(), lane,
     links: (O.under || []).map((u) => [u.a[0], u.a[1], u.b[0], u.b[1]]),
     lw: P.lw, ms: P.ms, lines: P.lines, northLines: P.northLines, objects: { walls: walls.length, under: (O.under || []).length, bridges: bridges.length } };
 }
