@@ -4250,6 +4250,14 @@ Every multiple-choice game was played through to its score page at phone size, w
   ends), 16 (the sidewalk), 17 (the runner's passage). **Tried and dropped**: keeping straightened lines in the open half of edge cells
   (the routes zigzagged over more lines and olive). **Still open**: stairways (map 2's 5-6 and 14) and the two levels at 14; the
   course's crossing-point marks; per-map colour calibration (a pale green read as olive or the reverse).
+  **Stairways, tried again the same afternoon, left open**: map 2's stairway on 5-6 is reached by a lane through a gap drawn
+  between two houses (a light core between two outlines 1.3 m apart, read as one block with the houses), and its lower part is a
+  corridor two cells wide at 45° cut by one rung read as a wall; at 0.33 m a pixel its treads blend into its rungs (a few light
+  pixels each), so a detector looking for treads finds nothing — the rungs' period, about 1.7 m, is what is left to read. Opening
+  such gaps, counting the paper as a way's ground and keeping the edge cost off lanes one or two cells wide (all edge, so 15 %
+  dearer, which put the stairway's way 27 % above the street) were reverted: without the stairway read they only moved routes into
+  narrow lanes between gardens (map 1's olive on best routes 31 → 43 m). Bench script `scans/stairtest.mjs <n> ax ay bx by` (a leg
+  between two points; env GC grid costs, DEC the decision map, BFS the cells reached, GRID the closed cells).
 - **Languages: French, English, German and Spanish** (owner, 2026-10-17 French and English, open to everyone since 2026-10-18,
   `i18n.OPEN` true; **German and Spanish since 2026-11-01**: `i18n.LANGS`, catalogues `i18n/de.js`, `es.js`, `tracer.de.js`,
   `tracer.es.js`, long texts `content/<name>.de.js` / `.es.js`, e-mails in `_lib/templates.js`, `manifest.de|es.webmanifest`;
