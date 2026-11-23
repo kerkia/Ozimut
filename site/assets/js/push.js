@@ -9,12 +9,15 @@
 import { html } from "./util.js";
 import { t } from "./i18n.js";
 import * as auth from "./auth.js";
+import { inApp, call } from "./appbridge.js";
 
 const SCOPE = "/push/";
 const SNOOZE = "ocn.push.later";                 // localStorage: the card not offered again before this time
-const SYNCED = "ocn.push.synced";                // sessionStorage: this device's subscription sent to the server this visit
+const SYNCED = "ocn.push.synced";
+const NATIVE = "ocn.push.native";               // localStorage, in the Ozimut app: the device's token as the server holds it                // sessionStorage: this device's subscription sent to the server this visit
 
-export const supported = () => "serviceWorker" in navigator && "PushManager" in window && "Notification" in window && window.isSecureContext;
+export const supported = () => !!inApp() || webPush();
+const webPush = () => "serviceWorker" in navigator && "PushManager" in window && "Notification" in window && window.isSecureContext;
 export const isIos = () => /iP(hone|ad|od)/.test(navigator.userAgent) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
 export const standalone = () => matchMedia("(display-mode: standalone)").matches || navigator.standalone === true;
 
@@ -70,7 +73,34 @@ async function subscribe(cfg) {
 
 /** What this device does: "unsupported", "ios-install" (an iPhone outside the home screen app), "off-server" (the
  *  site has no keys yet), "denied", "on" or "off". */
+// ---- the Ozimut app (docs/app/design.md « Native notifications »): the shell asks the system and gives the device's token,
+// this page sends it to the server with its session ----
+const nativeToken = () => { try { return localStorage.getItem(NATIVE) || ""; } catch (e) { return ""; } };
+const systemState = async () => { try { return (await call("pushState", {}, { timeout: 8000 }))?.state || "unavailable"; } catch (e) { return "unavailable"; } };
+async function nativeState() {
+  const cfg = await getConfig();
+  if (!cfg?.native) return "off-server";
+  const st = await systemState();
+  return st === "unavailable" ? "unsupported" : st === "denied" ? "denied" : st === "on" && nativeToken() ? "on" : "off";
+}
+/** The system asked (once), the token sent to the server. -> true when this device now receives the account's notifications */
+async function nativeRegister() {
+  const r = await call("pushRegister", {}, { timeout: 120000 }).catch(() => null);
+  if (!r?.ok || !r.token) return false;
+  const res = await auth.api("api/push/native", { kind: r.kind, token: r.token, env: r.env || "prod", label: `Ozimut · ${inApp().platform === "ios" ? "iPhone" : "Android"}` });
+  if (!res.ok) return false;
+  try { localStorage.setItem(NATIVE, r.token); sessionStorage.setItem(SYNCED, "1"); } catch (e) { /* asked again next visit */ }
+  return true;
+}
+async function nativeOff() {
+  const token = nativeToken();
+  if (token) await auth.api("api/push/native-off", { token }).catch(() => {});
+  await call("pushOff", {}, { timeout: 8000 }).catch(() => {});      // the shell forgets its token too (a shell without the call: nothing)
+  try { localStorage.removeItem(NATIVE); sessionStorage.removeItem(SYNCED); } catch (e) { /* none */ }
+}
+
 export async function deviceState() {
+  if (inApp()) return nativeState();
   if (!supported()) return isIos() && !standalone() ? "ios-install" : "unsupported";
   const cfg = await getConfig();
   if (!cfg?.ready) return "off-server";
@@ -82,6 +112,7 @@ export async function deviceState() {
 
 /** Ask the browser (after a click), then subscribe this device. -> the new state. */
 export async function enable() {
+  if (inApp()) { await nativeRegister(); await getConfig(true); return nativeState(); }
   const cfg = await getConfig();
   if (!supported() || !cfg?.ready) return deviceState();
   const p = await Notification.requestPermission();
@@ -93,6 +124,7 @@ export async function enable() {
 
 /** This device no longer receives notifications (Réglages, and at logout). */
 export async function disable() {
+  if (inApp()) { await nativeOff(); config = null; return; }
   try {
     const reg = supported() ? await navigator.serviceWorker.getRegistration(SCOPE) : null;
     const sub = reg && (await reg.pushManager.getSubscription());
@@ -113,7 +145,7 @@ export async function test() {
 }
 
 // a tap on a notification when a tab is open: the worker controls no page, it asks the tab to go there
-if ("serviceWorker" in navigator) {
+if ("serviceWorker" in navigator && !inApp()) {
   navigator.serviceWorker.addEventListener("message", (e) => {
     if (e.data?.type === "ocn-open" && typeof e.data.url === "string") {
       const u = new URL(e.data.url, location.origin);
@@ -126,6 +158,16 @@ if ("serviceWorker" in navigator) {
 export async function boot() {
   if (!auth.session()?.email || !supported()) return;
   const cfg = await getConfig(true);
+  if (inApp()) {
+    if (!cfg?.native) return;
+    const st = await systemState();
+    let done = false;
+    try { done = !!sessionStorage.getItem(SYNCED); } catch (e) { /* no storage */ }
+    // allowed: the token sent again once a visit (it changes now and then; an account switch moves it); never asked: offered
+    if (st === "on" && nativeToken() && !done) await nativeRegister();
+    else if ((st === "off" || (st === "on" && !nativeToken())) && cfg.enabled) offer();
+    return;
+  }
   if (!cfg?.ready) return;
   if (Notification.permission === "granted") {
     let done = false;

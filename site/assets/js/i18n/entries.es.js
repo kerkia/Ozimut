@@ -485,4 +485,6 @@ export default {
   "ent.org.pub.noRace": "Un entrenamiento de club no tiene página de carrera: descarga la lista.",
   "ent.org.oldDeposit": "Subir una lista de salida (archivo)",
   "ent.org.oldDeposit.hint": "Para una carrera cuyas inscripciones se hacen en otro lugar: la lista de salida publicada tal cual.",
+  // the Ozimut app: no account made with an entry
+  "ent.guest.app": "Inicia sesión para inscribirte.",
 };

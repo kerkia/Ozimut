@@ -1,7 +1,7 @@
 // The privacy policy and legal notices, in German — a translation for information; the French version (privacy.fr.js, the
 // reference) prevails. Keep the two in step.
 // world: registration open to every orienteer (privacy.fr.js, which prevails).
-export const body = (SITE, { world = false } = {}) => `
+export const body = (SITE, { world = false, later = "" } = {}) => `
       <p class="muted"><i>Diese deutsche Fassung dient nur zur Information; maßgeblich ist die französische Fassung.</i></p>
       <p>${SITE} ist eine unabhängige Website ohne Verbindung zum französischen Orientierungslaufverband (Fédération française de
         course d'orientation, FFCO). Sie wird privat und nicht kommerziell von <b>Yann Le Helloco</b> herausgegeben, dem
@@ -34,7 +34,7 @@ export const body = (SITE, { world = false } = {}) => `
         sind sie für alle sichtbar, mit oder ohne Konto. Jede betroffene Person kann verlangen, dort nicht mehr identifiziert zu
         werden (siehe „Deine Rechte“).</p>
       <h2 style="font-size:16px">Zugang und Bilder der Website</h2>
-      <p>${SITE} ist während seines Starts kostenlos. Mit wachsender Nutzung können einige fortgeschrittene oder kostspielige Funktionen kostenpflichtig werden: Wir kündigen das mindestens zwei Monate vorher an, und was du bereits gespeichert hast, bleibt einsehbar und exportierbar.</p>
+      ${later ? `<p>${later}</p>` : ""}
       <p>Ein Teil der Website ist ohne Konto zugänglich; ein Konto öffnet die Benachrichtigungen und das Teilen von
         GPS-Tracks, und der vollständige Verlauf der Rangliste ist den Lizenzinhabern des Verbands vorbehalten: in Frankreich einem Konto, das
         Frankreich beigetreten ist und dessen FFCO-Lizenznummer anhand des Namens geprüft wurde. Länder, deren Ergebnisse alle öffentlich sind (Spanien),
@@ -225,6 +225,8 @@ export const body = (SITE, { world = false } = {}) => `
         aufbewahrt, nur den Läufern der Veranstaltung gezeigt, im Spiel, sobald er sie veröffentlicht hat, und dient dazu, das Rennen
         auf GitHub zu bauen, wo sie nicht aufbewahrt wird. Diese Rennen und die Veranstaltungen mit ihren Karten und Ergebnissen werden
         mit deinem Konto gelöscht.</p>
+      <h2 style="font-size:16px">Die Ozimut-App</h2>
+      <p>Die Ozimut-App für Telefone zeigt diese Website und verfolgt deinen Standort nicht. Wenn du dort Benachrichtigungen einschaltest, speichert die Website für dieses Telefon die Sendekennung, die der Benachrichtigungsdienst des Telefons vergibt (Google auf Android, Apple auf dem iPhone), und die Geräteart; sie wird gelöscht, wenn du sie ausschaltest, dich in der App abmeldest oder dein Konto löschst. Die Karte, die du scannst, die Dateien, die du mit der App teilst, und die aus Health gelesenen Routen (iPhone, mit deiner Zustimmung, nur lesend) bleiben auf dem Telefon, wie auf der Website, solange du die Analyse weder speicherst noch teilst. In der App wird kein Konto angelegt oder gelöscht: Das geschieht auf der Website.</p>
       <h2 style="font-size:16px">Fragen an die KI</h2>
       <p>Auf der Seite „KI“ wird deine Frage an das Sprachmodell gesendet, das die Abfrage schreibt, zusammen mit der Beschreibung der Tabellen der
         Website, dem heutigen Datum, deiner Lizenznummer sowie der gewählten Methode und Disziplin: standardmäßig das Modell von Ozimut, ausgeführt

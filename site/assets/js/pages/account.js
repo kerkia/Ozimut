@@ -1,6 +1,7 @@
 // Public account pages (reachable logged out): sign-up, e-mail confirmation, forgotten
 // password, reset, resend, privacy policy. #/compte/<view>[?token=…]
 
+import * as offers from "../offers.js";
 import { html, raw, $, esc } from "../util.js";
 import { t, lang, setLang, LANGS, LANG_NAMES } from "../i18n.js";
 import * as auth from "../auth.js";
@@ -213,10 +214,11 @@ async function privacy(main) {
   // below up to date when what the site keeps changes
   // the text, one module per language (content/privacy.fr.js prevails; privacy.en.js, a translation)
   const { body } = await import(`../content/privacy.${lang()}.js`).catch(() => import("../content/privacy.en.js"));
+  await offers.ready();
   let world = false;                          // registration open to every orienteer: the texts about who sees what follow it
   try { world = !!(await (await fetch("api/account/status")).json()).world; } catch (e) { /* as before */ }
   main.innerHTML = html`<section class="card account-card" style="max-width:760px"><div class="card-head"><h1 style="font-size:20px;margin:0">${t("pv.title")}</h1></div>
-    <div class="card-body prose">${raw(body(SITE, { world }))}
+    <div class="card-body prose">${raw(body(SITE, { world, later: offers.rulesLater(SITE) }))}
       <p><a href="#/">← ${t("ac.toLogin")}</a></p>
     </div></section>`.toString();
   return { title: t("pv.title") };

@@ -3,7 +3,7 @@
 // when what the site keeps changes, and the English version, privacy.en.js, in step).
 // world: registration open to every orienteer (WORLD_OPEN, /api/account/status; owner, 2026-10-20): the texts about who may
 // see what follow it, so that the page says what is true on either side of the switch.
-export const body = (SITE, { world = false } = {}) => `
+export const body = (SITE, { world = false, later = "" } = {}) => `
       <p>${SITE} est un site indépendant, sans lien avec la Fédération française de course d'orientation (FFCO). Il est édité à titre
         personnel et non commercial par <b>Yann Le Helloco</b>, responsable du traitement des données personnelles décrites ci-dessous
         au sens du règlement (UE) 2016/679 (RGPD). Contact : <b>contact@ozimut.com</b>.</p>
@@ -33,7 +33,7 @@ export const body = (SITE, { world = false } = {}) => `
         sont visibles par tous, avec ou sans compte. Toute personne concernée peut demander à ne plus y être identifiée (voir
         « Vos droits »).</p>
       <h2 style="font-size:16px">Accès et images du site</h2>
-      <p>${SITE} est gratuit pendant son lancement. À mesure que l'usage grandit, certaines fonctions avancées ou coûteuses pourront devenir payantes : nous l'annoncerons au moins deux mois avant, et ce que vous avez déjà enregistré restera consultable et exportable.</p>
+      ${later ? `<p>${later}</p>` : ""}
       <p>Une partie du site se consulte sans compte ; un compte ouvre les alertes et le partage de
         traces, et l'historique complet du classement est réservé aux licenciés de la fédération : en France, un compte qui a rejoint
         la France, son numéro de licence FFCO vérifié d'après le nom. Les pays dont tous les résultats sont publics (l'Espagne)
@@ -246,6 +246,8 @@ export const body = (SITE, { world = false } = {}) => `
       </ul>
       <p>Un message envoyé par la page « Nous écrire » parvient à l'éditeur par e-mail, accompagné de votre adresse, de votre nom et du
         navigateur utilisé ; il est conservé dans sa messagerie le temps nécessaire au traitement de la demande.</p>
+      <h2 style="font-size:16px">L'application Ozimut</h2>
+      <p>L'application Ozimut pour téléphone montre ce site et ne suit pas votre position. Si vous y activez les notifications, le site conserve, pour ce téléphone, l'identifiant d'envoi que lui attribue le service de notification du téléphone (Google sur Android, Apple sur iPhone) et le type d'appareil ; il est effacé quand vous les désactivez, vous déconnectez de l'application ou supprimez votre compte. La carte que vous scannez, les fichiers que vous lui partagez et les parcours lus dans Santé (iPhone, avec votre accord, en lecture seule) restent sur le téléphone, comme sur le site, tant que vous n'enregistrez ni ne partagez l'analyse. Aucun compte n'est créé ni supprimé dans l'application : cela se fait sur le site.</p>
       <h2 style="font-size:16px">Notifications</h2>
       <p>Si vous autorisez les notifications d'Ozimut sur un appareil, le site conserve, pour cet appareil, l'adresse d'envoi que lui
         attribue le service de notification de votre navigateur (Google pour Chrome et Android, Apple pour Safari, Mozilla pour

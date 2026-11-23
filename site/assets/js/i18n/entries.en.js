@@ -485,4 +485,6 @@ export default {
   "ent.org.pub.noRace": "A club training has no race page: download the list.",
   "ent.org.oldDeposit": "Upload a start list (file)",
   "ent.org.oldDeposit.hint": "For a race whose entries are made elsewhere: the start list published as it is.",
+  // the Ozimut app: no account made with an entry
+  "ent.guest.app": "Sign in to enter.",
 };

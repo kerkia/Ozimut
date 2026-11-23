@@ -486,4 +486,6 @@ export default {
   "ent.org.pub.noRace": "Un entraînement de club n'a pas de page de course : téléchargez la liste.",
   "ent.org.oldDeposit": "Déposer une liste de départ (fichier)",
   "ent.org.oldDeposit.hint": "Pour une course dont les inscriptions se font ailleurs : la liste de départ publiée telle quelle.",
+  // the Ozimut app: no account made with an entry
+  "ent.guest.app": "Connectez-vous pour vous inscrire.",
 };

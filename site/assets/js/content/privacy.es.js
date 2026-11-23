@@ -1,7 +1,7 @@
 // The privacy policy and legal notices, in Spanish — a translation for information; the French version (privacy.fr.js, the
 // reference) prevails. Keep the two in step.
 // world: registration open to every orienteer (privacy.fr.js, which prevails).
-export const body = (SITE, { world = false } = {}) => `
+export const body = (SITE, { world = false, later = "" } = {}) => `
       <p class="muted"><i>Esta versión en español se ofrece a título informativo; prevalece la versión francesa.</i></p>
       <p>${SITE} es un sitio independiente, sin vínculo con la Federación Francesa de Orientación (Fédération française de course
         d'orientation, FFCO). Lo edita a título personal y sin ánimo de lucro <b>Yann Le Helloco</b>, responsable del tratamiento de
@@ -32,7 +32,7 @@ export const body = (SITE, { world = false } = {}) => `
         son visibles para todos, con o sin cuenta. Toda persona afectada puede pedir que deje de ser identificada en ellos (ver
         «Tus derechos»).</p>
       <h2 style="font-size:16px">Acceso e imágenes del sitio</h2>
-      <p>${SITE} es gratis durante su lanzamiento. A medida que crezca su uso, algunas funciones avanzadas o costosas podrán pasar a ser de pago: lo anunciaremos con al menos dos meses de antelación, y lo que ya hayas guardado seguirá pudiendo consultarse y exportarse.</p>
+      ${later ? `<p>${later}</p>` : ""}
       <p>Una parte del sitio se consulta sin cuenta; una cuenta da acceso a las alertas y a compartir
         tracks GPS, y el historial completo de la clasificación está reservado a los federados de la federación: en Francia, una cuenta que se ha unido
         a Francia, con su número de licencia FFCO verificado a partir del nombre. Los países cuyos resultados son todos públicos (España)
@@ -243,6 +243,8 @@ export const body = (SITE, { world = false } = {}) => `
       </ul>
       <p>Un mensaje enviado desde la página «Contacto» llega al editor por correo electrónico, acompañado de tu dirección, tu nombre y el
         navegador utilizado; se conserva en su buzón el tiempo necesario para tramitar la solicitud.</p>
+      <h2 style="font-size:16px">La aplicación Ozimut</h2>
+      <p>La aplicación Ozimut para teléfonos muestra este sitio y no sigue tu posición. Si activas en ella las notificaciones, el sitio conserva, para ese teléfono, el identificador de envío que le asigna el servicio de notificaciones del teléfono (Google en Android, Apple en iPhone) y el tipo de dispositivo; se borra cuando las desactivas, cierras sesión en la aplicación o eliminas tu cuenta. El mapa que escaneas, los archivos que compartes con ella y las rutas leídas en Salud (iPhone, con tu consentimiento, solo lectura) se quedan en el teléfono, como en el sitio, mientras no guardes ni compartas el análisis. En la aplicación no se crea ni se elimina ninguna cuenta: eso se hace en el sitio.</p>
       <h2 style="font-size:16px">Notificaciones</h2>
       <p>Si autorizas las notificaciones de Ozimut en un dispositivo, el sitio conserva, para ese dispositivo, la dirección de envío que le
         asigna el servicio de notificaciones de tu navegador (Google para Chrome y Android, Apple para Safari, Mozilla para

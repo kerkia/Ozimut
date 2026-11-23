@@ -4,16 +4,23 @@
 # the working tree: another session's unfinished edits do not count), so a key added in French without its English,
 # German and Spanish, a placeholder that differs, or French written in the code stops the commit.
 # Installed by: git config core.hooksPath tools/git-hooks
-staged=$(git diff --cached --name-only --diff-filter=ACMR -- site/assets/js tools/i18n_check.mjs)
+staged=$(git diff --cached --name-only --diff-filter=ACMR -- site/assets/js tools/i18n_check.mjs tools/offer_check.mjs)
 [ -z "$staged" ] && exit 0
 command -v node >/dev/null 2>&1 || { echo "pre-commit: node not found, translations not checked" >&2; exit 0; }
 tmp=$(mktemp -d)
 trap 'rm -rf "$tmp"' EXIT
-git ls-files -z -- site/assets/js tools/i18n_check.mjs | xargs -0 git checkout-index --prefix="$tmp/" --
+git ls-files -z -- site/assets/js tools/i18n_check.mjs tools/offer_check.mjs | xargs -0 git checkout-index --prefix="$tmp/" --
 if ! node "$tmp/tools/i18n_check.mjs" --strict > "$tmp/report.txt" 2>&1; then
   echo "pre-commit: the interface's four languages are not in step (tools/i18n_check.mjs --strict):" >&2
   grep -E ': [1-9][0-9]*$|^  ' "$tmp/report.txt" >&2
   echo "Add the missing keys in en.js, de.js and es.js (and tracer.*.js), with the same {placeholders}." >&2
+  exit 1
+fi
+# The purchase gate (docs/app/design.md): nothing about prices, plans or buying outside site/assets/js/offers.js, so that the
+# Ozimut app, where that module draws nothing, never shows an invitation to buy.
+if [ -f "$tmp/tools/offer_check.mjs" ] && ! node "$tmp/tools/offer_check.mjs" > "$tmp/offers.txt" 2>&1; then
+  echo "pre-commit: the purchase gate (tools/offer_check.mjs):" >&2
+  cat "$tmp/offers.txt" >&2
   exit 1
 fi
 exit 0

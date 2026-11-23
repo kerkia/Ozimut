@@ -33,6 +33,12 @@ const PUBLIC = [/^\/$/, /^\/index\.html$/, /^\/robots\.txt$/, /^\/assets\//, /^\
 const RECHECK_MS = 3600e3;       // how often a session is re-validated against the accounts database
 // A demo account (admin page, « Démo »; 2026-10-18) only reads: any other method is refused, but for these
 const DEMO_WRITES = [/^\/api\/track$/, /^\/api\/ask$/];
+
+// The Ozimut app (docs/app/design.md; owner, 2026-11-23): a companion that never shows an invitation to buy and makes or
+// deletes no account. Its web view says who it is in its user agent (« OzimutApp/1.0 (ios) »); whatever a page did there, the
+// server refuses it everything about buying (/api/billing, when plans exist) and the account's making and deletion.
+export const fromApp = (request) => /\bOzimutApp\/[\d.]+/.test(request.headers.get("User-Agent") || "");
+const APP_REFUSED = [/^\/api\/billing(\/|$)/, /^\/api\/account\/register$/, /^\/api\/account\/delete$/, /^\/api\/entries\/[^/]+\/guest$/];
 const parisToday = () => new Date().toLocaleDateString("en-CA", { timeZone: "Europe/Paris" });
 // What a session may read by its countries (`cc`, the accepted memberships; owner, 2026-10-20). Each country's data sits in
 // /data/<cc>/ (2026-10-22) and follows that country's rule (_lib/countries.js DATA_ACCESS): "members" — France: its
@@ -169,6 +175,9 @@ export async function onRequest(context) {
   const path = canonical(new URL(request.url).pathname);
   if (path === null) return new Response("Bad request", { status: 400 });
   if (path === "/auth" || path.startsWith("/auth/")) return new Response("Not found", { status: 404 });
+  if (APP_REFUSED.some((re) => re.test(path)) && fromApp(request)) {
+    return new Response(JSON.stringify({ error: "app" }), { status: 403, headers: { "Content-Type": "application/json", "Cache-Control": "no-store" } });
+  }
   if (PUBLIC.some((re) => re.test(path))) return next();
   const s = await readSession(request, env.SESSION_SECRET);
   if (!s?.uid) {                      // only account sessions count (the name+licence login is gone)

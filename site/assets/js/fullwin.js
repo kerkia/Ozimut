@@ -7,6 +7,7 @@
 // tab is opened by script, without « noopener », so it starts with a copy of this tab's session storage: « Analyse solo »
 // finds its files there as after a reload.
 
+import { inApp } from "./appbridge.js";
 import { t } from "./i18n.js";
 
 const CLS = "full-win";
@@ -86,7 +87,7 @@ export function newTab() {
 }
 /** The two buttons, as HTML (pages pass it through raw()); `tab: false` leaves « ↗ » out (the analyses, owner 2026-11-06: of no use
  *  on a phone, and not wanted on a computer either). */
-export const buttons = ({ tab = true } = {}) => { const l = look(); return `<button type="button" class="btn btn-sm fw-btn" data-fw="toggle" aria-pressed="${l.on}" title="${l.title}">${l.text}</button>${inOwnTab() || !tab ? "" : `<button type="button" class="btn btn-sm fw-btn" data-fw="tab" title="${t("fw.tab")}">↗</button>`}`; };
+export const buttons = ({ tab = true } = {}) => { const l = look(); return `<button type="button" class="btn btn-sm fw-btn" data-fw="toggle" aria-pressed="${l.on}" title="${l.title}">${l.text}</button>${inOwnTab() || !tab || inApp() ? "" : `<button type="button" class="btn btn-sm fw-btn" data-fw="tab" title="${t("fw.tab")}">↗</button>`}`; };
 
 let bound = false;
 /** Once per visit: the buttons' clicks (wherever a page draws them) and Échap. */

@@ -43,7 +43,18 @@ async function authorised(request, env) {
 }
 
 const ACTIVE = "u.email_verified = 1 AND u.status = 'active'";
-const HAS_PUSH = "EXISTS (SELECT 1 FROM push_subs s WHERE s.user_id = u.id)";
+// a device that takes notifications: a browser's Web Push subscription, or the Ozimut app on a phone (app_push, migration
+// 0032, docs/app/design.md — counted once the table exists: `devices`, at the start of each request)
+const WEB_PUSH = "EXISTS (SELECT 1 FROM push_subs s WHERE s.user_id = u.id)";
+let HAS_PUSH = WEB_PUSH, devicesKnown = false;
+async function devices(env) {
+  if (devicesKnown) return;
+  try {
+    await env.DB.prepare("SELECT 1 FROM app_push LIMIT 1").first();
+    HAS_PUSH = `(${WEB_PUSH} OR EXISTS (SELECT 1 FROM app_push a WHERE a.user_id = u.id))`;
+    devicesKnown = true;
+  } catch (e) { /* before migration 0032: the browsers' subscriptions alone */ }
+}
 // told of their results: by e-mail (a right the administrator grants), or by push on a device
 const MAIL_RESULTS = "(u.notify = 1 AND u.alerts_allowed = 1)";
 const subscribed = (env) => (pushReady(env) ? `${ACTIVE} AND (${MAIL_RESULTS} OR (u.push_results = 1 AND ${HAS_PUSH}))` : `${ACTIVE} AND ${MAIL_RESULTS}`);
@@ -51,6 +62,7 @@ const subscribed = (env) => (pushReady(env) ? `${ACTIVE} AND (${MAIL_RESULTS} OR
 const startsWho = (env) => `${ACTIVE} AND ((u.starts_alert = 1 AND u.alerts_allowed = 1)${pushReady(env) ? ` OR (u.push_starts = 1 AND ${HAS_PUSH})` : ""})`;
 
 export async function onRequestGet({ request, env }) {
+  await devices(env);
   if (!(await authorised(request, env))) return json({ error: "forbidden" }, 403);
   const { results } = await env.DB.prepare(`SELECT DISTINCT licence FROM users u WHERE ${subscribed(env)}`).all();
   const starts = (await env.DB.prepare(`SELECT DISTINCT licence FROM users u WHERE ${startsWho(env)}`).all()).results.map((r) => r.licence);
@@ -196,6 +208,7 @@ async function queueStarts(env, list) {
 }
 
 export async function onRequestPost({ request, env }) {
+  await devices(env);
   if (!(await authorised(request, env))) return json({ error: "forbidden" }, 403);
   const b = await readBody(request);
   const startsQueued = Array.isArray(b?.starts) ? await queueStarts(env, b.starts) : 0;

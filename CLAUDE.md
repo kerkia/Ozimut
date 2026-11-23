@@ -24,6 +24,7 @@ runner histories, clubs, comparisons, an agenda of upcoming events and per-race 
 | `.github/workflows/update.yml` | Hourly quick run, 03:00 Paris full run, 06:00 Paris agenda run, Sat/Sun evening provisional-results runs (every 20 min), deploy on push |
 | `run_cn.py`, `query_cn.py`, `merge_methods.py` | Developer tools (recompute one method, inspect a runner, merge DBs) |
 | `track/` | **GPS tracking's native apps** (2026-11-21, see « Live GPS tracking »): `track/android` (Kotlin), `track/ios` (Swift, XcodeGen: the iPhone app and its Apple Watch app), `track/garmin` (Monkey C data field); each built by its own workflow (`track-android.yml`, `track-ios.yml`, `track-garmin.yml`) on a push touching it |
+| `app/` | **The Ozimut app** (2026-11-23, see « The Ozimut app »): `app/android` (Kotlin) and `app/ios` (Swift, XcodeGen), the site in a web view plus notifications, shared files, the document scanner, Apple Health routes; built by `app-android.yml` / `app-ios.yml` on a push touching them |
 | `live/` | **O'CN's live relay**, Worker `ocn-live` (2026-10-18): Durable Objects — one `LiveRace` per liveresultat competition (« En direct »), MeOSDjango, O'Live, SPORTident Center or OResults race, or organiser's broadcast (« Organisation › Direct »), and the `Directory` (liveresultat's, MeOSDjango's and O'Live's lists, the broadcasts). No public address (`workers_dev = false`): O'CN reaches it only through its Durable Object bindings (`wrangler.toml` LIVE_RACE, LIVE_DIR) — `functions/api/live/list.js`, `functions/ws/[comp].js`, `functions/api/live/push.js`, `mop.js` (MeOS's online results) and `broadcasts.js`. Deployed by hand: `cd live && npx wrangler deploy`; local: launch config `ocn-live-dev` (8786), the local Pages dev binds to it; `live/dev/lr-mock.mjs` replays recorded races as liveresultat's API (`--var LR_API:…`) |
 
 On the PC everything is under `C:\kerkia\Ozimut` (one folder since 2026-11-07; `C:\kerkia\CO` and `C:\kerkia\cn-data` before):
@@ -869,6 +870,51 @@ banner asking a parent), a child taking the account over from 15 (`POST /api/tra
 - **Local test**: launch configs `ocn-live-track` (8771) then `pages-dev-track` (8774, a copy of the local state with 0029
   applied, the relay bound with `--do LIVE_TRACK=LiveTrack@ocn-live`); scripts `t_track.mjs` (the API, 31 checks) and
   `t_ws.mjs` (the relay) kept in `C:\Kerkia\Ozimut\work\scratch-scripts`.
+
+## The Ozimut app (companion to the site)
+
+**Built 2026-11-23** (owner: « a companion app which presents all features the logged-in user is allowed to use… no invite to
+purchase anything would ever be presented »). **The contract is `docs/app/design.md`: change it first, then the code.** The live
+site in a native web view (Android `app/android`, iPhone `app/ios`; ids `com.ozimut.app`), recognised by its user agent
+(` OzimutApp/<version> (android|ios)`: `appbridge.inApp()` in the page, `_middleware.js fromApp` on the server, `<html
+class="in-app">`). Not Ozitrac: **it does not track** (owner). Its headline, to push in the stores (owner): **the race analysed
+in the arena** — the map scanned, the GPS track taken from the watch (shared from its maker's app; on an iPhone read from Apple
+Health), laid on each other in « Analyse » minutes after the finish.
+
+- **The purchase gate** (the stores' condition for an app that sells nothing: Apple 3.1.3(f), Google's « consumption-only »):
+  **everything about prices, plans and buying is drawn by `site/assets/js/offers.js` and by nothing else** — today the home page's
+  « Tarifs » table, its bar link, « Gratuit aujourd'hui » and the rules' sentence on features that may become paid; tomorrow the
+  pricing page, « Réglages › Abonnement », the mark on a feature an account lacks. Its texts are the area `i18n/billing.<lang>.js`
+  (keys `bill.*`), loaded by that module only and never in the app, where every function of it returns nothing; a feature an
+  account lacks is absent in the app, never greyed with a reason. `tools/offer_check.mjs` (in the pre-commit hook) refuses a
+  `bill.*` key, the area, a checkout host or `/api/billing` named elsewhere, and selling words in the other catalogues (its
+  allowed keys and files, with reasons: race entries and club accounts — real-world payments between people and clubs —, the
+  administrators' costs, « IA »'s third-party prices, a watch's mobile plan). The server refuses the app `/api/billing/*`,
+  `/api/account/register`, `/api/account/delete` and the entries' guest sign-up (403 `{ error: "app" }`); the shells never load
+  nor hand to the browser a checkout host. `tools/app/crawl.mjs` (puppeteer-core, `npm install` in `tools/app`; from
+  PowerShell): every page opened with the app's user agent, signed out, as a visitor and with an account, in four languages,
+  failing on a price, a selling word, a way to create an account, a web-only setting or « IA » — **run it before each release**
+  (launch config `pages-dev-app`, 8757). Notifications never carry an offer.
+- **A companion** (owner): no account is made or deleted in the app (`#/compte/inscription` leads to the sign-in screen, every
+  link to it absent — `appbridge.appKey` picks a text's `.app` wording without « créez un compte »), signed out it shows the
+  sign-in card alone (no tour, no reel) with « Mot de passe oublié » and « Entrer sans compte » (kept, owner); `#/reglages` is the
+  alerts, this phone's notifications, the language and signing out (`[data-web-only]` sections removed); the rules page without
+  the paid-features sentence; no « Installer l'application », no « ↗ ».
+- **« IA » is not offered on any phone**, app or browser (owner, 2026-11-23: `app.isPhone`, the menu entry and the route).
+- **The bridge** (`appbridge.js`): `info`, `pushState` / `pushRegister` / `pushOff`, `saveFile` (every export of the site is an
+  `<a download>` clicked by code: caught once, `catchDownloads`, and handed to the share sheet), `scanMap` (VisionKit / ML Kit's
+  document scanner: the page straightened), `healthRoutes` / `healthRoute` (iPhone), `openSettings`; events `files` (opened with
+  or shared to the app → « Analyse solo »'s inbox) and `push`. `appfiles.js` draws « Scanner la carte » and « Mes sorties
+  (Santé) » in Analyse solo's files card.
+- **Native notifications**: migration `0032_app_push.sql` (`app_push`, one row a phone); the page posts the shell's token with
+  its session (`POST /api/push/native`, `native-off`; `push.js` in the app); `pushToUser` sends **every** notification of the
+  account to those phones (`nativepush.appToUser`: FCM, APNs topic `com.ozimut.app`), and `/api/notify` counts such a phone as
+  a push device. Ozitrac's phones still get the tracking's alerts only.
+- **The owner's steps** (Apple developer account, keys, TestFlight, Firebase, Play): `docs/app/setup.md`; the store texts in
+  four languages, the review notes and the ready replies to a 3.1.x or 4.2 objection: `docs/app/store.md`.
+- **Never compiled locally nor run on a device** (2026-11-23): the first GitHub builds are the first compilations; iOS's
+  app-bound domains against the anti-robot frame, APNs from a Worker, the Android scanner's dependency version and photos
+  shared from the iPhone's Photos app (a Share Extension, not built) are the known unknowns.
 
 ## Changing a method: migrations
 
