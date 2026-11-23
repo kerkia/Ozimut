@@ -219,7 +219,8 @@ export async function render(main, { query }) {
   let toToday = !returning;
   // a runner: one's own competitions or another runner's, as on the other lists of races (racefilters.js; France's members):
   // the events whose start list or results name them
-  const RF = await raceFilters({ id: "agr", races: events, address: false, fields: ["runner"], bare: true,
+  // (the runner chosen comes back with the other filters: it was lost on the way back from a race)
+  const RF = await raceFilters({ id: "agr", races: events, address: false, fields: ["runner"], bare: true, runner: returning?.runner ?? undefined,
     facts: (e) => ({ spec: null, region: "", lics: e.lics || licsOf.get(String(e.id)) || [], text: "" }), onChange: () => drawTable() });
   if (RF.withRunner) { $("#ag-rf").innerHTML = RF.html; RF.bind(); }
 
@@ -817,7 +818,7 @@ export async function render(main, { query }) {
     else window.scrollTo({ top: returning.y, behavior: "instant" });
   }, 0);
   const keep = () => ({ cc, when: [...st.when], f: { kinds: [...st.kinds], cnOnly: st.cnOnly, from: st.from, to: st.to, spec: st.spec,
-    regions: [...st.regions], depts: [...st.depts], groups: [...st.groups] }, box: $("#table").scrollTop, y: window.scrollY, at: Date.now() });
+    regions: [...st.regions], depts: [...st.depts], groups: [...st.groups] }, runner: RF.runner(), box: $("#table").scrollTop, y: window.scrollY, at: Date.now() });
   page.addEventListener("click", (e) => { if (e.target.closest("tr[data-key], a[href]")) memo = keep(); }, true);
   // a change of country builds the page again (app.pickCountry): what it keeps is noted before
   const onCountry = () => { memo = { ...keep(), carry: true }; };

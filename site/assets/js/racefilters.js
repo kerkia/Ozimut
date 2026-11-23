@@ -29,11 +29,12 @@ export const provFacts = (r) => ({ spec: specOf(r), region: r.region || "", lics
  *   ranBy    (race, licence) → also the runner's race (Résultats: FFCO's own published races)
  *   onChange called after any change
  *   address  the state kept in the address (false: the page's address is its own)
+ *   runner   the runner chosen at the start (a page that remembers its own state: the Agenda; null: nobody), over the address's
  *   fields   the fields drawn (default all: show, spec, reg, runner, q); bare: without the fold (inside a page's own filters)
  * Returns { html, bind(), keep(race), shown, runner(), one() }.
  */
 export async function raceFilters({ id, query = {}, races = [], facts = provFacts, show = null, mine = false, ranBy = null, onChange, address = true,
-  fields = null, bare = false }) {
+  fields = null, bare = false, runner }) {
   const has = (f) => !fields || fields.includes(f);
   const F = races.map(facts);
   const specs = SPECS.filter((s) => F.some((x) => x.spec === s));
@@ -46,7 +47,7 @@ export async function raceFilters({ id, query = {}, races = [], facts = provFact
     shown: show?.some(([v]) => v === query.f) ? query.f : show ? show[0][0] : null,
     spec: specs.includes(query.t) ? query.t : "all",
     reg: regions.includes(query.reg) ? query.reg : "",
-    runner: !withRunner ? null : query.r && data.runner(query.r) ? String(query.r) : query.who === "all" || !mine ? null : me,
+    runner: !withRunner ? null : runner !== undefined ? (runner && data.runner(runner) ? String(runner) : null) : query.r && data.runner(query.r) ? String(query.r) : query.who === "all" || !mine ? null : me,
     q: query.q || "",
   };
   const name = (lic) => displayName(data.runner(lic)?.nom || lic);
