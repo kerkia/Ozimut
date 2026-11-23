@@ -436,8 +436,8 @@ export function build(X) {
             velocidad en los caminos y la subida se calibran con todo el grupo (todos los tramos de todos los corredores), y cada uno conserva su
             ritmo.</p>`)}`,
       suivi: () => html`
-        <div class="mx-callout"><b>En pruebas, solo para los administradores.</b> El seguimiento GPS solo se muestra por ahora a los
-          administradores de Ozimut. Las aplicaciones para Android, iPhone, Apple Watch y Garmin aún no se han probado nunca en un dispositivo real.</div>
+        <div class="mx-callout"><b>En pruebas.</b> El seguimiento GPS solo se muestra por ahora a los
+          administradores de Ozimut y a algunos probadores. Las aplicaciones para Android, iPhone y Apple Watch aún no se han probado nunca en un dispositivo real.</div>
         ${slide("Coach", "1. Para qué sirve el seguimiento GPS", html`
           <p>El ${P("#/suivi", "seguimiento GPS")} sirve para dos cosas: <b>registrar tu carrera</b> sin reloj GPS, con el teléfono, y
             <b>seguir en directo</b> a un corredor — sobre todo a un niño en el bosque, al que sus padres quieren ver avanzar y encontrar si se
@@ -454,8 +454,8 @@ export function build(X) {
               bolsillo o un brazalete y se detiene manteniendo pulsado el botón dos segundos. Un botón « Necesito ayuda » avisa enseguida a los
               seguidores;`,
             html`<b>un Apple Watch</b> con la aplicación Ozimut: registra solo y envía solo si tiene datos móviles;`,
-            html`<b>un reloj Garmin</b> con el campo de datos de Ozimut, añadido a la pantalla de una actividad de carrera: envía a través del
-              teléfono conectado por Bluetooth (un Garmin no da acceso móvil a las aplicaciones);`,
+            html`los demás relojes (Garmin, Polar, Suunto, Coros…) no dan a las aplicaciones acceso a la red móvil: solo pueden enviar su posición
+              a través de un teléfono, que entonces puede registrar solo. Su traza se añade después de la carrera;`,
             html`<b>Traccar Client</b>, una aplicación gratuita, para probar sin la aplicación Ozimut.`,
           ])}
           <p>Antes de la primera carrera, haz la <b>prueba de dos minutos</b> de la aplicación: con la pantalla bloqueada, comprueba que el

@@ -828,7 +828,10 @@ banner asking a parent), a child taking the account over from 15 (`POST /api/tra
 - **Native apps** (`track/`, each its README): Android (foreground service of type location, SQLite queue, zxing pairing,
   FCM when `google-services.json` exists; Health Connect not done), iPhone + Apple Watch (CLLocationManager with
   CLBackgroundActivitySession, HealthKit routes, APNs, WatchConnectivity pairing of the watch; the watch records with an
-  HKWorkoutSession and sends alone on cellular), Garmin data field (claim code, sends through the phone; 37 products). **Only
+  HKWorkoutSession and sends alone on cellular), Garmin data field (claim code, sends through the phone; 37 products) — **set aside** (owner, 2026-11-23: it needs the phone, which can
+  then track by itself; its code stays, nothing on the site offers it). « Associer une montre » explains which watches can track alone:
+  only a cellular Apple Watch lets an app use the mobile network (`trk.watch.*`); a Wear OS watch with LTE could too, with an app not
+  written yet. **Only
   built and unit-tested in CI, never run on a device**; signing, stores, icons and the owner's accounts still to come.
 - **Administrators only for now** (owner, 2026-11-22: « make all this visible to admin only for now »): while `TRACK_OPEN` is "0" the
   menu entry, the page (`app.trackShown`, the router sends others to the modules page), the Coach guide's chapter « Suivi GPS »

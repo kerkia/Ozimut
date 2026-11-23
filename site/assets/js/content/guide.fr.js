@@ -439,8 +439,8 @@ export function build(X) {
             itinéraire <i>pour ce coureur</i>, le choix se mesure contre lui, l'exécution contre ses vitesses habituelles. Dans « Comparer avec les autres coureurs », la
             vitesse sur les chemins et la montée se calibrent sur tout le groupe (tous les postes de tous les coureurs), et chacun garde son allure.</p>`)}`,
       suivi: () => html`
-        <div class="mx-callout"><b>En essai, pour les administrateurs seulement.</b> Le suivi GPS ne s'affiche pour l'instant qu'aux
-          administrateurs d'Ozimut. Les applications Android, iPhone, Apple Watch et Garmin n'ont encore jamais été essayées sur un vrai
+        <div class="mx-callout"><b>En essai.</b> Le suivi GPS ne s'affiche pour l'instant qu'aux
+          administrateurs d'Ozimut et à quelques testeurs. Les applications Android, iPhone et Apple Watch n'ont encore jamais été essayées sur un vrai
           appareil.</div>
         ${slide("Coach", "1. À quoi sert le suivi GPS", html`
           <p>Le ${P("#/suivi", "Suivi GPS")} sert à deux choses : <b>enregistrer sa course</b> sans montre GPS, avec son téléphone, et
@@ -457,8 +457,8 @@ export function build(X) {
             html`<b>l'application Ozimut</b> sur Android ou iPhone : tout le site, plus le suivi. On démarre, on range le téléphone dans une poche
               ou un brassard, on arrête en gardant le bouton appuyé deux secondes. Un bouton « J'ai besoin d'aide » prévient aussitôt les suiveurs ;`,
             html`<b>une Apple Watch</b> avec l'application Ozimut : elle enregistre seule, et envoie seule si elle a le réseau mobile ;`,
-            html`<b>une montre Garmin</b> avec le champ de données Ozimut, ajouté à l'écran d'une activité de course : il envoie par le téléphone
-              resté en Bluetooth (une Garmin n'a pas d'accès mobile pour les applications) ;`,
+            html`les autres montres (Garmin, Polar, Suunto, Coros…) ne donnent pas aux applications d'accès au réseau mobile : elles ne peuvent
+              envoyer leur position que par un téléphone, qui peut alors enregistrer seul. Leur trace s'ajoute après la course ;`,
             html`<b>Traccar Client</b>, une application gratuite, pour essayer sans l'application Ozimut.`,
           ])}
           <p>Avant la première course, faites le <b>test de deux minutes</b> de l'application : écran verrouillé, il vérifie que le téléphone

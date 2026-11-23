@@ -67,9 +67,11 @@ This tests the server, the live page and the alerts with a free app, before the 
 
 Notifications on the phone need step 6.
 
-## 4. The Garmin data field (about 20 minutes)
+## 4. The Garmin data field — set aside (2026-11-23)
 
-The simplest way, whatever the watch model, is a private beta on the Connect IQ store:
+The owner set it aside: a Garmin watch sends only through its phone, which can then track by itself (step 3). The code stays
+in `track/garmin`; nothing on the site offers it. If it is ever taken up again, the simplest way, whatever the watch model, is
+a private beta on the Connect IQ store:
 
 1. Create a free Garmin developer account: developer.garmin.com (« Sign in » with your Garmin account), accept the
    Connect IQ developer agreement.

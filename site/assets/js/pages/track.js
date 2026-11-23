@@ -78,8 +78,8 @@ function dialog(inner) {
   return d;
 }
 /** A line of text asked in the page (never the browser's prompt: CLAUDE.md « No confirm() or alert() »). -> the text or null */
-function askText(title, value = "", { max = 80 } = {}) {
-  const d = dialog(html`<h3>${title}</h3><form method="dialog" class="trk-form trk-ask"><input name="v" maxlength="${max}" value="${value}" required>
+function askText(title, value = "", { max = 80, intro = "" } = {}) {
+  const d = dialog(html`<h3>${title}</h3>${raw(intro)}<form method="dialog" class="trk-form trk-ask"><input name="v" maxlength="${max}" value="${value}" required>
     <button class="btn btn-primary" value="ok">${t("trk.ok")}</button></form>`.s);
   const inp = $(".trk-ask input", d);
   inp.focus(); inp.select();
@@ -599,7 +599,11 @@ async function accountBody(el, acc, S, mine, redraw) {
     showCode(L("trk.pair.titleMe", "trk.pair.titleOf"), t("trk.pair.text"), r.data.url, r.data.code);
   });
   on("[data-a=watch]", async () => {
-    const code = await askText(L("trk.watch.askMe", "trk.watch.askOf"), "", { max: 6 });
+    // which watches can track alone, and what to do for one (owner, 2026-11-23): only a cellular Apple Watch lets an app reach
+    // the mobile network; Garmin, Polar, Suunto, Coros… send only through a phone, which can then record by itself
+    const intro = html`<p>${t("trk.watch.what")}</p><ul class="trk-watch-kinds"><li>${raw(t("trk.watch.apple"))}</li>
+      <li>${raw(t("trk.watch.others"))}</li></ul><p>${t("trk.watch.code")}</p>`.s;
+    const code = await askText(L("trk.dev.watchMe", "trk.dev.watchOf"), "", { max: 6, intro });
     if (!code) return;
     const r = await api("devices/claim", { account: acc.id, code });
     await alertBox(r.ok ? t("trk.watch.ok") : errText(r));

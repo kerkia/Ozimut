@@ -5049,6 +5049,7 @@ body[data-group="pixel"] { --grp: var(--pixel); --grp-wash: var(--pixel-wash); }
 form.trk-person-body { padding-top: 14px; }
 .trk-person h3 .tag { font-size: 12px; vertical-align: middle; }
 .trk-danger { color: var(--bad); }
+.trk-watch-kinds { padding-left: 18px; margin: 8px 0; } .trk-watch-kinds li { margin: 6px 0; }   /* « Associer une montre »: which watches can track */
 .trk-dlg { border: none; border-radius: var(--radius); padding: 18px 20px; max-width: min(440px, 92vw); background: var(--surface); color: var(--ink); box-shadow: var(--shadow-pop); }
 .trk-dlg::backdrop { background: rgba(0, 0, 0, .45); }
 .trk-dlg h3 { margin-top: 0; padding-right: 28px; }

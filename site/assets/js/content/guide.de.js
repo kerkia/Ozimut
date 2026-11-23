@@ -443,8 +443,8 @@ export function build(X) {
             seinen üblichen Geschwindigkeiten. In „Mit den anderen vergleichen“ werden die Geschwindigkeit auf Wegen und die Steigung an der ganzen Gruppe
             kalibriert (jede Teilstrecke jedes Läufers), und jeder behält sein eigenes Tempo.</p>`)}`,
       suivi: () => html`
-        <div class="mx-callout"><b>Im Test, nur für Administratoren.</b> Die GPS-Verfolgung wird vorerst nur den Administratoren von Ozimut
-          angezeigt. Die Apps für Android, iPhone, Apple Watch und Garmin wurden noch nie auf einem echten Gerät ausprobiert.</div>
+        <div class="mx-callout"><b>Im Test.</b> Die GPS-Verfolgung wird vorerst nur den Administratoren von Ozimut
+          und einigen Testern angezeigt. Die Apps für Android, iPhone und Apple Watch wurden noch nie auf einem echten Gerät ausprobiert.</div>
         ${slide("Coach", "1. Wozu die GPS-Verfolgung dient", html`
           <p>Die ${P("#/suivi", "GPS-Verfolgung")} dient zweierlei: <b>den eigenen Lauf aufzeichnen</b> ohne GPS-Uhr, mit dem Telefon, und
             <b>einen Läufer live verfolgen</b> — vor allem ein Kind im Wald, das seine Eltern vorankommen sehen und wiederfinden wollen, falls es
@@ -461,8 +461,8 @@ export function build(X) {
               ein Armband stecken, zum Beenden den Knopf zwei Sekunden gedrückt halten. Ein Knopf « Ich brauche Hilfe » warnt sofort die
               Verfolgenden;`,
             html`<b>einer Apple Watch</b> mit der Ozimut-App: Sie zeichnet allein auf und sendet allein, wenn sie mobiles Netz hat;`,
-            html`<b>einer Garmin-Uhr</b> mit dem Ozimut-Datenfeld, auf dem Bildschirm einer Laufaktivität: Es sendet über das per Bluetooth
-              verbundene Telefon (eine Garmin gibt Apps keinen mobilen Zugang);`,
+            html`andere Uhren (Garmin, Polar, Suunto, Coros…) geben Apps keinen Zugang zum Mobilfunknetz: Sie können ihre Position nur über
+              ein Telefon senden, das dann auch allein aufzeichnen kann. Ihre Spur wird nach dem Lauf hinzugefügt;`,
             html`<b>Traccar Client</b>, einer kostenlosen App, um es ohne die Ozimut-App auszuprobieren.`,
           ])}
           <p>Mach vor dem ersten Lauf den <b>Zwei-Minuten-Test</b> der App: Bei gesperrtem Bildschirm prüft er, ob das Telefon richtig
