@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="net_offline_title">Ozimut ist nicht erreichbar</string>
+    <string name="net_offline_text">Prüfe dein Netz und versuche es dann noch einmal.</string>
+    <string name="net_retry">Erneut versuchen</string>
+    <string name="download_started">Wird heruntergeladen…</string>
+    <string name="choose_file">Datei auswählen</string>
+    <string name="share_file">Speichern oder teilen</string>
+    <string name="notif_channel_alerts">Benachrichtigungen</string>
+    <string name="notif_channel_help">Dringende Benachrichtigungen</string>
+</resources>

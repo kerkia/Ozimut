@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- The camera's photos for a page's file field, and the files the site hands over to be shared or saved -->
+<paths>
+    <cache-path name="camera" path="camera/" />
+    <cache-path name="share" path="share/" />
+</paths>

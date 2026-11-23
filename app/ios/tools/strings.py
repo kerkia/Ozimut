@@ -1,0 +1,93 @@
+#!/usr/bin/env python3
+"""The shell's own texts in its four languages, French the reference wording (German « du », Spanish « tú »).
+Writes Resources/Localizable.xcstrings and Resources/<lang>.lproj/InfoPlist.strings.
+
+Edit the tables here, then run `python3 tools/strings.py` from app/ios and commit both outputs. Nothing here may
+speak of prices, plans or buying (docs/app/design.md « The purchase gate »).
+"""
+import json
+import pathlib
+
+NB = " "  # French spaces before ; : ! ?
+
+# key: (fr, en, de, es)
+TEXTS = {
+    "common.close": ("Fermer", "Close", "Schließen", "Cerrar"),
+    "common.ok": ("OK", "OK", "OK", "Aceptar"),
+    "common.cancel": ("Annuler", "Cancel", "Abbrechen", "Cancelar"),
+
+    "offline.title": ("Pas de connexion", "No connection", "Keine Verbindung", "Sin conexión"),
+    "offline.text": ("Ozimut a besoin d'Internet pour s'ouvrir. Vérifie ta connexion, puis réessaie.",
+                     "Ozimut needs the Internet to open. Check your connection, then try again.",
+                     "Ozimut braucht das Internet zum Öffnen. Prüfe deine Verbindung und versuche es erneut.",
+                     "Ozimut necesita Internet para abrirse. Comprueba tu conexión y vuelve a intentarlo."),
+    "offline.retry": ("Réessayer", "Try again", "Erneut versuchen", "Reintentar"),
+
+    "file.tooBig": ("Fichier trop volumineux", "File too large", "Datei zu groß", "Archivo demasiado grande"),
+    "health.name": ("Entraînement du %@", "Workout of %@", "Training vom %@", "Entrenamiento del %@"),
+    "error.health": ("Santé n'est pas disponible", "Health is not available", "Health ist nicht verfügbar",
+                     "Salud no está disponible"),
+    "error.health.notFound": ("Entraînement introuvable", "Workout not found", "Training nicht gefunden",
+                              "Entrenamiento no encontrado"),
+}
+
+# Info.plist's purpose strings (InfoPlist.strings), same order. The English ones are also in project.yml.
+INFO = {
+    "CFBundleDisplayName": ("Ozimut", "Ozimut", "Ozimut", "Ozimut"),
+    "NSLocationWhenInUseUsageDescription": (
+        "Ozimut montre ta position sur la carte que tu regardes, seulement tant que cette page est ouverte.",
+        "Ozimut shows your position on the map you are looking at, only while that page is open.",
+        "Ozimut zeigt deine Position auf der Karte, die du gerade ansiehst, nur solange diese Seite geöffnet ist.",
+        "Ozimut muestra tu posición en el mapa que estás viendo, solo mientras esa página está abierta."),
+    "NSCameraUsageDescription": (
+        "L'appareil photo photographie et scanne tes cartes de course d'orientation.",
+        "The camera photographs and scans your orienteering maps.",
+        "Die Kamera fotografiert und scannt deine Orientierungslaufkarten.",
+        "La cámara fotografía y escanea tus mapas de orientación."),
+    "NSPhotoLibraryUsageDescription": (
+        "Choisis une photo de carte pour analyser ta course.",
+        "Choose a map photo to analyse your race.",
+        "Wähle ein Kartenfoto, um deinen Lauf zu analysieren.",
+        "Elige una foto de mapa para analizar tu carrera."),
+    "NSMicrophoneUsageDescription": (
+        "Une vidéo que tu enregistres pour l'analyse de ta course peut contenir le son.",
+        "A video you record for your race analysis may include sound.",
+        "Ein Video, das du für deine Laufanalyse aufnimmst, kann Ton enthalten.",
+        "Un vídeo que grabes para el análisis de tu carrera puede incluir sonido."),
+    "NSHealthShareUsageDescription": (
+        "Ozimut lit les tracés des entraînements enregistrés par ta montre, pour que tu puisses analyser une course sur sa carte.",
+        "Ozimut reads the routes of the workouts your watch recorded, so that you can analyse a race on its map.",
+        "Ozimut liest die Routen der Trainings, die deine Uhr aufgezeichnet hat, damit du einen Lauf auf seiner Karte analysieren kannst.",
+        "Ozimut lee las rutas de los entrenamientos que grabó tu reloj, para que puedas analizar una carrera sobre su mapa."),
+}
+
+LANGS = ["fr", "en", "de", "es"]
+
+
+def main():
+    root = pathlib.Path(__file__).resolve().parent.parent / "Resources"
+    root.mkdir(exist_ok=True)
+    strings = {}
+    for key in sorted(TEXTS):
+        values = TEXTS[key]
+        assert len(values) == 4, key
+        loc = {}
+        for lang, v in zip(LANGS, values):
+            loc[lang] = {"stringUnit": {"state": "translated", "value": v}}
+        strings[key] = {"extractionState": "manual", "localizations": loc}
+    catalog = {"sourceLanguage": "en", "strings": strings, "version": "1.0"}
+    (root / "Localizable.xcstrings").write_text(json.dumps(catalog, ensure_ascii=False, indent=2) + "\n",
+                                                encoding="utf-8", newline="\n")
+    for i, lang in enumerate(LANGS):
+        d = root / (lang + ".lproj")
+        d.mkdir(exist_ok=True)
+        lines = ['/* Generated by tools/strings.py: edit there. */']
+        for key, values in INFO.items():
+            assert len(values) == 4, key
+            v = values[i].replace("\\", "\\\\").replace('"', '\\"')
+            lines.append('"%s" = "%s";' % (key, v))
+        (d / "InfoPlist.strings").write_text("\n".join(lines) + "\n", encoding="utf-8", newline="\n")
+
+
+if __name__ == "__main__":
+    main()

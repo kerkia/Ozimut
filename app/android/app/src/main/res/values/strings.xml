@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name" translatable="false">Ozimut</string>
+    <string name="net_offline_title">Ozimut can\'t be reached</string>
+    <string name="net_offline_text">Check your network, then try again.</string>
+    <string name="net_retry">Try again</string>
+    <string name="download_started">Downloading…</string>
+    <string name="choose_file">Choose a file</string>
+    <string name="share_file">Save or share</string>
+    <string name="notif_channel_alerts">Alerts</string>
+    <string name="notif_channel_help">Urgent alerts</string>
+</resources>
