@@ -11,6 +11,8 @@ documentation chapter, the API. Nobody else sees anything until step 9.
 
 - D1 migration 0029 applied to the live database (2026-11-22).
 - The site deployed with the tracking (Coach › « Suivi GPS », administrators only).
+- Step 1, the live relay: `TRACK_RELAY_SECRET` set on the site and the relay, `ocn-live` deployed with `LiveTrack`,
+  the `LIVE_TRACK` binding uncommented (2026-11-23).
 
 ## 1. The live relay — live view and alerts (about 10 minutes)
 

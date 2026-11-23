@@ -815,8 +815,8 @@ banner asking a parent), a child taking the account over from 15 (`POST /api/tra
 - **Relay**: `live/src/track.js` `LiveTrack` (migration v3 in `live/wrangler.toml`, binding `TRACK`): the run under way, the
   watchers' sockets (hibernation), alerts every 30 s (start, end, help, silent 3 min, still 15 m / 5 min, battery < 15 %,
   back at the start, out of the area) posted to `<SITE_URL>/api/track/alert` with `TRACK_RELAY_SECRET`; the site's binding
-  `LIVE_TRACK` is **commented in `wrangler.toml` until the relay is deployed** — without it the runs are kept and the watch
-  page reads them every 20 s, but nobody gets alerts.
+  `LIVE_TRACK` bound since 2026-11-23 (the relay deployed, `TRACK_RELAY_SECRET` set on both sides); without it the runs are
+  kept and the watch page reads them every 20 s, but nobody gets alerts.
 - **Push**: `functions/_lib/nativepush.js` (FCM HTTP v1 by a service account's JWT, APNs by an ES256 JWT — HTTP/2 from Workers
   not verified); `pushToUser` sends to an account's native devices beside its Web Push subscriptions. Secrets
   `FCM_SERVICE_ACCOUNT`, `APNS_KEY`, `APNS_KEY_ID`, `APNS_TEAM_ID`, `APNS_TOPIC`; Polar `POLAR_CLIENT_ID`,
