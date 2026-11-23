@@ -116,6 +116,47 @@ export function frAt(fr, lat, lon) {
   const d = fr.depts.find((x) => inside(x.rings, lat, lon));
   return d ? { dept: d.code, region: d.region } : null;
 }
+// ---- the country of a point (site/assets/geo/index.json: each country file's box; tools/countrymaps.py) ------------------
+let indexP = null;
+const lands = new Map();
+const countryIndex = () => indexP || (indexP = fetch("/assets/geo/index.json").then((r) => (r.ok ? r.json() : {})).catch(() => { indexP = null; return {}; }));
+/** A country's land as rings of [lon, lat] (the file's rings are deltas × q). */
+function landOf(cc) {
+  if (!lands.has(cc)) lands.set(cc, fetch(`/assets/geo/${cc.toLowerCase()}.json`).then((r) => (r.ok ? r.json() : null)).then((g) => (g?.land || []).map((r) => {
+    const out = [];
+    for (let i = 0, x = 0, y = 0; i + 1 < r.length; i += 2) { x += r[i]; y += r[i + 1]; out.push([x / g.q, y / g.q]); }
+    return out;
+  })).catch(() => { lands.delete(cc); return []; }));
+  return lands.get(cc);
+}
+/** km from a point to the nearest edge of rings of [lon, lat] (equirectangular: short distances only). */
+function edgeKm(rings, lat, lon) {
+  const k = Math.cos(lat * Math.PI / 180);
+  let best = Infinity;
+  for (const r of rings) for (let i = 0, j = r.length - 1; i < r.length; j = i++) {
+    const ax = (r[j][0] - lon) * k, ay = r[j][1] - lat, bx = (r[i][0] - lon) * k, by = r[i][1] - lat, dx = bx - ax, dy = by - ay;
+    const t = dx || dy ? Math.max(0, Math.min(1, -(ax * dx + ay * dy) / (dx * dx + dy * dy))) : 0;
+    best = Math.min(best, Math.hypot(ax + t * dx, ay + t * dy));
+  }
+  return best * 111.2;
+}
+/**
+ * The country (ISO alpha-2) whose land holds a point, among those Ozimut has an outline of; else the one whose coast lies
+ * within 25 km (the outlines are simplified: a map by a fjord or a sound falls in the sea); "" when none.
+ */
+export async function countryAt(lat, lon) {
+  if (!Number.isFinite(lat) || !Number.isFinite(lon)) return "";
+  const idx = await countryIndex(), pad = 0.3;
+  const near = Object.keys(idx).filter((cc) => { const [w, s, e, n] = idx[cc]; return lon >= w - pad && lon <= e + pad && lat >= s - pad && lat <= n + pad; });
+  let best = "", dist = 25;
+  for (const cc of near) {
+    const land = await landOf(cc);
+    if (inside(land, lat, lon)) return cc;
+    const d = edgeKm(land, lat, lon);
+    if (d < dist) { dist = d; best = cc; }
+  }
+  return best;
+}
 /** A département as shown: « 77 Seine-et-Marne » in France, the name as given elsewhere. */
 export const deptLabel = (fr, cc, dept) => {
   if (cc !== "FR" || !dept) return dept || "";

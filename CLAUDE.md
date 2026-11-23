@@ -1952,6 +1952,11 @@ Every multiple-choice game was played through to its score page at phone size, w
   disallowed »): its Mes cartes maps, its unmarked Solo maps and its ownerless Tracer events' unmarked, unencrypted maps are handed
   over (`handOver`: `admin-maps/in/<uid>-<ms>.json`, the sources left in place until a step copies them, then deleted), its runs,
   comments and courses go, and the collection's maps lose its name and number (`forgetUser`).
+  **A map is placed by its georeference** (owner, 2026-11-23: georeferenced maps in « Lieu inconnu »): the page names the country
+  of any position (`mymapsplace.countryAt`, on `geo/index.json` — each country file's box, written by `tools/countrymaps.py` —
+  and the country's outline, a coast within 25 km accepted), France's down to the département; a collection map copied before
+  its source was georeferenced gets its `pos` from the source later (`maplib.placeLater`, once a day a map, `admin-maps/placed.json`).
+  The folder of maps without a place has the key `_none`: `~` joins a folder's path (`?dossier=`).
   Shown in « Mes cartes » `?vue=toutes` (administrators: « Ma bibliothèque | Toutes les cartes »), with every account's library
   (read in place, not copied), each card tagged by origin and account, filters origin / account / club, folders by account or club;
   read only, « Fichier d'origine » to download. Admin page tab « Mes cartes » (`?onglet=cartes`): accounts, maps, runs, size against

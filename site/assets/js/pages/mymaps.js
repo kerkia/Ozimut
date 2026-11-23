@@ -83,13 +83,19 @@ export async function render(main, { query = {} } = {}) {
     $("#mm").innerHTML = html`${all ? viewSwitch() : ""}<div class="card"><div class="card-body"><p>${t(token ? "mm.shared.gone" : e.status === 503 ? "mm.err.notReady" : "mm.err.load")}</p></div></div>`;
     return { title: t("mm.title") };
   }
-  // a map georeferenced in France and kept before its place was asked (2026-11-06): its département and région from its centre
-  function enrich(m) {
-    if (m.country || !Number.isFinite(m.lat)) return;
-    const a = MP.frAt(fr, m.lat, m.lon);
-    if (a) Object.assign(m, { country: "FR", region: a.region, dept: a.dept });
+  // a georeferenced map without a place (kept before its place was asked, 2026-11-06, or a map of the administrators'
+  // collection, which has its position only): in France its département and région from its centre, elsewhere its country
+  async function enrich(maps) {
+    const abroad = [];
+    for (const m of maps) {
+      if (m.country || !Number.isFinite(m.lat) || !Number.isFinite(m.lon)) continue;
+      const a = MP.frAt(fr, m.lat, m.lon);
+      if (a) Object.assign(m, { country: "FR", region: a.region, dept: a.dept });
+      else abroad.push(m);
+    }
+    await Promise.all(abroad.map(async (m) => { const cc = await MP.countryAt(m.lat, m.lon); if (cc) m.country = cc; }));
   }
-  for (const m of st.maps) enrich(m);
+  await enrich(st.maps);
   const mine = !token && !all;
   const traces = all || !token || st.traces !== false;
   const byId = (id) => st.maps.find((m) => m.id === id);
@@ -706,7 +712,7 @@ export async function render(main, { query = {} } = {}) {
         if (n) n.textContent = left ? t("mm.adm.syncing", { n: fmt(left) }) : "";
       }
       // what changed drawn again (the page's head says how many maps were left out); the sync is not started again (`syncing`)
-      if (copied && $("#mm-lib") && !$("#mm-canvas")) { st = await adminLibrary(); for (const m of st.maps) enrich(m); keepScroll(drawList); }
+      if (copied && $("#mm-lib") && !$("#mm-canvas")) { st = await adminLibrary(); await enrich(st.maps); keepScroll(drawList); }
       for (const m of st.maps.filter((x) => !x.thumb && x.urls)) {
         if (!$("#mm-lib")) break;
         try {
