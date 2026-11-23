@@ -176,9 +176,11 @@ def owners(group, text: str, plain_default: bool = True) -> set:
     if fit:
         group = fit
     # (the names with their abbreviations spelled out too: « D88 CF LD Open » and « Championnat de France Longue
-    # Distance (WRE) » differ by « open » and « wre », not by « cf », « ld »)
+    # Distance (WRE) » differ by « open » and « wre », not by « cf », « ld »). A year never tells two races of one day
+    # apart (2026-11-23: « Sprint 1 O' Picardie 2026 » and « Sprint 2 O' Picardie », the year in one name only, so the
+    # file « …-2026-sprint-compiegne-2 » of « SPRINT 4 » tied « 2026 » against « 2 » and went to both races)
     def spelled(name):
-        ws = set(_words(name))
+        ws = {w for w in _words(name) if not re.fullmatch(r"(19|20)\d\d", w)}
         ws |= {w for a in ws & ABBREV.keys() for w in ABBREV[a]}
         return (ws | {a for a, full in ABBREV.items() if set(full) <= ws}) - SMALL
     names = {r["key"]: spelled(r["name"]) for r in group}
