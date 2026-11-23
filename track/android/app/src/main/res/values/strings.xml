@@ -174,6 +174,6 @@
     <string name="data_title">My data</string>
     <string name="data_text">Ozitrac keeps no account. Its relay holds your channel, the people who follow you, those you follow, and the run under way (encrypted). Your runs stay on this phone.</string>
     <string name="data_erase">Erase my data</string>
-    <string name="data_erase_ask">Erase your data on Ozitrac's relay? Nobody will follow you any more, and you will follow nobody. Your runs stay on this phone.</string>
+    <string name="data_erase_ask">Erase your data on Ozitrac\'s relay? Nobody will follow you any more, and you will follow nobody. Your runs stay on this phone.</string>
     <string name="data_erased">Your data was erased from the relay.</string>
 </resources>
