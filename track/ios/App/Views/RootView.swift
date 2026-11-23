@@ -23,10 +23,10 @@ struct RootView: View {
         TabView(selection: $m.tab) {
             NavigationStack { MeView() }
                 .tabItem { Label(L("tab.me"), systemImage: "figure.run") }
-                .tag(Tab.me)
+                .tag(HomeTab.me)
             NavigationStack { FollowListView() }
                 .tabItem { Label(L("tab.follow"), systemImage: "person.2.fill") }
-                .tag(Tab.follow)
+                .tag(HomeTab.follow)
         }
         .tint(.orange)
         .overlay(alignment: .top) {

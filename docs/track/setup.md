@@ -149,21 +149,31 @@ Pages secret.
 
 ## 6. The iPhone and Apple Watch apps (several days: Apple's account and review)
 
+Ozitrac for iPhone and Apple Watch is written (`track/ios`, built unsigned by the `track-ios` workflow; its README has the
+details). What it needs from you:
+
 1. Join the Apple Developer Program (developer.apple.com/programs, 99 USD a year, needs your Apple ID with two-factor
    authentication; a few days for an individual). Note the **Team ID** (Membership details).
-2. developer.apple.com › Certificates, Identifiers & Profiles › Identifiers: register `com.ozimut.ozitrac` (capabilities:
-   Associated Domains, HealthKit, Push Notifications), `com.ozimut.ozitrac.watchkitapp` (HealthKit),
-   `com.ozimut.ozitrac.widget`. Claude then turns the iPhone and Apple Watch apps into Ozitrac (as Android on 2026-11-23).
+2. developer.apple.com › Certificates, Identifiers & Profiles › Identifiers › App Groups: register
+   `group.com.ozimut.ozitrac`. Then Identifiers › App IDs: register `com.ozimut.ozitrac` (capabilities: Associated Domains,
+   Push Notifications, App Groups with that group), `com.ozimut.ozitrac.notify` (App Groups, the same group),
+   `com.ozimut.ozitrac.widget` (none) and `com.ozimut.ozitrac.watchkitapp` (HealthKit).
 3. Keys › « + » › Apple Push Notifications service (APNs) › download the `.p8` key, note its Key ID. Then:
    `npx wrangler pages secret put APNS_KEY --project-name observatoire-cn` (paste the .p8 file's whole text),
-   `APNS_KEY_ID` (the key's id), `APNS_TEAM_ID` (the Team ID), `OZITRAC_APNS_TOPIC` (`com.ozimut.ozitrac`).
+   `APNS_KEY_ID` (the key's id), `APNS_TEAM_ID` (the Team ID), `OZITRAC_APNS_TOPIC` (`com.ozimut.ozitrac`: the relay's
+   alerts to the people following) and `APNS_TOPIC` (`com.ozimut.ozitrac` too: Ozimut's own tracking alerts to an iPhone
+   linked to an account).
 4. App Store Connect (appstoreconnect.apple.com) › Users and Access › Integrations › App Store Connect API › generate a key
    (role App Manager): note the Issuer ID and Key ID, download the `.p8`. GitHub secrets `APPLE_TEAM_ID`,
    `APP_STORE_CONNECT_KEY_ID`, `APP_STORE_CONNECT_ISSUER_ID`, `APP_STORE_CONNECT_KEY` (the .p8's text).
-5. App Store Connect › Apps › « + » › New App: iOS, name « Ozitrac », bundle `com.ozimut.ozitrac`.
-6. Tell Claude the Team ID: it writes it into `site/.well-known/apple-app-site-association` and adds the signing and
-   TestFlight job to the workflow. Then the build goes to TestFlight; install TestFlight on your iPhone and accept.
-7. Test as in step 3; on the watch, the app shows a code, or the iPhone pairs it.
+5. App Store Connect › Apps › « + » › New App: iOS, name « Ozitrac », bundle `com.ozimut.ozitrac`. Its export compliance:
+   the app encrypts the positions with standard AES-GCM from the system (it says « not non-exempt encryption »); confirm.
+6. Tell Claude the Team ID: it writes it into `project.yml` and `site/.well-known/apple-app-site-association` and adds the
+   signing and TestFlight job to the workflow. Then the build goes to TestFlight; install TestFlight on your iPhone and accept.
+7. Test as in step 3, on two iPhones (or an iPhone and an Android phone): the two-minute test locked, a run followed with its
+   notifications, a code sent as a link. On the watch: Start, its code shown as a QR code scanned by an iPhone, a run
+   followed, and once ended the run arriving in the iPhone's « Mes courses » (« Enregistrée sur la montre »);
+   « Relier à Ozimut » on the watch shows a code to type on ozimut.com.
 
 ## 7. Polar (optional, about 15 minutes)
 

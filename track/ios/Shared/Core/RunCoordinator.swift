@@ -276,6 +276,7 @@ final class RunCoordinator {
         if s.share && !s.dests.contains(RunCoordinator.relay) && ChannelStore.shared.exists {
             s.dests.append(RunCoordinator.relay)
             saved = s
+            save(force: true)
             relayEngine.discard()
             relayEngine.start(run: s.run, share: "watchers", now: Date(timeIntervalSince1970: s.started))
         }

@@ -79,6 +79,16 @@ the detail of what was ported from each: `site/assets/js/chrono/si/LICENSE-sport
 `site/assets/js/chrono/`: Ozimut Chrono, © Yann Le Helloco, Mozilla Public License 2.0, a copy of
 https://github.com/kerkia/ChronOzimut, with its own notices. (The SPORTident ports above are part of it.)
 
+### Project Nayuki's QR Code generator (Ozitrac's QR codes on the iPhone and the Apple Watch)
+
+- Copyright: « Copyright (c) Project Nayuki. »
+- Licence: MIT.
+- Upstream: https://www.nayuki.io/page/qr-code-generator-library — https://github.com/nayuki/QR-Code-generator
+- Licence text: in the head of `track/ios/Shared/Core/QRCode.swift`.
+- What in this repository comes from it: `track/ios/Shared/Core/QRCode.swift`, its encoder ported to Swift and reduced to
+  byte mode and error correction level M (watchOS has no QR code generator of its own); the mask penalty is written from
+  the standard's rules.
+
 ### Ozimut's own ports of Ozimut's code
 
 `site/assets/js/localparse.js` and `site/assets/js/localstart.js` port the repository's own Python parsers; they are not

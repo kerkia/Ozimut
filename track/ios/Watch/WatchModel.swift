@@ -45,7 +45,7 @@ final class WatchModel: NSObject, ObservableObject, RunCoordinatorDelegate, WCSe
     private override init() {
         let dir = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
             .appendingPathComponent("Tracker", isDirectory: true)
-        runs = RunCoordinator(directory: dir, ozimut: OzimutDestination(client: client, key: { DeviceStore.shared.key }))
+        runs = RunCoordinator(directory: dir, ozimut: OzimutDestination(client: TrackClient(base: AppConfig.base), key: { DeviceStore.shared.key }))
         super.init()
         runs.delegate = self
         runs.battery = { [weak self] in self?.battery }

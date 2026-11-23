@@ -4,7 +4,7 @@ import SwiftUI
 import UIKit
 import UserNotifications
 
-enum Tab: String {
+enum HomeTab: String {
     case me, follow
 }
 
@@ -48,7 +48,7 @@ final class AppModel: ObservableObject, RunCoordinatorDelegate {
     let channel = ChannelStore.shared
     let follows = FollowStore.shared
 
-    @Published var tab: Tab = .me
+    @Published var tab: HomeTab = .me
     @Published var page: Page?
     @Published var linked = false
     @Published var account: TrackAccount?
@@ -86,7 +86,7 @@ final class AppModel: ObservableObject, RunCoordinatorDelegate {
     private init() {
         let dir = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
             .appendingPathComponent("Tracker", isDirectory: true)
-        let ozimut = OzimutDestination(client: client, key: { DeviceStore.shared.key })
+        let ozimut = OzimutDestination(client: TrackClient(base: AppConfig.base), key: { DeviceStore.shared.key })
         runs = RunCoordinator(directory: dir, ozimut: ozimut)
         runs.delegate = self
         runs.battery = { [weak self] in self?.battery }
@@ -175,7 +175,7 @@ final class AppModel: ObservableObject, RunCoordinatorDelegate {
         pairing = true
         pairError = nil
         let device: [String: Any] = [
-            "kind": "phone", "platform": "ios", "app": "ozitrac", "version": AppConfig.version,
+            "kind": "phone", "platform": "ios", "version": AppConfig.version,
             "os": UIDevice.current.systemVersion, "model": AppConfig.model,
         ]
         Task {
