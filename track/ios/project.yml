@@ -1,6 +1,6 @@
-# The Ozimut iPhone app and its Apple Watch app (docs/track/design.md is the contract).
-# Generated into Ozimut.xcodeproj by XcodeGen: `xcodegen generate` in this folder. Never edit the .xcodeproj by hand.
-name: Ozimut
+# Ozitrac for iPhone and Apple Watch (docs/track/ozitrac.md is the contract; docs/track/design.md for « Relier à Ozimut »).
+# Generated into Ozitrac.xcodeproj by XcodeGen: `xcodegen generate` in this folder. Never edit the .xcodeproj by hand.
+name: Ozitrac
 options:
   bundleIdPrefix: com.ozimut
   developmentLanguage: en
@@ -21,7 +21,7 @@ settings:
     LOCALIZATION_PREFERS_STRING_CATALOGS: YES
     SWIFT_EMIT_LOC_STRINGS: YES
     ENABLE_USER_SCRIPT_SANDBOXING: YES
-    # The site the app shows and talks to. A Debug build may point elsewhere (a local or staging server).
+    # The server the app talks to (the relay, and Ozimut once linked). A Debug build may point elsewhere.
     OZ_BASE_URL: "https://ozimut.com/"
   configs:
     Debug:
@@ -31,7 +31,7 @@ settings:
       OZ_APS_ENV: prod
 
 targets:
-  Ozimut:
+  Ozitrac:
     type: application
     platform: iOS
     sources:
@@ -43,7 +43,7 @@ targets:
     info:
       path: App/Info.plist
       properties:
-        CFBundleDisplayName: Ozimut
+        CFBundleDisplayName: Ozitrac
         CFBundleShortVersionString: $(MARKETING_VERSION)
         CFBundleVersion: $(CURRENT_PROJECT_VERSION)
         CFBundleDevelopmentRegion: en
@@ -57,87 +57,42 @@ targets:
           - UIInterfaceOrientationPortrait
           - UIInterfaceOrientationLandscapeLeft
           - UIInterfaceOrientationLandscapeRight
-        UIBackgroundModes: [location, remote-notification]
+        UIBackgroundModes: [location]
         NSSupportsLiveActivities: true
         OZBaseURL: $(OZ_BASE_URL)
         OZApsEnvironment: $(OZ_APS_ENV)
-        NSLocationWhenInUseUsageDescription: "Ozimut sends your position to the people who follow you, only between Start and Stop."
+        NSLocationWhenInUseUsageDescription: "Ozitrac records your run and sends it, sealed, to the people you chose, only between Start and Stop."
         NSLocationTemporaryUsageDescriptionDictionary:
           TrackRun: "Live tracking needs your precise position."
-        NSCameraUsageDescription: "The camera scans a pairing QR code and takes photos of maps."
-        NSPhotoLibraryUsageDescription: "Choose a map photo or a file to send to Ozimut."
-        NSMicrophoneUsageDescription: "A video you record for Ozimut may include sound."
-        NSHealthShareUsageDescription: "Ozimut reads the routes of your workouts so that you can analyse them."
-        NSHealthUpdateUsageDescription: "Ozimut saves the runs recorded on your Apple Watch as workouts."
+        NSCameraUsageDescription: "The camera scans the code of the person you follow, or of your Ozimut account."
         CFBundleURLTypes:
-          - CFBundleURLName: com.ozimut.app
-            CFBundleURLSchemes: [ozimut]
-        LSSupportsOpeningDocumentsInPlace: false
-        CFBundleDocumentTypes:
-          - CFBundleTypeName: GPS track
-            LSHandlerRank: Alternate
-            LSItemContentTypes: [com.topografix.gpx, com.garmin.fit, com.garmin.tcx]
-          - CFBundleTypeName: Map overlay
-            LSHandlerRank: Alternate
-            LSItemContentTypes: [com.google.earth.kmz, com.google.earth.kml]
-          - CFBundleTypeName: Map or document
-            LSHandlerRank: Alternate
-            LSItemContentTypes: [com.adobe.pdf, public.image]
-        UTImportedTypeDeclarations:
-          - UTTypeIdentifier: com.topografix.gpx
-            UTTypeDescription: GPX track
-            UTTypeConformsTo: [public.xml]
-            UTTypeTagSpecification:
-              public.filename-extension: [gpx]
-              public.mime-type: [application/gpx+xml]
-          - UTTypeIdentifier: com.garmin.fit
-            UTTypeDescription: FIT activity
-            UTTypeConformsTo: [public.data]
-            UTTypeTagSpecification:
-              public.filename-extension: [fit]
-              public.mime-type: [application/vnd.ant.fit]
-          - UTTypeIdentifier: com.garmin.tcx
-            UTTypeDescription: TCX activity
-            UTTypeConformsTo: [public.xml]
-            UTTypeTagSpecification:
-              public.filename-extension: [tcx]
-              public.mime-type: [application/vnd.garmin.tcx+xml]
-          - UTTypeIdentifier: com.google.earth.kmz
-            UTTypeDescription: KMZ map
-            UTTypeConformsTo: [public.data, public.zip-archive]
-            UTTypeTagSpecification:
-              public.filename-extension: [kmz]
-              public.mime-type: [application/vnd.google-earth.kmz]
-          - UTTypeIdentifier: com.google.earth.kml
-            UTTypeDescription: KML map
-            UTTypeConformsTo: [public.xml]
-            UTTypeTagSpecification:
-              public.filename-extension: [kml]
-              public.mime-type: [application/vnd.google-earth.kml+xml]
+          - CFBundleURLName: com.ozimut.ozitrac
+            CFBundleURLSchemes: [ozitrac]
     entitlements:
-      path: App/Ozimut.entitlements
+      path: App/Ozitrac.entitlements
       properties:
         com.apple.developer.associated-domains: ["applinks:ozimut.com"]
         aps-environment: development
-        com.apple.developer.healthkit: true
-        com.apple.developer.healthkit.access: []
+        com.apple.security.application-groups: [group.com.ozimut.ozitrac]
     settings:
       base:
-        PRODUCT_BUNDLE_IDENTIFIER: com.ozimut.app
+        PRODUCT_BUNDLE_IDENTIFIER: com.ozimut.ozitrac
         TARGETED_DEVICE_FAMILY: "1"
-        PRODUCT_NAME: Ozimut
+        PRODUCT_NAME: Ozitrac
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
     dependencies:
-      - target: OzimutWidget
+      - target: OzitracWidget
         embed: true
-      - target: OzimutWatch
+      - target: OzitracNotify
+        embed: true
+      - target: OzitracWatch
         embed: true
         codeSign: true
         copy:
           destination: productsDirectory
           subpath: $(CONTENTS_FOLDER_PATH)/Watch
 
-  OzimutWidget:
+  OzitracWidget:
     type: app-extension
     platform: iOS
     sources:
@@ -147,18 +102,45 @@ targets:
     info:
       path: Widget/Info.plist
       properties:
-        CFBundleDisplayName: Ozimut
+        CFBundleDisplayName: Ozitrac
         CFBundleShortVersionString: $(MARKETING_VERSION)
         CFBundleVersion: $(CURRENT_PROJECT_VERSION)
         NSExtension:
           NSExtensionPointIdentifier: com.apple.widgetkit-extension
     settings:
       base:
-        PRODUCT_BUNDLE_IDENTIFIER: com.ozimut.app.widget
+        PRODUCT_BUNDLE_IDENTIFIER: com.ozimut.ozitrac.widget
         TARGETED_DEVICE_FAMILY: "1"
         SKIP_INSTALL: YES
 
-  OzimutWatch:
+  # Words the relay's alerts with the name of the person followed (the relay knows no name).
+  OzitracNotify:
+    type: app-extension
+    platform: iOS
+    sources:
+      - path: Notify
+      - path: Shared/UI/L10n.swift
+      - path: Resources/Localizable.xcstrings
+    info:
+      path: Notify/Info.plist
+      properties:
+        CFBundleDisplayName: Ozitrac
+        CFBundleShortVersionString: $(MARKETING_VERSION)
+        CFBundleVersion: $(CURRENT_PROJECT_VERSION)
+        NSExtension:
+          NSExtensionPointIdentifier: com.apple.usernotifications.service
+          NSExtensionPrincipalClass: $(PRODUCT_MODULE_NAME).NotificationService
+    entitlements:
+      path: Notify/OzitracNotify.entitlements
+      properties:
+        com.apple.security.application-groups: [group.com.ozimut.ozitrac]
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.ozimut.ozitrac.notify
+        TARGETED_DEVICE_FAMILY: "1"
+        SKIP_INSTALL: YES
+
+  OzitracWatch:
     type: application
     platform: watchOS
     sources:
@@ -169,32 +151,32 @@ targets:
     info:
       path: Watch/Info.plist
       properties:
-        CFBundleDisplayName: Ozimut
+        CFBundleDisplayName: Ozitrac
         CFBundleShortVersionString: $(MARKETING_VERSION)
         CFBundleVersion: $(CURRENT_PROJECT_VERSION)
         CFBundleDevelopmentRegion: en
         CFBundleLocalizations: [en, fr, de, es]
         WKApplication: true
-        WKCompanionAppBundleIdentifier: com.ozimut.app
+        WKCompanionAppBundleIdentifier: com.ozimut.ozitrac
         WKRunsIndependentlyOfCompanionApp: true
         WKBackgroundModes: [workout-processing]
         OZBaseURL: $(OZ_BASE_URL)
-        NSLocationWhenInUseUsageDescription: "Ozimut sends your position to the people who follow you, only between Start and Stop."
-        NSHealthShareUsageDescription: "Ozimut reads your workouts to record your run."
-        NSHealthUpdateUsageDescription: "Ozimut saves your run as a workout with its route."
+        NSLocationWhenInUseUsageDescription: "Ozitrac records your run and sends it, sealed, to the people you chose, only between Start and Stop."
+        NSHealthShareUsageDescription: "Ozitrac records your run as a workout."
+        NSHealthUpdateUsageDescription: "Ozitrac saves your run as a workout with its route."
     entitlements:
-      path: Watch/OzimutWatch.entitlements
+      path: Watch/OzitracWatch.entitlements
       properties:
         com.apple.developer.healthkit: true
         com.apple.developer.healthkit.access: []
     settings:
       base:
-        PRODUCT_BUNDLE_IDENTIFIER: com.ozimut.app.watchkitapp
-        PRODUCT_NAME: OzimutWatch
+        PRODUCT_BUNDLE_IDENTIFIER: com.ozimut.ozitrac.watchkitapp
+        PRODUCT_NAME: OzitracWatch
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
         SKIP_INSTALL: YES
 
-  OzimutTests:
+  OzitracTests:
     type: bundle.unit-test
     platform: iOS
     sources:
@@ -202,28 +184,28 @@ targets:
       - path: Tests
     settings:
       base:
-        PRODUCT_BUNDLE_IDENTIFIER: com.ozimut.app.tests
+        PRODUCT_BUNDLE_IDENTIFIER: com.ozimut.ozitrac.tests
         GENERATE_INFOPLIST_FILE: YES
 
 schemes:
-  Ozimut:
+  Ozitrac:
     build:
       targets:
-        Ozimut: all
+        Ozitrac: all
     run:
       config: Debug
     archive:
       config: Release
-  OzimutWatch:
+  OzitracWatch:
     build:
       targets:
-        OzimutWatch: all
+        OzitracWatch: all
     run:
       config: Debug
-  OzimutTests:
+  OzitracTests:
     build:
       targets:
-        OzimutTests: [test]
+        OzitracTests: [test]
     test:
       config: Debug
-      targets: [OzimutTests]
+      targets: [OzitracTests]

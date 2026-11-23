@@ -9,7 +9,7 @@ no price, no « subscribe » and no link to buying** (Apple 3.1.3, Google Play's
 
 This file is the contract between the relay (`live/src/ozitrac.js`, Durable Object `TracChannel`), the site's Functions
 (`functions/api/ozitrac/[[path]].js`, `functions/z/[[path]].js`) and the apps (`track/android/app` = Ozitrac for Android,
-`track/android/wear` = Ozitrac for Wear OS; the iPhone and Apple Watch apps follow once the owner's Apple account exists).
+`track/android/wear` = Ozitrac for Wear OS, `track/ios` = Ozitrac for iPhone and Apple Watch).
 Change it first, then the code. What `docs/track/design.md` says of Ozimut's own tracking (accounts, watchers, the watch page,
 Mes traces) stays true for Ozimut's accounts; Ozitrac's link to Ozimut is that file's « Pairing a phone » and « Sending ».
 
@@ -84,10 +84,13 @@ millionths of a degree, `dt`, `la`, `lo`, `al` the first value absolute then dif
 **The watcher's alerts** (`alerts` in its answer and in notifications): `{ kind, t }` with `kind` among `start`, `end`, `help`,
 `silent`, `battery`, `still`, `zone`, `t` Unix seconds; the run's alerts are kept with it.
 
-**Notifications** (Firebase Cloud Messaging to Android, data only, high priority for `help`, `silent`, `zone`; APNs later):
+**Notifications** (Firebase Cloud Messaging to Android, data only, high priority for `help`, `silent`, `zone`; APNs to the iPhone):
 `{ app: "ozitrac", c, kind, t, run }`. The watcher's app shows them with the name it holds for `c` (« Tom a besoin d'aide »).
 Sent by the site's Function when a batch brings them, by the relay's alarm (`POST <SITE_URL>/api/ozitrac/alert`, header
-`X-Relay: <TRACK_RELAY_SECRET>`) for `silent`. A token Firebase calls gone is dropped.
+`X-Relay: <TRACK_RELAY_SECRET>`) for `silent`. A token Firebase or APNs calls gone is dropped. To the iPhone the same data
+goes beside an alert whose `loc-key` is `OZ_ALERT_<KIND>` (the sentence without a name, in the app's languages) and
+`mutable-content: 1`; the app's notification extension then writes the name it holds for `c`, which the app shares with it
+through its App Group (`group.com.ozimut.ozitrac`, the names alone). The relay knows no name, so it can send none.
 
 ## The apps
 
@@ -118,7 +121,10 @@ layer is added on the server alone (`functions/_lib/ozitracmaps.js`, the outline
 needs no update.
 
 **Identifiers**: Android and Wear OS application id `com.ozimut.ozitrac` (the code's namespace stays `com.ozimut.app`), name
-« Ozitrac ». Ozimut's own pair codes and `/t/<code>` links stay as they are.
+« Ozitrac »; iPhone `com.ozimut.ozitrac`, its Apple Watch app `com.ozimut.ozitrac.watchkitapp`, its Live Activity
+`com.ozimut.ozitrac.widget` and notification extension `com.ozimut.ozitrac.notify`, URL scheme `ozitrac`, universal links on
+`/z/*` and `/t/*` (`site/.well-known/apple-app-site-association`). Ozimut's own pair codes and `/t/<code>` links stay as they
+are.
 
 **The watch** (Wear OS) is a watchee only: its channel of its own, its code shown as a QR code on the watch for a watcher's
 phone, its watchers listed and removable, Ozimut by its claim code as before. **Its runs reach the paired phone by

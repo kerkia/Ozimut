@@ -2,13 +2,16 @@ import AVFoundation
 import SwiftUI
 import UIKit
 
-/// Scans a pairing QR code with the camera (AVFoundation).
+/// Scans a QR code with the camera (AVFoundation): an Ozitrac code to follow someone, or an Ozimut pair code.
+/// `accept` says which texts are taken; others are passed over.
 struct QRScannerView: UIViewControllerRepresentable {
+    let accept: (String) -> Bool
     let onCode: (String) -> Void
     let onDenied: () -> Void
 
     func makeUIViewController(context: Context) -> ScannerController {
         let c = ScannerController()
+        c.accept = accept
         c.onCode = onCode
         c.onDenied = onDenied
         return c
@@ -18,6 +21,7 @@ struct QRScannerView: UIViewControllerRepresentable {
 }
 
 final class ScannerController: UIViewController, AVCaptureMetadataOutputObjectsDelegate {
+    var accept: ((String) -> Bool)?
     var onCode: ((String) -> Void)?
     var onDenied: (() -> Void)?
     private let session = AVCaptureSession()
@@ -73,7 +77,7 @@ final class ScannerController: UIViewController, AVCaptureMetadataOutputObjectsD
     func metadataOutput(_ output: AVCaptureMetadataOutput, didOutput metadataObjects: [AVMetadataObject], from connection: AVCaptureConnection) {
         guard !done,
               let text = (metadataObjects.first as? AVMetadataMachineReadableCodeObject)?.stringValue,
-              PairCode.extract(text) != nil else { return }
+              accept?(text) ?? false else { return }
         done = true
         UINotificationFeedbackGenerator().notificationOccurred(.success)
         onCode?(text)

@@ -2,49 +2,70 @@ import Combine
 import CoreLocation
 import SwiftUI
 import UIKit
-import UniformTypeIdentifiers
 import UserNotifications
 
-enum TrackerScreen: Equatable {
-    case main
+enum HomeTab: String {
+    case me, follow
+}
+
+/// What a sheet or a full-screen page shows over the tabs.
+enum Page: Identifiable, Equatable {
+    case tracker
     case selfTest
+    case invite
+    case runs
+    case zone
+    case pair
+    case join(Codes.Link)
+    case follow(String)
+
+    var id: String {
+        switch self {
+        case .tracker: return "tracker"
+        case .selfTest: return "selfTest"
+        case .invite: return "invite"
+        case .runs: return "runs"
+        case .zone: return "zone"
+        case .pair: return "pair"
+        case let .join(l): return "join:" + l.c
+        case let .follow(c): return "follow:" + c
+        }
+    }
 }
 
-struct BridgeError: LocalizedError {
-    let message: String
-    var errorDescription: String? { message }
-}
-
-/// The app's state: the pairing, the tracker, the web view and its bridge. Used on the main thread.
-final class AppModel: ObservableObject, TrackEngineDelegate {
+/// Ozitrac's state on the iPhone (docs/track/ozitrac.md « The apps »): the run (RunCoordinator: Ozimut's account when
+/// linked, the relay when someone follows), the channel and its watchers, the people followed, the link to Ozimut, the
+/// notifications and the runs the Apple Watch sends over. Used on the main thread.
+final class AppModel: ObservableObject, RunCoordinatorDelegate {
     static let shared = AppModel()
 
     let store = DeviceStore.shared
     let client = TrackClient(base: AppConfig.base)
-    let engine: TrackEngine
+    let runs: RunCoordinator
     let location = LocationTracker()
-    let web = WebController()
     let live = LiveActivityController()
-    let health = HealthRoutes()
     let watch = WatchLink()
+    let channel = ChannelStore.shared
+    let follows = FollowStore.shared
 
-    @Published var paired = false
+    @Published var tab: HomeTab = .me
+    @Published var page: Page?
+    @Published var linked = false
     @Published var account: TrackAccount?
-    @Published var watchers: [String] = []
     @Published var settings = TrackSettings()
     @Published var status = TrackStatus()
     @Published var ended: (status: TrackStatus, reason: EndReason)?
-    @Published var showTracker = false
-    @Published var screen: TrackerScreen = .main
     @Published var notice: String?
     @Published var pairing = false
     @Published var pairError: String?
     @Published var share = true
     @Published var probe: CLLocation?
     @Published var battery: Int?
-    @Published var watchState: String?
-    @Published var watchAvailable = false
     @Published var locationChanged = 0
+    @Published var watchers: [ChannelStore.Watcher] = []
+    @Published var followed: [Follow] = []
+    @Published var runsChanged = 0
+    @Published var myName = Me.name
 
     // The two-minute self-test.
     @Published var testCount = 0
@@ -55,30 +76,42 @@ final class AppModel: ObservableObject, TrackEngineDelegate {
 
     private var pushToken: String?
     private var batteryTimer: Timer?
+    private var refreshTimer: Timer?
     private var launched = false
+
+    static var apsEnv: String {
+        (Bundle.main.object(forInfoDictionaryKey: "OZApsEnvironment") as? String) == "prod" ? "prod" : "dev"
+    }
 
     private init() {
         let dir = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
             .appendingPathComponent("Tracker", isDirectory: true)
-        engine = TrackEngine(directory: dir, client: client, key: { DeviceStore.shared.key })
-        engine.delegate = self
+        let ozimut = OzimutDestination(client: TrackClient(base: AppConfig.base), key: { DeviceStore.shared.key })
+        runs = RunCoordinator(directory: dir, ozimut: ozimut)
+        runs.delegate = self
+        runs.battery = { [weak self] in self?.battery }
+        runs.startLocation = { [weak self] in self?.location.start() }
+        runs.stopLocation = { [weak self] in self?.location.stop() }
         location.onFix = { [weak self] fix in
             guard let self else { return }
             if self.testing {
                 self.testCount += 1
             } else {
-                self.engine.add(fix)
+                self.runs.add(fix)
             }
         }
         location.onProbe = { [weak self] loc in self?.probe = loc }
         location.onAuthorization = { [weak self] in self?.locationChanged += 1 }
-        web.onCall = { [weak self] name, args, done in
-            guard let self else { return done(.failure(BridgeError(message: "unavailable"))) }
-            self.bridge(name, args, done)
+        channel.onChange = { [weak self] in self?.watchers = self?.channel.watchers ?? [] }
+        follows.onChange = { [weak self] in self?.followed = self?.follows.list ?? [] }
+        watch.onRun = { [weak self] in
+            self?.runsChanged += 1
+            self?.notice = L("runs.watch.received")
         }
-        web.onAppURL = { [weak self] url in self?.handleSiteNavigation(url) ?? false }
-        watch.onChange = { [weak self] in self?.watchAvailable = self?.watch.available ?? false }
-        reloadPairing()
+        watchers = channel.watchers
+        followed = follows.list
+        FollowStore.shareNames(followed)
+        reloadLink()
     }
 
     // MARK: launch
@@ -93,42 +126,50 @@ final class AppModel: ObservableObject, TrackEngineDelegate {
         NotificationCenter.default.addObserver(forName: UIApplication.willEnterForegroundNotification, object: nil, queue: .main) { [weak self] _ in
             guard let self else { return }
             self.readBattery()
-            if self.status.phase != .idle { self.engine.sendNow() }
+            self.runs.sendNow()
+            self.refreshInBackground()
         }
-        engine.update(settings: settings)
-        if engine.resume() {
-            // A run was still open when the app was ended: take it up again.
-            location.start()
-            if let st = engine.snapshot().started { live.start(name: account?.name ?? "Ozimut", started: st) }
-            showTracker = true
+        runs.update(ozimut: settings)
+        if runs.resume() {
+            // A run was still open when the system ended the app: take it up again.
+            if let st = runs.status.started { live.start(name: Me.name, started: st) }
+            page = .tracker
         }
-        if paired && settings.onlyTracker {
-            showTracker = true
-        } else {
-            web.startIfNeeded()
-        }
+        refreshInBackground()
+        if !followed.isEmpty { registerForPushIfAllowed() }
     }
 
     private func readBattery() {
         let lvl = UIDevice.current.batteryLevel
         battery = lvl >= 0 ? Int((lvl * 100).rounded()) : nil
-        engine.setBattery(battery, lowPower: ProcessInfo.processInfo.isLowPowerModeEnabled)
+        runs.setBattery(battery, lowPower: ProcessInfo.processInfo.isLowPowerModeEnabled)
     }
 
-    private func reloadPairing() {
+    /// The relay's settings, the watchers and the people followed read again.
+    func refreshInBackground() {
+        Task {
+            await RelayConfig.refresh()
+            await self.channel.refresh()
+        }
+    }
+
+    private func reloadLink() {
         account = store.account
-        paired = store.isPaired
-        watchers = store.watchers
+        linked = store.isPaired
         settings = store.settings
         Lang.set(account?.lang)
     }
 
-    // MARK: pairing
+    func setName(_ n: String) {
+        Me.name = n
+        myName = Me.name
+    }
 
-    func pair(code raw: String, signInWeb: Bool, done: ((Result<Any, Error>) -> Void)? = nil) {
+    // MARK: « Relier à Ozimut »
+
+    func pair(code raw: String) {
         guard let code = PairCode.extract(raw) else {
             pairError = L("pair.error.code")
-            done?(.failure(BridgeError(message: "code")))
             return
         }
         pairing = true
@@ -142,20 +183,17 @@ final class AppModel: ObservableObject, TrackEngineDelegate {
                 let r = try await client.pair(code: code, device: device)
                 await MainActor.run {
                     self.store.save(device: r.device, key: r.key, account: r.account, watchers: r.watchers, settings: r.settings)
-                    self.reloadPairing()
-                    self.engine.update(settings: r.settings)
+                    self.reloadLink()
+                    self.runs.update(ozimut: r.settings)
                     self.pairing = false
                     self.notice = L("pair.done", r.account.name)
-                    if signInWeb, let t = r.webToken, !r.settings.onlyTracker { self.web.signIn(token: t) }
-                    if r.settings.onlyTracker { self.showTracker = true }
-                    self.sendPushToken()
-                    done?(.success(self.pairedInfo()))
+                    if self.page == .pair { self.page = nil }
+                    self.sendOzimutPushToken()
                 }
             } catch {
                 await MainActor.run {
                     self.pairing = false
                     self.pairError = Self.message(error)
-                    done?(.failure(error))
                 }
             }
         }
@@ -170,104 +208,119 @@ final class AppModel: ObservableObject, TrackEngineDelegate {
         }
     }
 
-    func unpair() {
-        if status.phase != .idle {
-            location.stop()
-            live.end()
+    /// Unlinks this iPhone from Ozimut, on this iPhone only (the account removes the device on the site).
+    func unlink() {
+        guard status.phase == .idle else {
+            notice = L("test.busy")
+            return
         }
-        engine.discard()
         store.forget()
-        reloadPairing()
-    }
-
-    private func pairedInfo() -> Any {
-        guard paired, let a = account else { return NSNull() }
-        return ["device": store.device ?? "", "account": a.id, "name": a.name] as [String: Any]
-    }
-
-    /// The iPhone pairs its own Apple Watch: a pair code for this account, sent over WatchConnectivity.
-    func pairWatch() {
-        guard let key = store.key, let a = account else { return }
-        watchState = L("start.watch.working")
-        Task {
-            do {
-                let code = try await client.pairCodeForAccount(key: key, account: a.id)
-                await MainActor.run {
-                    self.watch.send(pairCode: code)
-                    self.watchState = L("start.watch.sent")
-                }
-            } catch {
-                await MainActor.run { self.watchState = L("start.watch.fail") }
-            }
-        }
+        reloadLink()
     }
 
     // MARK: the run
 
     func startRun() {
-        guard paired, status.phase == .idle else { return }
+        guard status.phase == .idle else { return }
         ended = nil
         testing = false
-        location.start()
-        let run = engine.start(share: share ? "watchers" : "private")
-        live.start(name: account?.name ?? "Ozimut", started: Date())
-        web.send(event: ["type": "tracker", "state": "running", "run": run])
+        runs.update(ozimut: settings)
+        let cap = linked ? settings.cap : nil
+        guard runs.start(share: share, linked: linked, cap: cap) != nil else { return }
+        live.start(name: Me.name, started: Date())
     }
 
     func stopRun() {
-        location.stop()
-        engine.stop(reason: .user)
+        runs.stop(reason: .user)
     }
 
     func help() {
-        engine.help()
+        runs.help()
     }
 
     func dismissEnded() {
         ended = nil
     }
 
-    func trackChanged(_ s: TrackStatus) {
-        let before = status.phase
+    func runChanged(_ s: TrackStatus) {
         status = s
         live.update(s)
-        if before != s.phase {
-            web.send(event: ["type": "tracker", "state": Self.stateName(s.phase), "run": orNull(s.run)])
-        }
     }
 
-    func trackEnded(_ s: TrackStatus, reason: EndReason) {
-        location.stop()
+    func runEnded(_ s: TrackStatus, reason: EndReason) {
         live.end()
         ended = (s, reason)
-        status = engine.snapshot()
-        web.send(event: ["type": "tracker", "state": "ready", "run": orNull(s.run)])
+        status = runs.status
+        runsChanged += 1
     }
 
-    func trackDeviceRemoved() {
-        location.stop()
-        live.end()
-        store.forget()
-        reloadPairing()
-        status = TrackStatus()
+    func ozimutRemoved() {
+        reloadLink()
         notice = L("removed")
-        web.send(event: ["type": "tracker", "state": "none", "run": NSNull()])
     }
 
-    static func stateName(_ p: TrackPhase) -> String {
-        switch p {
-        case .idle: return "ready"
-        case .running: return "running"
-        case .ending: return "ending"
+    func channelGone() {
+        watchers = []
+    }
+
+    // MARK: who follows me
+
+    /// A new code for someone who will follow this iPhone: the address, or nil (no network).
+    func invite() async -> String? {
+        await channel.invite(name: Me.name)
+    }
+
+    func removeWatcher(_ w: String) {
+        Task {
+            let ok = await channel.remove(w)
+            await MainActor.run { if !ok { self.notice = L("net.error") } }
         }
+    }
+
+    /// « Effacer mes données »: the channel and every follow go from the relay.
+    func eraseRelayData() {
+        guard status.phase == .idle else {
+            notice = L("test.busy")
+            return
+        }
+        Task {
+            var ok = await channel.delete()
+            for f in follows.list {
+                let gone = await follows.unfollow(f)
+                ok = ok && gone
+            }
+            await MainActor.run { self.notice = L(ok ? "data.erased" : "net.error") }
+        }
+    }
+
+    // MARK: following
+
+    /// A code scanned or opened: the person's page when already followed, else the question.
+    func open(link: Codes.Link) {
+        tab = .follow
+        if follows.get(link.c) != nil {
+            page = .follow(link.c)
+        } else {
+            page = .join(link)
+        }
+    }
+
+    func join(_ link: Codes.Link) async -> String? {
+        let (f, err) = await follows.join(link, myName: Me.name)
+        guard let f else { return err ?? "network" }
+        await MainActor.run {
+            self.page = .follow(f.c)
+            self.registerPush(f)
+            self.askForPush()
+        }
+        return nil
+    }
+
+    func unfollow(_ f: Follow) async -> Bool {
+        await follows.unfollow(f)
     }
 
     // MARK: the self-test
-
-    func openSelfTest() {
-        screen = .selfTest
-        showTracker = true
-    }
 
     func startSelfTest() {
         guard status.phase == .idle else { return }
@@ -277,7 +330,7 @@ final class AppModel: ObservableObject, TrackEngineDelegate {
         testing = true
         location.start()
         testTimer?.invalidate()
-        testTimer = Timer.scheduledTimer(withTimeInterval: 1, repeats: true) { [weak self] t in
+        let t = Timer(timeInterval: 1, repeats: true) { [weak self] t in
             guard let self else { return t.invalidate() }
             self.testLeft -= 1
             if self.testLeft <= 0 {
@@ -285,7 +338,8 @@ final class AppModel: ObservableObject, TrackEngineDelegate {
                 self.endSelfTest()
             }
         }
-        RunLoop.main.add(testTimer!, forMode: .common)
+        RunLoop.main.add(t, forMode: .common)
+        testTimer = t
     }
 
     func endSelfTest() {
@@ -299,155 +353,69 @@ final class AppModel: ObservableObject, TrackEngineDelegate {
     func closeSelfTest() {
         if testing { endSelfTest() }
         testDone = false
-        screen = .main
+        page = nil
     }
 
-    // MARK: push
+    // MARK: notifications
 
-    func requestPush(done: @escaping (Bool) -> Void) {
+    /// After a first person followed: their alerts come by notification.
+    func askForPush() {
         UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound, .badge]) { ok, _ in
             DispatchQueue.main.async {
                 if ok { UIApplication.shared.registerForRemoteNotifications() }
-                done(ok)
             }
+        }
+    }
+
+    private func registerForPushIfAllowed() {
+        UNUserNotificationCenter.current().getNotificationSettings { s in
+            guard s.authorizationStatus == .authorized || s.authorizationStatus == .provisional else { return }
+            DispatchQueue.main.async { UIApplication.shared.registerForRemoteNotifications() }
         }
     }
 
     func didRegister(token: Data) {
-        pushToken = token.map { String(format: "%02x", $0) }.joined()
-        sendPushToken()
+        let t = token.map { String(format: "%02x", $0) }.joined()
+        let changed = t != pushToken
+        pushToken = t
+        let env = Self.apsEnv
+        Task { await self.follows.registerPushAll(token: t, env: env) }
+        if changed { sendOzimutPushToken() }
     }
 
-    private func sendPushToken() {
+    private func sendOzimutPushToken() {
         guard let token = pushToken, let key = store.key else { return }
-        let env = (Bundle.main.object(forInfoDictionaryKey: "OZApsEnvironment") as? String) == "prod" ? "prod" : "dev"
+        let env = Self.apsEnv
         Task { try? await client.pushToken(key: key, kind: "apns", token: token, env: env) }
     }
 
-    /// A tapped notification: its page in the web view.
-    func openNotification(url raw: String) {
-        guard let url = URL(string: raw, relativeTo: AppConfig.base)?.absoluteURL else { return }
-        if WebController.isSite(url) {
-            showTracker = false
-            web.load(url)
-        }
-        web.send(event: ["type": "push", "url": url.absoluteString])
+    /// A person just followed gets this iPhone's token at once (when it has one).
+    func registerPush(_ f: Follow) {
+        guard let token = pushToken else { return }
+        let env = Self.apsEnv
+        Task { await self.follows.registerPush(f, token: token, env: env) }
     }
 
-    // MARK: links and files
+    /// A tapped notification: the person's page (an Ozitrac alert), else the app.
+    func openNotification(_ info: [AnyHashable: Any]) {
+        if (info["app"] as? String) == "ozitrac", let c = info["c"] as? String, follows.get(c) != nil {
+            tab = .follow
+            page = .follow(c)
+        }
+    }
 
-    /// A URL opened with the app: a pair code (universal link or `ozimut:`), a file, a page of the site.
+    // MARK: links
+
+    /// A URL opened with the app: an Ozitrac code (`/z/…`), an Ozimut pair code (`/t/<code>`).
     func handle(url: URL) {
-        if url.isFileURL {
-            deliverFile(url)
+        if let link = Codes.parse(url.absoluteString) {
+            open(link: link)
             return
         }
-        if let code = PairCode.extract(url.absoluteString) {
-            showTracker = true
-            screen = .main
-            pair(code: code, signInWeb: true)
-            return
-        }
-        if WebController.isSite(url) {
-            web.load(url)
+        if PairCode.extract(url.absoluteString) != nil {
+            tab = .me
+            page = .pair
+            pair(code: url.absoluteString)
         }
     }
-
-    /// A navigation of the web view to the site: `/t/<code>` pairs (« In the app it pairs »).
-    private func handleSiteNavigation(_ url: URL) -> Bool {
-        if url.path.hasPrefix("/t/"), let code = PairCode.extract(url.absoluteString) {
-            showTracker = true
-            screen = .main
-            pair(code: code, signInWeb: true)
-            return true
-        }
-        return false
-    }
-
-    private func deliverFile(_ url: URL) {
-        let access = url.startAccessingSecurityScopedResource()
-        defer {
-            if access { url.stopAccessingSecurityScopedResource() }
-            try? FileManager.default.removeItem(at: url)
-        }
-        guard let data = try? Data(contentsOf: url) else { return }
-        if data.count > 80_000_000 {
-            notice = L("file.tooBig")
-            return
-        }
-        let name = url.lastPathComponent
-        showTracker = false
-        web.startIfNeeded()
-        web.send(event: ["type": "file", "name": name, "mime": Self.mime(name), "data": data.base64EncodedString()])
-    }
-
-    static func mime(_ name: String) -> String {
-        let ext = (name as NSString).pathExtension.lowercased()
-        let known: [String: String] = [
-            "gpx": "application/gpx+xml", "fit": "application/vnd.ant.fit", "tcx": "application/vnd.garmin.tcx+xml",
-            "kmz": "application/vnd.google-earth.kmz", "kml": "application/vnd.google-earth.kml+xml", "pdf": "application/pdf",
-        ]
-        if let m = known[ext] { return m }
-        return UTType(filenameExtension: ext)?.preferredMIMEType ?? "application/octet-stream"
-    }
-
-    // MARK: the bridge (design.md « The site ↔ app bridge »)
-
-    private func bridge(_ name: String, _ args: [String: Any], _ done: @escaping (Result<Any, Error>) -> Void) {
-        switch name {
-        case "info":
-            var features = ["tracker", "health", "push", "files"]
-            if watch.paired { features.append("watch") }
-            done(.success(["platform": "ios", "version": AppConfig.version, "features": features, "paired": pairedInfo()] as [String: Any]))
-        case "pair":
-            guard let code = args["code"] as? String else { return done(.failure(BridgeError(message: "code"))) }
-            pair(code: code, signInWeb: false, done: done)
-        case "unpair":
-            unpair()
-            done(.success(true))
-        case "openTracker":
-            screen = .main
-            showTracker = true
-            done(.success(true))
-        case "trackerState":
-            done(.success(trackerState()))
-        case "selfTest":
-            openSelfTest()
-            done(.success(true))
-        case "pushRegister":
-            requestPush { ok in done(.success(["ok": ok])) }
-        case "healthRoutes":
-            let days = JSON.int(args["days"]) ?? 30
-            Task {
-                do { done(.success(try await self.health.list(days: days))) } catch { done(.failure(error)) }
-            }
-        case "healthRoute":
-            guard let id = args["id"] as? String else { return done(.failure(BridgeError(message: "id"))) }
-            Task {
-                do { done(.success(try await self.health.gpx(id: id))) } catch { done(.failure(error)) }
-            }
-        case "openSettings":
-            if let url = URL(string: UIApplication.openSettingsURLString) { UIApplication.shared.open(url) }
-            done(.success(true))
-        default:
-            done(.failure(BridgeError(message: "unknown: " + name)))
-        }
-    }
-
-    private func trackerState() -> [String: Any] {
-        guard paired else { return ["state": "none", "run": NSNull(), "since": NSNull(), "fixes": 0, "pending": 0] }
-        let s = engine.snapshot()
-        return [
-            "state": Self.stateName(s.phase),
-            "run": orNull(s.run),
-            "since": orNull(s.started.map { Int($0.timeIntervalSince1970) }),
-            "fixes": s.fixes,
-            "pending": s.pending,
-        ]
-    }
-}
-
-/// A JSON value or null.
-func orNull(_ v: Any?) -> Any {
-    v ?? NSNull()
 }

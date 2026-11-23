@@ -105,7 +105,7 @@ enum JSON {
         return (try? JSONSerialization.jsonObject(with: data)) as? [String: Any]
     }
 
-    /// A JSON text of any value (fragments allowed), for the web view.
+    /// A JSON text of any value (fragments allowed).
     static func text(_ v: Any) -> String {
         if let data = try? JSONSerialization.data(withJSONObject: v, options: [.fragmentsAllowed]),
            let s = String(data: data, encoding: .utf8) {
@@ -162,8 +162,9 @@ enum Geo {
     }
 }
 
-/// A pair code (8 letters or digits) from what was scanned, typed or opened: the code itself,
-/// `https://ozimut.com/t/<code>`, `ozimut://t/<code>`, `ozimut://pair/<code>` or `ozimut://<code>`.
+/// An Ozimut pair code (8 letters or digits; « Relier à Ozimut ») from what was scanned, typed or opened: the code itself,
+/// `https://ozimut.com/t/<code>`, `ozitrac://t/<code>` (or the former `ozimut://t/<code>`, `ozimut://pair/<code>`,
+/// `ozimut://<code>`).
 enum PairCode {
     static func isCode(_ s: String) -> Bool {
         s.count == 8 && s.allSatisfy { allowed.contains($0) }
@@ -180,15 +181,16 @@ enum PairCode {
         if isCode(s.uppercased()) { return s.uppercased() }
         guard let url = URL(string: s), let scheme = url.scheme?.lowercased() else { return nil }
         var parts = url.pathComponents.filter { $0 != "/" }
-        if scheme == "ozimut", let host = url.host, !host.isEmpty { parts.insert(host, at: 0) }
+        let own = scheme == "ozimut" || scheme == "ozitrac"
+        if own, let host = url.host, !host.isEmpty { parts.insert(host, at: 0) }
         if scheme == "https" || scheme == "http" {
             guard parts.count == 2, parts[0] == "t" else { return nil }
             let c = parts[1].uppercased()
             return isCode(c) ? c : nil
         }
-        if scheme == "ozimut" {
+        if own {
             if let last = parts.last, isCode(last.uppercased()) { return last.uppercased() }
-            let opaque = s.dropFirst("ozimut:".count).trimmingCharacters(in: CharacterSet(charactersIn: "/"))
+            let opaque = s.dropFirst(scheme.count + 1).trimmingCharacters(in: CharacterSet(charactersIn: "/"))
             if isCode(opaque.uppercased()) { return opaque.uppercased() }
         }
         return nil

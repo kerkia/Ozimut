@@ -38,6 +38,15 @@ class TrackFormTest {
         assertArrayEquals(plain, Seal.open(key, aad, sealed))
     }
 
+    /** The vectors made with Node's WebCrypto, which the iPhone's tests check too (track/ios/Tests/OzitracTests.swift). */
+    @Test
+    fun sealsAsWebCryptoDoes() {
+        assertEquals("AQIDBAUGBwgJCgsMKwAOwgQ8OsM-yW_YKD0AW4hL3rz9Pf9Y",
+            Seal.seal(key, "abcdefghijklmnop|w2345678|r_20261123T101500_ab12|3", "{\"t0\":1}".toByteArray(Charsets.UTF_8), iv))
+        assertEquals("AQIDBAUGBwgJCgsMk6sWneWpeNtJ86F2PYpA9dV4UcqEysCZ",
+            Seal.seal(key, "abcdefghijklmnop|name", "Éloïse".toByteArray(Charsets.UTF_8), iv))
+    }
+
     @Test
     fun aNameIsSealedWithTheChannelOnly() {
         assertEquals("abcdefghijklmnop|name", Seal.nameAad("abcdefghijklmnop"))

@@ -3,36 +3,57 @@ import SwiftUI
 import WatchConnectivity
 import WatchKit
 
-/// The Apple Watch app's state: its pairing (claim code, or a pair code from the iPhone), the run.
-final class WatchModel: NSObject, ObservableObject, TrackEngineDelegate, WCSessionDelegate {
+/// What the watch shows between runs.
+enum WatchPage {
+    case home, name, invite, watchers, claim
+}
+
+/// Ozitrac on the Apple Watch (docs/track/ozitrac.md « The watch »): a followed device only, standalone on cellular or
+/// Wi-Fi. Its own channel on the relay and its code shown as a QR code for a watcher's iPhone; its watchers listed and
+/// removable; « Relier à Ozimut » by its claim code; the run recorded with a workout session (it keeps the app running
+/// wrist down), sent to the relay and Ozimut as the iPhone's, kept on the watch, and sent over to the paired iPhone's
+/// « Mes courses » by WatchConnectivity once it has ended.
+final class WatchModel: NSObject, ObservableObject, RunCoordinatorDelegate, WCSessionDelegate {
     static let shared = WatchModel()
+    /// Runs kept on the watch.
+    static let keepRuns = 20
 
     let store = DeviceStore.shared
     let client = TrackClient(base: AppConfig.base)
-    let engine: TrackEngine
+    let runs: RunCoordinator
     let recorder = WorkoutRecorder()
+    let channel = ChannelStore.shared
 
-    @Published var paired = false
+    @Published var page: WatchPage = .home
+    @Published var linked = false
     @Published var account: TrackAccount?
-    @Published var watchers: [String] = []
     @Published var claimCode = ""
     @Published var status = TrackStatus()
     @Published var ended: TrackStatus?
     @Published var message: String?
-    @Published var busy = false
+    @Published var watchers: [ChannelStore.Watcher] = []
+    @Published var myName = Me.name
+    @Published var inviteLink: String?
+    @Published var inviteFailed = false
 
     private var settings = TrackSettings()
     private var claimTimer: Timer?
     private var batteryTimer: Timer?
+    private var battery: Int?
     private let defaults = UserDefaults.standard
 
     private override init() {
         let dir = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
             .appendingPathComponent("Tracker", isDirectory: true)
-        engine = TrackEngine(directory: dir, client: client, key: { DeviceStore.shared.key })
+        runs = RunCoordinator(directory: dir, ozimut: OzimutDestination(client: TrackClient(base: AppConfig.base), key: { DeviceStore.shared.key }))
         super.init()
-        engine.delegate = self
-        recorder.onFix = { [weak self] fix in self?.engine.add(fix) }
+        runs.delegate = self
+        runs.battery = { [weak self] in self?.battery }
+        runs.startLocation = { [weak self] in self?.recorder.start() }
+        runs.stopLocation = { [weak self] in self?.recorder.stop() }
+        recorder.onFix = { [weak self] fix in self?.runs.add(fix) }
+        channel.onChange = { [weak self] in self?.watchers = self?.channel.watchers ?? [] }
+        watchers = channel.watchers
         reload()
         if WCSession.isSupported() {
             WCSession.default.delegate = self
@@ -41,29 +62,63 @@ final class WatchModel: NSObject, ObservableObject, TrackEngineDelegate, WCSessi
         WKInterfaceDevice.current().isBatteryMonitoringEnabled = true
         readBattery()
         batteryTimer = Timer.scheduledTimer(withTimeInterval: 60, repeats: true) { [weak self] _ in self?.readBattery() }
-        engine.update(settings: settings)
-        if engine.resume() {
-            recorder.start()
+        runs.update(ozimut: settings)
+        runs.resume()
+        Task {
+            await RelayConfig.refresh()
+            await self.channel.refresh()
         }
-        if !paired { beginClaim() }
     }
 
     private func reload() {
         account = store.account
-        paired = store.isPaired
-        watchers = store.watchers
+        linked = store.isPaired
         settings = store.settings
         Lang.set(account?.lang)
     }
 
     private func readBattery() {
         let lvl = WKInterfaceDevice.current().batteryLevel
-        engine.setBattery(lvl >= 0 ? Int((lvl * 100).rounded()) : nil, lowPower: ProcessInfo.processInfo.isLowPowerModeEnabled)
+        battery = lvl >= 0 ? Int((lvl * 100).rounded()) : nil
+        runs.setBattery(battery, lowPower: ProcessInfo.processInfo.isLowPowerModeEnabled)
     }
 
-    // MARK: claim code (design.md « Watches: claim codes »)
+    func setName(_ n: String) {
+        Me.name = n
+        myName = Me.name
+    }
+
+    // MARK: who follows me
+
+    /// A code for one person, shown as a QR code (their iPhone's Ozitrac scans it).
+    func makeInvite() {
+        inviteLink = nil
+        inviteFailed = false
+        page = .invite
+        Task {
+            let l = await channel.invite(name: Me.name)
+            await MainActor.run {
+                self.inviteLink = l
+                self.inviteFailed = l == nil
+            }
+        }
+    }
+
+    func refreshWatchers() {
+        Task { await channel.refresh() }
+    }
+
+    func removeWatcher(_ w: String) {
+        Task {
+            let ok = await channel.remove(w)
+            await MainActor.run { if !ok { self.message = L("net.error") } }
+        }
+    }
+
+    // MARK: « Relier à Ozimut »: the claim code (design.md « Watches: claim codes »)
 
     func beginClaim() {
+        page = .claim
         var key = Keychain.get("claimKey")
         if key == nil {
             key = RandomCode.key()
@@ -80,8 +135,14 @@ final class WatchModel: NSObject, ObservableObject, TrackEngineDelegate, WCSessi
         pollClaim()
     }
 
+    func endClaim() {
+        claimTimer?.invalidate()
+        claimTimer = nil
+        page = .home
+    }
+
     private func pollClaim() {
-        guard !paired, let key = Keychain.get("claimKey") else {
+        guard !linked, page == .claim, let key = Keychain.get("claimKey") else {
             claimTimer?.invalidate()
             return
         }
@@ -108,111 +169,92 @@ final class WatchModel: NSObject, ObservableObject, TrackEngineDelegate, WCSessi
         Keychain.set(nil, "claimKey")
         message = nil
         reload()
-        engine.update(settings: settings)
+        runs.update(ozimut: settings)
+        page = .home
     }
 
-    /// A pair code sent by the iPhone app.
-    private func pair(code: String) {
-        guard PairCode.isCode(code) else { return }
-        busy = true
-        let device: [String: Any] = [
-            "kind": "applewatch", "platform": "watchos", "version": AppConfig.version,
-            "os": WKInterfaceDevice.current().systemVersion, "model": AppConfig.model,
-        ]
-        Task {
-            do {
-                let r = try await client.pair(code: code, device: device)
-                await MainActor.run {
-                    self.store.save(device: r.device, key: r.key, account: r.account, watchers: r.watchers, settings: r.settings)
-                    self.busy = false
-                    self.claimed()
-                }
-            } catch {
-                await MainActor.run {
-                    self.busy = false
-                    self.message = AppModelText.pairError(error)
-                }
-            }
-        }
-    }
-
-    func unpair() {
+    /// Unlinks the watch from Ozimut, on the watch only.
+    func unlink() {
         guard status.phase == .idle else { return }
-        engine.discard()
         store.forget()
         reload()
-        beginClaim()
     }
 
     // MARK: the run
 
     func start() {
-        guard paired, status.phase == .idle else { return }
+        guard status.phase == .idle else { return }
         ended = nil
+        message = nil
         recorder.authorize { [weak self] ok in
             guard let self else { return }
             if !ok { self.message = L("watch.health") }
-            self.recorder.start()
-            self.engine.start(share: "watchers")
+            self.runs.update(ozimut: self.settings)
+            self.runs.start(share: true, linked: self.linked, cap: self.linked ? self.settings.cap : nil)
         }
     }
 
     func stop() {
-        recorder.stop()
-        engine.stop(reason: .user)
+        runs.stop(reason: .user)
     }
 
     func help() {
-        engine.help()
+        runs.help()
         WKInterfaceDevice.current().play(.notification)
     }
 
-    func trackChanged(_ s: TrackStatus) {
+    func runChanged(_ s: TrackStatus) {
         status = s
     }
 
-    func trackEnded(_ s: TrackStatus, reason: EndReason) {
-        recorder.stop()
+    func runEnded(_ s: TrackStatus, reason: EndReason) {
         ended = s
-        status = engine.snapshot()
+        status = runs.status
+        if let run = s.run { sendToPhone(run) }
+        RunLog.prune(keep: WatchModel.keepRuns)
     }
 
-    func trackDeviceRemoved() {
-        recorder.stop()
-        store.forget()
+    func ozimutRemoved() {
         reload()
-        status = TrackStatus()
         message = L("removed.watch")
-        beginClaim()
     }
 
-    // MARK: WatchConnectivity
-
-    func session(_ session: WCSession, activationDidCompleteWith activationState: WCSessionActivationState, error: Error?) {}
-
-    func session(_ session: WCSession, didReceiveMessage message: [String: Any]) {
-        receive(message)
+    func channelGone() {
+        watchers = []
     }
 
-    func session(_ session: WCSession, didReceiveUserInfo userInfo: [String: Any]) {
-        receive(userInfo)
+    // MARK: the runs to the iPhone (WatchConnectivity)
+
+    private var sentRuns: Set<String> {
+        get { Set(defaults.stringArray(forKey: "oz.sentRuns") ?? []) }
+        set { defaults.set(Array(newValue), forKey: "oz.sentRuns") }
     }
 
-    private func receive(_ msg: [String: Any]) {
-        guard let code = msg["pairCode"] as? String else { return }
-        DispatchQueue.main.async {
-            if self.status.phase == .idle { self.pair(code: code) }
+    /// A finished run's file to the paired iPhone: the system keeps the transfer until the two are connected.
+    private func sendToPhone(_ run: String) {
+        guard WCSession.isSupported(), WCSession.default.activationState == .activated else { return }
+        let s = WCSession.default
+        if s.outstandingFileTransfers.contains(where: { ($0.file.metadata?["run"] as? String) == run }) { return }
+        let url = RunLog.url(run)
+        guard FileManager.default.fileExists(atPath: url.path) else { return }
+        s.transferFile(url, metadata: ["kind": "run", "run": run])
+    }
+
+    /// The runs not yet sent (a transfer that failed, or a run ended before the session was ready).
+    private func sendWaiting() {
+        let sent = sentRuns
+        for r in RunLog.runs() where !sent.contains(r.run) && r.run != status.run {
+            sendToPhone(r.run)
         }
     }
-}
 
-enum AppModelText {
-    static func pairError(_ error: Error) -> String {
-        switch error as? TrackAPIError {
-        case .code?: return L("pair.error.code")
-        case .tooMany?: return L("pair.error.many")
-        case .network?: return L("pair.error.network")
-        default: return L("pair.error.other")
-        }
+    func session(_ session: WCSession, activationDidCompleteWith activationState: WCSessionActivationState, error: Error?) {
+        guard activationState == .activated else { return }
+        DispatchQueue.main.async { self.sendWaiting() }
+    }
+
+    func session(_ session: WCSession, didFinish fileTransfer: WCSessionFileTransfer, error: Error?) {
+        guard error == nil, let run = fileTransfer.file.metadata?["run"] as? String else { return }
+        DispatchQueue.main.async { self.sentRuns.insert(run) }
     }
 }

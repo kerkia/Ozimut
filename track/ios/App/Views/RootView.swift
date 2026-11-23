@@ -1,35 +1,58 @@
 import SwiftUI
-import WebKit
 
+/// Ozitrac's two roles on one iPhone (docs/track/ozitrac.md « The apps »): « Ma course » (being followed) and « Je suis »
+/// (following). The run and the two-minute test cover the screen; the other pages come as sheets.
 struct RootView: View {
     @EnvironmentObject var m: AppModel
 
+    private static func isCover(_ p: Page?) -> Bool {
+        p == .tracker || p == .selfTest
+    }
+
+    private var cover: Binding<Page?> {
+        Binding(get: { RootView.isCover(m.page) ? m.page : nil },
+                set: { v in if v != nil || RootView.isCover(m.page) { m.page = v } })
+    }
+
+    private var sheet: Binding<Page?> {
+        Binding(get: { RootView.isCover(m.page) ? nil : m.page },
+                set: { v in if v != nil || !RootView.isCover(m.page) { m.page = v } })
+    }
+
     var body: some View {
-        Group {
-            if m.paired && m.settings.onlyTracker {
-                // « Mode suivi seul »: the tracker alone, no web view.
-                TrackerFlowView(closable: false)
-            } else {
-                WebScreen(webView: m.web.webView)
-                    .ignoresSafeArea(.container, edges: .bottom)
-                    .fullScreenCover(isPresented: $m.showTracker) {
-                        TrackerFlowView(closable: true).environmentObject(m)
-                    }
-            }
+        TabView(selection: $m.tab) {
+            NavigationStack { MeView() }
+                .tabItem { Label(L("tab.me"), systemImage: "figure.run") }
+                .tag(HomeTab.me)
+            NavigationStack { FollowListView() }
+                .tabItem { Label(L("tab.follow"), systemImage: "person.2.fill") }
+                .tag(HomeTab.follow)
         }
+        .tint(.orange)
         .overlay(alignment: .top) {
             if let n = m.notice {
                 NoticeBanner(text: n) { m.notice = nil }
             }
         }
+        .fullScreenCover(item: cover) { p in
+            TrackerFlowView(page: p).environmentObject(m)
+        }
+        .sheet(item: sheet) { p in
+            NavigationStack { pageView(p) }.environmentObject(m)
+        }
     }
-}
 
-struct WebScreen: UIViewRepresentable {
-    let webView: WKWebView
-
-    func makeUIView(context: Context) -> WKWebView { webView }
-    func updateUIView(_ uiView: WKWebView, context: Context) {}
+    @ViewBuilder private func pageView(_ p: Page) -> some View {
+        switch p {
+        case .invite: InviteView()
+        case .runs: RunsView()
+        case .zone: ZoneView()
+        case .pair: PairView()
+        case let .join(link): JoinView(link: link)
+        case let .follow(c): FollowView(c: c)
+        case .tracker, .selfTest: EmptyView()
+        }
+    }
 }
 
 struct NoticeBanner: View {
@@ -53,4 +76,21 @@ struct NoticeBanner: View {
             DispatchQueue.main.asyncAfter(deadline: .now() + 8) { close() }
         }
     }
+}
+
+/// A sheet's « Fermer » button.
+struct Closable: ViewModifier {
+    @EnvironmentObject var m: AppModel
+
+    func body(content: Content) -> some View {
+        content.toolbar {
+            ToolbarItem(placement: .cancellationAction) {
+                Button(L("common.close")) { m.page = nil }
+            }
+        }
+    }
+}
+
+extension View {
+    func closable() -> some View { modifier(Closable()) }
 }

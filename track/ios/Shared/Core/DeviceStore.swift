@@ -34,7 +34,8 @@ enum Keychain {
     }
 }
 
-/// What a paired device keeps: its id and key (Keychain), the account, its watchers and settings (preferences).
+/// What a device linked to an Ozimut account keeps (« Relier à Ozimut »): its id and key (Keychain), the account, its
+/// watchers there and its settings (preferences). Unlinking is local only (docs/track/ozitrac.md).
 final class DeviceStore {
     static let shared = DeviceStore()
 
@@ -111,10 +112,6 @@ enum AppConfig {
         }
     }()
 
-    /// The hosts the app's web view treats as the site.
-    static var siteHosts: Set<String> {
-        var h: Set<String> = ["ozimut.com", "www.ozimut.com", "ocn.kerkia.com"]
-        if let b = base.host { h.insert(b) }
-        return h
-    }
+    /// The App Group the app shares with its notification extension (the names of the people followed).
+    static let group = "group.com.ozimut.ozitrac"
 }
