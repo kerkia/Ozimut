@@ -854,7 +854,7 @@ banner asking a parent), a child taking the account over from 15 (`POST /api/tra
   2026-11-23): the Wear OS Data Layer, an item `/ozitrac/run/<run>` with the run's CSV as an asset (`wear` `RunSync`, after
   each run's end), filed in « Mes courses » by the phone (`WatchRuns`, a `WearableListenerService`; « Mes courses » collects
   what a missed wake-up left) — both APKs must be signed with the same key, so from the same CI run until a release keystore
-  exists. Artifacts `ozitrac-android-apks`, `ozitrac-wearos-apks`; never run on a device yet. Site notifications no
+  exists. Artifacts `ozitrac-android-apks`, `ozitrac-wearos-apks`; never run on a device yet. **The iPhone and Apple Watch apps** (`track/ios`, merged 2026-11-23; ids `com.ozimut.ozitrac`, `.watchkitapp`, `.widget`, `.notify`, App Group `group.com.ozimut.ozitrac`): the same two roles in SwiftUI, CryptoKit sealing checked against a WebCrypto vector shared with Android's tests, the map's layers as Android's (`MapLayers.swift`, `TileMap.swift`), a notification extension naming the person followed, the watch a watchee with its own channel and QR code (Nayuki's encoder ported) whose runs reach the iPhone by `transferFile`; built unsigned by `track-ios.yml`, the owner's Apple steps in `track/ios/README.md`. Site notifications no
   longer go to the native devices: only the tracking's alerts (`pushToUser`'s `native`). Relay test: `C:\Kerkia\Ozimut\work\scratch-scripts\t_ozitrac.mjs`
   (30 checks), launch configs `ocn-live-track` + `pages-dev-track-open` (binds `OZITRAC=TracChannel@ocn-live`).
 - **Administrators only for now** (owner, 2026-11-22: « make all this visible to admin only for now »): while `TRACK_OPEN` is "0" the
