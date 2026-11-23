@@ -63,9 +63,7 @@ class JoinActivity : ComponentActivity() {
                 busy = false
                 val f = r.follow
                 if (f != null) {
-                    // the alerts reach this phone through its push token, when the app is built with one
-                    val app = applicationContext
-                    PushSupport.token(app) { t -> if (t != null) Executors.newSingleThreadExecutor().execute { Follows.registerPush(app, f, t) } }
+                    // (Follows.join gives the relay this phone's push token, when the app is built with one)
                     open(f.c)
                     return@runOnUiThread
                 }

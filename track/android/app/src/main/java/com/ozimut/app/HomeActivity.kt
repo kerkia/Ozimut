@@ -66,8 +66,8 @@ class HomeActivity : ComponentActivity() {
         val tabs = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
         tabMe = tabButton(getString(R.string.tab_me)) { select("me") }
         tabFollow = tabButton(getString(R.string.tab_follow)) { select("follow") }
-        tabs.addView(tabMe, LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f).apply { rightMargin = Ui.dp(this, 4) })
-        tabs.addView(tabFollow, LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f).apply { leftMargin = Ui.dp(this, 4) })
+        tabs.addView(tabMe, LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f).apply { rightMargin = Ui.dp(this@HomeActivity, 4) })
+        tabs.addView(tabFollow, LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f).apply { leftMargin = Ui.dp(this@HomeActivity, 4) })
         root.addView(Ui.full(tabs))
         body = Ui.column(this, 0)
         root.addView(body)

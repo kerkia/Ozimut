@@ -102,8 +102,12 @@ class RunViewActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
-        val run = intent.getStringExtra(EXTRA_RUN) ?: run { finish(); return }
-        val info = RunLog.runs(this).firstOrNull { it.run == run } ?: run { finish(); return }
+        val id = intent.getStringExtra(EXTRA_RUN)
+        val info = RunLog.runs(this).firstOrNull { it.run == id }
+        if (id == null || info == null) {
+            finish()
+            return
+        }
         val fixes = RunLog.read(info.file)
         val cfg = RelayConfig.get(this)
         val root = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setBackgroundColor(0xFFFFFFFF.toInt()) }

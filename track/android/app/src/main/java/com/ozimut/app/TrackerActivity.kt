@@ -303,8 +303,8 @@ class TrackerActivity : ComponentActivity() {
         } else {
             pendText?.text = getString(R.string.tr_pending, Tracker.pending(this))
             sentText?.text = when {
-            s.failing -> getString(R.string.tr_send_failed)
-            s.lastSent == 0L -> getString(R.string.tr_never_sent)
+                s.failing -> getString(R.string.tr_send_failed)
+                s.lastSent == 0L -> getString(R.string.tr_never_sent)
                 else -> getString(R.string.tr_last_sent, ((System.currentTimeMillis() - s.lastSent) / 1000).toString() + " s")
             }
             sentText?.setTextColor(if (s.failing) Ui.ORANGE else Ui.GREY)
