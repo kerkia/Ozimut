@@ -40,7 +40,7 @@ import { detectCourse } from "../trace/course.js";
 import { alignTrack, visitOrder, passesInOrder } from "../trace/align.js";
 import { readZip, parseKml, fitFromKml, isWorldFileName, parseWorldFile, crsFromWkt, guessCrs, fitFromWorld, parseIofCourse, projector } from "../trace/georef.js";
 import { readMap, isImage, imageBlob } from "../trace/mapfile.js";
-import { encodeTrace, decodeTrace, cropToMap, geoFromFit, fitFromGeo, frameAt, validGeo, coursePasses, scorePasses } from "../trace/share.js";
+import { encodeTrace, decodeTrace, cropToMap, geoFromFit, fitFromGeo, frameAt, validGeo, coursePasses, scorePasses, controlVisits, inOrderAnyStart } from "../trace/share.js";
 import { mapView } from "../trace/mapview.js";
 import { drawCurves, curveRows } from "../trace/curves.js";
 import { paceRange, paceColour, paceLegend, rampColour, rampLegend, colourOf, legendHtml, gapSpeed } from "../trace/pacecolour.js";
@@ -666,34 +666,56 @@ const OFFER_KEY = (id) => `ocn.sh.offered.${id}`;
 const offered = (id) => { try { return localStorage.getItem(OFFER_KEY(id)) === "1"; } catch (e) { return false; } };
 const markOffered = (id) => { try { localStorage.setItem(OFFER_KEY(id), "1"); } catch (e) { /* not kept */ } };
 
-/** How well a track fits each circuit: [{ course, k (controls passed), n (controls), crop }], best first. A circuit is passed in
- *  its order (a score course in any order); a track that never comes on a circuit's map fits none of its controls. */
+/** How well a track fits each circuit: [{ course, k (controls visited), o (of them in the circuit's order), n (controls), score,
+ *  crop }], best first. Since 2026-11-23 (OPA's training of 22 November: a runner who ran E's second loop first and forgot a
+ *  control was put on F, the first-visit chain finding 3 of E's 13): each control counts wherever the track visits it, the
+ *  order counts for half (the most controls passed in order, any visit counting), and the circuit must also explain the
+ *  controls the track visits — a short circuit inside a long one is all visited by the long one's runner, but leaves out most of
+ *  the controls they visited. A track that never comes on a circuit's map fits none of its controls. */
 export function matchCircuits(track, courses) {
   const out = [];
   for (const c of courses) {
     const n = (c.controls || []).filter((p) => p.kind === "control").length;
-    if (!n || !validGeo(c.geo)) { out.push({ course: c, k: 0, n, crop: null }); continue; }
+    if (!n || !validGeo(c.geo)) { out.push({ course: c, k: 0, o: 0, n, score: 0, crop: null }); continue; }
     const crop = cropToMap(track, c.geo, c.map.w, c.map.h);
-    if (!crop) { out.push({ course: c, k: 0, n, crop: null }); continue; }
-    const fit = fitFromGeo(c.geo, track);
-    const passes = (c.score ? scorePasses : coursePasses)(track, fit, c.controls, 25);
-    const k = c.controls.reduce((s, p, j) => s + (p.kind === "control" && passes[j] != null ? 1 : 0), 0);
-    out.push({ course: c, k, n, crop });
+    if (!crop) { out.push({ course: c, k: 0, o: 0, n, score: 0, crop: null }); continue; }
+    const v = controlVisits(track, fitFromGeo(c.geo, track), c.controls, 25);
+    const k = v.filter((x) => x.t && x.t.length).length;
+    out.push({ course: c, k, o: c.score ? k : inOrderAnyStart(v), n, score: 0, crop, v });
   }
-  return out.sort((a, b) => b.k / (b.n || 1) - a.k / (a.n || 1) || b.n - a.n);
+  // the controls of every circuit merged by place (the track's metres: the same frame for all circuits); those the track came
+  // within PUNCH of are the ones it punched, near enough — passing by a control within 25 m is common where circuits share a wood
+  const PLACE = 12, PUNCH = 12, places = [], punched = new Set();
+  const placeOf = ([x, y]) => {
+    let i = places.findIndex((p) => Math.hypot(p[0] - x, p[1] - y) <= PLACE);
+    if (i < 0) { places.push([x, y]); i = places.length - 1; }
+    return i;
+  };
+  for (const f of out) {
+    if (!f.v) continue;
+    f.places = new Set();
+    for (const x of f.v) if (x.t) { const i = placeOf(x.at); f.places.add(i); if (x.near <= PUNCH) punched.add(i); }
+  }
+  for (const f of out) {
+    if (!f.crop || !f.n) continue;
+    const mine = [...punched].filter((i) => f.places.has(i)).length;
+    const recall = f.o / f.n, precision = punched.size ? mine / punched.size : 0;
+    f.score = recall + precision ? (2 * recall * precision) / (recall + precision) : 0;
+    f.p = precision;
+    delete f.v; delete f.places;
+  }
+  return out.sort((a, b) => b.score - a.score || b.o - a.o || b.n - a.n);
 }
-/** The circuit a track surely belongs to, or null: the only one passed at 90 % of its controls — or, several so passed (a short
- *  circuit run inside a long one), the longest passed at 95 % — or the best at 60 % with 20 points over the next. */
+/** The circuit a track surely belongs to, or null (then the runner chooses, the best fit offered first): the best fit at 0.6
+ *  or more, 0.15 over the next — or 0.05 over it when it has 0.15 more of its own controls passed in order, or holds 0.1 more
+ *  of the controls the track punched (circuits sharing most of their controls: B and D at OPA, 22 November; a short night
+ *  course inside the long one, 10 November). */
 export function sureCircuit(fits) {
-  const r = (f) => f.k / (f.n || 1);
-  const high = fits.filter((f) => f.crop && r(f) >= 0.9);
-  if (high.length === 1) return high[0];
-  if (high.length > 1) {
-    const longest = [...high].sort((a, b) => b.n - a.n);
-    return r(longest[0]) >= 0.95 && longest[0].n > longest[1].n ? longest[0] : null;
-  }
   const [a, b] = fits;
-  return a?.crop && r(a) >= 0.6 && (!b || r(a) - r(b) >= 0.2) ? a : null;
+  if (!a?.crop || a.score < 0.6) return null;
+  if (!b?.crop) return a;
+  const lead = a.score - b.score, more = a.o / a.n - b.o / (b.n || 1), explains = (a.p || 0) - (b.p || 0);
+  return lead >= 0.15 || (lead >= 0.05 && (more >= 0.15 || explains >= 0.1)) ? a : null;
 }
 
 /** A phone: the trace's file picker at once (owner, 2026-11-06: no window with a drop zone first; the tap that asked still counts). */
@@ -2319,15 +2341,28 @@ async function replay(box, { A, id, course, race, init = {}, traces, allTraces =
     try { tr = parseTrace(file.name, await file.arrayBuffer()); } catch (e) { boxU.innerHTML = html`<div class="notice">${t(e.message === "time" ? "an.err.time" : "an.err.gpx")}</div>`; return; }
     // a route drawn by hand on Ozimut (its GPX says so): not compared with the others' GPS traces (owner, 2026-11-02)
     if (tr.source === "drawn") { boxU.innerHTML = html`<div class="notice">${t("sh.trace.drawn")}</div>`; return; }
-    // the circuit the track runs, when it is surely another than the one shown: sent there, and said
-    const sure = A.courses.length > 1 ? sureCircuit(matchCircuits(tr, A.courses)) : null, to = sure && sure.course.n !== course.n ? sure.course : course;
-    const crop = to !== course ? sure.crop : cropToMap(tr, course.geo, course.map.w, course.map.h);
-    if (!crop) { boxU.innerHTML = html`<div class="notice">${t("sh.trace.offMap")}</div>`; return; }
-    const enc = encodeTrace(tr, crop[0], crop[1]), t0 = enc.t0, t1 = t0 + enc.dt.reduce((s, v) => s + v, 0);
-    boxU.innerHTML = html`<div class="notice sh-consent">${to !== course ? html`<p><b>${t("sh.offer.other", { course: to.name, k: sure.k, n: sure.n })}</b></p>` : ""}<p>${t("sh.trace.confirm", { a: hms(t0), b: hms(t1), n: enc.dt.length })}</p>
+    // the circuit the track runs: when it is surely another than the one shown, sent there, and said; when no circuit is sure,
+    // the runner chooses, the best fit offered first (2026-11-23: an unsure track went to the circuit shown without a word —
+    // OPA's Marcel Sol on F, the first circuit, for E)
+    const fits = A.courses.length > 1 ? matchCircuits(tr, A.courses) : [];
+    const sure = fits.length ? sureCircuit(fits) : null, choices = sure ? [] : fits.filter((x) => x.crop);
+    let to = sure ? sure.course : choices.length > 1 ? choices[0].course : course;
+    const cropOf = (c) => fits.find((x) => x.course === c)?.crop || cropToMap(tr, c.geo, c.map.w, c.map.h);
+    if (!cropOf(to)) { boxU.innerHTML = html`<div class="notice">${t("sh.trace.offMap")}</div>`; return; }
+    const encOf = (c) => { const crop = cropOf(c); return encodeTrace(tr, crop[0], crop[1]); };
+    const spanOf = (enc) => t("sh.trace.confirm", { a: hms(enc.t0), b: hms(enc.t0 + enc.dt.reduce((s, v) => s + v, 0)), n: enc.dt.length });
+    let enc = encOf(to);
+    boxU.innerHTML = html`<div class="notice sh-consent">${sure && to !== course ? html`<p><b>${t("sh.offer.other", { course: to.name, k: sure.k, n: sure.n })}</b></p>` : ""}
+      ${choices.length > 1 ? html`<p>${t("sh.offer.choose")}</p><label class="field"><span>${t("sh.offer.course")}</span><select id="sh-up-c">${choices.map((x) => html`<option value="${x.course.n}" ${raw(x.course === to ? "selected" : "")}>${t("sh.offer.opt", { course: x.course.name, k: x.k, n: x.n })}</option>`)}</select></label>` : ""}
+      <p id="sh-up-span">${spanOf(enc)}</p>
       <label class="an-opt"><input type="checkbox" id="sh-consent"> ${t("sh.trace.consent")}</label>
       ${A.visitors ? html`<label class="an-opt"><input type="checkbox" id="sh-consent-vis" ${raw(myRun()?.visitors ? "checked" : "")}> ${t("sh.visitors.mine")}</label>` : ""}
       <div class="row" style="gap:6px;margin-top:6px"><button type="button" class="btn btn-sm btn-primary" id="sh-send">${t("sh.trace.send")}</button><button type="button" class="btn btn-sm" id="sh-cancel">${t("sh.cancel")}</button></div></div>`;
+    $("#sh-up-c")?.addEventListener("change", (e) => {
+      to = choices.find((x) => String(x.course.n) === e.target.value).course;
+      enc = encOf(to);
+      $("#sh-up-span").textContent = spanOf(enc);
+    });
     $("#sh-cancel").addEventListener("click", () => { boxU.innerHTML = ""; });
     $("#sh-send").addEventListener("click", async () => {
       if (!$("#sh-consent").checked) return;

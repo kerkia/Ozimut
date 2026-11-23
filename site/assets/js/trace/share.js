@@ -119,6 +119,54 @@ export function scorePasses(track, fit, controls, tol = 25) {
 }
 
 /**
+ * Every visit of a track to each control, in any order (for finding the circuit a track runs: 2026-11-23): by the course's
+ * controls, the list of trace seconds — one per stay within tol, at its closest point —, empty where never visited, null for
+ * the start and finish. Also each control's place in the track's metres (`at`), to compare controls across circuits, and the
+ * track's closest approach to it (`near`, metres).
+ */
+export function controlVisits(track, fit, controls, tol = 25) {
+  const n = track.n;
+  return controls.map((c) => {
+    const [mx, my] = toM(fit, c.x, c.y);
+    if (c.kind !== "control") return { at: [mx, my], t: null };
+    const out = [];
+    let best = -1, bd = Infinity, near = Infinity;
+    for (let k = 0; k <= n; k++) {
+      const d = k < n ? Math.hypot(track.x[k] - mx, track.y[k] - my) : Infinity;
+      if (d < near) near = d;
+      if (d <= tol) { if (d < bd) { bd = d; best = k; } }
+      else if (best >= 0 && d > 1.6 * tol) { out.push(track.t[best]); best = -1; bd = Infinity; }
+    }
+    return { at: [mx, my], t: out, near };
+  });
+}
+
+/** The most controls of a course passed in its order, any of each control's visits counting (a forgotten control, or one run
+ *  past at another moment, no longer cuts the rest off as the first-visit chain does). */
+export function inOrder(visits) {
+  let states = [[-Infinity, 0]];                          // (time of the last control taken, controls taken), Pareto front
+  for (const v of visits) {
+    if (!v.t || !v.t.length) continue;
+    const next = [...states];
+    for (const [t0, k] of states) {
+      const t1 = v.t.find((x) => x > t0);
+      if (t1 != null) next.push([t1, k + 1]);
+    }
+    next.sort((a, b) => a[0] - b[0] || b[1] - a[1]);
+    states = [];
+    for (const s of next) if (!states.length || s[1] > states[states.length - 1][1]) states.push(s);
+  }
+  return states.reduce((m, s) => Math.max(m, s[1]), 0);
+}
+/** inOrder, the course also allowed to be run from any control on, then from the start up to it: loops taken in the other
+ *  order (a butterfly's second wing first) still count as run in order. */
+export function inOrderAnyStart(visits) {
+  let best = inOrder(visits);
+  for (let j = 1; j < visits.length; j++) if (visits[j].t?.length) best = Math.max(best, inOrder([...visits.slice(j), ...visits.slice(0, j)]));
+  return best;
+}
+
+/**
  * The passes at a course's controls (px, in order: start, controls, finish), in trace seconds, null where not found.
  * tol: metres. A control's pass is the closest approach on the first visit (within tol, else 1.6 tol) after the
  * previous control's pass; the start's, the departure before control 1; the finish's, the arrival after the last one.
