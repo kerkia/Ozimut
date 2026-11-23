@@ -1,21 +1,22 @@
 import CoreLocation
 import SwiftUI
 
-/// The native tracker: Pair, Start, Running, Ended and the two-minute test.
+/// The run's screens over the tabs: Start, Running, Ended; and the two-minute test.
 struct TrackerFlowView: View {
     @EnvironmentObject var m: AppModel
-    let closable: Bool
+    let page: Page
 
     var body: some View {
         NavigationStack {
             content
                 .navigationBarTitleDisplayMode(.inline)
                 .toolbar {
-                    if closable && m.status.phase == .idle {
+                    if m.status.phase == .idle {
                         ToolbarItem(placement: .cancellationAction) {
                             Button(L("common.close")) {
-                                m.closeSelfTest()
-                                m.showTracker = false
+                                if page == .selfTest { m.closeSelfTest() }
+                                m.dismissEnded()
+                                m.page = nil
                             }
                         }
                     }
@@ -24,34 +25,38 @@ struct TrackerFlowView: View {
     }
 
     @ViewBuilder private var content: some View {
-        if m.screen == .selfTest {
+        if page == .selfTest {
             SelfTestView()
         } else if m.status.phase != .idle {
             RunningView()
         } else if let e = m.ended {
             EndedView(status: e.status, reason: e.reason)
-        } else if !m.paired {
-            PairView()
         } else {
             StartView()
         }
     }
 }
 
+/// Who the run goes to: the people who follow, the Ozimut account, or this iPhone only.
+func destinationsText(watchers: [ChannelStore.Watcher], share: Bool, linked: Bool) -> String {
+    var lines: [String] = []
+    let names = watchers.filter { $0.key != nil }.map { $0.name?.isEmpty == false ? $0.name! : L("watchers.unknown") }
+    if share && !names.isEmpty { lines.append(L("start.followedBy", names.joined(separator: ", "))) }
+    if linked { lines.append(L("tr.followedOzimut")) }
+    if lines.isEmpty { lines.append(share ? L("tr.followedNobody") : L("tr.local")) }
+    return lines.joined(separator: "\n")
+}
+
 // MARK: Start
 
 struct StartView: View {
     @EnvironmentObject var m: AppModel
-    @State private var confirmUnpair = false
 
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 18) {
-                VStack(alignment: .leading, spacing: 4) {
-                    Text(m.account?.name ?? "").font(.largeTitle.bold())
-                    Text(m.watchers.isEmpty ? L("start.nobody") : L("start.followedBy", m.watchers.joined(separator: ", ")))
-                        .foregroundColor(.secondary)
-                }
+                Text(destinationsText(watchers: m.watchers, share: m.share, linked: m.linked))
+                    .foregroundColor(.secondary)
 
                 VStack(spacing: 10) {
                     InfoRow(icon: "location", title: L("start.gps"), value: gpsText, ok: gpsOK)
@@ -74,29 +79,16 @@ struct StartView: View {
 
                 Text(L("start.privacy")).font(.footnote).foregroundColor(.secondary)
 
-                Divider()
-
-                Button(L("start.test")) { m.screen = .selfTest }
-                if m.watchAvailable {
-                    Button(L("start.watch")) { m.pairWatch() }
-                    if let w = m.watchState { Text(w).font(.footnote).foregroundColor(.secondary) }
-                }
                 if m.location.denied {
                     Button(L("start.settings")) {
                         if let url = URL(string: UIApplication.openSettingsURLString) { UIApplication.shared.open(url) }
                     }
                 }
-                Button(L("start.unpair"), role: .destructive) { confirmUnpair = true }
-                    .font(.footnote)
             }
             .padding()
         }
         .navigationTitle(L("start.title"))
         .onAppear { m.location.probe() }
-        .confirmationDialog(L("start.unpair.confirm"), isPresented: $confirmUnpair, titleVisibility: .visible) {
-            Button(L("start.unpair"), role: .destructive) { m.unpair() }
-            Button(L("common.cancel"), role: .cancel) {}
-        }
     }
 
     private var gpsOK: Bool {
@@ -150,17 +142,21 @@ struct RunningView: View {
                             .font(.system(size: 64, weight: .bold, design: .rounded))
                             .monospacedDigit()
                         Text(Fmt.distance(m.status.distance)).font(.title2).monospacedDigit()
-                        HStack(spacing: 16) {
-                            Label("\(m.status.pending)", systemImage: "tray.and.arrow.up")
-                                .accessibilityLabel(L("run.pending"))
-                            Text(sentText(now: ctx.date))
+                        if !m.status.dests.isEmpty {
+                            HStack(spacing: 16) {
+                                Label("\(m.status.pending)", systemImage: "tray.and.arrow.up")
+                                    .accessibilityLabel(L("run.pending"))
+                                Text(sentText(now: ctx.date))
+                            }
+                            .font(.footnote)
+                            .foregroundColor(.secondary)
                         }
-                        .font(.footnote)
-                        .foregroundColor(.secondary)
                     }
                 }
 
-                if !m.status.online {
+                Text(runText).font(.footnote).foregroundColor(.secondary).multilineTextAlignment(.center)
+
+                if !m.status.online && !m.status.dests.isEmpty {
                     Text(L("run.offline")).font(.footnote).foregroundColor(.orange)
                 }
 
@@ -170,18 +166,20 @@ struct RunningView: View {
                     HoldButton(title: L("run.stop"), action: { m.stopRun() })
                     Text(L("run.stop.hint")).font(.footnote).foregroundColor(.secondary)
 
-                    Button(action: { confirmHelp = true }) {
-                        Label(L("run.help"), systemImage: "exclamationmark.triangle.fill")
-                            .frame(maxWidth: .infinity, minHeight: 48)
+                    if !m.status.dests.isEmpty {
+                        Button(action: { confirmHelp = true }) {
+                            Label(L("run.help"), systemImage: "exclamationmark.triangle.fill")
+                                .frame(maxWidth: .infinity, minHeight: 48)
+                        }
+                        .buttonStyle(.bordered)
+                        .tint(.red)
                     }
-                    .buttonStyle(.bordered)
-                    .tint(.red)
                 }
 
                 if m.status.helpAt != nil {
                     Text(L("run.help.sent")).font(.headline).foregroundColor(.red)
                 }
-                if let call = m.settings.call, m.status.helpAt != nil,
+                if m.linked, let call = m.settings.call, m.status.helpAt != nil,
                    let url = URL(string: "tel:" + call.filter { "+0123456789".contains($0) }) {
                     Link(destination: url) {
                         Label(L("run.call", call), systemImage: "phone.fill")
@@ -202,6 +200,18 @@ struct RunningView: View {
         }
     }
 
+    private var runText: String {
+        let d = m.status.dests
+        var lines: [String] = []
+        if d.contains(RunCoordinator.relay) {
+            let names = m.watchers.filter { $0.key != nil }.map { $0.name?.isEmpty == false ? $0.name! : L("watchers.unknown") }
+            lines.append(names.isEmpty ? L("tr.followedNobody") : L("start.followedBy", names.joined(separator: ", ")))
+        }
+        if d.contains(RunCoordinator.oz) { lines.append(L("tr.followedOzimut")) }
+        if lines.isEmpty { lines.append(L("tr.local")) }
+        return lines.joined(separator: "\n")
+    }
+
     private func sentText(now: Date) -> String {
         guard let s = m.status.lastSent else { return L("run.never") }
         return L("run.lastSent", max(0, Int(now.timeIntervalSince(s))))
@@ -219,7 +229,7 @@ struct EndedView: View {
         VStack(spacing: 20) {
             Image(systemName: "flag.checkered").font(.system(size: 56)).foregroundColor(.orange)
             Text(L("end.title")).font(.title.bold())
-            if let why = reasonText { Text(why).foregroundColor(.secondary) }
+            if let why = reasonText { Text(why).foregroundColor(.secondary).multilineTextAlignment(.center) }
             VStack(spacing: 10) {
                 InfoRow(icon: "clock", title: L("end.duration"),
                         value: Fmt.clock(Date().timeIntervalSince(status.started ?? Date())), ok: true)
@@ -227,15 +237,23 @@ struct EndedView: View {
                         value: Fmt.distance(status.distance), ok: true)
                 InfoRow(icon: "mappin.and.ellipse", title: L("end.fixes"), value: "\(status.fixes)", ok: true)
             }
-            Button(L("end.done")) { m.dismissEnded() }
-                .buttonStyle(.borderedProminent)
+            Text(L("tr.kept")).font(.footnote).foregroundColor(.secondary)
+            Button(L("runs.title")) {
+                m.dismissEnded()
+                m.page = .runs
+            }
+            Button(L("end.done")) {
+                m.dismissEnded()
+                m.page = nil
+            }
+            .buttonStyle(.borderedProminent)
         }
         .padding()
     }
 
     private var reasonText: String? {
         switch reason {
-        case .user: return nil
+        case .user, .nobody: return nil
         case .cap: return L("end.reason.cap")
         case .remote: return L("end.reason.remote")
         case .closed: return L("end.reason.closed")
@@ -243,7 +261,7 @@ struct EndedView: View {
     }
 }
 
-// MARK: Pair
+// MARK: « Relier à Ozimut »
 
 struct PairView: View {
     @EnvironmentObject var m: AppModel
@@ -272,7 +290,7 @@ struct PairView: View {
                         let n = PairCode.normalise(v)
                         if n != v { code = n }
                     }
-                Button(action: { m.pair(code: code, signInWeb: true) }) {
+                Button(action: { m.pair(code: code) }) {
                     if m.pairing { ProgressView() } else { Text(L("pair.go")).frame(maxWidth: .infinity) }
                 }
                 .buttonStyle(.bordered)
@@ -283,10 +301,13 @@ struct PairView: View {
             .padding()
         }
         .navigationTitle(L("pair.title"))
+        .navigationBarTitleDisplayMode(.inline)
+        .closable()
+        .onAppear { m.pairError = nil }
         .sheet(isPresented: $scanning) {
-            QRScannerView(onCode: { text in
+            QRScannerView(accept: { PairCode.extract($0) != nil }, onCode: { text in
                 scanning = false
-                m.pair(code: text, signInWeb: true)
+                m.pair(code: text)
             }, onDenied: {
                 scanning = false
                 cameraDenied = true
@@ -324,7 +345,6 @@ struct SelfTestView: View {
                     }
                     .buttonStyle(.borderedProminent)
                 }
-                Button(L("test.back")) { m.closeSelfTest() }
             }
             .padding()
         }

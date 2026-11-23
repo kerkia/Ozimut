@@ -10,6 +10,10 @@ enum PushResult: Equatable {
     case tooLarge
     /// 429: wait `next` seconds.
     case slow(next: Int?)
+    /// Nothing to send with yet (no device key): try again in a minute.
+    case notReady(String)
+    /// The relay: nobody follows yet, so nobody to seal the batch for.
+    case noRecipient
     case failed(String)
 }
 
@@ -34,7 +38,6 @@ struct PairResult {
     var account: TrackAccount
     var watchers: [String]
     var settings: TrackSettings
-    var webToken: String?
 }
 
 /// The device side of the tracking API (design.md « Device protocol »). Ordinary URLSession requests (not background
@@ -120,8 +123,7 @@ final class TrackClient: TrackPushing {
               let account = TrackAccount(json: obj["account"] as? [String: Any]) else { throw TrackAPIError.answer }
         return PairResult(device: dev, key: key, account: account,
                           watchers: (obj["watchers"] as? [String]) ?? [],
-                          settings: TrackSettings(json: obj["settings"] as? [String: Any]),
-                          webToken: obj["webToken"] as? String)
+                          settings: TrackSettings(json: obj["settings"] as? [String: Any]))
     }
 
     /// A watch's claim: `nil` while no account has claimed it.
@@ -138,34 +140,9 @@ final class TrackClient: TrackPushing {
         }
     }
 
-    /// A one-time token signing a web view in to the device's account.
-    func webToken(key: String) async throws -> String {
-        let (status, obj) = try await post("api/track/webtoken", [:], bearer: key)
-        if status == 401 { throw TrackAPIError.unauthorized }
-        guard status == 200, let t = obj?["token"] as? String else { throw TrackAPIError.http(status) }
-        return t
-    }
-
     func pushToken(key: String, kind: String, token: String, env: String) async throws {
         let (status, _) = try await post("api/track/pushtoken", ["kind": kind, "token": token, "env": env], bearer: key)
         if status == 401 { throw TrackAPIError.unauthorized }
         guard (200..<300).contains(status) else { throw TrackAPIError.http(status) }
-    }
-
-    /// A pair code for the device's own account, made through a session of that account: `webtoken` → `session`
-    /// (its cookie kept in a session of its own) → `pair-code`. Used by the iPhone to pair its Apple Watch.
-    func pairCodeForAccount(key: String, account: Int) async throws -> String {
-        let token = try await webToken(key: key)
-        let c = URLSessionConfiguration.ephemeral
-        c.httpCookieAcceptPolicy = .always
-        c.httpShouldSetCookies = true
-        c.timeoutIntervalForRequest = 30
-        let s = URLSession(configuration: c)
-        defer { s.finishTasksAndInvalidate() }
-        let (st1, _) = try await post("api/track/session", ["token": token], using: s)
-        guard (200..<400).contains(st1) else { throw TrackAPIError.http(st1) }
-        let (st2, obj) = try await post("api/track/pair-code", ["account": account], using: s)
-        guard st2 == 200, let code = obj?["code"] as? String else { throw TrackAPIError.http(st2) }
-        return code
     }
 }

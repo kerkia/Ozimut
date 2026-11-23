@@ -9,6 +9,7 @@ final class LiveActivityController {
     private var lastState: TrackActivityAttributes.ContentState?
 
     func start(name: String, started: Date) {
+        let name = name.isEmpty ? "Ozitrac" : name
         if activity == nil { activity = Activity<TrackActivityAttributes>.activities.first }
         if activity != nil { return }
         guard ActivityAuthorizationInfo().areActivitiesEnabled else { return }

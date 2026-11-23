@@ -8,12 +8,14 @@ enum TrackPhase: String {
 enum EndReason: Equatable {
     /// Stop held on the device.
     case user
-    /// The server answered `stop: true` (a parent ended it, or the device was removed).
+    /// The server answered `stop: true` (a parent ended it on Ozimut, or the device was removed).
     case remote
-    /// The account's cap (`settings.cap` seconds from the start).
+    /// The run's longest duration.
     case cap
     /// 409: the server had closed the run.
     case closed
+    /// Nobody to send the run to (Ozitrac's relay at the end of a run nobody followed).
+    case nobody
 }
 
 /// What the screens show of the tracker.
@@ -28,23 +30,54 @@ struct TrackStatus: Equatable {
     var lastError: String?
     var helpAt: Date?
     var online = true
+    /// Where the run goes (RunCoordinator): "oz" (the Ozimut account), "z" (Ozitrac's relay, the people who follow).
+    var dests: [String] = []
 }
 
 protocol TrackEngineDelegate: AnyObject {
     func trackChanged(_ status: TrackStatus)
     func trackEnded(_ status: TrackStatus, reason: EndReason)
-    /// 401: the device was removed; it forgets its key.
+    /// 401: the device was removed (Ozimut) or the channel is gone (the relay); the destination forgets its keys.
     func trackDeviceRemoved()
 }
 
-/// The tracker's core, shared by the iPhone and the Apple Watch: each fix written at once to the on-disk queue,
-/// batches sent on another path every `next` seconds, at once for help, at the end and when the network returns;
-/// retries from 5 s doubling to 5 min. Everything runs on one serial queue; the location callback only enqueues.
-final class TrackEngine {
-    let q = DispatchQueue(label: "com.ozimut.track.engine")
-    private let store: FixQueue?
+/// Where an engine sends its batches: Ozimut's `/api/track/push` (`OzimutDestination`) or Ozitrac's relay
+/// (`RelayDestination`, docs/track/ozitrac.md). `done` may be called on any thread.
+protocol TrackDestination: AnyObject {
+    func send(_ batch: TrackBatch, battery: Int?, lowPower: Bool, left: Int, done: @escaping (PushResult) -> Void)
+}
+
+/// Ozimut's own device protocol (design.md « Sending »), with the device's key.
+final class OzimutDestination: TrackDestination {
     private let client: TrackPushing
     private let key: () -> String?
+
+    init(client: TrackPushing, key: @escaping () -> String?) {
+        self.client = client
+        self.key = key
+    }
+
+    func send(_ batch: TrackBatch, battery: Int?, lowPower: Bool, left: Int, done: @escaping (PushResult) -> Void) {
+        guard let key = key() else {
+            done(.notReady("device"))
+            return
+        }
+        guard let body = try? BatchEncoder.encode(batch, battery: battery, lowPower: lowPower, left: left) else {
+            done(.failed("encode"))
+            return
+        }
+        client.push(key: key, body: body, done: done)
+    }
+}
+
+/// The tracker's core for one destination, shared by the iPhone and the Apple Watch: each fix written at once to the
+/// on-disk queue, batches sent on another path every `next` seconds, at once for help, at the end and when the network
+/// returns; retries from 5 s doubling to 5 min. Everything runs on one serial queue; the location callback only enqueues.
+/// A run going to Ozimut and to the relay has one engine for each (RunCoordinator), each with its own queue file.
+final class TrackEngine {
+    let q: DispatchQueue
+    private let store: FixQueue?
+    private let destination: TrackDestination
     weak var delegate: TrackEngineDelegate?
 
     private var settings = TrackSettings()
@@ -62,17 +95,22 @@ final class TrackEngine {
     private var lastPublish = Date.distantPast
     private let monitor: NWPathMonitor?
 
-    /// `directory`: where the queue lives. `monitorNetwork`: off in tests.
-    init(directory: URL, client: TrackPushing, key: @escaping () -> String?, monitorNetwork: Bool = true) {
+    /// `directory`/`file`: where the queue lives. `monitorNetwork`: off in tests.
+    init(directory: URL, file: String = "track.sqlite", destination: TrackDestination, monitorNetwork: Bool = true) {
+        q = DispatchQueue(label: "com.ozimut.track.engine." + file)
         try? FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
-        store = try? FixQueue(path: directory.appendingPathComponent("track.sqlite").path)
-        self.client = client
-        self.key = key
+        store = try? FixQueue(path: directory.appendingPathComponent(file).path)
+        self.destination = destination
         monitor = monitorNetwork ? NWPathMonitor() : nil
         monitor?.pathUpdateHandler = { [weak self] path in
             self?.pathChanged(path.status == .satisfied)
         }
         monitor?.start(queue: q)
+    }
+
+    /// Ozimut's engine (the queue `track.sqlite`).
+    convenience init(directory: URL, client: TrackPushing, key: @escaping () -> String?, monitorNetwork: Bool = true) {
+        self.init(directory: directory, destination: OzimutDestination(client: client, key: key), monitorNetwork: monitorNetwork)
     }
 
     // MARK: called from anywhere
@@ -91,7 +129,12 @@ final class TrackEngine {
     /// Opens a run; the first batch goes within a few seconds so that the run opens on the server.
     @discardableResult
     func start(share: String, now: Date = Date()) -> String {
-        let run = RunId.make(start: now)
+        start(run: RunId.make(start: now), share: share, now: now)
+    }
+
+    /// Opens the run `run` (the same id for every destination of a run).
+    @discardableResult
+    func start(run: String, share: String, now: Date = Date()) -> String {
         q.sync {
             store?.openRun(run, started: Int64(floor(now.timeIntervalSince1970)), share: share)
             current = store?.row(run)
@@ -140,7 +183,7 @@ final class TrackEngine {
         q.async { self.beginEnd(reason) }
     }
 
-    /// The network came back (also called by the app when it returns to the foreground).
+    /// The network came back, the app returned to the foreground, or an alert waits (the relay).
     func sendNow() {
         q.async {
             self.backoff = 5
@@ -148,7 +191,7 @@ final class TrackEngine {
         }
     }
 
-    /// Forgets the run and its fixes (the device was removed).
+    /// Forgets the runs and their fixes (the device was removed, or a new run starts).
     func discard() {
         q.async {
             self.timer?.cancel()
@@ -230,18 +273,11 @@ final class TrackEngine {
             if endReason != nil { finish() } else { schedule(after: interval) }
             return
         }
-        guard let key = key() else {
-            lastError = "device"
-            schedule(after: 60)
-            publish(force: true)
-            return
-        }
         let left = store.pending(r.run) - batch.fixes.count
-        guard let body = try? BatchEncoder.encode(batch, battery: battery, lowPower: lowPower, left: left) else { return }
         inFlight = true
         timer?.cancel()
         timer = nil
-        client.push(key: key, body: body) { [weak self] result in
+        destination.send(batch, battery: battery, lowPower: lowPower, left: left) { [weak self] result in
             self?.q.async { self?.handle(result, batch: batch) }
         }
     }
@@ -300,6 +336,19 @@ final class TrackEngine {
             lastError = "slow"
             schedule(after: TimeInterval(next ?? Int(backoff)))
             backoff = min(backoff * 2, 300)
+        case let .notReady(why):
+            lastError = why
+            schedule(after: 60)
+        case .noRecipient:
+            if endReason != nil {
+                // The run ends and nobody ever followed it: nothing to send (the run stays on the phone).
+                endReason = .nobody
+                finish()
+            } else {
+                // Kept until someone follows (they get the run from its start).
+                lastError = nil
+                schedule(after: 60)
+            }
         case let .failed(msg):
             lastError = msg
             retry()

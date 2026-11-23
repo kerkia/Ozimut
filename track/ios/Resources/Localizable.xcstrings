@@ -1,6 +1,528 @@
 {
   "sourceLanguage": "en",
   "strings": {
+    "OZ_ALERT_BATTERY": {
+      "extractionState": "manual",
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "La batterie d'une personne que tu suis est faible"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The battery of someone you follow is low"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Der Akku von jemandem, dem du folgst, ist schwach"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "A alguien a quien sigues le queda poca batería"
+          }
+        }
+      }
+    },
+    "OZ_ALERT_END": {
+      "extractionState": "manual",
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Une personne que tu suis a terminé sa course"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Someone you follow has ended their run"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Jemand, dem du folgst, hat den Lauf beendet"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Alguien a quien sigues ha terminado su carrera"
+          }
+        }
+      }
+    },
+    "OZ_ALERT_HELP": {
+      "extractionState": "manual",
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Une personne que tu suis a besoin d'aide !"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Someone you follow needs help!"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Jemand, dem du folgst, braucht Hilfe!"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "¡Alguien a quien sigues necesita ayuda!"
+          }
+        }
+      }
+    },
+    "OZ_ALERT_SILENT": {
+      "extractionState": "manual",
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Plus de nouvelles d'une personne que tu suis depuis 3 minutes"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No news for 3 minutes from someone you follow"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Seit 3 Minuten nichts von jemandem, dem du folgst"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sin noticias desde hace 3 minutos de alguien a quien sigues"
+          }
+        }
+      }
+    },
+    "OZ_ALERT_START": {
+      "extractionState": "manual",
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Une personne que tu suis a démarré une course"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Someone you follow has started a run"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Jemand, dem du folgst, hat einen Lauf gestartet"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Alguien a quien sigues ha empezado una carrera"
+          }
+        }
+      }
+    },
+    "OZ_ALERT_STILL": {
+      "extractionState": "manual",
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Une personne que tu suis n'a pas bougé depuis 5 minutes"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Someone you follow has not moved for 5 minutes"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Jemand, dem du folgst, hat sich seit 5 Minuten nicht bewegt"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Alguien a quien sigues no se ha movido en 5 minutos"
+          }
+        }
+      }
+    },
+    "OZ_ALERT_ZONE": {
+      "extractionState": "manual",
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Une personne que tu suis est sortie de sa zone"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Someone you follow has left their zone"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Jemand, dem du folgst, hat die Zone verlassen"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Alguien a quien sigues ha salido de su zona"
+          }
+        }
+      }
+    },
+    "ago.h": {
+      "extractionState": "manual",
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%ld h"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%ld h"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%ld h"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%ld h"
+          }
+        }
+      }
+    },
+    "ago.min": {
+      "extractionState": "manual",
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%ld min"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%ld min"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%ld min"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%ld min"
+          }
+        }
+      }
+    },
+    "ago.s": {
+      "extractionState": "manual",
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%ld s"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%ld s"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%ld s"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%ld s"
+          }
+        }
+      }
+    },
+    "alert.battery": {
+      "extractionState": "manual",
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "La batterie de %@ est faible"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@'s battery is low"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Der Akku von %@ ist schwach"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "A %@ le queda poca batería"
+          }
+        }
+      }
+    },
+    "alert.end": {
+      "extractionState": "manual",
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ a terminé sa course"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ has ended their run"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ hat den Lauf beendet"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ ha terminado su carrera"
+          }
+        }
+      }
+    },
+    "alert.help": {
+      "extractionState": "manual",
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ a besoin d'aide !"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ needs help!"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ braucht Hilfe!"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "¡%@ necesita ayuda!"
+          }
+        }
+      }
+    },
+    "alert.other": {
+      "extractionState": "manual",
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Nouvelles de %@"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "News from %@"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Neues von %@"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Noticias de %@"
+          }
+        }
+      }
+    },
+    "alert.silent": {
+      "extractionState": "manual",
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Plus de nouvelles de %@ depuis 3 minutes"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No news from %@ for 3 minutes"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Seit 3 Minuten nichts von %@"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sin noticias de %@ desde hace 3 minutos"
+          }
+        }
+      }
+    },
+    "alert.start": {
+      "extractionState": "manual",
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ a démarré une course"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ has started a run"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ hat einen Lauf gestartet"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ ha empezado una carrera"
+          }
+        }
+      }
+    },
+    "alert.still": {
+      "extractionState": "manual",
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ n'a pas bougé depuis 5 minutes"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ has not moved for 5 minutes"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ hat sich seit 5 Minuten nicht bewegt"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ no se ha movido en 5 minutos"
+          }
+        }
+      }
+    },
+    "alert.zone": {
+      "extractionState": "manual",
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ est sorti(e) de sa zone"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ has left their zone"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ hat die Zone verlassen"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ ha salido de su zona"
+          }
+        }
+      }
+    },
     "common.cancel": {
       "extractionState": "manual",
       "localizations": {
@@ -84,6 +606,151 @@
           "stringUnit": {
             "state": "translated",
             "value": "Aceptar"
+          }
+        }
+      }
+    },
+    "data.erase": {
+      "extractionState": "manual",
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Effacer mes données"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Erase my data"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Meine Daten löschen"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Borrar mis datos"
+          }
+        }
+      }
+    },
+    "data.eraseAsk": {
+      "extractionState": "manual",
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Effacer tes données sur le relais d'Ozitrac ? Plus personne ne te suivra, et tu ne suivras plus personne. Tes courses restent sur ce téléphone."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Erase your data on Ozitrac's relay? Nobody will follow you any more, and you will follow nobody. Your runs stay on this phone."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Deine Daten auf dem Relais von Ozitrac löschen? Niemand folgt dir mehr, und du folgst niemandem mehr. Deine Läufe bleiben auf diesem Telefon."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "¿Borrar tus datos del relé de Ozitrac? Nadie te seguirá ya, y tú no seguirás a nadie. Tus carreras se quedan en este teléfono."
+          }
+        }
+      }
+    },
+    "data.erased": {
+      "extractionState": "manual",
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tes données ont été effacées du relais."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Your data was erased from the relay."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Deine Daten wurden vom Relais gelöscht."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tus datos se han borrado del relé."
+          }
+        }
+      }
+    },
+    "data.text": {
+      "extractionState": "manual",
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ozitrac n'a pas de compte. Son relais garde ton canal, ceux qui te suivent, ceux que tu suis et la course en cours (chiffrée). Tes courses restent sur ce téléphone."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ozitrac keeps no account. Its relay holds your channel, the people who follow you, those you follow, and the run under way (encrypted). Your runs stay on this phone."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ozitrac hat kein Konto. Sein Relais bewahrt deinen Kanal, die Personen, die dir folgen, die, denen du folgst, und den laufenden Lauf (verschlüsselt). Deine Läufe bleiben auf diesem Telefon."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ozitrac no tiene cuenta. Su relé guarda tu canal, quienes te siguen, a quienes sigues y la carrera en curso (cifrada). Tus carreras se quedan en este teléfono."
+          }
+        }
+      }
+    },
+    "data.title": {
+      "extractionState": "manual",
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mes données"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "My data"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Meine Daten"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mis datos"
           }
         }
       }
@@ -239,25 +906,25 @@
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Arrêtée depuis le site"
+            "value": "Arrêtée depuis Ozimut"
           }
         },
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Stopped from the site"
+            "value": "Stopped from Ozimut"
           }
         },
         "de": {
           "stringUnit": {
             "state": "translated",
-            "value": "Über die Website beendet"
+            "value": "Über Ozimut beendet"
           }
         },
         "es": {
           "stringUnit": {
             "state": "translated",
-            "value": "Detenida desde el sitio"
+            "value": "Detenida desde Ozimut"
           }
         }
       }
@@ -291,118 +958,901 @@
         }
       }
     },
-    "error.health": {
+    "follow.battery": {
       "extractionState": "manual",
       "localizations": {
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Santé n'est pas disponible"
+            "value": "batterie %ld %%"
           }
         },
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Health is not available"
+            "value": "battery %ld %%"
           }
         },
         "de": {
           "stringUnit": {
             "state": "translated",
-            "value": "Health ist nicht verfügbar"
+            "value": "Akku %ld %%"
           }
         },
         "es": {
           "stringUnit": {
             "state": "translated",
-            "value": "Salud no está disponible"
+            "value": "batería %ld %%"
           }
         }
       }
     },
-    "error.health.notFound": {
+    "follow.cameraDenied": {
       "extractionState": "manual",
       "localizations": {
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Entraînement introuvable"
+            "value": "Caméra refusée : autorise-la dans Réglages, ou ouvre le lien qu'on t'a envoyé."
           }
         },
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Workout not found"
+            "value": "Camera denied: allow it in Settings, or open the link you were sent."
           }
         },
         "de": {
           "stringUnit": {
             "state": "translated",
-            "value": "Training nicht gefunden"
+            "value": "Kamera verweigert: Erlaube sie in den Einstellungen oder öffne den Link, den du bekommen hast."
           }
         },
         "es": {
           "stringUnit": {
             "state": "translated",
-            "value": "Entrenamiento no encontrado"
+            "value": "Cámara denegada: permítela en Ajustes o abre el enlace que te han enviado."
           }
         }
       }
     },
-    "file.tooBig": {
+    "follow.ended": {
       "extractionState": "manual",
       "localizations": {
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Fichier trop volumineux"
+            "value": "Course terminée à %@"
           }
         },
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "File too large"
+            "value": "Run ended at %@"
           }
         },
         "de": {
           "stringUnit": {
             "state": "translated",
-            "value": "Datei zu groß"
+            "value": "Lauf beendet um %@"
           }
         },
         "es": {
           "stringUnit": {
             "state": "translated",
-            "value": "Archivo demasiado grande"
+            "value": "Carrera terminada a las %@"
           }
         }
       }
     },
-    "health.name": {
+    "follow.gone": {
       "extractionState": "manual",
       "localizations": {
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Entraînement du %@"
+            "value": "Cette personne ne partage plus ses courses avec toi."
           }
         },
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Workout of %@"
+            "value": "This person no longer shares their runs with you."
           }
         },
         "de": {
           "stringUnit": {
             "state": "translated",
-            "value": "Training vom %@"
+            "value": "Diese Person teilt ihre Läufe nicht mehr mit dir."
           }
         },
         "es": {
           "stringUnit": {
             "state": "translated",
-            "value": "Entrenamiento del %@"
+            "value": "Esta persona ya no comparte sus carreras contigo."
+          }
+        }
+      }
+    },
+    "follow.gpx": {
+      "extractionState": "manual",
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Enregistrer en GPX"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Save as GPX"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Als GPX speichern"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Guardar en GPX"
+          }
+        }
+      }
+    },
+    "follow.noRun": {
+      "extractionState": "manual",
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Pas de course"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No run"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Kein Lauf"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sin carrera"
+          }
+        }
+      }
+    },
+    "follow.none": {
+      "extractionState": "manual",
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tu ne suis encore personne. Demande à quelqu'un de te montrer son code, et scanne-le."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "You follow nobody yet. Ask someone to show you their code, and scan it."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Du folgst noch niemandem. Lass dir von jemandem den Code zeigen und scanne ihn."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Todavía no sigues a nadie. Pide a alguien que te enseñe su código y escanéalo."
+          }
+        }
+      }
+    },
+    "follow.nothing": {
+      "extractionState": "manual",
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Rien de reçu pour l'instant."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Nothing received yet."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Noch nichts empfangen."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Todavía no se ha recibido nada."
+          }
+        }
+      }
+    },
+    "follow.position": {
+      "extractionState": "manual",
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "position il y a %@"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "position %@ ago"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Position vor %@"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "posición de hace %@"
+          }
+        }
+      }
+    },
+    "follow.running": {
+      "extractionState": "manual",
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "En course depuis %@"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Running for %@"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Unterwegs seit %@"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "En carrera desde hace %@"
+          }
+        }
+      }
+    },
+    "follow.scan": {
+      "extractionState": "manual",
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Scanner un code"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Scan a code"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Einen Code scannen"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Escanear un código"
+          }
+        }
+      }
+    },
+    "follow.stop": {
+      "extractionState": "manual",
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ne plus suivre"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Stop following"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Nicht mehr folgen"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Dejar de seguir"
+          }
+        }
+      }
+    },
+    "follow.stopAsk": {
+      "extractionState": "manual",
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ne plus suivre %@ ?"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Stop following %@?"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ nicht mehr folgen?"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "¿Dejar de seguir a %@?"
+          }
+        }
+      }
+    },
+    "home.changeName": {
+      "extractionState": "manual",
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Changer mon prénom"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Change my first name"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Meinen Vornamen ändern"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cambiar mi nombre"
+          }
+        }
+      }
+    },
+    "home.name": {
+      "extractionState": "manual",
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ton prénom pour ceux que tu invites : %@"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Your first name for the people you invite: %@"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Dein Vorname für die Personen, die du einlädst: %@"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tu nombre para quienes invitas: %@"
+          }
+        }
+      }
+    },
+    "home.noName": {
+      "extractionState": "manual",
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tu n'as pas encore donné ton prénom."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "You have not given your first name yet."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Du hast deinen Vornamen noch nicht angegeben."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Todavía no has dado tu nombre."
+          }
+        }
+      }
+    },
+    "home.openRun": {
+      "extractionState": "manual",
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Voir ma course"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Open my run"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Meinen Lauf öffnen"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ver mi carrera"
+          }
+        }
+      }
+    },
+    "home.running": {
+      "extractionState": "manual",
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "En course : %@ · %@"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Running: %@ · %@"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Unterwegs: %@ · %@"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "En carrera: %@ · %@"
+          }
+        }
+      }
+    },
+    "home.start": {
+      "extractionState": "manual",
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Démarrer une course"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Start a run"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Einen Lauf starten"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Empezar una carrera"
+          }
+        }
+      }
+    },
+    "invite.done": {
+      "extractionState": "manual",
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Terminé"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Done"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Fertig"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Hecho"
+          }
+        }
+      }
+    },
+    "invite.making": {
+      "extractionState": "manual",
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Création du code…"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Making a code…"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Code wird erstellt…"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Creando el código…"
+          }
+        }
+      }
+    },
+    "invite.message": {
+      "extractionState": "manual",
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ t'invite à suivre ses courses en direct avec Ozitrac : %@"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ invites you to follow their runs live with Ozitrac: %@"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ lädt dich ein, die Läufe live mit Ozitrac zu verfolgen: %@"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ te invita a seguir sus carreras en directo con Ozitrac: %@"
+          }
+        }
+      }
+    },
+    "invite.once": {
+      "extractionState": "manual",
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ce code sert une fois et dure 24 heures. Crées-en un par personne."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "This code works once and lasts 24 hours. Make one for each person."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Dieser Code gilt einmal und 24 Stunden lang. Erstelle für jede Person einen eigenen."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Este código sirve una vez y dura 24 horas. Crea uno para cada persona."
+          }
+        }
+      }
+    },
+    "invite.share": {
+      "extractionState": "manual",
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Envoyer le lien"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Send the link"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Link senden"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Enviar el enlace"
+          }
+        }
+      }
+    },
+    "invite.text": {
+      "extractionState": "manual",
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Demande-lui de scanner ce code avec Ozitrac, sur son téléphone. Il suivra tes courses en direct."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ask them to scan this code with Ozitrac on their phone. They will follow your runs live."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bitte die Person, diesen Code mit Ozitrac auf ihrem Handy zu scannen. Sie folgt dann deinen Läufen live."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Pídele que escanee este código con Ozitrac en su móvil. Seguirá tus carreras en directo."
+          }
+        }
+      }
+    },
+    "invite.title": {
+      "extractionState": "manual",
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ajouter quelqu'un"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Add someone"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Jemanden hinzufügen"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Añadir a alguien"
+          }
+        }
+      }
+    },
+    "join.err.code": {
+      "extractionState": "manual",
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ce code a déjà servi ou a expiré. Demandes-en un nouveau."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "This code was already used or has expired. Ask for a new one."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Dieser Code wurde schon benutzt oder ist abgelaufen. Bitte um einen neuen."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Este código ya se ha usado o ha caducado. Pide uno nuevo."
+          }
+        }
+      }
+    },
+    "join.err.gone": {
+      "extractionState": "manual",
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cette personne ne partage plus ses courses."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "This person no longer shares their runs."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Diese Person teilt ihre Läufe nicht mehr."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Esta persona ya no comparte sus carreras."
+          }
+        }
+      }
+    },
+    "join.go": {
+      "extractionState": "manual",
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Suivre"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Follow"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Folgen"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Seguir"
+          }
+        }
+      }
+    },
+    "join.text": {
+      "extractionState": "manual",
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Suivre les courses de %@ en direct ?"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Follow %@'s runs live?"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Den Läufen von %@ live folgen?"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "¿Seguir en directo las carreras de %@?"
+          }
+        }
+      }
+    },
+    "join.title": {
+      "extractionState": "manual",
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Suivre quelqu'un"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Follow someone"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Jemandem folgen"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Seguir a alguien"
           }
         }
       }
@@ -471,25 +1921,373 @@
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Suivi Ozimut"
+            "value": "Ozitrac"
           }
         },
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Ozimut tracking"
+            "value": "Ozitrac"
           }
         },
         "de": {
           "stringUnit": {
             "state": "translated",
-            "value": "Ozimut-Verfolgung"
+            "value": "Ozitrac"
           }
         },
         "es": {
           "stringUnit": {
             "state": "translated",
-            "value": "Seguimiento Ozimut"
+            "value": "Ozitrac"
+          }
+        }
+      }
+    },
+    "map.follow": {
+      "extractionState": "manual",
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Suivre"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Follow"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Folgen"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Seguir"
+          }
+        }
+      }
+    },
+    "name.hint": {
+      "extractionState": "manual",
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Prénom"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "First name"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Vorname"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Nombre"
+          }
+        }
+      }
+    },
+    "name.text": {
+      "extractionState": "manual",
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Il est montré à ceux qui te suivent et à ceux que tu suis. Rien d'autre n'est demandé."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "It is shown to the people who follow you and to those you follow. Nothing else is asked."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Er wird den Personen gezeigt, die dir folgen, und denen, denen du folgst. Sonst wird nichts abgefragt."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Se muestra a quienes te siguen y a quienes sigues. No se pide nada más."
+          }
+        }
+      }
+    },
+    "name.title": {
+      "extractionState": "manual",
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ton prénom"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Your first name"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Dein Vorname"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tu nombre"
+          }
+        }
+      }
+    },
+    "net.error": {
+      "extractionState": "manual",
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ozitrac n'a pas pu joindre son serveur. Vérifie le réseau et réessaie."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ozitrac could not reach its server. Check the network and try again."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ozitrac konnte seinen Server nicht erreichen. Prüfe das Netz und versuche es noch einmal."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ozitrac no ha podido contactar con su servidor. Revisa la red y vuelve a intentarlo."
+          }
+        }
+      }
+    },
+    "oz.link": {
+      "extractionState": "manual",
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Relier à Ozimut"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Link to Ozimut"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mit Ozimut verbinden"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Vincular con Ozimut"
+          }
+        }
+      }
+    },
+    "oz.linked": {
+      "extractionState": "manual",
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Relié au compte Ozimut de %@."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Linked to the Ozimut account of %@."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Verbunden mit dem Ozimut-Konto von %@."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Vinculado con la cuenta de Ozimut de %@."
+          }
+        }
+      }
+    },
+    "oz.linkedText": {
+      "extractionState": "manual",
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tes courses vont aussi à ce compte."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Your runs also go to that account."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Deine Läufe gehen auch an dieses Konto."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tus carreras van también a esa cuenta."
+          }
+        }
+      }
+    },
+    "oz.text": {
+      "extractionState": "manual",
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tu as un compte Ozimut ? Relie ce téléphone à ce compte : tes courses y vont aussi, et ceux qui t'y suivent les voient."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Do you have an Ozimut account? Link this phone to it: your runs also go to that account, and the people who follow you there see them."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Du hast ein Ozimut-Konto? Verbinde dieses Handy damit: Deine Läufe gehen dann auch an dieses Konto, und wer dir dort folgt, sieht sie."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "¿Tienes una cuenta de Ozimut? Vincula este móvil con ella: tus carreras irán también a esa cuenta, y quienes te siguen allí las verán."
+          }
+        }
+      }
+    },
+    "oz.title": {
+      "extractionState": "manual",
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ozimut"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ozimut"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ozimut"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ozimut"
+          }
+        }
+      }
+    },
+    "oz.unlink": {
+      "extractionState": "manual",
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Délier d'Ozimut"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Unlink from Ozimut"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Von Ozimut trennen"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Desvincular de Ozimut"
+          }
+        }
+      }
+    },
+    "oz.unlinkAsk": {
+      "extractionState": "manual",
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Délier ce téléphone d'Ozimut ? Tes courses n'iront plus à ce compte."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Unlink this phone from Ozimut? Your runs will no longer go to that account."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Dieses Handy von Ozimut trennen? Deine Läufe gehen dann nicht mehr an dieses Konto."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "¿Desvincular este móvil de Ozimut? Tus carreras dejarán de ir a esa cuenta."
           }
         }
       }
@@ -500,7 +2298,7 @@
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Caméra refusée : tape le code"
+            "value": "Caméra refusée : tape le code"
           }
         },
         "en": {
@@ -529,25 +2327,25 @@
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Associé au compte de %@"
+            "value": "Relié au compte Ozimut de %@"
           }
         },
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Paired with %@'s account"
+            "value": "Linked to %@'s Ozimut account"
           }
         },
         "de": {
           "stringUnit": {
             "state": "translated",
-            "value": "Mit dem Konto von %@ gekoppelt"
+            "value": "Mit dem Ozimut-Konto von %@ verbunden"
           }
         },
         "es": {
           "stringUnit": {
             "state": "translated",
-            "value": "Vinculado a la cuenta de %@"
+            "value": "Vinculado con la cuenta de Ozimut de %@"
           }
         }
       }
@@ -587,7 +2385,7 @@
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Trop d'essais : réessaie dans quelques minutes"
+            "value": "Trop d'essais : réessaie dans quelques minutes"
           }
         },
         "en": {
@@ -645,19 +2443,19 @@
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "L'association a échoué"
+            "value": "La liaison a échoué"
           }
         },
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Pairing failed"
+            "value": "Linking failed"
           }
         },
         "de": {
           "stringUnit": {
             "state": "translated",
-            "value": "Die Kopplung ist fehlgeschlagen"
+            "value": "Die Verbindung ist fehlgeschlagen"
           }
         },
         "es": {
@@ -674,19 +2472,19 @@
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Associer"
+            "value": "Relier"
           }
         },
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Pair"
+            "value": "Link"
           }
         },
         "de": {
           "stringUnit": {
             "state": "translated",
-            "value": "Koppeln"
+            "value": "Verbinden"
           }
         },
         "es": {
@@ -703,25 +2501,25 @@
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Sur ozimut.com, ouvre « Mes appareils » (ou « Famille ») et affiche le code d'association de ce téléphone."
+            "value": "Sur ozimut.com, dans « Suivi GPS », crée un code pour ton compte ou celui de ton enfant. Scanne son QR code, ou tape ses 8 caractères. Tes courses iront aussi à ce compte."
           }
         },
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "On ozimut.com, open “My devices” (or “Family”) and show the pairing code for this phone."
+            "value": "On ozimut.com, in “GPS tracking”, make a code for your account or your child's. Scan its QR code, or type its 8 characters. Your runs then go to that account too."
           }
         },
         "de": {
           "stringUnit": {
             "state": "translated",
-            "value": "Öffne auf ozimut.com „Meine Geräte“ (oder „Familie“) und lass dir den Kopplungscode für dieses Telefon anzeigen."
+            "value": "Erstelle auf ozimut.com unter „GPS-Verfolgung“ einen Code für dein Konto oder das deines Kindes. Scanne seinen QR-Code oder tippe seine 8 Zeichen ein. Deine Läufe gehen dann auch an dieses Konto."
           }
         },
         "es": {
           "stringUnit": {
             "state": "translated",
-            "value": "En ozimut.com, abre «Mis dispositivos» (o «Familia») y muestra el código de vinculación de este teléfono."
+            "value": "En ozimut.com, en «Seguimiento GPS», crea un código para tu cuenta o la de tu hijo. Escanea su código QR o escribe sus 8 caracteres. Tus carreras irán también a esa cuenta."
           }
         }
       }
@@ -761,25 +2559,25 @@
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Associer ce téléphone"
+            "value": "Relier à Ozimut"
           }
         },
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Pair this phone"
+            "value": "Link to Ozimut"
           }
         },
         "de": {
           "stringUnit": {
             "state": "translated",
-            "value": "Dieses Telefon koppeln"
+            "value": "Mit Ozimut verbinden"
           }
         },
         "es": {
           "stringUnit": {
             "state": "translated",
-            "value": "Vincular este teléfono"
+            "value": "Vincular con Ozimut"
           }
         }
       }
@@ -819,25 +2617,25 @@
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Ce téléphone a été retiré du compte. Associe-le à nouveau pour suivre une course."
+            "value": "Ce téléphone a été retiré de son compte Ozimut."
           }
         },
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "This phone was removed from the account. Pair it again to track a run."
+            "value": "This phone was removed from its Ozimut account."
           }
         },
         "de": {
           "stringUnit": {
             "state": "translated",
-            "value": "Dieses Telefon wurde vom Konto entfernt. Kopple es erneut, um einen Lauf zu verfolgen."
+            "value": "Dieses Handy wurde aus seinem Ozimut-Konto entfernt."
           }
         },
         "es": {
           "stringUnit": {
             "state": "translated",
-            "value": "Este teléfono se ha quitado de la cuenta. Vuelve a vincularlo para seguir una carrera."
+            "value": "Este móvil se ha quitado de su cuenta de Ozimut."
           }
         }
       }
@@ -848,25 +2646,54 @@
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Cette montre a été retirée du compte."
+            "value": "Cette montre a été retirée de son compte Ozimut."
           }
         },
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "This watch was removed from the account."
+            "value": "This watch was removed from its Ozimut account."
           }
         },
         "de": {
           "stringUnit": {
             "state": "translated",
-            "value": "Diese Uhr wurde vom Konto entfernt."
+            "value": "Diese Uhr wurde aus ihrem Ozimut-Konto entfernt."
           }
         },
         "es": {
           "stringUnit": {
             "state": "translated",
-            "value": "Este reloj se ha quitado de la cuenta."
+            "value": "Este reloj se ha quitado de su cuenta de Ozimut."
+          }
+        }
+      }
+    },
+    "retry": {
+      "extractionState": "manual",
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Réessayer"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Try again"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Erneut versuchen"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Reintentar"
           }
         }
       }
@@ -993,7 +2820,7 @@
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Prévenir les personnes qui te suivent ?"
+            "value": "Prévenir les personnes qui te suivent ?"
           }
         },
         "en": {
@@ -1051,25 +2878,25 @@
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Alerte envoyée"
+            "value": "Aide demandée : ceux qui te suivent sont prévenus."
           }
         },
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Alert sent"
+            "value": "Help asked: the people who follow you are alerted."
           }
         },
         "de": {
           "stringUnit": {
             "state": "translated",
-            "value": "Alarm gesendet"
+            "value": "Hilfe angefordert: Die Personen, die dir folgen, sind gewarnt."
           }
         },
         "es": {
           "stringUnit": {
             "state": "translated",
-            "value": "Alerta enviada"
+            "value": "Ayuda pedida: quienes te siguen reciben un aviso."
           }
         }
       }
@@ -1109,7 +2936,7 @@
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Envoyé il y a %ld s"
+            "value": "Envoyé il y a %ld s"
           }
         },
         "en": {
@@ -1167,7 +2994,7 @@
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Pas de réseau : les positions sont gardées"
+            "value": "Pas de réseau : les positions sont gardées"
           }
         },
         "en": {
@@ -1254,7 +3081,7 @@
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Appuie 2 secondes pour arrêter"
+            "value": "Appuie 2 secondes pour arrêter"
           }
         },
         "en": {
@@ -1283,25 +3110,402 @@
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Suivi en cours"
+            "value": "Ma course"
           }
         },
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Tracking"
+            "value": "My run"
           }
         },
         "de": {
           "stringUnit": {
             "state": "translated",
-            "value": "Verfolgung läuft"
+            "value": "Mein Lauf"
           }
         },
         "es": {
           "stringUnit": {
             "state": "translated",
-            "value": "Seguimiento en curso"
+            "value": "Mi carrera"
+          }
+        }
+      }
+    },
+    "runs.delete": {
+      "extractionState": "manual",
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Supprimer"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Delete"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Löschen"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Borrar"
+          }
+        }
+      }
+    },
+    "runs.deleteAsk": {
+      "extractionState": "manual",
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Supprimer cette course de ce téléphone ? C'est définitif."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Delete this run from this phone? It cannot be undone."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Diesen Lauf von diesem Handy löschen? Das lässt sich nicht rückgängig machen."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "¿Borrar esta carrera de este móvil? No se puede deshacer."
+          }
+        }
+      }
+    },
+    "runs.line": {
+      "extractionState": "manual",
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ · %@"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ · %@"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ · %@"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ · %@"
+          }
+        }
+      }
+    },
+    "runs.none": {
+      "extractionState": "manual",
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Aucune course gardée pour l'instant."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No run kept yet."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Noch kein Lauf gespeichert."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Todavía no hay ninguna carrera guardada."
+          }
+        }
+      }
+    },
+    "runs.save": {
+      "extractionState": "manual",
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Enregistrer"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Save"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Speichern"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Guardar"
+          }
+        }
+      }
+    },
+    "runs.saveFailed": {
+      "extractionState": "manual",
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Le GPX n'a pas pu être enregistré."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The GPX could not be saved."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Die GPX-Datei konnte nicht gespeichert werden."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No se ha podido guardar el GPX."
+          }
+        }
+      }
+    },
+    "runs.saved": {
+      "extractionState": "manual",
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "GPX enregistré."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "GPX saved."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "GPX gespeichert."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "GPX guardado."
+          }
+        }
+      }
+    },
+    "runs.share": {
+      "extractionState": "manual",
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Partager"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Share"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Teilen"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Compartir"
+          }
+        }
+      }
+    },
+    "runs.text": {
+      "extractionState": "manual",
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tes courses sont gardées sur ce téléphone seulement. Partage-les ou enregistre-les en GPX."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Your runs are kept on this phone only. Share them or save them as GPX."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Deine Läufe werden nur auf diesem Handy gespeichert. Teile sie oder speichere sie als GPX."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tus carreras se guardan solo en este móvil. Compártelas o guárdalas en GPX."
+          }
+        }
+      }
+    },
+    "runs.title": {
+      "extractionState": "manual",
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mes courses"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "My runs"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Meine Läufe"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mis carreras"
+          }
+        }
+      }
+    },
+    "runs.view": {
+      "extractionState": "manual",
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Voir"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "See"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ansehen"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ver"
+          }
+        }
+      }
+    },
+    "runs.watch": {
+      "extractionState": "manual",
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Enregistrée sur la montre"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Recorded on the watch"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Auf der Uhr aufgezeichnet"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Grabada en el reloj"
+          }
+        }
+      }
+    },
+    "runs.watch.received": {
+      "extractionState": "manual",
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Une course de ta montre est arrivée dans « Mes courses »."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "A run from your watch has arrived in “My runs”."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ein Lauf von deiner Uhr ist in „Meine Läufe“ angekommen."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Una carrera de tu reloj ha llegado a «Mis carreras»."
           }
         }
       }
@@ -1544,7 +3748,7 @@
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Position approximative : active « Position exacte »"
+            "value": "Position approximative : active « Position exacte »"
           }
         },
         "en": {
@@ -1602,7 +3806,7 @@
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Hors ligne : les positions partiront plus tard"
+            "value": "Hors ligne : les positions partiront plus tard"
           }
         },
         "en": {
@@ -1650,35 +3854,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "Conectado"
-          }
-        }
-      }
-    },
-    "start.nobody": {
-      "extractionState": "manual",
-      "localizations": {
-        "fr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Personne ne te suit pour l'instant"
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Nobody follows you yet"
-          }
-        },
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Noch folgt dir niemand"
-          }
-        },
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Todavía no te sigue nadie"
           }
         }
       }
@@ -1747,25 +3922,25 @@
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Partager ma position en direct"
+            "value": "Partager en direct avec ceux qui me suivent"
           }
         },
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Share my position live"
+            "value": "Share live with the people who follow me"
           }
         },
         "de": {
           "stringUnit": {
             "state": "translated",
-            "value": "Meine Position live teilen"
+            "value": "Live mit den Personen teilen, die mir folgen"
           }
         },
         "es": {
           "stringUnit": {
             "state": "translated",
-            "value": "Compartir mi posición en directo"
+            "value": "Compartir en directo con quienes me siguen"
           }
         }
       }
@@ -1776,25 +3951,25 @@
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Tester le suivi (2 min)"
+            "value": "Test de 2 minutes"
           }
         },
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Test tracking (2 min)"
+            "value": "Two-minute test"
           }
         },
         "de": {
           "stringUnit": {
             "state": "translated",
-            "value": "Verfolgung testen (2 Min.)"
+            "value": "2-Minuten-Test"
           }
         },
         "es": {
           "stringUnit": {
             "state": "translated",
-            "value": "Probar el seguimiento (2 min)"
+            "value": "Prueba de 2 minutos"
           }
         }
       }
@@ -1805,199 +3980,83 @@
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Suivi en direct"
+            "value": "Ma course"
           }
         },
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Live tracking"
+            "value": "My run"
           }
         },
         "de": {
           "stringUnit": {
             "state": "translated",
-            "value": "Live-Verfolgung"
+            "value": "Mein Lauf"
           }
         },
         "es": {
           "stringUnit": {
             "state": "translated",
-            "value": "Seguimiento en directo"
+            "value": "Mi carrera"
           }
         }
       }
     },
-    "start.unpair": {
+    "tab.follow": {
       "extractionState": "manual",
       "localizations": {
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Oublier ce compte sur ce téléphone"
+            "value": "Je suis"
           }
         },
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Forget this account on this phone"
+            "value": "Following"
           }
         },
         "de": {
           "stringUnit": {
             "state": "translated",
-            "value": "Dieses Konto auf diesem Telefon vergessen"
+            "value": "Ich folge"
           }
         },
         "es": {
           "stringUnit": {
             "state": "translated",
-            "value": "Olvidar esta cuenta en este teléfono"
+            "value": "Sigo a"
           }
         }
       }
     },
-    "start.unpair.confirm": {
+    "tab.me": {
       "extractionState": "manual",
       "localizations": {
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Ce téléphone n'enverra plus de position pour ce compte."
+            "value": "Ma course"
           }
         },
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "This phone will no longer send positions for this account."
+            "value": "My run"
           }
         },
         "de": {
           "stringUnit": {
             "state": "translated",
-            "value": "Dieses Telefon sendet keine Positionen mehr für dieses Konto."
+            "value": "Mein Lauf"
           }
         },
         "es": {
           "stringUnit": {
             "state": "translated",
-            "value": "Este teléfono dejará de enviar posiciones para esta cuenta."
-          }
-        }
-      }
-    },
-    "start.watch": {
-      "extractionState": "manual",
-      "localizations": {
-        "fr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Associer ma montre"
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Pair my watch"
-          }
-        },
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Meine Uhr koppeln"
-          }
-        },
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Vincular mi reloj"
-          }
-        }
-      }
-    },
-    "start.watch.fail": {
-      "extractionState": "manual",
-      "localizations": {
-        "fr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "La montre n'a pas pu être associée"
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "The watch could not be paired"
-          }
-        },
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Die Uhr konnte nicht gekoppelt werden"
-          }
-        },
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "No se pudo vincular el reloj"
-          }
-        }
-      }
-    },
-    "start.watch.sent": {
-      "extractionState": "manual",
-      "localizations": {
-        "fr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Code envoyé à la montre"
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Code sent to the watch"
-          }
-        },
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Code an die Uhr gesendet"
-          }
-        },
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Código enviado al reloj"
-          }
-        }
-      }
-    },
-    "start.watch.working": {
-      "extractionState": "manual",
-      "localizations": {
-        "fr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Association de la montre…"
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Pairing the watch…"
-          }
-        },
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Uhr wird gekoppelt…"
-          }
-        },
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Vinculando el reloj…"
+            "value": "Mi carrera"
           }
         }
       }
@@ -2066,25 +4125,25 @@
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Seulement %ld positions en 2 minutes. Vérifie dans Réglages que la localisation d'Ozimut est « Lorsque l'app est active » avec « Position exacte », et coupe le mode Économie d'énergie."
+            "value": "Seulement %ld positions en 2 minutes. Vérifie dans Réglages que la localisation d'Ozitrac est « Lorsque l'app est active » avec « Position exacte », et coupe le mode Économie d'énergie."
           }
         },
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Only %ld positions in 2 minutes. In Settings, check that Ozimut's location is “While Using the App” with “Precise Location”, and turn Low Power Mode off."
+            "value": "Only %ld positions in 2 minutes. In Settings, check that Ozitrac's location is “While Using the App” with “Precise Location”, and turn Low Power Mode off."
           }
         },
         "de": {
           "stringUnit": {
             "state": "translated",
-            "value": "Nur %ld Positionen in 2 Minuten. Prüfe in den Einstellungen, dass Ozimuts Standort „Beim Verwenden der App“ mit „Genauer Standort“ ist, und schalte den Stromsparmodus aus."
+            "value": "Nur %ld Positionen in 2 Minuten. Prüfe in den Einstellungen, dass der Standort von Ozitrac „Beim Verwenden der App“ mit „Genauer Standort“ ist, und schalte den Stromsparmodus aus."
           }
         },
         "es": {
           "stringUnit": {
             "state": "translated",
-            "value": "Solo %ld posiciones en 2 minutos. En Ajustes, comprueba que la ubicación de Ozimut está en «Cuando se use la app» con «Ubicación exacta», y desactiva el modo de bajo consumo."
+            "value": "Solo %ld posiciones en 2 minutos. En Ajustes, comprueba que la ubicación de Ozitrac está en «Cuando se use la app» con «Ubicación exacta», y desactiva el modo de bajo consumo."
           }
         }
       }
@@ -2095,25 +4154,25 @@
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Une course est en cours"
+            "value": "Une course est en cours. Réessaie après."
           }
         },
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "A run is in progress"
+            "value": "A run is being recorded. Try again after it."
           }
         },
         "de": {
           "stringUnit": {
             "state": "translated",
-            "value": "Ein Lauf ist im Gang"
+            "value": "Ein Lauf wird aufgezeichnet. Versuche es danach noch einmal."
           }
         },
         "es": {
           "stringUnit": {
             "state": "translated",
-            "value": "Hay una carrera en curso"
+            "value": "Se está grabando una carrera. Vuelve a intentarlo después."
           }
         }
       }
@@ -2124,7 +4183,7 @@
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Parfait : %ld positions en 2 minutes. Le suivi marchera téléphone verrouillé."
+            "value": "Parfait : %ld positions en 2 minutes. Le suivi marchera téléphone verrouillé."
           }
         },
         "en": {
@@ -2153,7 +4212,7 @@
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Lance le test, verrouille le téléphone et garde-le 2 minutes dans ta poche, comme pendant une course. Ne balaie pas l'application vers le haut."
+            "value": "Lance le test, verrouille le téléphone et garde-le 2 minutes dans ta poche, comme pendant une course. Ne balaie pas l'application vers le haut."
           }
         },
         "en": {
@@ -2182,7 +4241,7 @@
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Positions reçues : %ld, encore %ld s"
+            "value": "Positions reçues : %ld, encore %ld s"
           }
         },
         "en": {
@@ -2240,7 +4299,7 @@
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Test de 2 minutes"
+            "value": "Test de 2 minutes"
           }
         },
         "en": {
@@ -2263,31 +4322,147 @@
         }
       }
     },
+    "tr.followedNobody": {
+      "extractionState": "manual",
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Personne ne te suit encore : ta course reste sur ce téléphone."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Nobody follows you yet: your run is kept on this phone."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Noch niemand folgt dir: Dein Lauf bleibt auf diesem Handy."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Todavía nadie te sigue: tu carrera se queda en este móvil."
+          }
+        }
+      }
+    },
+    "tr.followedOzimut": {
+      "extractionState": "manual",
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tes courses vont à ton compte Ozimut."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Your runs go to your Ozimut account."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Deine Läufe gehen an dein Ozimut-Konto."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tus carreras van a tu cuenta de Ozimut."
+          }
+        }
+      }
+    },
+    "tr.kept": {
+      "extractionState": "manual",
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ta course est gardée sur ce téléphone."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Your run is kept on this phone."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Dein Lauf ist auf diesem Handy gespeichert."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tu carrera está guardada en este móvil."
+          }
+        }
+      }
+    },
+    "tr.local": {
+      "extractionState": "manual",
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ta course reste sur ce téléphone seulement."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Your run stays on this phone only."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Dein Lauf bleibt nur auf diesem Handy."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tu carrera se queda solo en este móvil."
+          }
+        }
+      }
+    },
     "watch.code.help": {
       "extractionState": "manual",
       "localizations": {
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Sur ozimut.com : « Mes appareils » › « Associer une montre », puis tape ce code. Ou associe-la depuis l'app Ozimut de ton iPhone."
+            "value": "Sur ozimut.com › Suivi GPS › Associer une montre, tape ce code."
           }
         },
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "On ozimut.com: “My devices” › “Pair a watch”, then type this code. Or pair it from the Ozimut app on your iPhone."
+            "value": "On ozimut.com › GPS tracking › Pair a watch, type this code."
           }
         },
         "de": {
           "stringUnit": {
             "state": "translated",
-            "value": "Auf ozimut.com: „Meine Geräte“ › „Uhr koppeln“, dann diesen Code eingeben. Oder koppeln über die Ozimut-App auf deinem iPhone."
+            "value": "Gib diesen Code auf ozimut.com › GPS-Verfolgung › Eine Uhr verbinden ein."
           }
         },
         "es": {
           "stringUnit": {
             "state": "translated",
-            "value": "En ozimut.com: «Mis dispositivos» › «Vincular un reloj» y escribe este código. O vincúlalo desde la app Ozimut de tu iPhone."
+            "value": "En ozimut.com › Seguimiento GPS › Vincular un reloj, escribe este código."
           }
         }
       }
@@ -2298,25 +4473,25 @@
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Code de la montre"
+            "value": "Relier à Ozimut"
           }
         },
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Watch code"
+            "value": "Link to Ozimut"
           }
         },
         "de": {
           "stringUnit": {
             "state": "translated",
-            "value": "Code der Uhr"
+            "value": "Mit Ozimut verbinden"
           }
         },
         "es": {
           "stringUnit": {
             "state": "translated",
-            "value": "Código del reloj"
+            "value": "Vincular con Ozimut"
           }
         }
       }
@@ -2385,25 +4560,112 @@
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Aide"
+            "value": "Aide (maintenir)"
           }
         },
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Help"
+            "value": "Help (hold)"
           }
         },
         "de": {
           "stringUnit": {
             "state": "translated",
-            "value": "Hilfe"
+            "value": "Hilfe (halten)"
           }
         },
         "es": {
           "stringUnit": {
             "state": "translated",
-            "value": "Ayuda"
+            "value": "Ayuda (mantener)"
+          }
+        }
+      }
+    },
+    "watch.kept": {
+      "extractionState": "manual",
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Course gardée sur la montre. Elle ira dans « Mes courses » sur ton iPhone."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Run kept on the watch. It will go to “My runs” on your iPhone."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Lauf auf der Uhr gespeichert. Er kommt in „Meine Läufe“ auf deinem iPhone."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Carrera guardada en el reloj. Irá a «Mis carreras» en tu iPhone."
+          }
+        }
+      }
+    },
+    "watch.local": {
+      "extractionState": "manual",
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "gardée sur la montre"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "kept on the watch"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "auf der Uhr gespeichert"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "guardada en el reloj"
+          }
+        }
+      }
+    },
+    "watch.nameText": {
+      "extractionState": "manual",
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Montré à ceux qui te suivent."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Shown to the people who follow you."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Wird den Personen gezeigt, die dir folgen."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Se muestra a quienes te siguen."
           }
         }
       }
@@ -2437,13 +4699,158 @@
         }
       }
     },
+    "watch.nobody": {
+      "extractionState": "manual",
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Personne ne te suit encore : la course reste sur la montre."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Nobody follows you yet: the run stays on the watch."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Noch niemand folgt dir: Der Lauf bleibt auf der Uhr."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Todavía nadie te sigue: la carrera se queda en el reloj."
+          }
+        }
+      }
+    },
+    "watch.ozLinked": {
+      "extractionState": "manual",
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ozimut : %@"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ozimut: %@"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ozimut: %@"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ozimut: %@"
+          }
+        }
+      }
+    },
+    "watch.ozUnlink": {
+      "extractionState": "manual",
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Délier d'Ozimut (maintenir)"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Unlink Ozimut (hold)"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Von Ozimut trennen (halten)"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Desvincular de Ozimut (mantener)"
+          }
+        }
+      }
+    },
+    "watch.qrOnce": {
+      "extractionState": "manual",
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Pour une personne, dans les 24 heures."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "For one person, within 24 hours."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Für eine Person, innerhalb von 24 Stunden."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Para una persona, en 24 horas."
+          }
+        }
+      }
+    },
+    "watch.qrTitle": {
+      "extractionState": "manual",
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Scanne avec Ozitrac sur le téléphone"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Scan with Ozitrac on the phone"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mit Ozitrac auf dem Handy scannen"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Escanea con Ozitrac en el móvil"
+          }
+        }
+      }
+    },
     "watch.sent": {
       "extractionState": "manual",
       "localizations": {
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "envoyé il y a %ld s"
+            "value": "envoyé il y a %ld s"
           }
         },
         "en": {
@@ -2462,6 +4869,470 @@
           "stringUnit": {
             "state": "translated",
             "value": "enviado hace %ld s"
+          }
+        }
+      }
+    },
+    "watchers.add": {
+      "extractionState": "manual",
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ajouter quelqu'un"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Add someone"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Jemanden hinzufügen"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Añadir a alguien"
+          }
+        }
+      }
+    },
+    "watchers.none": {
+      "extractionState": "manual",
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Personne ne te suit encore. Ajoute quelqu'un : il scanne ton code avec son Ozitrac."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Nobody follows you yet. Add someone: they scan your code with their Ozitrac."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Noch niemand folgt dir. Füge jemanden hinzu: Die Person scannt deinen Code mit ihrem Ozitrac."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Todavía nadie te sigue. Añade a alguien: escanea tu código con su Ozitrac."
+          }
+        }
+      }
+    },
+    "watchers.remove": {
+      "extractionState": "manual",
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Retirer"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Remove"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Entfernen"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Quitar"
+          }
+        }
+      }
+    },
+    "watchers.removeAsk": {
+      "extractionState": "manual",
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ ne te suivra plus. Retirer ?"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ will no longer follow you. Remove?"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ wird dir nicht mehr folgen. Entfernen?"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ dejará de seguirte. ¿Quitar?"
+          }
+        }
+      }
+    },
+    "watchers.title": {
+      "extractionState": "manual",
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Qui me suit"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Who follows me"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Wer mir folgt"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Quién me sigue"
+          }
+        }
+      }
+    },
+    "watchers.unknown": {
+      "extractionState": "manual",
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Quelqu'un"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Someone"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Jemand"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Alguien"
+          }
+        }
+      }
+    },
+    "zone.alert": {
+      "extractionState": "manual",
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Prévenir ceux qui me suivent si je sors de la zone"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Alert the people who follow me when I leave the zone"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Die Personen warnen, die mir folgen, wenn ich die Zone verlasse"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Avisar a quienes me siguen si salgo de la zona"
+          }
+        }
+      }
+    },
+    "zone.here": {
+      "extractionState": "manual",
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ma position"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "My position"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mein Standort"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mi posición"
+          }
+        }
+      }
+    },
+    "zone.off": {
+      "extractionState": "manual",
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Zone : aucune"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Zone: none"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Zone: keine"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Zona: ninguna"
+          }
+        }
+      }
+    },
+    "zone.on": {
+      "extractionState": "manual",
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Zone : %ld m autour de son centre"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Zone: %ld m around its centre"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Zone: %ld m um ihre Mitte"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Zona: %ld m alrededor de su centro"
+          }
+        }
+      }
+    },
+    "zone.radius": {
+      "extractionState": "manual",
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Rayon (m)"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Radius (m)"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Radius (m)"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Radio (m)"
+          }
+        }
+      }
+    },
+    "zone.radiusBad": {
+      "extractionState": "manual",
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Le rayon doit faire au moins 50 m."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The radius must be 50 m or more."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Der Radius muss mindestens 50 m betragen."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "El radio debe ser de 50 m o más."
+          }
+        }
+      }
+    },
+    "zone.save": {
+      "extractionState": "manual",
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Enregistrer"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Save"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Speichern"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Guardar"
+          }
+        }
+      }
+    },
+    "zone.saved": {
+      "extractionState": "manual",
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Zone enregistrée."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Zone saved."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Zone gespeichert."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Zona guardada."
+          }
+        }
+      }
+    },
+    "zone.text": {
+      "extractionState": "manual",
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Déplace la carte pour mettre la croix au centre de ta zone, et donne son rayon. Si tu en sors pendant une course, ceux qui te suivent sont prévenus."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Move the map to put the cross at the centre of your zone, and give its radius. If you leave it during a run, the people who follow you are alerted."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Verschiebe die Karte, bis das Kreuz in der Mitte deiner Zone liegt, und gib ihren Radius an. Verlässt du sie während eines Laufs, werden die Personen gewarnt, die dir folgen."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mueve el mapa para poner la cruz en el centro de tu zona e indica su radio. Si sales de ella durante una carrera, quienes te siguen reciben un aviso."
+          }
+        }
+      }
+    },
+    "zone.title": {
+      "extractionState": "manual",
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Zone"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Zone"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Zone"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Zona"
           }
         }
       }

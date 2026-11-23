@@ -3,7 +3,7 @@ import UIKit
 import UserNotifications
 
 @main
-struct OzimutApp: App {
+struct OzitracApp: App {
     @UIApplicationDelegateAdaptor(AppDelegate.self) var delegate
     @StateObject private var model = AppModel.shared
 
@@ -41,10 +41,7 @@ final class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCent
     func userNotificationCenter(_ center: UNUserNotificationCenter, didReceive response: UNNotificationResponse,
                                 withCompletionHandler completionHandler: @escaping () -> Void) {
         let info = response.notification.request.content.userInfo
-        let url = (info["url"] as? String) ?? ((info["data"] as? [String: Any])?["url"] as? String)
-        if let url {
-            DispatchQueue.main.async { AppModel.shared.openNotification(url: url) }
-        }
+        DispatchQueue.main.async { AppModel.shared.openNotification(info) }
         completionHandler()
     }
 }
