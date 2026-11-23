@@ -3042,7 +3042,7 @@ export default {
   "rc.st.legs": "Calculando las rutas: {n} de {t} tramos…",
   "rc.st.done": "{n} de {t} tramos en {s} s · celdas de {c} m · relieve: {r}",
   "rc.st.flat": "ninguno (terreno supuestamente llano)",
-  "rc.st.failed": "El cálculo de las rutas ha fallado.",
+  "rc.st.failed": "El cálculo de las rutas ha fallado.", "rc.st.updated": "Ozimut se ha actualizado desde que abriste esta página: recárgala para calcular las rutas.",
   "rc.up": "↑ {m} m", "rc.down": "↓ {m} m",
   "rc.side.left": "por la izquierda",
   "rc.side.right": "por la derecha",

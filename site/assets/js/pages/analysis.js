@@ -2795,7 +2795,7 @@ export async function render(main, { query = {}, route } = {}) {
       }
       if (rcs.picOn) rcPicture();
       await rcRun();
-    } catch (e) { console.error(e); if (my === rcs.token) { rcBusy(false); rcStatus(t("rc.st.failed")); } }
+    } catch (e) { console.error(e); if (my === rcs.token) { rcBusy(false); rcStatus(e?.updated ? e.message : t("rc.st.failed")); } }
   }
   async function rcRun() {
     if (!rcs.plan || !rcs.on || !rcs.info) return;
@@ -2868,7 +2868,7 @@ export async function render(main, { query = {}, route } = {}) {
         + (rcs.info.north ? ` · ${tn("rc.st.north", rcs.info.north)}` : ""));
       const p = $("#rc-pace"); if (p && rcs.auto) p.placeholder = RC.minKm(rcs.auto);
       rcTable(); draw();
-    } catch (e) { console.error(e); if (my === rcs.token) { rcBusy(false); rcStatus(t("rc.st.failed")); } }
+    } catch (e) { console.error(e); if (my === rcs.token) { rcBusy(false); rcStatus(e?.updated ? e.message : t("rc.st.failed")); } }
   }
   window.anDebugRoutes = () => ({ on: rcs.on, info: rcs.info, dem: rcs.dem, routes: rcs.routes, mine: rcs.mine, auto: rcs.auto, settings: rcs.s, calib: rcs.calib });
   async function rcPicture() {

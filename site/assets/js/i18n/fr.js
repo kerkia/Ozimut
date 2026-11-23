@@ -2177,7 +2177,7 @@ export default {
   "rc.cls.north": "Ligne du nord retirée", "rc.st.reading": "Lecture de la carte…", "rc.st.relief": "Relief : chargement…",
   "rc.st.reliefPct": "Relief : chargement… {p} %", "rc.st.legs": "Calcul des itinéraires : {n} postes sur {t}…", "rc.st.done": "{n} postes sur {t} en {s} s · cases de {c} m · relief : {r}",
   "rc.up": "↑ {m} m", "rc.down": "↓ {m} m",
-  "rc.st.flat": "aucun (terrain supposé plat)", "rc.st.failed": "Le calcul des itinéraires a échoué.", "rc.side.left": "par la gauche",
+  "rc.st.flat": "aucun (terrain supposé plat)", "rc.st.failed": "Le calcul des itinéraires a échoué.", "rc.st.updated": "Ozimut a été mis à jour depuis l’ouverture de cette page : rechargez-la pour calculer les itinéraires.", "rc.side.left": "par la gauche",
   "rc.side.right": "par la droite", "rc.side.straight": "tout droit", "rc.table": "Itinéraires calculés",
   "rc.pace.typed": "allure saisie", "rc.pace.auto": "d’après vos postes",
   "rc.pace.default": "allure par défaut", "rc.col.mine": "Votre itinéraire", "rc.col.actual": "Temps réel", "rc.col.actual.hint": "Votre temps sur ce poste", "rc.col.choice": "Choix",

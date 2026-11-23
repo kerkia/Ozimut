@@ -2899,7 +2899,7 @@ export default {
   "rc.cls.north": "North line taken out", "rc.st.reading": "Reading the map…", "rc.st.relief": "Heights: loading…",
   "rc.st.reliefPct": "Heights: loading… {p}%", "rc.st.legs": "Computing routes: {n} of {t} legs…", "rc.st.done": "{n} of {t} legs in {s} s · {c} m cells · heights: {r}",
   "rc.up": "↑ {m} m", "rc.down": "↓ {m} m",
-  "rc.st.flat": "none (flat terrain assumed)", "rc.st.failed": "Computing the routes failed.", "rc.side.left": "left",
+  "rc.st.flat": "none (flat terrain assumed)", "rc.st.failed": "Computing the routes failed.", "rc.st.updated": "Ozimut was updated after this page was opened: reload it to compute the routes.", "rc.side.left": "left",
   "rc.side.right": "right", "rc.side.straight": "straight", "rc.table": "Computed routes",
   "rc.pace.typed": "pace typed", "rc.pace.auto": "from your legs",
   "rc.pace.default": "default pace", "rc.col.mine": "Your route", "rc.col.actual": "Actual time", "rc.col.actual.hint": "Your time on this leg", "rc.col.choice": "Choice",

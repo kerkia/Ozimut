@@ -2925,7 +2925,7 @@ async function replay(box, { A, id, course, race, init = {}, traces, allTraces =
       const p = $("#rc-pace"); if (p && rcm.auto[leg]) p.placeholder = RC.minKm(rcm.auto[leg]);
       if (rcm.picOn && !rcm.pic) rcmPicture();
       rcmList(); mv.draw();
-    } catch (e) { console.error(e); if (my === rcm.token) rcmStatus(t("rc.st.failed")); }
+    } catch (e) { console.error(e); if (my === rcm.token) rcmStatus(e?.updated ? e.message : t("rc.st.failed")); }
   }
   /** The routes switched on (as « Calcul »'s box does), and computed. */
   function rcmTurnOn() {

@@ -8,6 +8,17 @@ import { loadPage } from "./i18n.js";
 const OZ = typeof window !== "undefined" ? window.__oz : null;
 /** This deploy's build (what assets/build.txt says), null without one. */
 export const BUILD = OZ?.v || null;
+
+/** Whether a newer deploy replaced this page's code (assets/build.txt differs from BUILD). The deploy drops the build
+ *  before's folder, so a worker or module this page asks for now gets the site's page instead: false on the local server. */
+export async function replaced() {
+  if (!BUILD) return false;
+  try {
+    const r = await fetch("/assets/build.txt", { cache: "no-store" });
+    const v = r.ok ? (await r.text()).trim() : "";
+    return /^[0-9a-f]{8,40}$/.test(v) && v !== BUILD;
+  } catch (e) { return false; }
+}
 let MAN = null;
 if (BUILD) { try { MAN = (await import("./gen/manifest.js")).default; } catch (e) { MAN = null; } }
 

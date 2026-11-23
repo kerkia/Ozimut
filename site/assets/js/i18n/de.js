@@ -3042,7 +3042,7 @@ export default {
   "rc.st.legs": "Routen werden berechnet: {n} von {t} Teilstrecken…",
   "rc.st.done": "{n} von {t} Teilstrecken in {s} s · Zellen von {c} m · Relief: {r}",
   "rc.st.flat": "keines (flaches Gelände angenommen)",
-  "rc.st.failed": "Die Berechnung der Routen ist fehlgeschlagen.",
+  "rc.st.failed": "Die Berechnung der Routen ist fehlgeschlagen.", "rc.st.updated": "Ozimut wurde aktualisiert, seit diese Seite geöffnet ist: lade sie neu, um die Routen zu berechnen.",
   "rc.up": "↑ {m} m", "rc.down": "↓ {m} m",
   "rc.side.left": "links herum",
   "rc.side.right": "rechts herum",

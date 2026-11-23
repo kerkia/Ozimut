@@ -5,6 +5,7 @@
 
 import { html, raw, $, fmt, pct, pctN } from "../util.js";
 import { t } from "../i18n.js";
+import { replaced } from "../front.js";
 import { DEFAULTS, LEGEND, A, CROSS_PACE } from "./routechoice.js";
 import { layers, resampleLayers, LAYER_KEYS, OPTIONAL_KEYS, VECTOR_ACCEPT } from "./vectorroutes.js";
 
@@ -55,7 +56,13 @@ export function planner(image, toM, vector = null, opts = {}) {
     waiting.delete(e.data.id);
     if (e.data.ok) p.ok(e.data); else p.ko(new Error(e.data.error));
   };
-  worker.onerror = (e) => { for (const p of waiting.values()) p.ko(new Error(e.message || "worker")); waiting.clear(); };
+  // a page opened before a deploy asks for the worker of the build before, gone with it (owner, 2026-11-23: « Itinéraires »
+  // computed nothing): said as such, the page to be reloaded
+  worker.onerror = async (e) => {
+    const gone = await replaced(), err = Object.assign(new Error(gone ? t("rc.st.updated") : e.message || "worker"), { updated: gone });
+    for (const p of waiting.values()) p.ko(err);
+    waiting.clear();
+  };
   const ask = (op, body = {}, transfer = [], progress = null) => new Promise((ok, ko) => { const id = ++seq; waiting.set(id, { ok, ko, progress }); worker.postMessage({ id, op, ...body }, transfer); });
   let ready;
   if (vector) {
