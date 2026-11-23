@@ -392,6 +392,15 @@ p { margin: 0; }
   padding: 16px 18px 0; flex-wrap: wrap;
 }
 .card-head .hint { font-size: 13px; color: var(--ink-3); }
+/* the administrators' sources card on a race's page (provisional.js): its head says what it holds and opens it */
+summary.src-sum { cursor: pointer; list-style: none; padding-bottom: 16px; }
+summary.src-sum::-webkit-details-marker { display: none; }
+.src-chev { display: inline-block; transition: transform .15s; color: var(--ink-3); }
+details[open] > summary .src-chev { transform: rotate(90deg); }
+#pv-src td:nth-child(2) { white-space: normal; }
+#pv-src .src-on { display: none; }
+#pv-src tr.src-shown .src-on { display: inline-block; background: var(--flag); color: var(--flag-ink); }
+#pv-src tr.src-shown td { background: var(--flag-wash, transparent); }
 .card-body { padding: 14px 18px 18px; }
 .grid { display: grid; gap: 16px; }
 .grid > * { min-width: 0; }   /* let wide tables scroll inside their card instead of stretching the grid */

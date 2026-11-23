@@ -395,14 +395,14 @@ def site_docs(con, race, f: Fetcher, lr: LiveResultat, ws: WinSplits, hy: Heyrie
             changed += 1
     # and « start lists » the same page gave that are another season's or another race's results lists (« Résultats –
     # PROVOM 2025 Jour 3 », « CNE2025_SOLunéville_HOMMES » at SO Lunéville, 2026-11-22: read by the start-list reader)
-    for row in con.execute(f"""SELECT url, parsed FROM prov_docs WHERE race_key = ? AND source = 'site'
+    for row in con.execute(f"""SELECT url, parsed, note FROM prov_docs WHERE race_key = ? AND source = 'site'
                                AND kind IN ({",".join("?" * len(START_KINDS))})""", (race["key"], *START_KINDS)).fetchall():
         name = urllib.parse.unquote(urllib.parse.urlsplit(row["url"]).path.rsplit("/", 1)[-1])
         head = (json.loads(row["parsed"]) if row["parsed"] else {}).get("head") or ""
-        text = plain(f"{name} {head}")
+        text = plain(f"{name} {head} {row['note'] or ''}")       # (the link's text: « … Faulquemont_26mars2023.pdf »)
         years = {int(y) for y in re.findall(r"(?<!\d)(20[0-4]\d)(?!\d)", text)}       # (« CNE2025 » too)
         if other_day(name, day) or (years and day.year not in years) or \
-                (re.search(r"r[eé]s?u?ltats?|classement", text) and not names_race(race, f"{name} {head}")):
+                (re.search(r"r[eé]s?u?ltats?|classement", plain(f"{name} {head}")) and not names_race(race, f"{name} {head}")):
             con.execute("DELETE FROM prov_docs WHERE race_key = ? AND url = ?", (race["key"], row["url"]))
             changed += 1
     gone = False

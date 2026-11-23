@@ -31,6 +31,15 @@ const sourceName = (d) => {
     : d.by === "category" ? t("kind.byCategory") : t("kind.byCircuit");
   return `${who} · ${what}`;
 };
+/** The administrators' sources card: a race's documents counted — with results, start lists, the rest (unread, empty,
+ *  refused, links, registrations, announcements, course data). */
+const START_KINDS = new Set(["startlist", "startfile"]);
+const srcCounts = (all) => {
+  const start = all.filter((d) => START_KINDS.has(d.kind)).length;
+  const res = all.filter((d) => !START_KINDS.has(d.kind) && d.classes?.length
+    && !["registration", "announcement", "coursedata"].includes(d.kind)).length;
+  return { res, start, none: all.length - res - start };
+};
 /** A runner's club: the file's, else — a file without clubs — that of the runner recognised, from the CN data. */
 const clubOf = (r) => {
   if (r.club_code) return { code: r.club_code, name: r.club || data.clubName(r.club_code) };
@@ -204,11 +213,14 @@ async function detail(main, idx, query) {
     ${docs.length ? html`<div class="filters" id="pv-pick"></div><section class="card"><div class="card-head"><div>
       <div class="hint" id="pv-class-hint"></div></div></div><div id="pv-class"></div></section>
       ${CN ? html`<p class="muted" style="font-size:12.5px;margin:10px 2px 0">${t("prov.scoreDef")}</p>` : ""}` : html`<div class="card"><div class="empty">${t(race.ffco_id ? "prov.noDoc.ffco" : "prov.noDoc.org")}</div></div>`}
-    ${auth.session()?.admin ? html`<details class="card" style="margin-top:16px"><summary class="card-head" style="cursor:pointer"><h2>${t("prov.sources.admin")}</h2></summary>
-      <div class="table-wrap"><table class="data compact"><thead><tr><th>${t("prov.source")}</th><th>${t("prov.doc")}</th><th>${t("prov.format")}</th>
+    ${auth.session()?.admin ? html`<details class="card src-card" style="margin-top:16px"><summary class="card-head src-sum">
+        <h2><span class="src-chev" aria-hidden="true">▸</span> ${t("prov.sources.admin")}</h2>
+        <div class="hint">${tn("prov.sources.count", race.docs.length)} · ${t("prov.sources.parts", srcCounts(race.docs))}
+          ${docs.length ? html`<br><span id="pv-src-shown"></span>` : ""}</div></summary>
+      <div class="table-wrap"><table class="data compact" id="pv-src"><thead><tr><th>${t("prov.source")}</th><th>${t("prov.doc")}</th><th>${t("prov.format")}</th>
         <th class="r">${t("prov.classes")}</th><th>${t("prov.found")}</th><th>${t("prov.changed")}</th></tr></thead>
-      <tbody>${race.docs.map((d) => html`<tr${raw(d.classes?.length ? "" : ' style="opacity:.65"')}>
-        <td><span class="tag">${SOURCE[d.source] || d.source}</span></td>
+      <tbody>${race.docs.map((d, i) => html`<tr data-i="${i}"${raw(d.classes?.length ? "" : ' style="opacity:.65"')}>
+        <td><span class="tag">${SOURCE[d.source] || d.source}</span> <span class="tag src-on">${t("prov.sources.on")}</span></td>
         <td style="max-width:420px;overflow-wrap:anywhere">${d.source === "upload" || d.source === "direct" ? html`<span>${d.title || d.url.split("/").pop()}</span>`
           : html`<a href="${d.url}" target="_blank" rel="noopener">${d.title || d.note || decodeURIComponent(d.url.split("/").pop() || d.url)}</a>`}
           ${d.note && d.title ? html`<div class="muted" style="font-size:12px">${d.note}</div>` : ""}</td>
@@ -235,6 +247,10 @@ async function detail(main, idx, query) {
       <label class="field"><select id="pv-c" aria-label="${(views(d) ? byCat : d.by === "category") ? t("prov.category") : t("prov.circuit")}">${groups.map((x, i) => html`<option value="${i}" ${raw(i === ci ? "selected" : "")}>${x.name}${asCircuits && x.categories?.length ? ` · ${x.categories.join(", ")}` : ""} (${x.runners.length})</option>`)}</select></label>
 `;
     const si = withSplits.indexOf(d);
+    // the administrators' sources card: which document the table shows
+    const shown = $("#pv-src-shown");
+    if (shown) shown.textContent = t("prov.sources.shown", { name: sourceName(d) });
+    $$("#pv-src tr[data-i]").forEach((tr) => tr.classList.toggle("src-shown", race.docs[Number(tr.dataset.i)] === d));
     $$(".race-tabs a[data-view]").forEach((a) => { a.href = raceHref(race.key, a.dataset.view, si >= 0 ? { doc: si || null, c: ci || null } : {}); });
     $("#pv-doc")?.addEventListener("change", (e) => {
       di = Number(e.target.value);

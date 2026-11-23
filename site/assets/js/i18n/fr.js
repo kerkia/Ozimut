@@ -1097,7 +1097,7 @@ export default {
   "prov.ffcoResults": "La fédération a publié ses résultats officiels (aucune liste de l'organisateur lue) : ils sont dans Stats › Courses.",
   "prov.official": "Officiel",
   "prov.officialPage": "Page officielle ↗",
-  "prov.sources.admin": "Sources (administration)", "prov.view": "Voir", "prov.view.circ": "par circuit", "prov.view.cat": "par catégorie",
+  "prov.sources.admin": "Sources (administration)", "prov.sources.count.one": "{n} document trouvé", "prov.sources.count.other": "{n} documents trouvés", "prov.sources.parts": "résultats : {res} · départs : {start} · sans résultats : {none}", "prov.sources.shown": "Affiché : {name}", "prov.sources.on": "affiché", "prov.view": "Voir", "prov.view.circ": "par circuit", "prov.view.cat": "par catégorie",
   "prov.circuitCats": "Catégories du circuit : {c}",
   "prov.circuitOf": "Catégorie du circuit {c} (scores calculés sur tout le circuit)",
   "prov.soon": "à venir · liste de départ", "prov.start": "Départ",
