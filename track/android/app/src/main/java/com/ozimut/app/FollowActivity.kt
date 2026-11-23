@@ -75,7 +75,6 @@ class FollowActivity : ComponentActivity() {
         val f = Follows.get(this, intent.getStringExtra(EXTRA_C) ?: "")
         if (f == null) { finish(); return }
         follow = f
-        val cfg = RelayConfig.get(this)
         val root = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setBackgroundColor(0xFFFFFFFF.toInt()) }
         Ui.padForBars(root)
         setContentView(root)
@@ -86,7 +85,7 @@ class FollowActivity : ComponentActivity() {
         root.addView(head)
 
         val frame = FrameLayout(this)
-        map = TileMapView(this).apply { template = cfg.tiles; credit = cfg.credit; maxZoom = cfg.maxZoom; setView(46.6, 2.4, 5.0) }
+        map = TileMapView(this).apply { setView(46.6, 2.4, 5.0) }
         frame.addView(map, FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT))
         val tools = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
         tools.addView(small("+") { map.zoomBy(1.0) })

@@ -197,8 +197,11 @@ Bundled into the APKs the CI builds, under their own licences:
 - Google Play services' Wearable library (`play-services-wearable`, Google, under the Android Software Development Kit
   License): the Wear OS watch handing its runs to the phone.
 
-The map's tiles are not bundled: the app reads them from the provider `/api/ozitrac/config` names (OpenStreetMap's standard
-tiles by default, © OpenStreetMap contributors, ODbL; the credit is drawn on the map).
+The map's tiles are not bundled: each phone reads them from the providers `/api/ozitrac/config` names — IGN's Plan IGN and aerial
+photos in France (© IGN, Licence Ouverte 2.0), swisstopo's national map and SWISSIMAGE in Switzerland and Liechtenstein
+(© swisstopo, open data), OpenStreetMap's standard tiles elsewhere (© OpenStreetMap contributors, ODbL); the credits of the layers
+shown are drawn on the map. The countries' outlines that choose the layer (`functions/_lib/ozitracareas.js`) are Natural Earth's
+(public domain), simplified.
 
 ### Other software read for facts only (none of its code is here)
 

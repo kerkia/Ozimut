@@ -849,7 +849,7 @@ banner asking a parent), a child taking the account over from 15 (`POST /api/tra
   all native, no web view): `HomeActivity` « Ma course » (Start, Qui me suit, Mes courses as GPX, Zone, the two-minute test,
   Relier à Ozimut, « Effacer mes données ») and « Je suis » (`FollowActivity`: the person's live map), `Relay.kt` (channel,
   invites, `RelaySender` beside Ozimut's `Uploader`, device alerts), `TrackForm.kt` (sealing, delta form, code links),
-  `TileMapView` (its own raster map, tiles from `/api/ozitrac/config`), `RunLog.kt` (runs as CSV, GPX on demand); the Wear
+  `TileMapView` (its own raster map; **its layers by country**, owner 2026-11-23: `/api/ozitrac/config` lists them — `functions/_lib/ozitracmaps.js`, the outlines by `tools/ozitrac_areas.py` from Natural Earth —, Plan IGN or IGN's photos in France, swisstopo's map, grey map or SWISSIMAGE in Switzerland and Liechtenstein, OpenStreetMap everywhere and the default elsewhere; a tile is its area's when its four corners lie inside, the person's choice per area by « Fond de carte » (`MapLayers`), each phone fetching its own tiles, never through Ozimut), `RunLog.kt` (runs as CSV, GPX on demand); the Wear
   app compiles those files too (`SHARED`); **its runs reach the phone by themselves** when the two are connected (owner,
   2026-11-23): the Wear OS Data Layer, an item `/ozitrac/run/<run>` with the run's CSV as an asset (`wear` `RunSync`, after
   each run's end), filed in « Mes courses » by the phone (`WatchRuns`, a `WearableListenerService`; « Mes courses » collects

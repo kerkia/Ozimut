@@ -59,7 +59,7 @@ Every body is JSON. A secret goes as `Authorization: Bearer <secret>`. Errors: 4
 
 | Route | Who | Body → answer |
 |---|---|---|
-| `GET /config` | anyone | → `{ tiles, attribution, maxZoom, watched, idle }`: the map's tile address template (`{z}/{x}/{y}`), its credit, the batch intervals in seconds |
+| `GET /config` | anyone | → `{ tiles, attribution, maxZoom, watched, idle, layers, areas, elsewhere }`: the map's layers and where each is offered (below « The map »), the batch intervals in seconds; `tiles`, `attribution`, `maxZoom` the default layer elsewhere, for an app that reads no layers |
 | `POST /channel` | anyone (20 an hour an address) | `{}` → 201 `{ c, cs }` |
 | `GET /<c>` | watchee (`cs`) | → `{ watchers: [{ w, name, since, seen }], run }`; `name` sealed (below), `since`/`seen` ISO times |
 | `POST /<c>/invite` | watchee | `{ i }` → `{ exp }` (10 codes open at most) |
@@ -97,9 +97,25 @@ deleted), the zone (a centre and a radius, set on this phone), « Relier à Ozim
 followed, each with their state (running, last position's age, battery) and their live map — the trail, the current position
 and its accuracy, follow on or off —, their alerts, « Enregistrer en GPX » of what was received, « Ne plus suivre ».
 
-**The map** is drawn by the app itself from raster tiles (`GET /config`'s template; OpenStreetMap's standard tiles until the owner
-sets a provider for the public release: OpenStreetMap's tile policy forbids heavy use by an app), with its credit shown. Never an
-orienteering map.
+**The map** is drawn by the app itself from raster tiles (Web Mercator, 256 px), never an orienteering map. Each phone fetches
+its own tiles from the providers, never through Ozimut (owner, 2026-11-23: Ozimut must not see where the people followed are, and
+the providers' fair-use limits are per address); every request names the app (`User-Agent: Ozitrac/<version> (+https://ozimut.com)`),
+a tile is kept on the phone 30 days, and nothing is fetched ahead of what is shown (OpenStreetMap's tile policy, which allows apps
+on those terms). **The layers by country** (`GET /config`):
+
+- `layers`: `[{ id, tiles, credit, maxZoom, name: { fr, en, de, es } }]` — `tiles` an address with `{z}`, `{x}`, `{y}`; past its
+  `maxZoom` a layer's tile is its ancestor's part, enlarged.
+- `areas`: `[{ id, name: { fr, en, de, es }, layers: [<layer id>…], poly: [[[lon, lat]…]…] }]` — the country's outline (Natural
+  Earth, simplified to about 1 km), its layers in order, **the first the default**.
+- `elsewhere`: `{ name, layers }` — the layers outside every area, the first the default.
+
+A tile is drawn from an area's layer when its four corners lie inside that area's outline, else from the layer chosen for
+« elsewhere »: tiles astride a border come from the default, so no part of the map is ever blank. The person chooses a layer per
+area (« Fond de carte » on every map; the area the map's centre is in listed first), kept on the phone for every map. The credits
+shown are those of the layers drawn. Today: France (metropolitan, Corsica) Plan IGN, IGN's aerial photos, OpenStreetMap; Switzerland
+and Liechtenstein swisstopo's national map in colour or grey, SWISSIMAGE, OpenStreetMap; elsewhere OpenStreetMap. A country or a
+layer is added on the server alone (`functions/_lib/ozitracmaps.js`, the outlines made by `tools/ozitrac_areas.py`); the app
+needs no update.
 
 **Identifiers**: Android and Wear OS application id `com.ozimut.ozitrac` (the code's namespace stays `com.ozimut.app`), name
 « Ozitrac ». Ozimut's own pair codes and `/t/<code>` links stay as they are.

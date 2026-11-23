@@ -160,6 +160,7 @@
     <string name="follow_stop_ask">¿Dejar de seguir a %1$s?</string>
     <string name="follow_gone">Esta persona ya no comparte sus carreras contigo.</string>
     <string name="follow_nothing">Todavía no se ha recibido nada.</string>
+    <string name="map_layers">Mapa base</string>
     <string name="map_follow">Seguir</string>
     <string name="alert_start">%1$s ha empezado una carrera</string>
     <string name="alert_end">%1$s ha terminado su carrera</string>

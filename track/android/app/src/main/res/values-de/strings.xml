@@ -160,6 +160,7 @@
     <string name="follow_stop_ask">%1$s nicht mehr folgen?</string>
     <string name="follow_gone">Diese Person teilt ihre Läufe nicht mehr mit dir.</string>
     <string name="follow_nothing">Noch nichts empfangen.</string>
+    <string name="map_layers">Kartenhintergrund</string>
     <string name="map_follow">Folgen</string>
     <string name="alert_start">%1$s hat einen Lauf gestartet</string>
     <string name="alert_end">%1$s hat den Lauf beendet</string>
