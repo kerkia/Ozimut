@@ -90,11 +90,9 @@ android {
     }
 }
 
-androidComponents {
-    onVariants { v ->
-        v.sources.kotlin?.addGeneratedSourceDirectory(sharedSources, SharedSources::out)
-    }
-}
+// the copies compiled as the module's own sources, made before anything of the build runs
+android.sourceSets.getByName("main").java.srcDir(layout.buildDirectory.dir("generated/shared"))
+tasks.named("preBuild") { dependsOn(sharedSources) }
 
 kotlin {
     compilerOptions {
