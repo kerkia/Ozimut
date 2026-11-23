@@ -4298,6 +4298,20 @@ Every multiple-choice game was played through to its score page at phone size, w
   routes grazing the corner of a street's double line). Checked in the page on scan 2: all 19 legs computed, no error. **Still
   open**: the strip to 15; a road with crossing points not crossable elsewhere; per-map calibration of the greens' depths (G1/G2/G3)
   and of yellow against olive (map 2's way to 14, a metre of yellow blended to olive).
+  **The way to 14, the same evening.** The owner: the double-lined streets are crossed only at the marks, but « those crossing
+  passages don't change much at all to the routes since the road remains runnable on its sides … all other issues are more
+  serious »; double lines made walls but in the marks' bands cost three laid tracks on map 2 and were dropped. Two rules instead:
+  (6) **on a scan a colour far brighter than the map's olive (+50) is a yellow, whatever its hue** (`classify`): the metre-wide
+  passage down to 14 is a pale yellow of olive's hue (247 240 125, 57°); not on photos (their lit olive); (7) **a stairway drawn
+  as its treads** (`sprintLayers`, `sprintObjects`' `pale` mask): three or more small pale squares in a row a step apart (1.2-2.6
+  m) with a black bar between each two (a dotted pattern has none), opened along its axis and 1.5 m beyond each end, its middle
+  lane 2 — the stairway by 14 was shut at its top step. A join of a narrow way's pieces across thin olive was tried and dropped
+  (it opened a garden's corner; the colour rule alone opens the passage). Gate (baseline accepted, the previous one
+  `baseline_2026-11-23_levels.json`): map 2 tracks laid 16 → 18 of 18 (13-14 and 14-15 up the stairway, as the runner), lines on
+  every route 18 → 10, best routes 3 → 1; map 3 lines on every route 30 → 19, best routes 13 → 8, buildings' grey 8 → 1 m, olive
+  on every route 16 → 21 m (routes cutting a street's corner over its kerbs by a garden on 7-8); photos and forest maps unchanged.
+  Checked in the page on scans 2 and 3: every leg computed, no error. Still open: 15 reached only by crawling over a 3 m black
+  wall by the underpass (the runner's GPS lies over the building beside it); the greens' depths per map.
 - **Languages: French, English, German and Spanish** (owner, 2026-10-17 French and English, open to everyone since 2026-10-18,
   `i18n.OPEN` true; **German and Spanish since 2026-11-01**: `i18n.LANGS`, catalogues `i18n/de.js`, `es.js`, `tracer.de.js`,
   `tracer.es.js`, long texts `content/<name>.de.js` / `.es.js`, e-mails in `_lib/templates.js`, `manifest.de|es.webmanifest`;

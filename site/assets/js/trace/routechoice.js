@@ -112,6 +112,9 @@ export function kindOf(r, g, b, ol = null) {
       // where its olive is 57° and 174 bright; 2026-11-23). Not on a photo: the light falls unevenly there, and a lit olive is
       // brighter than that (the Auray photos' olive went pale green and their routes ran through the gardens)
       if (ol.sharp && hue >= ol.oh + 5 && max >= ol.om + 35) return A.G1;
+      // and one far brighter than its olive, whatever its hue, is a yellow (open land, rough open): a pale yellow of olive's hue
+      // (247 240 125, 57° on the second Auray scan, 72 above its olive) shut the metre-wide passage down to control 14
+      if (ol.sharp && max >= ol.om + 50) { const y = (max - b) / max; return y > 0.55 ? A.OPEN : y > 0.15 ? A.ROUGH : A.WHITE; }
       const dO = ((hue - ol.oh) / 4) ** 2 + ((max - ol.om) / 40) ** 2, dY = ((hue - ol.yh) / 4) ** 2 + ((max - ol.ym) / 40) ** 2;
       if (dO < dY) return max < 200 && hue < ol.oh - 6 ? I_MIXED : I_OLIVE;
       if (max >= 200) { const y = (max - b) / max; return y > 0.55 ? A.OPEN : y > 0.15 ? A.ROUGH : A.WHITE; }
@@ -1221,11 +1224,13 @@ export function sprintObjects(P, w, h, mpp, rgba = null) {
   // the warm ground of the photo as taken (a street's or a lane's pink and beige), sprintLayers' lanes: the light seam between two
   // houses is a neutral grey
   // (and the paper, light and neutral — its white, or its blend with a line —: a gap drawn between two houses, sprintLayers)
-  const warm = new Uint8Array(N), light = new Uint8Array(N);
+  // (and pale, white or nearly: a stairway's treads, sprintLayers)
+  const warm = new Uint8Array(N), light = new Uint8Array(N), pale = new Uint8Array(N);
   if (rgba) for (let i = 0, p = 0; i < N; i++, p += 4) {
-    const r = rgba[p], g = rgba[p + 1], b = rgba[p + 2], mx = Math.max(r, g, b);
+    const r = rgba[p], g = rgba[p + 1], b = rgba[p + 2], mx = Math.max(r, g, b), mn = Math.min(r, g, b);
     if (r >= b + 12 && r >= 150) warm[i] = 1;
-    else if (mx >= 190 && mx - Math.min(r, g, b) <= 30) light[i] = 1;
+    else if (mx >= 190 && mx - mn <= 30) light[i] = 1;
+    if (mn >= 170 && mx >= 215) pale[i] = 1;
   }
   const closed = (v) => v === A.GREY || v === A.BUILDING || v === A.OOB || v === A.WATER;
   const m = new Uint8Array(N);
@@ -1323,7 +1328,7 @@ export function sprintObjects(P, w, h, mpp, rgba = null) {
     thinLines += hidden.length;
   }
   for (let j = 0; j < toArea.length; j += 2) area[toArea[j]] = toArea[j + 1];
-  return { w, h, mpp, area, walls, thinLines, warm: rgba ? warm : null, light: rgba ? light : null, under: rgba ? underpasses(rgba, w, h, mpp) : [] };
+  return { w, h, mpp, area, walls, thinLines, warm: rgba ? warm : null, light: rgba ? light : null, pale: rgba ? pale : null, under: rgba ? underpasses(rgba, w, h, mpp) : [] };
 }
 
 /**
@@ -1785,6 +1790,57 @@ export function sprintLayers(O, P, pts = [], r = 0) {
       if (!keep[lab[i]]) continue;
       for (let t = 1 - a; t < b; t++) if (!black(i + t * st)) ar[i + t * st] = A.ROUGH;
       lane[i] = 2;
+    }
+  }
+  // a stairway drawn as its treads (ISSprOM 532): a row of three or more small pale squares a step apart (1.2 to 2.6 m), a black
+  // bar between each two (a dotted pattern has none), in line — its bars and edges were walls, and the way up to the street by
+  // control 14 of the second Auray scan was shut at the top step (owner, 2026-11-23). Opened along its axis and 1.5 m beyond
+  // each end, through the line that closes it there (its middle lane 2: the cell is the stair's ground whatever wall shares it)
+  if (O.pale && 1.6 / mpp >= 4) {
+    const { comps: pc } = components(O.pale, w, h, true), big = 1.5 / mpp, tr = [];
+    for (let id = 1; id < pc.length; id++) {
+      const c = pc[id];
+      if (c.n < 2 || c.x1 - c.x0 + 1 > big || c.y1 - c.y0 + 1 > big) continue;
+      tr.push({ x: c.sx / c.n, y: c.sy / c.n, used: false });
+    }
+    const B = Math.max(4, Math.round(3 / mpp)), bx = Math.ceil(w / B), cell = new Map();
+    tr.forEach((t, i) => { const k = Math.floor(t.y / B) * bx + Math.floor(t.x / B); if (!cell.has(k)) cell.set(k, []); cell.get(k).push(i); });
+    const near = (x, y, r) => { const out = []; const cx = Math.floor(x / B), cy = Math.floor(y / B); for (let j = cy - 1; j <= cy + 1; j++) for (let i = cx - 1; i <= cx + 1; i++) for (const q of cell.get(j * bx + i) || []) if (Math.hypot(tr[q].x - x, tr[q].y - y) <= r) out.push(q); return out; };
+    const barBetween = (a, b) => { for (let t = 0.2; t <= 0.8; t += 0.1) { const x = Math.round(a.x + (b.x - a.x) * t), y = Math.round(a.y + (b.y - a.y) * t); if (P.kind[y * w + x] === I_BLACK) return true; } return false; };
+    const dMin = 1.2 / mpp, dMax = 2.6 / mpp;
+    for (let i = 0; i < tr.length; i++) {
+      if (tr[i].used) continue;
+      let bestC = null;
+      for (const j of near(tr[i].x, tr[i].y, dMax)) {
+        if (j === i || tr[j].used) continue;
+        const d = Math.hypot(tr[j].x - tr[i].x, tr[j].y - tr[i].y);
+        if (d < dMin || !barBetween(tr[i], tr[j])) continue;
+        const ux = (tr[j].x - tr[i].x) / d, uy = (tr[j].y - tr[i].y) / d;
+        const walk = (from, sx, sy) => {
+          const out = [];
+          let cur = from;
+          for (;;) {
+            const nx = tr[cur].x + sx * d, ny = tr[cur].y + sy * d;
+            const k = near(nx, ny, 0.35 * d).find((q) => q !== cur && !out.includes(q) && q !== i && q !== j && !tr[q].used);
+            if (k == null || !barBetween(tr[cur], tr[k])) break;
+            out.push(k); cur = k;
+          }
+          return out;
+        };
+        const c = [...walk(i, -ux, -uy).reverse(), i, j, ...walk(j, ux, uy)];
+        if (c.length >= 3 && (!bestC || c.length > bestC.length)) bestC = c;
+      }
+      if (!bestC) continue;
+      for (const k of bestC) tr[k].used = true;
+      const A0 = tr[bestC[0]], Z = tr[bestC[bestC.length - 1]], L = Math.hypot(Z.x - A0.x, Z.y - A0.y), ux = (Z.x - A0.x) / L, uy = (Z.y - A0.y) / L, ext = 1.5 / mpp;
+      for (let t = -ext; t <= L + ext; t += 0.5) for (const v of [-1, 0, 1]) {
+        const x = Math.round(A0.x + ux * t - uy * v), y = Math.round(A0.y + uy * t + ux * v);
+        if (x < 0 || y < 0 || x >= w || y >= h) continue;
+        const k = y * w + x;
+        block[k] = 0;
+        if (ar[k] === A.GREY || ar[k] === A.BUILDING || ar[k] === A.OOB) ar[k] = A.ROUGH;
+        if (!v) lane[k] = 2;
+      }
     }
   }
   const shut0 = (i) => ar[i] === A.GREY || ar[i] === A.BUILDING || ar[i] === A.OOB || ar[i] === A.WATER || block[i], shut = shut0;
