@@ -450,18 +450,19 @@ async function familyTab(el, S, redraw) {
         <button class="btn btn-primary">${t("trk.take.go")}</button></form></section>`);
   }
   // who: oneself, each child, a new child
-  const chip = (id, label, sub) => html`<button type="button" class="trk-who${who === id ? " on" : ""}" data-who="${id}" aria-pressed="${who === id ? "true" : "false"}">
+  // the people are tabs sitting on the chosen person's frame, the open one joined to it (owner, 2026-11-23)
+  const chip = (id, label, sub) => html`<button type="button" role="tab" class="trk-who${who === id ? " on" : ""}" data-who="${id}" aria-selected="${who === id ? "true" : "false"}">
     <b>${label}</b>${sub ? html`<span>${sub}</span>` : ""}</button>`;
   const meName = `${S.me.name || ""} ${S.me.last || ""}`.trim();
   if (!S.me.child) {
-    blocks.push(html`<section class="card trk-people"><h3>${t("trk.people.title")}</h3><p class="dim">${t("trk.people.text")}</p>
-      <div class="trk-whos">${chip(S.me.id, t("trk.people.me"), meName)}
+    blocks.push(html`<div class="trk-people"><h3>${t("trk.people.title")}</h3><p class="dim">${t("trk.people.text")}</p>
+      <div class="trk-whos" role="tablist">${chip(S.me.id, t("trk.people.me"), meName)}
         ${S.children.map((c) => chip(c.id, `${c.name} ${c.last}`.trim(), c.birthYear ? t("trk.people.kid", { year: c.birthYear }) : t("trk.child")))}
-        ${chip("new", t("trk.people.add"), "")}</div></section>`);
+        ${chip("new", t("trk.people.add"), "")}</div></div>`);
   }
   const kid = S.children.find((c) => c.id === who);
   if (who === "new") {
-    blocks.push(html`<section class="card trk-person"><div class="trk-person-head"><h3>${t("trk.kids.add")}</h3><p class="dim">${t("trk.kids.text")}</p></div>
+    blocks.push(html`<section class="card trk-person" role="tabpanel"><div class="trk-person-head"><h3>${t("trk.kids.add")}</h3><p class="dim">${t("trk.kids.text")}</p></div>
       <form id="trk-kid-new" class="trk-form trk-person-body"><label>${t("trk.first")} <input name="first" required maxlength="60"></label>
         <label>${t("trk.last")} <input name="last" maxlength="60" value="${S.me.last}"></label>
         <label>${t("trk.birthYear")} <input name="birthYear" type="number" min="${new Date().getFullYear() - 25}" max="${new Date().getFullYear()}" required></label>
@@ -472,7 +473,7 @@ async function familyTab(el, S, redraw) {
     const name = kid ? `${kid.name} ${kid.last}`.trim() : meName;
     // the chosen person's own part, framed in the module's colour from its name down to its last setting, so that what follows
     // (« Je suis », « J'ai reçu un code ») reads as the account's, not the person's (owner, 2026-11-23)
-    blocks.push(html`<section class="card trk-person" data-acc="${acc.id}"><div class="trk-person-head"><h3>${kid ? name : t("trk.person.meTitle", { name })}
+    blocks.push(html`<section class="card trk-person" role="tabpanel" data-acc="${acc.id}"><div class="trk-person-head"><h3>${kid ? name : t("trk.person.meTitle", { name })}
       ${kid ? html` <span class="tag">${kid.birthYear ? t("trk.people.kid", { year: kid.birthYear }) : t("trk.child")}</span>` : ""}</h3>
       <p class="dim">${kid ? t("trk.person.kid", { name: kid.name }) : S.me.child ? t("trk.person.meChild") : t("trk.person.me")}</p></div>
       <div class="trk-acc-body trk-person-body"></div></section>`);
