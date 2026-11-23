@@ -185,6 +185,19 @@ Licences as recorded in the lockfiles:
   BSD-2-Clause 5, BSD-3-Clause 2, 0BSD 1).
 - `tools/vendor.py` uses npm and esbuild 0.24.0 (MIT) to build `site/assets/vendor/`.
 
+### Android libraries (the Ozitrac apps, `track/android`; fetched by Gradle at build time, not in the repository)
+
+Bundled into the APKs the CI builds, under their own licences:
+
+- Kotlin standard library (JetBrains, Apache-2.0); AndroidX core-ktx and activity-ktx (The Android Open Source Project,
+  Apache-2.0).
+- ZXing Android Embedded 4.3.0 (JourneyApps, Apache-2.0) and ZXing core (ZXing authors, Apache-2.0): scanning and drawing
+  QR codes.
+- Firebase Cloud Messaging (Google, Apache-2.0), only in a build made with the owner's `google-services.json`.
+
+The map's tiles are not bundled: the app reads them from the provider `/api/ozitrac/config` names (OpenStreetMap's standard
+tiles by default, © OpenStreetMap contributors, ODbL; the credit is drawn on the map).
+
 ### Other software read for facts only (none of its code is here)
 
 - MeOS (AGPL-3.0, https://github.com/melinsoftware/meos): its source was read for file-format and protocol facts

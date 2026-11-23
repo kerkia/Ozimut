@@ -1,6 +1,7 @@
 # GPS tracking — what the owner does, step by step
 
-Written 2026-11-22. The server, the site and the three native apps are built (`docs/track/design.md`); what is left needs the
+Written 2026-11-22, for Ozitrac since 2026-11-23. The server, the site and the native apps are built (`docs/track/design.md`,
+`docs/track/ozitrac.md`); what is left needs the
 owner's accounts, keys and devices. Do the steps in order: each part can be tested before the next. Nothing here is a secret:
 the secrets are typed into the tools, never into this file or a chat.
 
@@ -16,6 +17,9 @@ already in that column, separated by a comma).
 - The site deployed with the tracking (Coach › « Suivi GPS », administrators only).
 - Step 1, the live relay: `TRACK_RELAY_SECRET` set on the site and the relay, `ocn-live` deployed with `LiveTrack`,
   the `LIVE_TRACK` binding uncommented (2026-11-23).
+- **Ozitrac** (2026-11-23, `docs/track/ozitrac.md`): the tracking app is now a product of its own, used without an account.
+  Its relay (`TracChannel`) deployed in `ocn-live`, the site's `OZITRAC` binding and `/api/ozitrac` live. The steps below
+  are written for it.
 
 ## 1. The live relay — live view and alerts (about 10 minutes)
 
@@ -50,22 +54,26 @@ This tests the server, the live page and the alerts with a free app, before the 
    notification once step 5 or 6 is done for your own phone).
 5. « Mes traces » › the run: « Analyse solo », « GPX ».
 
-## 3. The Android app, installed by hand (about 20 minutes)
+## 3. Ozitrac on Android, installed by hand (about 20 minutes, two phones)
 
 1. On github.com/kerkia/Ozimut › Actions › « track-android » › the latest green run › « Artifacts » ›
    `ozimut-android-apks` (a zip). Inside: `app-debug.apk` (and an unsigned release APK, not installable).
 2. Copy `app-debug.apk` to an Android phone (USB, e-mail to yourself, a cloud drive) and open it. Android asks to allow
    installing apps from that source: allow it for that one app (Files, Gmail…).
    Each CI build signs its debug APK with a new key: to install a newer build, **uninstall the old one first**.
-3. Open the app: it is ozimut.com. Sign in with your account.
-4. Coach › Suivi GPS › « Famille et appareils » › « Ce téléphone » › « L'associer à mon compte » (or, for the test child:
-   its card › « Associer ce téléphone à <name> »).
+   An « Ozimut » app installed before 2026-11-23 is another app (`com.ozimut.app`): uninstall it.
+3. Open Ozitrac: it asks your first name. No account, no sign-in.
+4. **Without Ozimut** (the basic use): on the phone to be followed, « Ma course » › « Qui me suit » › « Ajouter quelqu'un »
+   shows a QR code. On a second phone with Ozitrac, « Je suis » › « Suivre quelqu'un » scans it (or open the shared link).
+   The first phone now lists that follower.
 5. « Test de deux minutes »: lock the screen, put the phone in a pocket, wait. If it fails, the app names the battery
    setting to change for this phone's maker and opens it.
-6. « Démarrer le suivi », walk, stop by holding « Arrêter » two seconds. Watch it live from the computer.
-7. Try « J'ai besoin d'aide » once: the help alert and the call button (the number set in the child's settings).
-
-Notifications on the phone need step 6.
+6. « Démarrer », walk outside, stop by holding « Arrêter » two seconds. On the second phone, the person's map shows the
+   trail live (about 15 s behind while you look). « Mes courses » keeps the run: share it as GPX.
+7. Try « J'ai besoin d'aide » once: the second phone shows it at once on the map; as a notification once step 5 is done.
+8. **With Ozimut**: on ozimut.com › Coach › Suivi GPS › « Famille et appareils » › the person › « Associer un téléphone »:
+   a code. In Ozitrac › « Relier à Ozimut », scan or type it. From then on every run also goes to that account
+   (« Mes traces », the analyses), and Ozimut's own watchers follow on the site.
 
 ## 3b. The Wear OS app on a watch with 4G, installed by hand (about 20 minutes)
 
@@ -80,12 +88,13 @@ A watch without 4G works too on Wi-Fi, which is enough to test at home.
    (the watch and the PC on the same Wi-Fi). « Wireless debugging » › « Pair new device » shows an address and a code.
 4. On the PC: `adb pair <address:port shown> <code shown>`, then `adb connect <address:port of « Wireless debugging »>`,
    then `adb install <path>\wear-debug.apk`.
-5. Open « Ozimut » on the watch: it shows a code « ABC DEF ». On ozimut.com › Suivi GPS › « Famille et appareils » ›
-   the person › « Associer une montre », type it. Within ten seconds the watch shows « Démarrer ».
+5. Open « Ozitrac » on the watch. To be followed without Ozimut: its « Qui me suit » shows a QR code, which a phone's
+   Ozitrac scans (« Je suis » › « Suivre quelqu'un »). With Ozimut: its code « ABC DEF », typed on ozimut.com › Suivi GPS ›
+   « Famille et appareils » › the person › « Associer une montre ». Then the watch shows « Démarrer ».
 6. « Démarrer » (allow the location), walk outside, watch it live from the computer; « Aide » and « Arrêter » are each
    held two seconds. To test without a phone, turn the phone's Bluetooth off: the watch then uses its own 4G (or Wi-Fi).
 
-Each CI build signs its debug APK with a new key: uninstall the old one first (`adb uninstall com.ozimut.app`).
+Each CI build signs its debug APK with a new key: uninstall the old one first (`adb uninstall com.ozimut.ozitrac`).
 
 ## 4. The Garmin data field — set aside (2026-11-23)
 
@@ -116,28 +125,41 @@ The phone stays paired in Garmin Connect, with Bluetooth on and mobile data.
 
 ## 5. Notifications on Android (Firebase, about 20 minutes)
 
-1. console.firebase.google.com › « Add project » (« Ozimut », Analytics not needed).
-2. « Add app » › Android › package name `com.ozimut.app` › download `google-services.json`.
+Without it, a follower sees the alerts only while Ozitrac is open on the person's map.
+
+1. console.firebase.google.com › « Add project » (« Ozitrac », Analytics not needed).
+2. « Add app » › Android › package name `com.ozimut.ozitrac` › download `google-services.json`.
 3. GitHub secret `GOOGLE_SERVICES_JSON`: the file's content (open it in Notepad, copy all). Then ask Claude to make the
    workflow write it to `track/android/app/google-services.json` before the build (one line to add).
 4. Firebase › Project settings › Service accounts › « Generate new private key »: a JSON file. In
    `C:\Kerkia\Ozimut\Ozimut`: `npx wrangler pages secret put FCM_SERVICE_ACCOUNT --project-name observatoire-cn`, paste the
    whole JSON (one line is fine). Delete the downloaded file afterwards (or keep it in `data\secrets`).
-5. Reinstall the new APK (step 3): the app asks for notifications once paired.
+5. Reinstall the new APK (step 3) on the following phone: it asks for notifications when it starts following.
+
+## 5b. The map's tiles, before the public release (about 15 minutes)
+
+Ozitrac draws its map from OpenStreetMap's own tiles until then, which OpenStreetMap allows only for light use (its tile
+policy forbids an app's heavy use). Before publishing, take a tile provider with a free tier — MapTiler (maptiler.com,
+« Streets » or « Outdoor » raster tiles), Stadia Maps or Thunderforest — and its key, then in `wrangler.toml` `[vars]`:
+`OZITRAC_TILES = "https://…/{z}/{x}/{y}.png?key=…"` and `OZITRAC_TILES_CREDIT = "© MapTiler © OpenStreetMap"` (the
+provider's own credit), push. The apps read them from `/api/ozitrac/config`: no new app is needed. A key in wrangler.toml
+is public (the repository is): take one the provider restricts to the app or to ozimut.com, or ask Claude to make it a
+Pages secret.
 
 ## 6. The iPhone and Apple Watch apps (several days: Apple's account and review)
 
 1. Join the Apple Developer Program (developer.apple.com/programs, 99 USD a year, needs your Apple ID with two-factor
    authentication; a few days for an individual). Note the **Team ID** (Membership details).
-2. developer.apple.com › Certificates, Identifiers & Profiles › Identifiers: register `com.ozimut.app` (capabilities:
-   Associated Domains, HealthKit, Push Notifications), `com.ozimut.app.watchkitapp` (HealthKit), `com.ozimut.app.widget`.
+2. developer.apple.com › Certificates, Identifiers & Profiles › Identifiers: register `com.ozimut.ozitrac` (capabilities:
+   Associated Domains, HealthKit, Push Notifications), `com.ozimut.ozitrac.watchkitapp` (HealthKit),
+   `com.ozimut.ozitrac.widget`. Claude then turns the iPhone and Apple Watch apps into Ozitrac (as Android on 2026-11-23).
 3. Keys › « + » › Apple Push Notifications service (APNs) › download the `.p8` key, note its Key ID. Then:
    `npx wrangler pages secret put APNS_KEY --project-name observatoire-cn` (paste the .p8 file's whole text),
-   `APNS_KEY_ID` (the key's id), `APNS_TEAM_ID` (the Team ID), `APNS_TOPIC` (`com.ozimut.app`).
+   `APNS_KEY_ID` (the key's id), `APNS_TEAM_ID` (the Team ID), `OZITRAC_APNS_TOPIC` (`com.ozimut.ozitrac`).
 4. App Store Connect (appstoreconnect.apple.com) › Users and Access › Integrations › App Store Connect API › generate a key
    (role App Manager): note the Issuer ID and Key ID, download the `.p8`. GitHub secrets `APPLE_TEAM_ID`,
    `APP_STORE_CONNECT_KEY_ID`, `APP_STORE_CONNECT_ISSUER_ID`, `APP_STORE_CONNECT_KEY` (the .p8's text).
-5. App Store Connect › Apps › « + » › New App: iOS, name « Ozimut », bundle `com.ozimut.app`.
+5. App Store Connect › Apps › « + » › New App: iOS, name « Ozitrac », bundle `com.ozimut.ozitrac`.
 6. Tell Claude the Team ID: it writes it into `site/.well-known/apple-app-site-association` and adds the signing and
    TestFlight job to the workflow. Then the build goes to TestFlight; install TestFlight on your iPhone and accept.
 7. Test as in step 3; on the watch, the app shows a code, or the iPhone pairs it.
@@ -155,18 +177,22 @@ The phone stays paired in Garmin Connect, with Bluetooth on and mobile data.
 
 1. play.google.com/console: a developer account (25 USD once; identity check; a personal account must run a closed test
    with 12 testers for 14 days before going public).
-2. Make the release keystore **once, kept for good**: `keytool -genkeypair -v -keystore ozimut-release.jks -alias ozimut
+2. Make the release keystore **once, kept for good**: `keytool -genkeypair -v -keystore ozitrac-release.jks -alias ozitrac
    -keyalg RSA -keysize 4096 -validity 10000` (keytool comes with any Java; or Android Studio › Build › Generate Signed
    Bundle). Keep it in `data\secrets`.
 3. GitHub secrets `ANDROID_KEYSTORE_BASE64` (base64 of the .jks, as in step 4.3), `ANDROID_KEYSTORE_PASSWORD`,
-   `ANDROID_KEY_ALIAS` (`ozimut`), `ANDROID_KEY_PASSWORD`. Ask Claude to add the App Bundle to the workflow.
-4. Tell Claude the key's SHA-256 (`keytool -list -v -keystore ozimut-release.jks`, the « SHA256 » line; or Play Console ›
-   App integrity once Play signs): it goes into `site/.well-known/assetlinks.json`, so that `ozimut.com/t/<code>` links open
-   the app.
-5. Play Console › the app › the « Foreground service: location » declaration (a short video of the tracker running with
-   the screen locked) and the data safety form (location, account, health data — the privacy page says what).
+   `ANDROID_KEY_ALIAS` (`ozitrac`), `ANDROID_KEY_PASSWORD`. Ask Claude to add the App Bundle to the workflow.
+4. Tell Claude the key's SHA-256 (`keytool -list -v -keystore ozitrac-release.jks`, the « SHA256 » line; or Play Console ›
+   App integrity once Play signs): it goes into `site/.well-known/assetlinks.json`, so that `ozimut.com/z/…` and
+   `ozimut.com/t/<code>` links open the app.
+5. Play Console › a new app « Ozitrac », package `com.ozimut.ozitrac`, free, no ads, no in-app purchase › the « Foreground
+   service: location » declaration (a short video of the tracker running with the screen locked) and the data safety form
+   (location shared with the followers, encrypted in transit and end to end; no account; the privacy page's « Ozitrac »).
+   The target audience: adults (parents set the app up on a child's phone); read Google's Families policy before choosing.
+   Nothing in the app may show a price or lead to buying (the study of paid plans).
 
 ## 9. Opening to everyone
 
-When the tests are good: `TRACK_OPEN = "1"` in `wrangler.toml`, push. Coach › Suivi GPS, its documentation chapter and the
-year of birth at registration then appear for every account, and nobody under 15 registers alone.
+Ozitrac itself needs no opening: anyone who installs it uses it. For Ozimut's side, when the tests are good:
+`TRACK_OPEN = "1"` in `wrangler.toml`, push. Coach › Suivi GPS, its documentation chapter and the year of birth at
+registration then appear for every account, and nobody under 15 registers alone.
