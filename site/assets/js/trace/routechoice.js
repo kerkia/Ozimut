@@ -107,6 +107,11 @@ export function kindOf(r, g, b, ol = null) {
     // as much as 40 of brightness (2026-11-18: the Quiberon photo's lit olive, 53° and 231 bright once the paper is levelled,
     // was read as open land by the rule below, and its routes ran through the gardens).
     if (span > 50 && span >= 0.45 * max && ol?.oh) {      // strong colours only: a pale lit street has olive's hue too
+      // on a sprint map read from a scan a colour both greener and much brighter than its own olive is its pale green (vegetation,
+      // slow running): nearer olive than yellow on hue alone, it shut a pale green strip of the third Auray scan (209 215 102, 63°
+      // where its olive is 57° and 174 bright; 2026-11-23). Not on a photo: the light falls unevenly there, and a lit olive is
+      // brighter than that (the Auray photos' olive went pale green and their routes ran through the gardens)
+      if (ol.sharp && hue >= ol.oh + 5 && max >= ol.om + 35) return A.G1;
       const dO = ((hue - ol.oh) / 4) ** 2 + ((max - ol.om) / 40) ** 2, dY = ((hue - ol.yh) / 4) ** 2 + ((max - ol.ym) / 40) ** 2;
       if (dO < dY) return max < 200 && hue < ol.oh - 6 ? I_MIXED : I_OLIVE;
       if (max >= 200) { const y = (max - b) / max; return y > 0.55 ? A.OPEN : y > 0.15 ? A.ROUGH : A.WHITE; }
@@ -746,7 +751,7 @@ export function classify(rgba0, w, h, mpp, opt = {}, progress = () => {}) {
   const rgba = opt.flat === false ? rgba0 : flatten(rgba0, w, h, mpp);
   progress(0.2);
   const kind = new Uint8Array(N);
-  const ol = { ...oliveModel(rgba, w, h), sprint: opt.map === "sprint" };
+  const ol = { ...oliveModel(rgba, w, h), sprint: opt.map === "sprint", sharp: opt.map === "sprint" && 1.6 / mpp >= 4 };
   for (let i = 0, p = 0; i < N; i++, p += 4) kind[i] = rgba[p + 3] < 128 ? A.WHITE : kindOf(rgba[p], rgba[p + 1], rgba[p + 2], ol);
   progress(0.3);
   const north = new Uint8Array(N);
@@ -1105,20 +1110,40 @@ export function underpasses(rgba, w, h, mpp) {
     }
     if (!best) continue;
     c.paired = chains[best.j].paired = true;
-    // each end walked outward along the centre line: past the dark line that closes the band there, a metre and a half further
-    const mouth = (t0, dir) => {
-      let seen = false;
-      for (let t = 0; t <= 8 / mpp; t += 0.5) {
-        const x = c.ax + c.ux * (t0 + dir * t) - c.uy * best.s / 2, y = c.ay + c.uy * (t0 + dir * t) + c.ux * best.s / 2;
-        if (!inside(x, y)) return null;
-        const dark = m[Math.round(y) * w + Math.round(x)];
-        if (dark) seen = true;
-        else if (seen) return [x + c.ux * dir * (1.5 / mpp), y + c.uy * dir * (1.5 / mpp)];
+    // each end walked outward along the centre line: past the dark lines that close the band there (a double line, a bridge's
+    // triangles: dark again within a metre and a half), a metre and a half further. They are the upper level's edge where the
+    // passage comes out from under it (a bridge's side, the road's edge over a tunnel's mouth): a drop, never a way between the
+    // two levels — their ink over the passage's width and 2 m on each side is kept (`edge`, the pixels)
+    const gapT = 1.5 / mpp;
+    // (a walk counts only when it meets dark within 4 m of the band's end and leaves it again: one running along a wall is no
+    // crossing)
+    const walk = (t0, dir, v, seeds) => {
+      let at = null, last = -1;
+      const mine = [];
+      for (let t = 0; t <= 10 / mpp; t += 0.5) {
+        const x = c.ax + c.ux * (t0 + dir * t) - c.uy * v, y = c.ay + c.uy * (t0 + dir * t) + c.ux * v;
+        if (!inside(x, y) || (!at && t > 4 / mpp)) return null;
+        const k = Math.round(y) * w + Math.round(x);
+        if (m[k]) { if (!at) at = [x, y]; last = t; mine.push(k); }
+        else if (at && t - last >= gapT) { for (const q of mine) seeds.push(q); return { at, pt: [x, y] }; }
       }
       return null;
     };
+    const mouth = (t0, dir) => {
+      const seeds = [], mid = walk(t0, dir, best.s / 2, seeds);
+      if (!mid) return null;
+      const { pt } = mid, sg = Math.sign(best.s) || 1;
+      // (across the whole width and 2 m beyond: the edge's line is broken here and there — by the band's own dots, a gap)
+      for (let v = -2 / mpp; v <= Math.abs(best.s) + 2 / mpp; v += 1) walk(t0, dir, sg * v, seeds);
+      // the ink crossed (the walks a pixel apart) and the paper between its lines: the white inside a double line was a corridor
+      // from the lower road up onto the bridge. Only what the walks cross: the lines the edge meets beyond the mouth (the far side
+      // of a lane leaving it) are the lower level's own
+      const edge = new Set();
+      for (const k of seeds) { const kx = k % w, ky = (k - kx) / w; for (let dy = -2; dy <= 2; dy++) for (let dx = -2; dx <= 2; dx++) { const X = kx + dx, Y = ky + dy; if (X >= 0 && Y >= 0 && X < w && Y < h) edge.add(Y * w + X); } }
+      return { pt, edge };
+    };
     const a = mouth(best.t1, -1), b = mouth(best.t2, 1);
-    if (a && b) out.push({ a, b, wide: Math.abs(best.s), dots: c.n + chains[best.j].n });
+    if (a && b) out.push({ a: a.pt, b: b.pt, wide: Math.abs(best.s), dots: c.n + chains[best.j].n, edge: [...a.edge, ...b.edge] });
   }
   return out;
 }
@@ -1195,8 +1220,13 @@ export function sprintObjects(P, w, h, mpp, rgba = null) {
   const N = w * h, area = P.area.slice(), kind = P.kind;
   // the warm ground of the photo as taken (a street's or a lane's pink and beige), sprintLayers' lanes: the light seam between two
   // houses is a neutral grey
-  const warm = new Uint8Array(N);
-  if (rgba) for (let i = 0, p = 0; i < N; i++, p += 4) if (rgba[p] >= rgba[p + 2] + 12 && rgba[p] >= 150) warm[i] = 1;
+  // (and the paper, light and neutral — its white, or its blend with a line —: a gap drawn between two houses, sprintLayers)
+  const warm = new Uint8Array(N), light = new Uint8Array(N);
+  if (rgba) for (let i = 0, p = 0; i < N; i++, p += 4) {
+    const r = rgba[p], g = rgba[p + 1], b = rgba[p + 2], mx = Math.max(r, g, b);
+    if (r >= b + 12 && r >= 150) warm[i] = 1;
+    else if (mx >= 190 && mx - Math.min(r, g, b) <= 30) light[i] = 1;
+  }
   const closed = (v) => v === A.GREY || v === A.BUILDING || v === A.OOB || v === A.WATER;
   const m = new Uint8Array(N);
   for (let i = 0; i < N; i++) if (kind[i] === I_BLACK && !closed(area[i])) m[i] = 1;
@@ -1293,7 +1323,111 @@ export function sprintObjects(P, w, h, mpp, rgba = null) {
     thinLines += hidden.length;
   }
   for (let j = 0; j < toArea.length; j += 2) area[toArea[j]] = toArea[j + 1];
-  return { w, h, mpp, area, walls, thinLines, warm: rgba ? warm : null, under: rgba ? underpasses(rgba, w, h, mpp) : [] };
+  return { w, h, mpp, area, walls, thinLines, warm: rgba ? warm : null, light: rgba ? light : null, under: rgba ? underpasses(rgba, w, h, mpp) : [] };
+}
+
+/**
+ * The course setter's crossing points (ISSprOM 710.1, ISOM 708): two bars of the overprint side by side across a line feature —
+ * a wall, a fence, a road one shall not cross elsewhere —, the way over it between them. Read where the image shows the bars'
+ * width (a scan): the course's purple off its legs and circles, pieces 0.8 to 2.4 m thick and straight, a bar cut by the line
+ * it crosses put together again (in line, 3 m apart at most), two bars of 4 to 25 m parallel within 15°, 2.5 to 9 m apart, side
+ * by side over most of their length, with black between them along the middle (the line crossed: digits side by side, a
+ * description sheet's symbols, the pale overprint's areas have none). Returns [{ px }]: the pixels between the two bars.
+ * The Auray scans hold dozens, across their streets (owner, 2026-11-23: « the course's crossing-point marks »).
+ */
+export function crossingMarks(P, w, h, mpp, pts = [], r = 0) {
+  if (!(mpp > 0) || 1.4 / mpp < 3) return [];
+  const N = w * h, m = new Uint8Array(N), out = [];
+  const legs = [];
+  for (let i = 0; i + 1 < pts.length; i++) {
+    const [ax, ay] = pts[i], [bx, by] = pts[i + 1], L = Math.hypot(bx - ax, by - ay);
+    if (L <= 2 * r) continue;
+    const ux = (bx - ax) / L, uy = (by - ay) / L;
+    legs.push([ax + ux * r, ay + uy * r, bx - ux * r, by - uy * r]);
+  }
+  // the circles' rings and the legs drawn once (a test per purple pixel against every one took most of a second)
+  const legW = 1.2 / mpp, ringW = 1.5 / mpp, off = new Uint8Array(N);
+  for (const [cx, cy] of pts) {
+    const R1 = r + ringW;
+    for (let y = Math.max(0, Math.floor(cy - R1)); y <= Math.min(h - 1, Math.ceil(cy + R1)); y++) for (let x = Math.max(0, Math.floor(cx - R1)); x <= Math.min(w - 1, Math.ceil(cx + R1)); x++) {
+      if (Math.abs(Math.hypot(x - cx, y - cy) - r) < ringW) off[y * w + x] = 1;
+    }
+  }
+  const W1 = Math.ceil(legW);
+  for (const [ax, ay, bx, by] of legs) {
+    const L = Math.hypot(bx - ax, by - ay);
+    for (let t = 0; t <= L; t += 0.5) {
+      const x0 = Math.round(ax + ((bx - ax) * t) / L), y0 = Math.round(ay + ((by - ay) * t) / L);
+      for (let dy = -W1; dy <= W1; dy++) for (let dx = -W1; dx <= W1; dx++) {
+        const x = x0 + dx, y = y0 + dy;
+        if (x >= 0 && y >= 0 && x < w && y < h && dx * dx + dy * dy < legW * legW) off[y * w + x] = 1;
+      }
+    }
+  }
+  for (let i = 0; i < N; i++) if (P.kind[i] === I_PURPLE && !off[i]) m[i] = 1;
+  const { lab, comps } = components(m, w, h, true), nC = comps.length;
+  const ax = comps.map((c) => {
+    if (!c || c.n < 6) return null;
+    const mx = c.sx / c.n, my = c.sy / c.n, th = 0.5 * Math.atan2(2 * (c.sxy / c.n - mx * my), c.sxx / c.n - mx * mx - (c.syy / c.n - my * my));
+    return { mx, my, ux: Math.cos(th), uy: Math.sin(th), lo: Infinity, hi: -Infinity, vl: Infinity, vh: -Infinity, n: c.n };
+  });
+  for (let i = 0; i < N; i++) {
+    const a = ax[lab[i]];
+    if (!a) continue;
+    const x = i % w - a.mx, y = (i - (i % w)) / w - a.my, t = x * a.ux + y * a.uy, v = -x * a.uy + y * a.ux;
+    if (t < a.lo) a.lo = t;
+    if (t > a.hi) a.hi = t;
+    if (v < a.vl) a.vl = v;
+    if (v > a.vh) a.vh = v;
+  }
+  const cos15 = Math.cos((15 * Math.PI) / 180), bars = [];
+  for (let id = 1; id < nC; id++) {
+    const a = ax[id];
+    if (!a) continue;
+    const L = (a.hi - a.lo + 1) * mpp, thick = (a.n / (a.hi - a.lo + 1)) * mpp, wide = (a.vh - a.vl + 1) * mpp;
+    if (L < 2 || L > 25 || thick < 0.8 || thick > 2.4 || wide > 0.3 * L + 2) continue;
+    bars.push({ mx: a.mx, my: a.my, ux: a.ux, uy: a.uy, lo: a.lo, hi: a.hi });
+  }
+  // a bar cut by the line it crosses: its pieces in line, end to end
+  const tOf = (A, x, y) => (x - A.mx) * A.ux + (y - A.my) * A.uy, nOf = (A, x, y) => (x - A.mx) * -A.uy + (y - A.my) * A.ux;
+  const ends = (B) => [[B.mx + B.ux * B.lo, B.my + B.uy * B.lo], [B.mx + B.ux * B.hi, B.my + B.uy * B.hi]];
+  for (let joined = true; joined;) {
+    joined = false;
+    for (let i = 0; i < bars.length && !joined; i++) for (let j = i + 1; j < bars.length && !joined; j++) {
+      const A = bars[i], B = bars[j];
+      if (Math.abs(A.ux * B.ux + A.uy * B.uy) < cos15 || Math.abs(nOf(A, B.mx, B.my)) * mpp > 1.2) continue;
+      const tB = ends(B).map(([x, y]) => tOf(A, x, y)), b0 = Math.min(...tB), b1 = Math.max(...tB);
+      if (Math.max(b0 - A.hi, A.lo - b1) * mpp > 3) continue;
+      bars[i] = { ...A, lo: Math.min(A.lo, b0), hi: Math.max(A.hi, b1) };
+      bars.splice(j, 1);
+      joined = true;
+    }
+  }
+  const long = bars.filter((B) => (B.hi - B.lo) * mpp >= 4 && (B.hi - B.lo) * mpp <= 25);
+  for (let i = 0; i < long.length; i++) for (let j = i + 1; j < long.length; j++) {
+    const A = long[i], B = long[j];
+    if (Math.abs(A.ux * B.ux + A.uy * B.uy) < cos15) continue;
+    const d = nOf(A, B.mx, B.my);
+    if (Math.abs(d) * mpp < 2.5 || Math.abs(d) * mpp > 9) continue;
+    const tB = ends(B).map(([x, y]) => tOf(A, x, y)), lo = Math.max(A.lo, Math.min(...tB)), hi = Math.min(A.hi, Math.max(...tB));
+    const la = A.hi - A.lo, lb = Math.abs(tB[1] - tB[0]);
+    if (hi - lo < 0.6 * Math.min(la, lb) || Math.min(la, lb) < 0.5 * Math.max(la, lb)) continue;
+    // the line crossed: black along the middle between the bars, not all of it
+    let n = 0, blk = 0;
+    for (let t = lo; t <= hi; t += 0.5) {
+      const x = Math.round(A.mx + A.ux * t - A.uy * d / 2), y = Math.round(A.my + A.uy * t + A.ux * d / 2);
+      if (x < 0 || y < 0 || x >= w || y >= h) continue;
+      n++; if (P.kind[y * w + x] === I_BLACK) blk++;
+    }
+    if (blk < 2 || blk > 0.6 * n) continue;
+    const px = [], seen = new Set();
+    for (let t = lo; t <= hi; t += 0.5) for (let v = 0; v <= 1; v += 0.5 / Math.abs(d)) {
+      const x = Math.round(A.mx + A.ux * t - A.uy * d * v), y = Math.round(A.my + A.uy * t + A.ux * d * v), k = y * w + x;
+      if (x >= 0 && y >= 0 && x < w && y < h && !seen.has(k)) { seen.add(k); px.push(k); }
+    }
+    out.push({ px, at: [Math.round(A.mx - A.uy * d / 2), Math.round(A.my + A.ux * d / 2)] });
+  }
+  return out;
 }
 
 /**
@@ -1557,6 +1691,102 @@ export function sprintLayers(O, P, pts = [], r = 0) {
   // the lanes: open ground a pixel or two wide between closed ground on both sides (across, along or slantwise), which a cell
   // of two pixels would lose to the houses beside it (the narrow path north of control 4 on the Auray photo: 1 px, 2026-11-19)
   const lane = new Uint8Array(N), ar = O.area;
+  // a gap drawn between two houses (a sharp image): a core — the paper, light and neutral, or its blend with the outlines (grey),
+  // or the course's line printed across it — between two black outlines 2-5 px apart (0.7-1.7 m: a house is never that narrow),
+  // houses beyond both: the houses' grey blurs over its edges and the gap was one block with them. A passage: its pixels open
+  // ground, its core a narrow way's middle (lane 2: its cells open whatever outline shares them). The
+  // Auray scan's lane to the stairway of 5-6, 1.3 m between its outlines (owner, 2026-11-23: « misses the choice going through
+  // stairs »)
+  if (1.6 / mpp >= 4 && O.light) {
+    const inB = (i) => ar[i] === A.GREY || ar[i] === A.BUILDING, black = (i) => P.kind[i] === I_BLACK;
+    const core = new Uint8Array(N), spans = new Map(), weak = new Map(), seed = new Set(), reachH = Math.round(2 / mpp);
+    const ink = (v) => v === I_BLACK || v === I_BROWN || v === I_PURPLE || v === I_MIXED || v === I_LILAC;
+    // a house: its grey fill; closed ground: a house, a garden's olive, an area out of bounds or water, or a line running on (no
+    // ground within 2 m: a thick wall, the line across a passage's mouth)
+    const house = (q) => q >= 0 && P.kind[q] === I_GREY && inB(q);
+    const closedAt = (q) => q < 0 || house(q) || P.kind[q] === I_OLIVE || ar[q] === A.OOB || ar[q] === A.WATER;
+    for (let y = 6; y < h - 6; y++) for (let x = 6; x < w - 6; x++) {
+      const i = y * w + x, v = P.kind[i];
+      if (!O.light[i] && v !== I_GREY && v !== I_PURPLE) continue;
+      for (const st of [1, w]) {
+        let a = 0, b = 0;
+        for (let t = 1; t <= 3 && !a; t++) if (black(i - t * st)) a = t;
+        for (let t = 1; t <= 3 && !b; t++) if (black(i + t * st)) b = t;
+        if (!a || !b || a + b - 1 < 2 || a + b - 1 > 5) continue;
+        // houses beyond both outlines (past the line's own pixels, their grey fill): a gap between buildings — not a white strip
+        // between two lines, nor between two thick walls (read as building too, but black: a quay's terraces)
+        let ea = a, eb = b;
+        while (ea < 6 && black(i - (ea + 1) * st)) ea++;
+        while (eb < 6 && black(i + (eb + 1) * st)) eb++;
+        // (past the lines printed over the house's edge — a contour, the course's line —, within 2 m)
+        const beyond = (k, d) => {
+          for (let t = 0; t < reachH; t++) {
+            const q = k + t * d, v = P.kind[q];
+            if (!ink(v)) return q;
+          }
+          return -1;
+        };
+        const qa = beyond(i - (ea + 1) * st, -st), qb = beyond(i + (eb + 1) * st, st);
+        if (house(qa) && house(qb)) { core[i] = 1; spans.set(i, [st, a, b]); break; }
+        // closed ground beyond both, house or not (a garden, a wall, a line running on): the passage carried on past its houses
+        if (!weak.has(i) && closedAt(qa) && closedAt(qb)) weak.set(i, [st, a, b]);
+      }
+    }
+    // the passage carried on along its own line, up to 4 m past its houses: between a house and a garden, across the street's
+    // edge drawn over its mouth (the Auray scan's lane to 5-6: its last metres between a house and a garden, the paved area's
+    // edge across its mouth). A row missed here and there is bridged (two pixels' reach)
+    {
+      const grow = Math.round(4 / mpp), dist = new Map(), q = [];
+      for (const i of spans.keys()) seed.add(i);
+      for (const i of spans.keys()) { dist.set(i, 0); q.push(i); }
+      for (let h0 = 0; h0 < q.length; h0++) {
+        const i = q[h0], d = dist.get(i);
+        if (d >= grow) continue;
+        for (let dy = -2; dy <= 2; dy++) for (let dx = -2; dx <= 2; dx++) {
+          const k = i + dy * w + dx;
+          if (!weak.has(k) || dist.has(k)) continue;
+          dist.set(k, d + 1); q.push(k); core[k] = 1; spans.set(k, weak.get(k));
+        }
+      }
+    }
+    // a passage leads somewhere: 3 m long at least, open ground (no house, olive, water or line) within 4 m beyond each of its
+    // ends along it — a lane on through a block. Terraced houses drawn apart, a hairline between them, lead from the street into
+    // the gardens or nowhere (ISSprOM shows no passage narrower than 0.4 mm between buildings: such a hairline is no way)
+    // (a core a row short here and there: grouped through a pixel's margin)
+    const { lab, comps } = components(morph(core, w, h, 1, false), w, h, true);
+    const openAt = (k) => !inB(k) && ar[k] !== A.OOB && ar[k] !== A.WATER && !black(k) && (O.warm?.[k] || O.light[k]);
+    const ends = comps.map(() => null);
+    // (3 m between houses: what was carried on past them does not count)
+    const sb = comps.map(() => [Infinity, Infinity, -Infinity, -Infinity]);
+    for (const i of seed) { const b = sb[lab[i]], x = i % w, y = (i - x) / w; if (!b) continue; b[0] = Math.min(b[0], x); b[1] = Math.min(b[1], y); b[2] = Math.max(b[2], x); b[3] = Math.max(b[3], y); }
+    for (let id = 1; id < comps.length; id++) {
+      const c = comps[id], b = sb[id];
+      if (!(Math.hypot(b[2] - b[0], b[3] - b[1]) * mpp >= 3)) continue;
+      const mx = c.sx / c.n, my = c.sy / c.n, xx = c.sxx / c.n - mx * mx, yy = c.syy / c.n - my * my, xy = c.sxy / c.n - mx * my;
+      const th = 0.5 * Math.atan2(2 * xy, xx - yy);
+      ends[id] = { mx, my, ux: Math.cos(th), uy: Math.sin(th), lo: Infinity, hi: -Infinity, pl: null, ph: null };
+    }
+    for (const i of spans.keys()) {
+      const e = ends[lab[i]];
+      if (!e) continue;
+      const x = i % w, y = (i - x) / w, t = (x - e.mx) * e.ux + (y - e.my) * e.uy;
+      if (t < e.lo) { e.lo = t; e.pl = [x, y]; }
+      if (t > e.hi) { e.hi = t; e.ph = [x, y]; }
+    }
+    const side = Math.round(2 / mpp), reaches = ([x, y], dx, dy) => {
+      for (let t = 1; t <= 4 / mpp; t++) for (let q = -side; q <= side; q++) {
+        const X = Math.round(x + dx * t - dy * q), Y = Math.round(y + dy * t + dx * q);
+        if (X >= 0 && Y >= 0 && X < w && Y < h && openAt(Y * w + X)) return true;
+      }
+      return false;
+    };
+    const keep = ends.map((e) => !!e && reaches(e.pl, -e.ux, -e.uy) && reaches(e.ph, e.ux, e.uy));
+    for (const [i, [st, a, b]] of spans) {
+      if (!keep[lab[i]]) continue;
+      for (let t = 1 - a; t < b; t++) if (!black(i + t * st)) ar[i + t * st] = A.ROUGH;
+      lane[i] = 2;
+    }
+  }
   const shut0 = (i) => ar[i] === A.GREY || ar[i] === A.BUILDING || ar[i] === A.OOB || ar[i] === A.WATER || block[i], shut = shut0;
   for (let y = 3; y < h - 3; y++) for (let x = 3; x < w - 3; x++) {
     const i = y * w + x;
@@ -1680,6 +1910,15 @@ export function sprintLayers(O, P, pts = [], r = 0) {
           // closed the way's own mouth where it meets a street
           const strip = [];
           for (let t = 0; t < 2 * deep && k >= 0 && k < N && shut(k); t++, k += dir) strip.push(k);
+          // (a thin line of ink alone beside a short way, the wall reading's walls apart, is crossed: no bank — a stairway's treads
+          // read as narrow ways side by side, 6 m long at most (the stair's width), its rungs between them, which walled cut the
+          // stairway of the Auray scan's 5-6, 2026-11-23. A long way's thin line is its side — the gap inside a street's double
+          // line runs on with the street —, as is one with paper white right beyond it)
+          if (O.light && total[root(lab[i])] * mpp <= 6 && strip.every((q) => P.kind[q] === I_BLACK && !block[q])) {
+            let white = false;
+            for (let f = 0, q = k; f < 2 && q >= 0 && q < N; f++, q += dir) if (O.light[q]) white = true;
+            if (!white) continue;
+          }
           if (strip.length < 2 * deep && k >= 0 && k < N) for (const q of strip) banks.push(q);
         }
       }
@@ -1697,6 +1936,20 @@ export function sprintLayers(O, P, pts = [], r = 0) {
       }
     }
     for (const k of banks) block[k] = 1;
+  }
+  // the two levels of an underpass: the upper level's edge at each mouth is a wall (underpasses: a drop; the passage itself is a
+  // link between its mouths). The routes of the Auray scan's 14-15 came along the lower road to the mouth and stepped up onto
+  // the viaduct there (owner, 2026-11-23: « jumps one level »)
+  for (const u of O.under || []) for (const q of u.edge || []) { block[q] = 1; lane[q] = 0; }
+  // the course setter's crossing points (crossingMarks): the line between the two bars is crossed there, whatever it was read as
+  // (a wall, the ink of a road's edge given the ground beside it). A road one shall not cross elsewhere is not known
+  const marks = crossingMarks(P, w, h, mpp, pts, r);
+  if (marks.length && over && over === P.over) over = over.slice();
+  for (const c of marks) for (const q of c.px) {
+    block[q] = 0;
+    const v = P.kind[q];
+    if ((ar[q] === A.GREY || ar[q] === A.BUILDING || ar[q] === A.OOB) && (v === I_BLACK || v === I_PURPLE || v === I_BROWN || v === I_MIXED || v === I_LILAC)) ar[q] = A.ROUGH;
+    if (over && over[q]) over[q] = 0;
   }
   const z = () => new Uint8Array(N);
   return { area: O.area, path: z(), blue: P.blue, over, north: P.north, block, hand: block.slice(), cross: z(), slow: z(), lane,

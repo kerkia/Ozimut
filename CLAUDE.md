@@ -4258,6 +4258,34 @@ Every multiple-choice game was played through to its score page at phone size, w
   dearer, which put the stairway's way 27 % above the street) were reverted: without the stairway read they only moved routes into
   narrow lanes between gardens (map 1's olive on best routes 31 → 43 m). Bench script `scans/stairtest.mjs <n> ax ay bx by` (a leg
   between two points; env GC grid costs, DEC the decision map, BFS the cells reached, GRID the closed cells).
+  **Stairs, levels, crossing points, pale green — the owner's four points, 2026-11-23 evening** (« work generically »), each a rule
+  of the reading on a sharp image (a scan; the photos are unchanged). (1) **A gap drawn between two houses** (`sprintLayers`, before
+  the lanes): a core — paper, grey or the course's purple — between two black outlines 2-5 px apart with a house's grey fill beyond
+  each (past the lines printed over its edge, within 2 m: a contour lay over the house there), 3 m long between houses, open
+  ground within 4 m beyond both ends: opened as a narrow way (its middle lane 2); then carried on along its own spans up to 4 m past
+  the houses (closed ground beyond both sides: a garden's olive, a line running on — the way to 5-6 ends between a house and a
+  garden, the paved area's edge across its mouth). (2) **A stairway's rungs are no banks**: its treads read as narrow ways side by
+  side, 6 m long at most (the stair's width), the rungs their sides, which walled cut the stairway; a thin line of ink beside such a
+  short way is crossed, a long way's (the gap inside a street's double line) stays its side. Map 2's 5-6 now offers the stairway
+  (+3 %, the runner's choice) beside the best route. (3) **Two levels at an underpass** (`underpasses`, the owner's « jumps one
+  level » on 14-15): the line a passage comes out through at each mouth (the upper road's edge, a double line, a bridge's triangles)
+  is collected by walks a pixel apart across the passage's width and 2 m beyond, only what they cross (the lines beyond the mouth
+  are the lower level's own), closed 2 px (the white inside a double line was a corridor up onto the bridge), and made a wall
+  (`edge`); a mouth lies 1.5 m beyond the last of those lines. 14-15 now goes under the viaduct; 15 itself is still reached only by
+  crawling — the main road's double line by the underpass's north-east funnel reads as building, where the runner's track also
+  steps onto it. (4) **The course setter's crossing points** (`crossingMarks`, ISSprOM 710.1): the course's purple off its legs and
+  circles, bars 0.8-2.4 m thick, a bar cut by the line it crosses joined again, two of 4-25 m parallel within 15°, 2.5-9 m apart,
+  side by side, black along the middle between them; the band between them is opened (walls, closed ink, overprint). Map 2 has 8,
+  map 3 9 (all across the streets' double lines), map 1 none; no digit, legend symbol or pale overprint area pairs up. A road one may
+  cross only there is not read (the marks only open). (5) **Pale green** (`classify`, a scan only): a colour greener (+5°) and much
+  brighter (+35) than the map's own olive (oliveModel) is pale green, slow running, not olive — map 3's strip by 8; on the photos
+  their lit olive is brighter than that and went pale green (olive crossed 39 → 71 m): not there. The gate measures nothing within 4 m
+  of an underpass link (the route passes under the edges). Gate (baseline accepted, the previous one
+  `baseline_2026-11-23_before_levels.json`): photos and forest maps unchanged; scans laid 57/59, olive on every route 88 → 87 m
+  (map 2 3 → 1, map 3 15 → 16), lines on every route 56 → 63 (map 2 12 → 18: 14-15 and 15-16's alternatives round the viaduct; map 3 28 → 30:
+  routes grazing the corner of a street's double line). Checked in the page on scan 2: all 19 legs computed, no error. **Still
+  open**: the strip to 15; a road with crossing points not crossable elsewhere; per-map calibration of the greens' depths (G1/G2/G3)
+  and of yellow against olive (map 2's way to 14, a metre of yellow blended to olive).
 - **Languages: French, English, German and Spanish** (owner, 2026-10-17 French and English, open to everyone since 2026-10-18,
   `i18n.OPEN` true; **German and Spanish since 2026-11-01**: `i18n.LANGS`, catalogues `i18n/de.js`, `es.js`, `tracer.de.js`,
   `tracer.es.js`, long texts `content/<name>.de.js` / `.es.js`, e-mails in `_lib/templates.js`, `manifest.de|es.webmanifest`;
