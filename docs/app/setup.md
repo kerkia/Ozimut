@@ -303,7 +303,7 @@ In App Store Connect › the app:
    starts keeping something new, this form changes too.
 4. **The version** (« 1.0 Prepare for Submission »): screenshots, description (it must say the app reads workout routes from
    Apple Health — Apple asks that HealthKit be named in the description and visible in the app), keywords, support URL (a
-   page that opens signed out — check that `https://ozimut.com/#/contact` does; else the rules page), version `1.0.0`, the
+   page that opens signed out — `https://ozimut.com/#/compte/confidentialite`, public, the contact e-mail in its first paragraph — `#/contact` is for accounts only), version `1.0.0`, the
    **Build** (the TestFlight build tested in step 6), copyright (« 2026 » and the seller's name), release « Manually ».
 5. **Export compliance**: already answered by the app (`ITSAppUsesNonExemptEncryption` false): the shell's code uses no
    encryption; the pages use HTTPS and the browser engine's own Web Crypto (the Tracer's encrypted events), which is Apple's

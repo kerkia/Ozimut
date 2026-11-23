@@ -683,7 +683,8 @@ with an event's runners, are not « sharing » in Google's sense).
   (**to confirm**); « Contains ads »: **No**. Play Console › App content › « Health apps »: the app is not a health app; if asked,
   « Activity and fitness » only (**to confirm**).
 - **Addresses.**
-  - Support URL: `https://ozimut.com/#/contact`
+  - Support URL: `https://ozimut.com/#/compte/confidentialite` — the rules page, public, with `contact@ozimut.com` in its first
+    paragraph (`#/contact` is not: its form is for accounts, and a signed-out visitor lands on the sign-in screen)
   - Privacy policy URL: `https://ozimut.com/#/compte/confidentialite`
   - Marketing URL: `https://ozimut.com/`
   - Google Play contact e-mail: `contact@ozimut.com`
