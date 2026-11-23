@@ -172,7 +172,10 @@ export async function render(main, { query }) {
     regions: new Set(A.regions.map((r) => r.name)), depts: new Set(A.regions.flatMap((r) => r.depts)),
     groups: new Set(), selected: query.id && byKey.has(String(query.id)) ? String(query.id) : null,
   };
-  const returning = !query.periode && query.id == null && memo && memo.cc === cc && Date.now() - memo.at < 3600e3 ? memo : null;
+  // (coming back to the competition chosen when the page was left — its details' links: results, live — is coming back too:
+  // 2026-11-23, the address kept its ?id= and every filter was reset; an address naming another one is a link from elsewhere)
+  const returning = !query.periode && (query.id == null || String(query.id) === memo?.selId) && memo && memo.cc === cc
+    && Date.now() - memo.at < 3600e3 ? memo : null;
   // another country picked from this list: its periods and the filters that are not places go with it (owner, 2026-11-05: they
   // were lost); the places are the other country's
   const carried = !returning && !query.periode && query.id == null && memo?.carry && memo.cc !== cc && Date.now() - memo.at < 60e3 ? memo : null;
@@ -828,7 +831,7 @@ export async function render(main, { query }) {
     else window.scrollTo({ top: returning.y, behavior: "instant" });
   }, 0);
   const keep = () => ({ cc, when: [...st.when], f: { kinds: [...st.kinds], cnOnly: st.cnOnly, from: st.from, to: st.to, spec: st.spec,
-    regions: [...st.regions], depts: [...st.depts], groups: [...st.groups] }, runner: RF.runner(), box: $("#table").scrollTop, y: window.scrollY, at: Date.now() });
+    regions: [...st.regions], depts: [...st.depts], groups: [...st.groups] }, runner: RF.runner(), selId: st.selected && byKey.get(st.selected)?.id != null ? String(byKey.get(st.selected).id) : null, box: $("#table").scrollTop, y: window.scrollY, at: Date.now() });
   page.addEventListener("click", (e) => { if (e.target.closest("tr[data-key], a[href]")) memo = keep(); }, true);
   // a change of country builds the page again (app.pickCountry): what it keeps is noted before
   const onCountry = () => { memo = { ...keep(), carry: true }; };

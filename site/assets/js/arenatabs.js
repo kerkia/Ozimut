@@ -73,5 +73,6 @@ export const resultsTab = (key, cur) => html`<a role="tab" href="${raceHref(key,
 
 /** A race's tabs on its results page: the results (shown), then each view of the analysis when the race has split times (a score
  * race's own, `score`). */
-export const raceTabs = (key, withSplits, q = {}, score = false) => html`<nav class="page-tabs race-tabs" role="tablist">${resultsTab(key, "results")}${
+// (a race without split times has its results alone: no bar of one tab — owner, 2026-11-23)
+export const raceTabs = (key, withSplits, q = {}, score = false) => !withSplits ? "" : html`<nav class="page-tabs race-tabs" role="tablist">${resultsTab(key, "results")}${
   withSplits ? splitViews(score).map((v) => html`<a role="tab" data-view="${v}" href="${raceHref(key, v, q)}" aria-selected="false">${t(`spl.tab.${v}`)}</a>`) : ""}</nav>`;

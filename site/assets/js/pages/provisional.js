@@ -208,7 +208,7 @@ async function detail(main, idx, query) {
       <div class="row" style="gap:8px">${tracking.button(track)}
         ${race.site ? html`<a class="btn btn-sm" href="${race.site}" target="_blank" rel="noopener">${t("prov.site")} ↗</a>` : ""}
         ${race.ffco_id ? html`<a class="btn btn-sm" href="https://cn.ffcorientation.fr/course/${race.ffco_id}/" target="_blank" rel="noopener">${t("prov.officialPage")}</a>` : ""}</div></div>
-    <div data-bar-tabs>${raceTabs(race.key, withSplits.length > 0, {}, isScoreRace(race, withSplits))}</div>
+    ${withSplits.length ? html`<div data-bar-tabs>${raceTabs(race.key, true, {}, isScoreRace(race, withSplits))}</div>` : ""}
     ${race.ongoing ? html`<p class="beta-note">${tn("prov.ongoingNote", race.ongoing)}</p>` : ""}
     ${docs.length ? html`<div class="filters" id="pv-pick"></div><section class="card"><div class="card-head"><div>
       <div class="hint" id="pv-class-hint"></div></div></div><div id="pv-class"></div></section>
