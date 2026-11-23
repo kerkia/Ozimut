@@ -171,4 +171,9 @@
     <string name="ago_s">%1$d s</string>
     <string name="ago_min">%1$d min</string>
     <string name="ago_h">%1$d h</string>
+    <string name="data_title">Mis datos</string>
+    <string name="data_text">Ozitrac no tiene cuenta. Su relé guarda tu canal, quienes te siguen, a quienes sigues y la carrera en curso (cifrada). Tus carreras se quedan en este teléfono.</string>
+    <string name="data_erase">Borrar mis datos</string>
+    <string name="data_erase_ask">¿Borrar tus datos del relé de Ozitrac? Nadie te seguirá ya, y tú no seguirás a nadie. Tus carreras se quedan en este teléfono.</string>
+    <string name="data_erased">Tus datos se han borrado del relé.</string>
 </resources>

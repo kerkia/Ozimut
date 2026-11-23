@@ -171,4 +171,9 @@
     <string name="ago_s">%1$d s</string>
     <string name="ago_min">%1$d min</string>
     <string name="ago_h">%1$d h</string>
+    <string name="data_title">Mes données</string>
+    <string name="data_text">Ozitrac n\'a pas de compte. Son relais garde ton canal, ceux qui te suivent, ceux que tu suis et la course en cours (chiffrée). Tes courses restent sur ce téléphone.</string>
+    <string name="data_erase">Effacer mes données</string>
+    <string name="data_erase_ask">Effacer tes données sur le relais d\'Ozitrac ? Plus personne ne te suivra, et tu ne suivras plus personne. Tes courses restent sur ce téléphone.</string>
+    <string name="data_erased">Tes données ont été effacées du relais.</string>
 </resources>

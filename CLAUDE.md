@@ -833,7 +833,7 @@ banner asking a parent), a child taking the account over from 15 (`POST /api/tra
   a Wear OS watch with LTE and a cellular Apple Watch let an app use the mobile network (`trk.watch.*`). **The Wear OS app**
   (`track/android/wear`, owner 2026-11-23: « Oui, écris-la »): standalone, the same package, pairing by claim code (`kind` "wearos"),
   the phone app's tracker files compiled into it as they are (`SHARED` in its build file); built by `track-android.yml`, artifact
-  `ozimut-wearos-apks`; installed by hand (`docs/track/setup.md` 3b). **Only
+  `ozitrac-wearos-apks`; installed by hand (`docs/track/setup.md` 3b). **Only
   built and unit-tested in CI, never run on a device**; signing, stores, icons and the owner's accounts still to come.
 - **Ozitrac** (owner, 2026-11-23, after the session on paid plans: the app holds no page of Ozimut, sells nothing, shows no
   price): **the tracking app is a product of its own** — contract `docs/track/ozitrac.md`, change it first. No account: a
@@ -844,7 +844,12 @@ banner asking a parent), a child taking the account over from 15 (`POST /api/tra
   watchers' notifications as FCM data (`nativepush.sendData`); « silent » comes from the object's alarm through
   `/api/ozitrac/alert`. The run under way only, deleted 24 h after it ends; a channel unused 180 days goes; the runs as GPX on
   the phone. « Relier à Ozimut » = the pair code of « Associer un téléphone »: the phone then also sends to the account with
-  this section's protocol. Android and Wear OS id `com.ozimut.ozitrac` (namespace `com.ozimut.app`). Site notifications no
+  this section's protocol. Android and Wear OS id `com.ozimut.ozitrac` (namespace `com.ozimut.app`). The Android app (`track/android/app`,
+  all native, no web view): `HomeActivity` « Ma course » (Start, Qui me suit, Mes courses as GPX, Zone, the two-minute test,
+  Relier à Ozimut, « Effacer mes données ») and « Je suis » (`FollowActivity`: the person's live map), `Relay.kt` (channel,
+  invites, `RelaySender` beside Ozimut's `Uploader`, device alerts), `TrackForm.kt` (sealing, delta form, code links),
+  `TileMapView` (its own raster map, tiles from `/api/ozitrac/config`), `RunLog.kt` (runs as CSV, GPX on demand); the Wear
+  app compiles those files too (`SHARED`). Artifacts `ozitrac-android-apks`, `ozitrac-wearos-apks`; never run on a device yet. Site notifications no
   longer go to the native devices: only the tracking's alerts (`pushToUser`'s `native`). Relay test: `C:\Kerkia\Ozimut\work\scratch-scripts\t_ozitrac.mjs`
   (30 checks), launch configs `ocn-live-track` + `pages-dev-track-open` (binds `OZITRAC=TracChannel@ocn-live`).
 - **Administrators only for now** (owner, 2026-11-22: « make all this visible to admin only for now »): while `TRACK_OPEN` is "0" the

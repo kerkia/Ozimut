@@ -171,4 +171,9 @@
     <string name="ago_s">%1$d s</string>
     <string name="ago_min">%1$d min</string>
     <string name="ago_h">%1$d h</string>
+    <string name="data_title">Meine Daten</string>
+    <string name="data_text">Ozitrac hat kein Konto. Sein Relais bewahrt deinen Kanal, die Personen, die dir folgen, die, denen du folgst, und den laufenden Lauf (verschlüsselt). Deine Läufe bleiben auf diesem Telefon.</string>
+    <string name="data_erase">Meine Daten löschen</string>
+    <string name="data_erase_ask">Deine Daten auf dem Relais von Ozitrac löschen? Niemand folgt dir mehr, und du folgst niemandem mehr. Deine Läufe bleiben auf diesem Telefon.</string>
+    <string name="data_erased">Deine Daten wurden vom Relais gelöscht.</string>
 </resources>

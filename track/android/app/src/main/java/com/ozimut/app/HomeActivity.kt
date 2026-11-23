@@ -184,6 +184,29 @@ class HomeActivity : ComponentActivity() {
             add(Ui.text(this, getString(R.string.oz_text), 14f, color = Ui.GREY))
             add(Ui.button(this, getString(R.string.oz_link)) { startActivity(Intent(this, PairActivity::class.java)) })
         }
+
+        // « Effacer mes données » (the privacy page and the stores' rules): the channel and every follow go from the relay
+        add(Ui.gap(this, 8))
+        add(Ui.text(this, getString(R.string.data_title), 20f, bold = true))
+        add(Ui.text(this, getString(R.string.data_text), 14f, color = Ui.GREY))
+        add(Ui.button(this, getString(R.string.data_erase)) {
+            Screens.confirm(this, getString(R.string.data_erase_ask), getString(R.string.data_erase)) { eraseRelayData() }
+        })
+    }
+
+    private fun eraseRelayData() {
+        if (RunState.get(this).active) {
+            Toast.makeText(this, R.string.test_busy, Toast.LENGTH_LONG).show()
+            return
+        }
+        io.execute {
+            var ok = Channel.delete(applicationContext)
+            for (f in Follows.list(applicationContext)) ok = Follows.unfollow(applicationContext, f) && ok
+            ui.post {
+                Toast.makeText(this, if (ok) R.string.data_erased else R.string.net_error, Toast.LENGTH_LONG).show()
+                if (visible) render()
+            }
+        }
     }
 
     private fun watcherRow(w: Channel.Watcher): View {

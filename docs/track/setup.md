@@ -57,18 +57,18 @@ This tests the server, the live page and the alerts with a free app, before the 
 ## 3. Ozitrac on Android, installed by hand (about 20 minutes, two phones)
 
 1. On github.com/kerkia/Ozimut › Actions › « track-android » › the latest green run › « Artifacts » ›
-   `ozimut-android-apks` (a zip). Inside: `app-debug.apk` (and an unsigned release APK, not installable).
+   `ozitrac-android-apks` (a zip). Inside: `app-debug.apk` (and an unsigned release APK, not installable).
 2. Copy `app-debug.apk` to an Android phone (USB, e-mail to yourself, a cloud drive) and open it. Android asks to allow
    installing apps from that source: allow it for that one app (Files, Gmail…).
    Each CI build signs its debug APK with a new key: to install a newer build, **uninstall the old one first**.
    An « Ozimut » app installed before 2026-11-23 is another app (`com.ozimut.app`): uninstall it.
 3. Open Ozitrac: it asks your first name. No account, no sign-in.
 4. **Without Ozimut** (the basic use): on the phone to be followed, « Ma course » › « Qui me suit » › « Ajouter quelqu'un »
-   shows a QR code. On a second phone with Ozitrac, « Je suis » › « Suivre quelqu'un » scans it (or open the shared link).
+   shows a QR code. On a second phone with Ozitrac, « Je suis » › « Scanner un code » scans it (or open the shared link).
    The first phone now lists that follower.
 5. « Test de deux minutes »: lock the screen, put the phone in a pocket, wait. If it fails, the app names the battery
    setting to change for this phone's maker and opens it.
-6. « Démarrer », walk outside, stop by holding « Arrêter » two seconds. On the second phone, the person's map shows the
+6. « Démarrer une course », walk outside, stop by holding « Arrêter » two seconds. On the second phone, the person's map shows the
    trail live (about 15 s behind while you look). « Mes courses » keeps the run: share it as GPX.
 7. Try « J'ai besoin d'aide » once: the second phone shows it at once on the map; as a notification once step 5 is done.
 8. **With Ozimut**: on ozimut.com › Coach › Suivi GPS › « Famille et appareils » › the person › « Associer un téléphone »:
@@ -81,7 +81,7 @@ For a Wear OS watch with its own mobile connection (Samsung Galaxy Watch 4 or la
 A watch without 4G works too on Wi-Fi, which is enough to test at home.
 
 1. On github.com/kerkia/Ozimut › Actions › « track-android » › the latest green run › « Artifacts » ›
-   `ozimut-wearos-apks` (a zip). Inside: `wear-debug.apk`.
+   `ozitrac-wearos-apks` (a zip). Inside: `wear-debug.apk`.
 2. On the PC, install Google's adb once: `winget install Google.PlatformTools`, then open a new PowerShell.
 3. On the watch: Settings › System › About › tap « Build number » (Samsung: « Software information » › « Software
    version ») seven times; then Settings › Developer options › turn on « ADB debugging » and « Wireless debugging »
@@ -89,7 +89,7 @@ A watch without 4G works too on Wi-Fi, which is enough to test at home.
 4. On the PC: `adb pair <address:port shown> <code shown>`, then `adb connect <address:port of « Wireless debugging »>`,
    then `adb install <path>\wear-debug.apk`.
 5. Open « Ozitrac » on the watch. To be followed without Ozimut: its « Qui me suit » shows a QR code, which a phone's
-   Ozitrac scans (« Je suis » › « Suivre quelqu'un »). With Ozimut: its code « ABC DEF », typed on ozimut.com › Suivi GPS ›
+   Ozitrac scans (« Je suis » › « Scanner un code »). With Ozimut: its code « ABC DEF », typed on ozimut.com › Suivi GPS ›
    « Famille et appareils » › the person › « Associer une montre ». Then the watch shows « Démarrer ».
 6. « Démarrer » (allow the location), walk outside, watch it live from the computer; « Aide » and « Arrêter » are each
    held two seconds. To test without a phone, turn the phone's Bluetooth off: the watch then uses its own 4G (or Wi-Fi).
@@ -125,7 +125,8 @@ The phone stays paired in Garmin Connect, with Bluetooth on and mobile data.
 
 ## 5. Notifications on Android (Firebase, about 20 minutes)
 
-Without it, a follower sees the alerts only while Ozitrac is open on the person's map.
+Without it, a follower sees the alerts only while Ozitrac is open.
+« Ma course » › « Mes données » › « Effacer mes données » removes everything the relay holds for that phone.
 
 1. console.firebase.google.com › « Add project » (« Ozitrac », Analytics not needed).
 2. « Add app » › Android › package name `com.ozimut.ozitrac` › download `google-services.json`.
