@@ -58,6 +58,7 @@ import { clubAsk } from "./mapanalysis.js";
 import { takeInbox } from "../pwa.js";
 import { dateWords } from "../datewords.js";
 import { confirmBox, alertBox } from "../askbox.js";
+import { bindPicker, sourceOf } from "../orgmapuse.js";
 
 const ORG_ROUTE = "#/orga-analyses";                     // the organisers' page: competitions and trainings in one list
 /** The club number (4 digits) of a race's organiser ("0109 - O'BUGEY"), as the server's _lib/club.js. */
@@ -1014,8 +1015,11 @@ async function managePage(main, id, data, race, embed = false) {
   const isVec = (f) => /\.(ocd|omap|xmap)$/i.test(f.name);
   const nm = (s) => (s || "").toLowerCase().replace(/[^a-z0-9]+/g, "");
   const raceCircuits = race ? [...new Set((race.docs || []).filter((d) => d.by !== "category").flatMap((d) => (d.classes || []).map((k) => k.name)))] : [];
-  const imp = { got: [], read: null, err: "", busy: false, note: "", frac: null, on: new Map(), circ: new Map(), renders: new Map(), prev: null, consent: false, keep: true, token: null };
-  const clearImp = () => { Object.assign(imp, { got: [], read: null, err: "", busy: false, note: "", frac: null, prev: null, token: null }); imp.on.clear(); imp.circ.clear(); imp.renders.clear(); };
+  // imp.club: « Une carte du club » taken (docs/clubs/design.md §2, orgmapuse.js) — its source kept with the circuits drawn on it
+  const imp = { got: [], read: null, err: "", busy: false, note: "", frac: null, on: new Map(), circ: new Map(), renders: new Map(), prev: null, consent: false, keep: true, token: null, club: null };
+  const clearImp = () => { Object.assign(imp, { got: [], read: null, err: "", busy: false, note: "", frac: null, prev: null, token: null, club: null }); imp.on.clear(); imp.circ.clear(); imp.renders.clear(); };
+  /** The club map's source, when the circuits' map is the club's file. */
+  const clubOf = (read) => (imp.club && imp.club.files.includes(read?.info?.map) ? sourceOf(imp.club) : null);
   const picked = () => (imp.read ? imp.read.designs.map((d, i) => ({ d, i })).filter(({ i }) => imp.on.get(i)) : []);
   // the circuits waiting to be added by the next save (none while the files are wrong)
   const pendingCount = () => (imp.read && !imp.err ? picked().length : 0);
@@ -1115,7 +1119,7 @@ async function managePage(main, id, data, race, embed = false) {
         out.push({ n, name: d.name.slice(0, 60), circuit: imp.circ.get(i) || old?.circuit || "", r: c.r,
           map: { w: c.w, h: c.h, type: "image/png", v: mvv }, geo: c.geo, controls: c.controls, printed: true, ...(layers ? { layers } : {}),
           ...(old?.variants ? { variants: old.variants } : {}), ...(old?.exercises ? { exercises: old.exercises } : {}),
-          ...(read.E.ev.courses[d.id]?.kind === "score" ? { score: true } : {}) });
+          ...(read.E.ev.courses[d.id]?.kind === "score" ? { score: true } : {}), ...(clubOf(read) ? { orgMap: clubOf(read) } : {}) });
       }
       const courses = [...A.courses.filter((c) => !out.some((o) => o.n === c.n)), ...out].sort((a, b) => a.n - b.n);
       const r = await api(`/${id}`, { method: "PUT", body: { courses }, key: keyOf(id) });
@@ -1197,7 +1201,8 @@ async function managePage(main, id, data, race, embed = false) {
         ${imp.got.length ? "" : html`<p class="hint">${t("sh.m.courses.hint")}</p>`}` : imp.got.length ? "" : html`<p class="muted">${t("sh.m.courses.none")}</p>`}
       ${raw(impHtml())}
       <label class="dropzone an-drop" id="sh-drop" style="margin-top:10px" ${raw(imp.busy ? "hidden" : "")}><input type="file" id="sh-drop-in" multiple hidden accept=".ocd,.omap,.xmap,.png,.jpg,.jpeg,.webp,.gif,.bmp,.pdf,.kmz,.kml,.jgw,.pgw,.tfw,.gfw,.wld,.prj,.xml,.gpx,.tcx,.fit,image/*,application/pdf">
-        <strong>${t(imp.got.length ? "sh.drop.imp" : A.courses.length ? "sh.drop.more" : "sh.drop")}</strong><span class="muted">${t(imp.got.length ? "sh.drop.imp.hint" : "sh.drop.hint")}</span></label></div>`;
+        <strong>${t(imp.got.length ? "sh.drop.imp" : A.courses.length ? "sh.drop.more" : "sh.drop")}</strong><span class="muted">${t(imp.got.length ? "sh.drop.imp.hint" : "sh.drop.hint")}</span></label>
+      <div class="om-pick" id="sh-club" hidden></div></div>`;
     bindImp(box);
     const pick = (n) => {
       sel = n; imp.prev = null;
@@ -1216,13 +1221,15 @@ async function managePage(main, id, data, race, embed = false) {
     }));
     const zone = $("#sh-drop", box);
     const open = (list) => {
+      const club = list?.club || null;
       list = [...(list || [])];
       if (!list.length) return;
       // an OCAD or Mapper project is read here, in the card; a map image goes to the circuit editor (its controls placed by hand)
       if (list.some(isVec)) return take(list);
       editing(true);
-      editor($("#sh-editor"), { ...ctx, course: null, files: list });
+      editor($("#sh-editor"), { ...ctx, course: null, files: list, club });
     };
+    if (!imp.busy) bindPicker($("#sh-club", box), "analyses", (files, src) => { if (files.some(isVec)) imp.club = src; open(Object.assign(files, { club: src })); });
     $("#sh-drop-in").addEventListener("change", (e) => { open(e.target.files); e.target.value = ""; });
     zone.addEventListener("dragover", (e) => { e.preventDefault(); zone.classList.add("over"); });
     zone.addEventListener("dragleave", () => zone.classList.remove("over"));
@@ -1316,7 +1323,7 @@ async function editor(box, ctx) {
   const circuits = race ? [...new Set((race.docs || []).filter((d) => d.by !== "category").flatMap((d) => (d.classes || []).map((k) => k.name)))] : [];
   const st = { name: course?.name || "", circuit: course?.circuit || "", image: null, mapFile: null, mapType: course?.map?.type || "image/jpeg",
     detect: null, geo: course?.geo || null, geoHow: course ? t("sh.geo.kept") : "", controls: course?.controls?.map((p) => ({ ...p })) || [], r: course?.r || 20,
-    track: null, files: {}, iof: null, clicking: false, notes: [] };
+    track: null, files: {}, iof: null, clicking: false, notes: [], club: course?.orgMap || null };
   box.innerHTML = html`<div class="sh-editor">
     <h2 style="font-size:16px;margin:14px 0 8px">${course ? t("sh.course.edit", { c: course.name }) : t("sh.course.add")}</h2>
     <div class="filters" style="align-items:flex-end">
@@ -1396,7 +1403,7 @@ async function editor(box, ctx) {
     // an OCAD or Mapper project goes to the circuits card, where its courses are listed (managePage's take)
     if (vec) { mv.destroy(); box.innerHTML = ""; ctx.done?.(); return ctx.ocad?.(list); }
     for (const f of list) {
-      const low = f.name.toLowerCase();
+      const low = f.name.toLowerCase(), before = st.mapFile;
       try {
         if (isTraceName(f.name)) { st.track = parseTrace(f.name, await f.arrayBuffer()); st.files.trace = f.name; }
         else if (low.endsWith(".kmz")) {
@@ -1413,6 +1420,8 @@ async function editor(box, ctx) {
         else if (isImage(f)) { st.image = await readMap(f); st.mapFile = f; st.files.map = f.name; }
         else throw new Error("type");
       } catch (e) { st.notes = [t(`an.err.${e.message}`, { f: f.name }) || f.name]; }
+      // the map's source: the club's when it came from « Une carte du club », none when another map replaced it
+      if (st.mapFile !== before) st.club = ctx.club?.files?.includes(f.name) ? sourceOf(ctx.club) : null;
     }
     files();
     if (st.image) { mv.setImage(st.image); await auto(); } else side();     // a file refused said so in the panel (it was silent)
@@ -1547,7 +1556,7 @@ async function editor(box, ctx) {
         controls: st.controls.map(({ kind, code, x, y }) => ({ kind, code: code || "", x: Math.round(x * 10) / 10, y: Math.round(y * 10) / 10 })),
         // what the runners share besides (the route choices…) goes on with the circuit
         ...(course?.variants ? { variants: course.variants } : {}), ...(course?.exercises ? { exercises: course.exercises } : {}),
-        ...($("#sh-e-score").checked ? { score: true } : {}), ...(typeof printed === "boolean" ? { printed } : {}) };
+        ...($("#sh-e-score").checked ? { score: true } : {}), ...(typeof printed === "boolean" ? { printed } : {}), ...(st.club ? { orgMap: st.club } : {}) };
       const courses = [...A.courses.filter((c) => c.n !== n), entry].sort((a, b) => a.n - b.n);
       await api(`/${id}`, { method: "PUT", body: { courses }, key: keyOf(id) });
       mv.destroy(); box.innerHTML = "";

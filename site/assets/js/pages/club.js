@@ -15,6 +15,7 @@ import {
 const WEEK_MAX_CATS = 6;       // up to this many categories on a circuit, places count per category
 import { loadRanking } from "./ranking.js";
 import { link, replaceQuery, terrainField } from "../app.js";
+import { myClub } from "../auth.js";
 
 export async function render(main, { arg: code, query }) {
   const meta = data.meta();
@@ -40,7 +41,7 @@ export async function render(main, { arg: code, query }) {
           ${ligue ? html`<span>${data.ligueName(ligue)}</span>` : ""}
           <span>${t("f.dept")} ${code.slice(0, 2)} · ${data.deptName(code.slice(0, 2))}</span>
           <span class="num">${fmt(members.length)} ${t("cl.everMembers")}</span></div></div>
-      <div class="row"><button class="btn" type="button" id="cmp-club"></button>
+      <div class="row">${code === myClub() ? html`<a class="btn" href="#/monclub">${t("cl.manageClub")}</a>` : ""}<button class="btn" type="button" id="cmp-club"></button>
         <a class="btn" href="#/comparer-clubs">${t("cm.compare")}</a>
         <a class="btn" href="${link.ranking({ club: code })}">${t("cl.inRanking")}</a></div>
     </div>

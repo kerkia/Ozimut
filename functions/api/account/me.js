@@ -2,9 +2,12 @@
 import { json, publicUser, withUser } from "../../_lib/api.js";
 import { memberships } from "../../_lib/countries.js";
 import { autoShow } from "../../_lib/modules.js";
+import { syncFederation } from "../../_lib/orgs.js";
 
 // the account's existing work shows its creators' modules, looked at once (_lib/modules.js autoShow)
-export const onRequestGet = withUser(async ({ env }, user) => {
+// and, once a Paris day, its club in France from its licence (_lib/orgs.js syncFederation: at once when already done today)
+export const onRequestGet = withUser(async ({ env, request }, user) => {
+  await syncFederation(env, request, user);
   const u = await autoShow(env, user);
   return json(publicUser(env, u, await memberships(env, u.id)));
 });

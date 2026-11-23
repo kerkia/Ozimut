@@ -5,13 +5,13 @@ import { allow, json, readBody, withUser } from "../_lib/api.js";
 import { recordPerf } from "../_lib/perf.js";
 import { announceSoon, translateSoon } from "../_lib/nutrition.js";
 import { robotsSoon } from "../_lib/robots.js";
-import { bookingSoon } from "../_lib/booking.js";
+import { entriesSoon } from "../_lib/entries.js";
 import { maplibSoon } from "../_lib/maplib.js";
 import { runsSoon } from "../_lib/ciwatch.js";
 
 // the site's pages (app.js routes; the Réseau views apart) — anything else is refused
 const PAGES = new Set(["overview", "ranking", "runner", "compare", "clubs", "club", "clubcompare", "courses", "agenda",
-  "methods", "settings", "contact", "admin", "provisional", "splits", "deposit", "live", "relays", "analysis", "analysisPerso", "analysisOrga", "mapAnalysis", "myMaps", "track", "analysisClub", "analysisRace", "orgAnalyses", "orgRace", "orgTraining", "orgResults", "orgStarts", "booking", "orgDirect", "orgTracer", "orgMapper", "orgManage", "needCountry", "categories", "relayHistory", "games", "virtually", "vma", "descriptions", "mapkey", "learn", "nutrition", "nutritionWrite", "hub", "modtiles", "ask", "network:ego", "network:leaders", "network:territories", "network:stats"]);
+  "methods", "settings", "contact", "admin", "provisional", "splits", "deposit", "live", "relays", "analysis", "analysisPerso", "analysisOrga", "mapAnalysis", "myMaps", "track", "analysisClub", "analysisRace", "orgAnalyses", "orgRace", "orgTraining", "orgResults", "orgStarts", "booking", "entry", "myEntries", "myClub", "orgDirect", "orgTracer", "orgMapper", "orgManage", "needCountry", "categories", "relayHistory", "games", "virtually", "vma", "descriptions", "mapkey", "learn", "nutrition", "nutritionWrite", "hub", "modtiles", "ask", "network:ego", "network:leaders", "network:territories", "network:stats"]);
 const KEEP_DAYS = 400;
 
 /** Today's date in Paris, YYYY-MM-DD; `plus` days later (negative: earlier). */
@@ -27,7 +27,7 @@ export const onRequestPost = withUser(async (ctx, user) => {
   announceSoon(ctx);
   translateSoon(ctx);            // and the Santé translations still to make, one at a time
   robotsSoon(ctx);               // the copy of Cloudflare's figures on the AI bots, when due (admin › « Robots »)
-  bookingSoon(ctx);              // the start-time bookings closing, their start lists published, the day before's reminders
+  entriesSoon(ctx);              // the entry forms closing, their start lists published, the day before's reminders (_lib/entries.js)
   maplibSoon(ctx);               // the maps sent to Ozimut copied into the administrators' collection, a few at a time
   runsSoon(ctx, allow);          // a results run GitHub's schedule skipped, started through workflow_dispatch (_lib/ciwatch.js)
   const b = await readBody(request);

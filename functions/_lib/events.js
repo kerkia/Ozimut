@@ -10,6 +10,7 @@
 import { isAdmin } from "./api.js";
 import { DECLARED, clubOf, orgCode, raceOf } from "./club.js";
 import { randomBytes } from "./crypto.js";
+import { can, clubTeam, orgByCode, ready as orgsReady } from "./orgs.js";
 
 // An event's kind and form (owner, 2026-11-18): a competition (individual, score / rogaine or relay), a public training (open
 // to all, often paid and timed: individual or score) or a club training (individual or score); score differs from individual
@@ -70,7 +71,13 @@ export const isMember = async (env, eventId, userId) =>
 async function clubRule(env, request, user, race, club) {
   if (/^d/.test(race.key || "")) return Number(race.owner) === user.id;
   const code = orgCode(race.org);
-  return !!code && (club !== undefined ? club : await clubOf(env, request, user.licence)) === code;
+  if (!code) return false;
+  if ((club !== undefined ? club : await clubOf(env, request, user.licence)) === code) return true;
+  // an organiser of that club as an org (docs/clubs/design.md §1: a guest given the role, a member of another licence's club)
+  try {
+    const org = (await orgsReady(env)) ? await orgByCode(env, request, "FR", "club", code) : null;
+    return !!org && (await can(env, user, org.id, "organise"));
+  } catch (e) { return false; }
 }
 
 /** May the account act as the organiser of this competition (a race from _lib/club.js findRace)? */
@@ -79,7 +86,9 @@ export async function canManage(env, request, user, race, club) {
   if (isAdmin(env, user)) return true;
   if (!(await ready(env))) return clubRule(env, request, user, race, club);
   const ev = await eventOf(env, request, race.key);
-  if (ev) return isMember(env, ev.id, user.id);
+  // the event's team, and the organisers of its club when the club's settings put them on its teams (docs/clubs/design.md §1,
+  // resolved at read time: _lib/orgs.js clubTeam)
+  if (ev) return (await isMember(env, ev.id, user.id)) || clubTeam(env, request, user, ev);
   return strict(env) ? false : clubRule(env, request, user, race, club);
 }
 

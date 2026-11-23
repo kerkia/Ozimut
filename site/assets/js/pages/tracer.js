@@ -25,6 +25,7 @@ import * as OFF from "../tracer/offline.js";
 import { bindFull, setFull, leaveFull, inOwnTab } from "../fullwin.js";
 import { betaNotice } from "../beta.js";
 import { t, tn, lang, locale } from "../tracer/lang.js";
+import { bindPicker, sourceOf } from "../orgmapuse.js";
 
 const today = () => new Date().toISOString().slice(0, 10);
 const listHash = () => (inOwnTab() ? "#/orga-tracer?fen=1" : "#/orga-tracer");
@@ -114,7 +115,7 @@ async function choose(kind, files = null) {
 
 /** One's events (those one created or whose team one belongs to); without network, those kept on this device. */
 async function loadEvents() {
-  try { const d = await S.api(""); current = { club: d.club }; return d.events; }
+  try { const d = await S.api(""); current = { club: d.club, clubs: d.clubs || [] }; return d.events; }
   catch (e) {
     const kept = e.status ? [] : await OFF.keptEvents().catch(() => []);
     if (!kept.length) throw e;
@@ -244,14 +245,16 @@ async function clubRaces() {
   }
   if (!current) await loadEvents().catch(() => {});
   const me = auth.session(), club = current?.club;
+  // one's club: the licence's, or a club whose organiser one is (docs/clubs/design.md §1)
+  const ours = (org) => { const c = orgCode(org); return !!c && (c === club || (current?.clubs || []).includes(c)); };
   const out = [];
   try {
     const ag = await data.agenda();
-    for (const e of ag.events || []) if (e.kind === "c" && e.id && e.date >= today() && (me?.admin || orgCode(e.org) === club)) out.push({ key: `a${e.id}`, date: e.date, name: e.name, place: e.place, org: e.org, epr: e.epr || "", spec: e.spec || "", ll: where(e) });
+    for (const e of ag.events || []) if (e.kind === "c" && e.id && e.date >= today() && (me?.admin || ours(e.org))) out.push({ key: `a${e.id}`, date: e.date, name: e.name, place: e.place, org: e.org, epr: e.epr || "", spec: e.spec || "", ll: where(e) });
   } catch (e) { /* no agenda */ }
   try {
     const idx = await getProv("index.json");
-    for (const x of idx?.races || []) if (x.date_iso < today() && (me?.admin || orgCode(x.org) === club) && !out.some((o) => o.key === x.key))
+    for (const x of idx?.races || []) if (x.date_iso < today() && (me?.admin || ours(x.org)) && !out.some((o) => o.key === x.key))
       out.push({ key: x.key, date: x.date_iso, name: x.name, place: x.place || "", org: x.org, epr: x.epreuve || "" });
   } catch (e) { /* no results */ }
   for (const d of (await declare.load()).competitions) if (!out.some((o) => o.key === d.key))
@@ -289,7 +292,7 @@ const privField = (on = false) => `<label class="tr-check" title="${escA(t("trc.
 async function createEvent(v, races) {
   const race = v.kind === "race" ? races.find((x) => x.key === v.race) : null;
   const body = { ...(race ? { kind: "race", race: race.key, title: race.name, date: race.date } : { kind: "training", title: v.title.trim(), date: v.date || today() }), mapPrivate: !!v.priv,
-    ...(forEvent ? { event: forEvent.id } : {}) };
+    ...(forEvent ? { event: forEvent.id } : {}), ...(clubMap ? { orgMap: sourceOf(clubMap) } : {}) };
   try { return { id: (await S.api("", { method: "POST", body })).id, title: body.title }; }
   catch (e) { alertBox(e.code === "not organiser" ? t("trc.page.notOrganiser") : t("trc.page.createErr", { err: e.code || e.message })); return null; }
 }
@@ -341,12 +344,17 @@ const vectorLabel = (src) => `${src.format === "oom" ? "OpenOrienteering Mapper"
 const baseName = (n) => String(n || "").split(/[\\/]/).pop().replace(/\.[^.]+$/, "").toLowerCase();
 
 // ---- a new event: its map, dropped or chosen ----------------------------------------------------------------------------------
+// « Une carte du club » (docs/clubs/design.md §2, orgmapuse.js): the club's map taken as if dropped, its source sent with the event
+// (functions/api/tracer `orgMap`), the map lent to whoever may not download it
+let clubMap = null;
 async function newEvent(main, files = null) {
   const races = await clubRaces();
   let mapFile = null, vec = null, handed = false;
+  clubMap = null;
   const v = await modal({ title: t("trc.page.newEvent"), wide: true, ok: t("trc.page.create"), body: `
     ${kindFields(races)}
     ${dropHtml("tr-new-drop", t("trc.page.newDrop"), MAP_ACCEPT, false)}
+    <div class="om-pick" id="tr-new-club" hidden></div>
     <p class="tr-hint" id="tr-new-map">${escA(t("trc.page.newMapHint"))}</p>
     ${privField()}
     <p class="tr-hint">${t("trc.gen.toMapper")}</p>
@@ -363,6 +371,7 @@ async function newEvent(main, files = null) {
     bindKind(f, races);
     const show = (html, bad = false) => { const p = f.querySelector("#tr-new-map"); p.innerHTML = html; p.classList.toggle("tr-bad", bad); };
     const take = async (list) => {
+      clubMap = null;                                    // a file of one's own: no longer the club's map
       if (list.some((x) => isPpenFile(x) || isOcnFile(x))) { handed = true; done(null); importEvent(main, list).then((id) => { if (!id) backToStart(); }); return; }   // the import
       const file = list.find(isMapFile);
       if (!file) { show(t("trc.page.notMap", { name: escA(list[0].name) }), true); return; }
@@ -383,6 +392,7 @@ async function newEvent(main, files = null) {
       if (!isPdf(file.name, file.type)) { const dpi = imageDpi(await file.arrayBuffer()); if (dpi && !f.elements.dpi.value) f.elements.dpi.value = String(dpi); }
     };
     dropZone(f.querySelector("#tr-new-drop"), take);
+    bindPicker(f.querySelector("#tr-new-club"), "tracer", async (list, src) => { await take(list); if (mapFile && list.includes(mapFile)) clubMap = src; });
     if (files?.length) take(files);
     // no map: the event set on OpenStreetMap, at a place typed or the device's
     f.querySelector("#tr-osm-here").addEventListener("click", () => {

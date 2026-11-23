@@ -36,6 +36,7 @@ import { pushToUser } from "../../_lib/push.js";
 import { sendOrQueue } from "../../_lib/mail.js";
 import { takeoverMail, trackPush } from "../../_lib/templates.js";
 import * as T from "../../_lib/track.js";
+import { onRequestPost as pageView } from "../track.js";
 
 const NEED = { error: "not ready" };              // before migration 0029
 
@@ -44,6 +45,10 @@ export async function onRequest(ctx) {
   if (!env.DB) return json({ error: "server not configured" }, 500);
   const parts = Array.isArray(params.path) ? params.path : params.path ? [params.path] : [];
   const route = parts.join("/"), method = request.method;
+  // /api/track itself is the page-view counter (functions/api/track.js): this catch-all also matches it, so it hands it over
+  // (2026-11-23: since 2026-11-21 the page views, and the hooks they run — the CI runs the site starts, Santé's translations,
+  // the robots' copy, the entry forms' closing — went unanswered here)
+  if (!parts.length) return method === "POST" ? pageView(ctx) : json({ error: "not found" }, 404);
   try {
     // ---- devices ----
     if (route === "pair" && method === "POST") return await pair(ctx);
@@ -374,21 +379,10 @@ async function childCreate({ request, env }, me) {
   if (me.child) return json({ error: "forbidden" }, 403);
   if (!(await allow(env, `tchild:${me.id}`, 10, 86400))) return json({ error: "rate" }, 429);
   const b = await readBody(request);
-  const first = T.clean(b?.first, 60), last = T.clean(b?.last, 60) || me.last_name || "", by = birthOk(b?.birthYear);
-  if (!first) return json({ error: "fields" }, 422);
-  if (!by) return json({ error: "birthYear" }, 422);
-  const n = await env.DB.prepare("SELECT COUNT(*) AS n FROM track_guardians WHERE parent_id = ?").bind(me.id).first();
-  if (n.n >= 12) return json({ error: "too many" }, 429);
-  const email = `child-${[...randomBytes(6)].map((x) => x.toString(16).padStart(2, "0")).join("")}@${T.CHILD_DOMAIN}`;
-  const lic = String(b?.licence || "").replace(/\s+/g, "").slice(0, 12);
-  const row = await env.DB.prepare(`INSERT INTO users (email, pw_hash, pw_salt, pw_iter, first_name, last_name, licence, display_name,
-    consent_at, created_at, lang, email_verified, status) VALUES (?, '', '', 0, ?, ?, ?, ?, ?, ?, ?, 1, 'active') RETURNING *`)
-    .bind(email, first, last, lic, `${first} ${last}`.trim(), nowIso(), nowIso(), LANGS.includes(b?.lang) ? b.lang : userLang(me)).first();
-  await env.DB.batch([
-    env.DB.prepare("UPDATE users SET child = 1, birth_year = ?, modules_checked = 1 WHERE id = ?").bind(by, row.id),
-    env.DB.prepare("INSERT INTO track_guardians (child_id, parent_id, created_at) VALUES (?, ?, ?)").bind(row.id, me.id, nowIso()),
-  ]);
-  return json({ ok: true, child: accountOut({ ...row, child: 1, birth_year: by }) });
+  // (_lib/track.js createChild: shared with the entry form's « Ajouter un enfant », api/entries)
+  const r = await T.createChild(env, me, { first: b?.first, last: b?.last, birthYear: b?.birthYear, licence: b?.licence, lang: b?.lang || userLang(me) });
+  if (r.error) return json({ error: r.error }, r.status);
+  return json({ ok: true, child: accountOut(r.child) });
 }
 
 async function childEdit({ request, env }, me, id) {

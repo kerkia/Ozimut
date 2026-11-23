@@ -66,7 +66,9 @@ import { allow, isAdmin, json, readBody, withUser, nowIso } from "../../_lib/api
 import { showModule } from "../../_lib/modules.js";
 import { hashPassword, checkPassword, b64url, randomBytes } from "../../_lib/crypto.js";
 import { clubOf, clubLabel, findRace, orgCode, organises } from "../../_lib/club.js";
+import { orgsOf, inForce, ready as orgsReady } from "../../_lib/orgs.js";
 import { scoreEvent, strict, teamIndex, withScore } from "../../_lib/events.js";
+import { checkSource, recordUse } from "../../_lib/orgmaps.js";
 
 const META = "analyses-meta/";
 const DATA = "analyses/";
@@ -164,6 +166,21 @@ async function dataCounts(env) {
 }
 const firstThumb = (c) => (c.thumbs.length ? Math.min(...c.thumbs) : null);
 
+/**
+ * Is the account in the analysis's club (a French club number): the club of its latest race, or a membership in force of that
+ * club as an org (docs/clubs/design.md §1: a member added by the club, a guest until its end day). Memoised on `lazyClub`.
+ */
+async function clubOk(env, user, code, lazyClub) {
+  if (!code) return false;
+  if ((await lazyClub()) === code) return true;
+  if (lazyClub.orgCodes === undefined) {
+    lazyClub.orgCodes = new Set();
+    try {
+      if (await orgsReady(env)) for (const m of await orgsOf(env, user.id)) if (m.org.cc === "FR" && m.org.kind === "club" && inForce(m)) lazyClub.orgCodes.add(m.org.code);
+    } catch (e) { /* before migration 0030 */ }
+  }
+  return lazyClub.orgCodes.has(code);
+}
 /** "open", "locked" (a password to give), "club" (its club's, with or without a code for invitees) or null (not for this
  *  account). */
 async function access(ctx, user, meta, lazyClub) {
@@ -172,7 +189,7 @@ async function access(ctx, user, meta, lazyClub) {
   if (meta.vis === "public") return "open";
   const keyOk = async () => { const k = request.headers.get("X-Analysis-Key"); return !!k && k === await unlockKey(env, meta, user.id); };
   if (meta.vis === "club") {
-    if (meta.club && (await lazyClub()) === meta.club) return "open";
+    if (await clubOk(env, user, meta.club, lazyClub)) return "open";
     return hasCode(meta) && (await keyOk()) ? "open" : "club";
   }
   if (meta.vis === "password") return (await keyOk()) ? "open" : "locked";
@@ -218,9 +235,14 @@ function cleanCourses(list) {
     out.push({ n, name: clean(c.name, 60) || `Circuit ${n + 1}`, circuit: clean(c.circuit, 80), r: num(c.r) || 20,
       map: { w: Math.round(num(m.w) || 0), h: Math.round(num(m.h) || 0), type: /^image\/(png|jpeg|webp)$/.test(m.type) ? m.type : "image/jpeg", v: Math.round(num(m.v) || 0) },
       geo, controls: ctrls, ...(c.score === true ? { score: true } : {}), ...(typeof c.printed === "boolean" ? { printed: c.printed } : {}),
-      ...cleanLayers(c), ...cleanExtras(c) });
+      ...cleanLayers(c), ...cleanExtras(c), ...cleanOrgMap(c) });
   }
   return out;
+}
+/** A circuit drawn on a club's map (docs/clubs/design.md §2): { org, map, version }, checked by the PUT when new. */
+function cleanOrgMap(c) {
+  const o = c?.orgMap, org = Math.round(num(o?.org) || 0), map = Math.round(num(o?.map) || 0), version = Math.round(num(o?.version) || 0);
+  return org > 0 && map > 0 ? { orgMap: { org, map, version: Math.max(1, version), name: clean(o.name, 120) } } : {};
 }
 
 const KEY = /^[A-Z]{1,2}$/;
@@ -412,7 +434,7 @@ const forUsers = withUser(async (ctx, user) => {
         // a club's analysis is listed to everyone (owner, 2026-11-07): a non-member is told it is the club's, and may have its code
         let acc;
         if (org || m.vis === "public") acc = "open";
-        else if (m.vis === "club") acc = m.club && (await lazyClub()) === m.club ? "open" : "club";
+        else if (m.vis === "club") acc = (await clubOk(env, user, m.club, lazyClub)) ? "open" : "club";
         else if (m.vis === "password") acc = "locked";
         if (!acc) continue;
         out.push({ id: m.id, kind: m.kind, title: m.title, date: m.date, race: m.race, vis: m.vis, code: m.code === "1", ownerName: m.ownerName,
@@ -563,6 +585,16 @@ const forUsers = withUser(async (ctx, user) => {
       if (b.courses != null) {
         const cs = cleanCourses(b.courses);
         if (!cs) return json({ error: "courses" }, 400);
+        // a circuit newly on a club's map: the account may use that map in the analyses (its use written down)
+        const om = (c) => (c.orgMap ? `${c.orgMap.org}:${c.orgMap.map}:${c.orgMap.version}` : "");
+        for (const c of cs) {
+          const o = (meta.courses || []).find((x) => x.n === c.n);
+          if (!c.orgMap || (o && om(o) === om(c))) continue;
+          const club = await checkSource(env, user, c.orgMap, "analyses").catch(() => ({ ok: false }));
+          if (!club.ok) return json({ error: "orgmap" }, 403);
+          c.orgMap = club.src;
+          await recordUse(env, club.src, { tool: "analyses", ref: id, title: [meta.title, c.name].filter(Boolean).join(" · ") }, user);
+        }
         // the circuits removed: their maps and traces go
         const gone = (meta.courses || []).filter((c) => !cs.some((x) => x.n === c.n)).map((c) => c.n);
         if (gone.length) {

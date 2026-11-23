@@ -210,6 +210,7 @@ export default {
   "nav.docs": "Documentation",
   "auth.menu": "My account",
   "cl.myClub": "My club",
+  "cl.manageClub": "Manage the club in My club",
   "rk.noProgress": "No measurable progress for this selection.",
   "rk.findMe": "My position",
   "rn.licenceNo": "Licence no.",
@@ -1319,6 +1320,8 @@ export default {
   "ad.tab.conso": "Consumption",
   "ad.tab.perf": "Speed",
   "ad.lede.perf": "How long the pages take to show and to react, measured in the browsers of signed-in accounts.",
+  "ad.tab.clubs": "Clubs",
+  "ad.lede.clubs": "The requests to manage a club waiting for an administrator, and the clubs managed on Ozimut.",
   "ad.pf.period": "Period", "ad.pf.days": "Last {n} days",
   "ad.pf.error": "The measurements could not be read.",
   "ad.pf.notReady": "No measurement is kept yet: the database's migration 0028 (table perf_daily) has still to be applied.",
@@ -5672,4 +5675,10 @@ export default {
   // « Cartographier » (Orga, 2026-11-06)
   "ms.s.996": "Helper contour (LiDAR)",
   "ms.sp.s.996": "Helper contour (LiDAR)",
+  // the entries (2026-11-22): the user menu, the Agenda
+  "nav.myEntries": "My entries",
+  "agd.enter": "Enter",
+  "agd.entrants": "Entry list",
+  "agd.entriesTag": "entries",
+  "agd.entriesTip": "Entries open on Ozimut",
 };

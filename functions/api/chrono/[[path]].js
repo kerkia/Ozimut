@@ -10,13 +10,17 @@
 //   GET  …        → { have, ops (count), updated }
 // Who: an administrator's session, or the event's token in `X-Chrono-Token` (CORS open for it: the app's page is served
 // from the hub's own address). The operations hold the entries of a race — names, clubs, licence and card numbers, start
-// times, punches: nothing here is public, and the event's team alone should reach it once it opens beyond administrators.
+// times, punches: nothing here is public. An Orga event's log (« e<event id> ») also opens to the event's team (docs/clubs/
+// design.md §5), whose entries the server station `ozimut` writes to it and reads the desk back from (_lib/entrychrono.js).
 
 import { currentUser, isAdmin, json, readBody, allow } from "../../_lib/api.js";
 import { broadcasts, liveDir, newMopKey } from "../../_lib/live.js";
+import { readMeta, writeMeta, sync } from "../../_lib/chronolog.js";
+import { loadEvent, teamMay } from "../../_lib/entries.js";
+import { fromChrono } from "../../_lib/entrychrono.js";
 
 const EV = /^[A-Za-z0-9_-]{1,64}$/;
-const MAX_OPS = 2000, MAX_BODY = 4 * 1024 * 1024, READS = 30, SMALL = 250;
+const MAX_BODY = 4 * 1024 * 1024;
 const CORS = { "Access-Control-Allow-Origin": "*", "Access-Control-Allow-Headers": "Content-Type, X-Chrono-Token", "Access-Control-Allow-Methods": "GET, POST, OPTIONS", "Access-Control-Max-Age": "86400" };
 const out = (body, status = 200) => json(body, status, CORS);
 
@@ -27,64 +31,24 @@ async function tokenOf(env, ev) {
 }
 const same = (a, b) => { if (a.length !== b.length) return false; let x = 0; for (let i = 0; i < a.length; i++) x |= a.charCodeAt(i) ^ b.charCodeAt(i); return x === 0; };
 
-/** Who asks: `{ user }` (an administrator's session), `{ token: true }`, or null. */
+/** An Orga event's log (« e<event id> », pages/chrono.js): the event's id. */
+const orgaEvent = (ev) => (/^e[a-z0-9]{6,20}$/.test(ev) ? ev.slice(1) : null);
+
+/** Who asks: `{ user }` (an administrator's session, or one of the Orga event's team), `{ token: true }`, or null. */
 async function who(request, env, ev) {
   const tok = request.headers.get("X-Chrono-Token");
   if (tok) return env.SESSION_SECRET && same(tok, await tokenOf(env, ev)) ? { token: true } : null;
   if (!env.DB) return null;
   const user = await currentUser(request, env);
-  return user && isAdmin(env, user) ? { user } : null;
-}
-
-const metaKey = (ev) => `chrono/${ev}/meta.json`;
-async function readMeta(env, ev) {
-  const o = await env.BUCKET.get(metaKey(ev));
-  if (!o) return { meta: { have: {}, batches: [], n: 0 }, etag: null };
-  return { meta: await o.json(), etag: o.etag };
-}
-async function writeMeta(env, ev, meta, etag) {
-  const body = JSON.stringify({ ...meta, updated: Date.now() });
-  // only if nobody wrote meanwhile: a station's sync and another's may arrive together
-  const r = await env.BUCKET.put(metaKey(ev), body, { httpMetadata: { contentType: "application/json" }, onlyIf: etag ? { etagMatches: etag } : { etagDoesNotMatch: "*" } });
-  return !!r;
-}
-const okOp = (o) => o && typeof o === "object" && typeof o.s === "string" && /^[\w-]{1,40}$/.test(o.s) && Number.isInteger(o.n) && o.n > 0 && Number.isFinite(o.t) && typeof o.k === "string" && o.k.length <= 12;
-
-async function sync(env, ev, body, by) {
-  const ops = Array.isArray(body?.ops) ? body.ops.filter(okOp).slice(0, MAX_OPS) : [];
-  const theirs = body?.have && typeof body.have === "object" ? body.have : {};
-  for (let attempt = 0; attempt < 4; attempt++) {
-    const { meta, etag } = await readMeta(env, ev);
-    // taken: each station's operations in sequence, nothing beyond a gap (it will come again once the gap is filled)
-    const have = { ...meta.have }, fresh = [];
-    for (const o of [...ops].sort((a, b) => (a.s < b.s ? -1 : a.s > b.s ? 1 : a.n - b.n))) if (o.n === (have[o.s] || 0) + 1) { have[o.s] = o.n; fresh.push(o); }
-    let batches = meta.batches, drop = null, made = null;
-    if (fresh.length) {
-      const last = batches[batches.length - 1];
-      let all = fresh;
-      if (last && last.n < SMALL) {                         // a small last batch is rewritten with the new operations, under a new key
-        const o = await env.BUCKET.get(`chrono/${ev}/b/${last.k}.json`);
-        if (o) { all = (await o.json()).concat(fresh); drop = last.k; batches = batches.slice(0, -1); }
-      }
-      const r = {};
-      for (const o of all) { const x = r[o.s] || (r[o.s] = [o.n, o.n]); if (o.n < x[0]) x[0] = o.n; if (o.n > x[1]) x[1] = o.n; }
-      made = `${Date.now().toString(36)}-${crypto.randomUUID().slice(0, 8)}`;
-      await env.BUCKET.put(`chrono/${ev}/b/${made}.json`, JSON.stringify(all), { httpMetadata: { contentType: "application/json" } });
-      batches = batches.concat([{ k: made, n: all.length, r }]);
-      const next = { ...meta, have, batches, n: (meta.n || 0) + fresh.length, owner: meta.owner || by || null };
-      if (!(await writeMeta(env, ev, next, etag))) { await env.BUCKET.delete(`chrono/${ev}/b/${made}.json`); continue; }
-      if (drop) await env.BUCKET.delete(`chrono/${ev}/b/${drop}.json`);
-    }
-    // given back: what the caller lacks, a few batches a call
-    const need = batches.filter((b) => Object.entries(b.r).some(([s, [, max]]) => max > (theirs[s] || 0)) && b.k !== made);
-    const give = [];
-    for (const b of need.slice(0, READS)) {
-      const o = await env.BUCKET.get(`chrono/${ev}/b/${b.k}.json`);
-      if (o) for (const op of await o.json()) if (op.n > (theirs[op.s] || 0)) give.push(op);
-    }
-    return { ops: give, have, more: need.length > READS };
-  }
-  return null;
+  if (!user) return null;
+  if (isAdmin(env, user)) return { user };
+  // the event's team (docs/clubs/design.md §5): its members, or the organisers of the competition it holds
+  const id = orgaEvent(ev);
+  if (!id) return null;
+  try {
+    const e = await loadEvent(env, id);
+    return e && (await teamMay(env, request, user, e)) ? { user } : null;
+  } catch (e) { return null; }
 }
 
 async function live(env, ev, body, asker, waitUntil) {
@@ -127,7 +91,17 @@ export async function onRequest({ request, env, params, waitUntil }) {
   if (env.DB && !(await allow(env, `chrono:${ev}`, 3000, 3600))) return out({ error: "too many requests" }, 429);
   const body = await readBody(request);
   if (act === "token") return asker.user ? out({ token: await tokenOf(env, ev) }) : out({ error: "forbidden" }, 403);
-  if (act === "sync") { const r = await sync(env, ev, body, asker.user?.id); return r ? out(r) : out({ error: "busy" }, 503); }
+  if (act === "sync") {
+    // the server station `ozimut` is Ozimut's own (_lib/entrychrono.js): what a station sends of it is held already
+    if (Array.isArray(body?.ops)) body.ops = body.ops.filter((o) => o?.s !== "ozimut");
+    const r = await sync(env, ev, body, asker.user?.id);
+    if (!r) return out({ error: "busy" }, 503);
+    // a station's operations taken: those of the desk read back into the event's entries (_lib/entrychrono.js), after the answer
+    const id = orgaEvent(ev);
+    if (id && r.stored && env.DB) waitUntil(fromChrono(env, id).catch(() => {}));
+    const { stored, ...answer } = r;
+    return out(answer);
+  }
   if (act === "live") return live(env, ev, body, asker, waitUntil);
   return out({ error: "unknown" }, 404);
 }

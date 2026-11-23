@@ -52,6 +52,19 @@ export function build(X) {
           html`Bajo tu nombre: la página de módulos, esta documentación, los ${P("#/reglages", "Ajustes")}, «Contacto» y cerrar sesión. Las páginas
             todavía en pruebas llevan la mención «beta».`,
         ])}`, "menus")}
+      ${slide("El sitio", "Mi club", html`
+        <p>${P("#/monclub", "Mi club")}, bajo tu nombre, reúne tu club: en Francia eres miembro de él por tu licencia; en otros países, pides unirte.
+          Ahí ves a sus miembros y sus funciones (responsable, organizador, cartógrafo, tesorero), sus eventos, sus mapas y sus cuentas. Un miembro
+          de la junta pasa a ser responsable pidiéndolo («Gestionar mi club») y luego asigna las funciones.</p>
+        ${list([
+          html`<b>Lo que paga el club</b>: cada club elige quién paga las inscripciones de sus miembros —cada uno las suyas, el club las de los
+            campeonatos, todas, o las que marca el tesorero—. El formulario de inscripción se lo dice al corredor.`,
+          html`<b>Las cuentas</b>: cada miembro ve lo que el club ha pagado por él y lo que queda por devolver. El tesorero ve lo que otros clubes deben
+            por sus corredores en las carreras del club, lo que el club debe a los organizadores, la cuenta de cada miembro y su resumen de fin de
+            año (un PDF, enviado por correo en nombre del club), la compensación con los clubes que la han aceptado y un diario para descargar. El
+            extracto bancario se lee en el navegador, sin enviarse: las transferencias con referencia se marcan como pagadas.`,
+          html`Ningún pago pasa por Ozimut: las transferencias se hacen entre las personas y los clubes; Ozimut solo dice quién debe qué a quién.`,
+        ])}`, "club")}
       ${slide("El sitio", "País, idioma y tema", html`
         ${list([
           html`<b>El país</b>, arriba, elige las competiciones que ves: el calendario de una treintena de países, leído cada mañana en su federación,
@@ -89,6 +102,11 @@ export function build(X) {
             html`<b>Una competición próxima</b> se abre junto a la lista: el lugar y cómo llegar, el anuncio, ${fr ? "el número de inscritos por recorrido, " : ""}el
               cierre de inscripciones y botones cuando existen: la lista de salida${fr ? " (con el CN de cada uno y el puesto que permite esperar)" : ""},
               «Seguir en directo», el seguimiento GPS.`,
+            html`<b>Inscribirse</b>: cuando sus organizadores han abierto las inscripciones en Ozimut, la competición ofrece «Inscribirse». Con tu
+              cuenta te inscribes a ti, a «Mis corredores» (familia, amigos, federados o no) y a tus hijos; sin cuenta, el formulario la crea a la
+              vez. El importe aparece antes de confirmar —o «a cargo de tu club» cuando tu club paga esta carrera—, y luego la referencia que indicar
+              en la transferencia y la cuenta del organizador. ${P("#/mes-inscriptions", "Mis inscripciones")} las reúne; la lista de inscritos es
+              pública, sin importes ni números de licencia.`,
             html`<b>Una competición pasada</b> abre su página: los resultados en la primera pestaña y, cuando se publican los tiempos parciales, cada vista
               de su análisis. «‹ Competiciones» te devuelve a la lista donde la dejaste.`,
           ])}`)}`,
@@ -460,7 +478,7 @@ export function build(X) {
           ${list([
             html`<b>El otro padre o madre</b>: « Invitar al otro padre o madre » da un enlace; abierto con su propia cuenta, gestiona al niño en
               igualdad.`,
-            html`<b>Quién puede seguir</b>: « Invitar a alguien a seguir » da un enlace de invitación, válido 7 días y una sola vez; la persona
+            html`<b>Quién puede seguir</b>: cada persona tiene su propia lista. Bajo el nombre del niño, « Invitar a alguien a seguir a… » da un enlace de invitación, válido 7 días y una sola vez; la persona
               lo abre con su cuenta de Ozimut. Nadie sigue sin haber sido invitado, y un seguidor se puede quitar en cualquier momento.`,
             html`<b>Los ajustes</b>: con qué frecuencia se envían las posiciones cuando alguien mira (cada 30 s por defecto), la duración
               máxima de un seguimiento, el número al que propone llamar la pantalla de ayuda, y una zona: si el niño sale de ella, se envía una
@@ -497,7 +515,7 @@ export function build(X) {
   // ======================================================================================================
   // Orga (« El trazado », its other tab, is content/methods.*.js' tracerDoc)
   // ======================================================================================================
-  const ORGA = [["qui", "Mis eventos"], ["evenement", "Crear un evento"], ["trace", "Trazado"], ["horaires", "Salidas"], ["direct", "Directo"],
+  const ORGA = [["qui", "Mis eventos"], ["evenement", "Crear un evento"], ["trace", "Trazado"], ["horaires", "Inscripciones y salidas"], ["direct", "Directo"],
     ["resultats", "Resultados"], ["analyses", "Análisis"],
     // Chrono, the race timing: its tab is the administrators' only for now (pages/manage.js), and so are its chapters
     ...(admin ? [["chrono", "Chrono"], ["chrono-app", "La aplicación Chrono"]] : []), ["equipe", "El equipo"]];
@@ -510,16 +528,16 @@ export function build(X) {
             uno con las herramientas del organizador, en pestañas según su tipo:</p>
           ${list([
             html`<b>Competición</b> (individual o score) y <b>Entrenamiento abierto</b> — abierto a todos, a menudo de pago y cronometrado,
-              fuera de los rankings: Trazado, Salidas, Directo, Resultados, Análisis, Equipo.`,
+              fuera de los rankings: Trazado, Inscripciones y salidas, Directo, Resultados, Análisis, Equipo.`,
             html`<b>Competición de relevos</b>: Trazado, Directo, Análisis, Equipo (los resultados y la lista de salida de un relevo aún no se pueden subir).`,
             html`<b>Entrenamiento de club</b>: Trazado, Análisis, Equipo.`,
           ])}
-          <p>Un evento se abre en la pestaña que corresponde a su fecha: Salidas antes de la carrera, Directo el mismo día, Resultados después; un
+          <p>Un evento se abre en la pestaña que corresponde a su fecha: Inscripciones y salidas antes de la carrera, Directo el mismo día, Resultados después; un
             entrenamiento, en su trazado antes de su fecha y en su análisis después.</p>
           <p>El mapa en sí se dibuja en ${M("carto", "Carto")}, un módulo aparte, abierto a cualquier cuenta: un mapa sirve para muchos eventos, y
             también se trabaja en él sobre el terreno, con el móvil.</p>
           <p>Solo el equipo de un evento —y los administradores de Ozimut— actúa como organizador de la competición que lleva: lista de salida,
-            reserva de horarios, directo, enlace del seguimiento GPS, resultados, recorridos enviados desde el trazado, análisis de mapa. Una
+            inscripciones y horarios, directo, enlace del seguimiento GPS, resultados, recorridos enviados desde el trazado, análisis de mapa. Una
             competición que ningún evento lleva no tiene organizador en Ozimut: para serlo, crea su evento, o pide unirte al equipo del evento que la
             lleva.</p>`)}`,
       evenement: () => html`
@@ -574,20 +592,27 @@ export function build(X) {
             html`Después de la carrera, el trazado publica sus recorridos, mapa incluido, en el análisis del evento (pestaña «Análisis»).`,
           ])}`)}`,
       horaires: () => html`
-        ${slide("Orga", "Salidas: los horarios", html`
-          <p>La pestaña «Salidas» de una próxima competición publica su lista de salida, hasta el día de la carrera. Archivos que se leen: IOF XML
-            «StartList» (lo mejor), CSV, una tabla con un par de columnas por recorrido, HTML, PDF de OE o de MeOS, o un enlace de Google Sheets
-            compartido.</p>
+        ${slide("Orga", "Inscripciones y salidas", html`
+          <p>La pestaña «Inscripciones y salidas» de una competición o de un entrenamiento abierto lleva, en tres pasos, de las inscripciones a la
+            lista de salida; sigue siendo legible después de la carrera.</p>
+          <div class="mx-steps">
+            <div class="mx-step"><b>Inscripciones</b>El formulario: las categorías y sus recorridos, las plazas, la apertura y el cierre (y las
+              inscripciones tardías), los precios —por edad, federado o no, por categoría, el alquiler de pinza, las opciones, un tope por familia—, lo
+              que se pide (pinza, año de nacimiento, nota) y cómo pagar (transferencia a la cuenta del club, en el lugar). Los corredores se inscriben
+              en Arena; tú sigues la lista, inscribes a mano o importas un archivo (CSV, el de OE, IOF XML, Google Sheets).</div>
+            <div class="mx-step"><b>Horarios</b>Sin horarios, con una parrilla que reservan los corredores (primera y última salida, intervalo,
+              separación entre dos corredores del mismo club), un sorteo hecho en tu navegador o una lista de salida subida.</div>
+            <div class="mx-step"><b>Lista de salida</b>Al cierre, los horarios pasan a ser la lista de salida publicada, publicada de nuevo tras cada
+              cambio; exportaciones en IOF XML, CSV de OE y archivo para O Checklist.</div>
+          </div>
           ${list([
-            html`El archivo se lee y se comprueba primero en tu navegador: dos corredores del mismo club seguidos, un minuto de salida compartido,
-              corredores sin hora, sin pinza o sin recorrido, los intervalos y los huecos libres.`,
-            html`«Comprobar y exportar» escribe también el archivo de salida para la aplicación O Checklist.`,
-            html`«Abrir la reserva» sustituye a la tabla compartida en la que los corredores se apuntan a una hora: fijas los recorridos (primera y
-              última salida, intervalo), la separación entre dos corredores del mismo club, el cierre; cada corredor reserva en Ozimut con su cuenta,
-              para sí y para otros (su familia, federados o no, de cualquier club o sin club); una hoja de Google Sheets ya rellenada se importa con
-              todas sus pestañas. Al cierre, las reservas pasan a ser la lista de salida publicada, y descargas el CSV o el IOF XML para MeOS u OE.`,
-            html`Una vez publicada, la lista aparece en Arena (la lista de salida de la competición), y cada corredor que lo ha pedido recibe su hora de
-              salida por notificación o por correo electrónico.`,
+            html`<b>Los pagos</b>: cada pagador tiene una referencia por evento («OZ-7K3F»); los marcas como pagados uno a uno, por referencia, por
+              lotes o desde el extracto de tu banco (CSV, OFX, CAMT.053), leído en tu navegador sin enviarse. Los clubes que pagan por sus corredores
+              lo hacen en una sola transferencia: su resumen está en «Mi club › Cuentas».`,
+            html`Una lista de salida hecha en otro sitio se sigue pudiendo subir: IOF XML «StartList», CSV, tabla, HTML, PDF de OE o de MeOS, enlace de
+              Google Sheets, primero leída y comprobada en tu navegador.`,
+            html`Una vez publicada, la lista aparece en Arena, y cada corredor que lo ha pedido recibe su hora de salida por notificación o por correo
+              electrónico.`,
           ])}`)}`,
       direct: () => html`
         ${slide("Orga", "Emitir en directo", html`

@@ -52,6 +52,21 @@ export function build(X) {
           html`Unter deinem Namen: die Modulseite, diese Dokumentation, die ${P("#/reglages", "Einstellungen")}, „Kontakt“ und das Abmelden. Seiten, die
             noch in der Testphase sind, tragen den Vermerk „Beta“.`,
         ])}`, "menus")}
+      ${slide("Die Website", "Mein Verein", html`
+        <p>${P("#/monclub", "Mein Verein")}, unter deinem Namen, versammelt deinen Verein: In Frankreich bist du über deine Lizenz automatisch Mitglied,
+          anderswo bittest du um Aufnahme. Dort siehst du seine Mitglieder und ihre Rollen (Verantwortliche, Veranstalter, Kartografen,
+          Kassenwarte), seine Veranstaltungen, seine Karten und seine Konten. Ein Vorstandsmitglied wird auf Anfrage Verantwortlicher („Meinen
+          Verein verwalten“) und vergibt dann die Rollen.</p>
+        ${list([
+          html`<b>Was der Verein übernimmt</b>: Jeder Verein wählt, wer die Anmeldungen seiner Mitglieder bezahlt – jeder seine eigenen, der Verein bei
+            Meisterschaften, bei allen oder bei denen, die der Kassenwart ankreuzt. Das Meldeformular sagt es dem Läufer.`,
+          html`<b>Die Konten</b>: Jedes Mitglied sieht, was der Verein für es bezahlt hat und was noch zu erstatten ist. Der Kassenwart sieht, was
+            andere Vereine für ihre Läufer bei den Läufen des Vereins schulden, was der Verein den Veranstaltern schuldet, das Konto jedes Mitglieds
+            und seine Jahresabrechnung (PDF, im Namen des Vereins per E-Mail verschickt), die Verrechnung mit den Vereinen, die sie akzeptiert
+            haben, und ein Journal zum Herunterladen. Der Kontoauszug wird im Browser gelesen, ohne gesendet zu werden: Überweisungen mit
+            Verwendungszweck werden als bezahlt markiert.`,
+          html`Keine Zahlung läuft über Ozimut: Überweisungen gehen direkt zwischen Personen und Vereinen; Ozimut sagt nur, wer wem was schuldet.`,
+        ])}`, "club")}
       ${slide("Die Website", "Land, Sprache und Farbschema", html`
         ${list([
           html`<b>Das Land</b>, oben, bestimmt die Wettkämpfe, die du siehst: den Kalender von rund dreißig Ländern, jeden Morgen bei ihrem Verband gelesen,
@@ -89,6 +104,11 @@ export function build(X) {
             html`<b>Ein kommender Wettkampf</b> öffnet sich neben der Liste: der Ort und der Weg dorthin, die Ausschreibung, ${fr ? "die Zahl der Anmeldungen pro Bahn, " : ""}der
               Anmeldeschluss und Schaltflächen, wenn es sie gibt – die Startliste${fr ? " (mit dem CN jedes Läufers und dem Rang, den er erwarten lässt)" : ""},
               „Live verfolgen“, das GPS-Tracking.`,
+            html`<b>Anmelden</b>: Wenn die Veranstalter die Anmeldungen auf Ozimut geöffnet haben, bietet der Wettkampf „Anmelden“ an. Mit deinem Konto
+              meldest du dich selbst, „Meine Läufer“ (Familie, Freunde, mit oder ohne Lizenz) und deine Kinder an; ohne Konto legt das Formular es gleich
+              mit an. Der Betrag erscheint vor dem Bestätigen – oder „von deinem Verein übernommen“, wenn dein Verein diesen Lauf bezahlt –, dann der
+              Verwendungszweck für die Überweisung und das Konto des Veranstalters. ${P("#/mes-inscriptions", "Meine Anmeldungen")} sammelt sie; die
+              Anmeldeliste ist öffentlich, ohne Beträge und Lizenznummern.`,
             html`<b>Ein vergangener Wettkampf</b> öffnet seine Seite: die Ergebnisse als erster Reiter, dann, wenn Zwischenzeiten veröffentlicht sind, jede Ansicht
               ihrer Analyse. „‹ Wettkämpfe“ bringt dich zur Liste zurück, dort, wo du sie verlassen hast.`,
           ])}`)}`,
@@ -465,7 +485,7 @@ export function build(X) {
           ${list([
             html`<b>Ein zweiter Elternteil</b>: « Den anderen Elternteil einladen » gibt einen Link; mit dem eigenen Konto geöffnet, verwaltet
               er das Kind gleichberechtigt.`,
-            html`<b>Wer verfolgen darf</b>: « Jemanden zum Verfolgen einladen » gibt einen Einladungslink, 7 Tage und einmal gültig; die Person
+            html`<b>Wer verfolgen darf</b>: Jede Person hat ihre eigene Liste. Unter dem Namen des Kindes gibt « Jemanden einladen, … zu verfolgen » einen Einladungslink, 7 Tage und einmal gültig; die Person
               öffnet ihn mit ihrem Ozimut-Konto. Niemand verfolgt ohne Einladung, und ein Verfolgender kann jederzeit entfernt werden.`,
             html`<b>Die Einstellungen</b>: wie oft gesendet wird, wenn jemand zuschaut (standardmäßig alle 30 s), die längste Verfolgung, die
               Nummer, die der Hilfe-Bildschirm anruft, und ein Gebiet: Verlässt das Kind es, geht eine Warnung raus.`,
@@ -501,7 +521,7 @@ export function build(X) {
   // ======================================================================================================
   // Orga (« Die Bahnlegung », its other tab, is content/methods.*.js' tracerDoc)
   // ======================================================================================================
-  const ORGA = [["qui", "Meine Veranstaltungen"], ["evenement", "Eine Veranstaltung anlegen"], ["trace", "Bahnlegung"], ["horaires", "Starts"],
+  const ORGA = [["qui", "Meine Veranstaltungen"], ["evenement", "Eine Veranstaltung anlegen"], ["trace", "Bahnlegung"], ["horaires", "Anmeldungen und Starts"],
     ["direct", "Live"], ["resultats", "Ergebnisse"], ["analyses", "Analyse"],
     // Chrono, the race timing: its tab is the administrators' only for now (pages/manage.js), and so are its chapters
     ...(admin ? [["chrono", "Chrono"], ["chrono-app", "Die Chrono-Anwendung"]] : []), ["equipe", "Das Team"]];
@@ -514,16 +534,16 @@ export function build(X) {
             jede ein Lauf oder ein Training –, jede mit den Werkzeugen des Veranstalters, in Reitern je nach ihrer Art:</p>
           ${list([
             html`<b>Wettkampf</b> (Einzel oder Score) und <b>Öffentliches Training</b> — offen für alle, oft kostenpflichtig und mit
-              Zeitnahme, außerhalb der Ranglisten: Bahnlegung, Starts, Live, Ergebnisse, Analyse, Team.`,
+              Zeitnahme, außerhalb der Ranglisten: Bahnlegung, Anmeldungen und Starts, Live, Ergebnisse, Analyse, Team.`,
             html`<b>Staffelwettkampf</b>: Bahnlegung, Live, Analyse, Team (Ergebnisse und Startliste einer Staffel lassen sich noch nicht hochladen).`,
             html`<b>Vereinstraining</b>: Bahnlegung, Analyse, Team.`,
           ])}
-          <p>Eine Veranstaltung öffnet sich auf dem Reiter, der zu ihrem Tag passt: Starts vor dem Lauf, Live am Tag selbst, danach Ergebnisse; ein
+          <p>Eine Veranstaltung öffnet sich auf dem Reiter, der zu ihrem Tag passt: Anmeldungen und Starts vor dem Lauf, Live am Tag selbst, danach Ergebnisse; ein
             Training vor seinem Datum auf seiner Bahnlegung, danach auf seiner Analyse.</p>
           <p>Die Karte selbst wird in ${M("carto", "Carto")} gezeichnet, einem eigenen Modul, das jedem Konto offensteht: Eine Karte dient vielen
             Veranstaltungen, und man arbeitet auch im Gelände daran, mit dem Handy.</p>
           <p>Nur das Team einer Veranstaltung – und die Administratoren von Ozimut – handelt als Veranstalter des Wettkampfs, den sie trägt:
-            Startliste, Reservierung der Startzeiten, Live-Ergebnisse, Link zum GPS-Tracking, Ergebnisse, aus der Bahnlegung gesendete Bahnen,
+            Startliste, Meldungen und Startzeiten, Live-Ergebnisse, Link zum GPS-Tracking, Ergebnisse, aus der Bahnlegung gesendete Bahnen,
             Kartenanalyse. Ein Wettkampf, den keine Veranstaltung trägt, hat auf Ozimut keinen Veranstalter: Um es zu werden, lege seine
             Veranstaltung an oder bitte darum, dem Team der Veranstaltung beizutreten, die ihn trägt.</p>`)}`,
       evenement: () => html`
@@ -581,21 +601,28 @@ export function build(X) {
             html`Nach dem Lauf veröffentlicht die Bahnlegung ihre Bahnen samt Karte in der Analyse der Veranstaltung (Reiter „Analyse“).`,
           ])}`)}`,
       horaires: () => html`
-        ${slide("Orga", "Starts: die Startzeiten", html`
-          <p>Der Reiter „Starts“ eines kommenden Wettkampfs veröffentlicht seine Startliste, bis zum Wettkampftag. Gelesene Dateien: IOF XML
-            „StartList“ (am besten), CSV, eine Tabelle mit einem Spaltenpaar pro Bahn, HTML, PDF von OE oder MeOS oder ein geteilter
-            Google-Sheets-Link.</p>
+        ${slide("Orga", "Anmeldungen und Starts", html`
+          <p>Der Reiter „Anmeldungen und Starts“ eines Wettkampfs oder eines öffentlichen Trainings führt in drei Schritten von den Anmeldungen zur
+            Startliste; nach dem Lauf bleibt er lesbar.</p>
+          <div class="mx-steps">
+            <div class="mx-step"><b>Anmeldungen</b>Das Formular: die Kategorien und ihre Bahnen, die Plätze, Öffnung und Anmeldeschluss (und
+              Nachmeldungen), die Preise – nach Alter, mit oder ohne Lizenz, nach Kategorie, Leihchip, Optionen, eine Obergrenze pro Familie –, was
+              abgefragt wird (Chip, Geburtsjahr, Notiz) und wie bezahlt wird (Überweisung auf das Vereinskonto, vor Ort). Die Läufer melden sich in
+              Arena an; du verfolgst die Liste, meldest von Hand an oder liest eine Datei ein (CSV, die von OE, IOF XML, Google Sheets).</div>
+            <div class="mx-step"><b>Startzeiten</b>Keine, ein Raster, in dem die Läufer reservieren (erster und letzter Start, Intervall, Abstand
+              zwischen zwei Läufern desselben Vereins), eine Auslosung in deinem Browser oder eine hochgeladene Startliste.</div>
+            <div class="mx-step"><b>Startliste</b>Bei Anmeldeschluss werden die Startzeiten zur veröffentlichten Startliste, nach jeder Änderung neu
+              veröffentlicht; Exporte als IOF XML, CSV von OE und Datei für O Checklist.</div>
+          </div>
           ${list([
-            html`Die Datei wird zuerst in deinem Browser gelesen und geprüft: zwei Läufer desselben Vereins direkt nacheinander, eine geteilte Startminute,
-              Läufer ohne Startzeit, ohne Chip oder ohne Bahn, die Intervalle und die freien Startplätze.`,
-            html`„Prüfen und exportieren“ schreibt auch die Startdatei für die App O Checklist.`,
-            html`„Reservierung öffnen“ ersetzt die geteilte Tabelle, in die sich die Läufer für eine Startzeit eintragen: du legst die Bahnen fest
-              (erster und letzter Start, Intervall), den Abstand zwischen zwei Läufern desselben Vereins, den Schluss; jeder Läufer reserviert auf
-              Ozimut mit seinem Konto, für sich und für andere (seine Familie, mit oder ohne Lizenz, aus jedem Verein oder ohne Verein); eine schon
-              ausgefüllte Google-Tabelle wird mit allen Tabellenblättern importiert. Bei Schluss werden die Reservierungen zur veröffentlichten
-              Startliste, und du lädst die CSV- oder IOF-XML-Datei für MeOS oder OE herunter.`,
-            html`Nach der Veröffentlichung erscheint die Liste in Arena (die Startliste des Wettkampfs), und jeder Läufer, der es gewünscht hat, erhält seine
-              Startzeit per Push-Mitteilung oder per E-Mail.`,
+            html`<b>Die Zahlungen</b>: Jeder Zahler hat pro Veranstaltung einen Verwendungszweck („OZ-7K3F“); du markierst sie einzeln, nach
+              Verwendungszweck, gesammelt oder über den Kontoauszug deiner Bank (CSV, OFX, CAMT.053) als bezahlt, der in deinem Browser gelesen und
+              nicht gesendet wird. Vereine, die die Anmeldungen ihrer Läufer übernehmen, zahlen mit einer einzigen Überweisung: Ihre Abrechnung steht
+              in „Mein Verein › Konten“.`,
+            html`Eine anderswo erstellte Startliste lässt sich weiterhin hochladen: IOF XML „StartList“, CSV, Tabelle, HTML, PDF von OE oder MeOS,
+              Google-Sheets-Link, zuerst in deinem Browser gelesen und geprüft.`,
+            html`Nach der Veröffentlichung erscheint die Liste in Arena, und jeder Läufer, der es gewünscht hat, erhält seine Startzeit per
+              Push-Mitteilung oder per E-Mail.`,
           ])}`)}`,
       direct: () => html`
         ${slide("Orga", "Live übertragen", html`

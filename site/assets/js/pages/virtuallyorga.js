@@ -11,6 +11,7 @@ import { confirmBox, alertBox } from "../askbox.js";
 import * as auth from "../auth.js";
 import { WEATHERS, TIMES, LAMPS, envOf, envText } from "../games/vweather.js";
 import { LAYERS, mapOptOf, mapOptText } from "../games/vmapopt.js";
+import { bindPicker, sourceOf } from "../orgmapuse.js";
 
 const API = "/api/virtual/events";
 const MAX_MB = { "map.ocd": 40, "courses.ocd": 40, "courses.xml": 5 };
@@ -142,6 +143,8 @@ export async function renderOrga(el, { onPlay, onChange } = {}) {
           <h3>${t("vo.files")}</h3>
           <div class="vo-files">
             ${fileRow("map.ocd", t("vo.file.map"), files["map.ocd"], ".ocd")}
+            ${ev.orgMap ? html`<p class="muted">${t("om.pick.pixelUsed", { name: ev.orgMap.name })}</p>` : ""}
+            <div class="om-pick" id="vo-club" hidden></div>
             ${ev.coursesFrom === "file" ? html`${fileRow("courses.xml", t("vo.file.xml"), files["courses.xml"], ".xml")}${fileRow("courses.ocd", t("vo.file.cocd"), files["courses.ocd"], ".ocd")}
               <p class="muted">${t("vo.file.coursesNote")}</p>` : ""}
           </div>
@@ -185,6 +188,16 @@ export async function renderOrga(el, { onPlay, onChange } = {}) {
         detail(id);
       } catch (e) { st.textContent = ""; say(errText(e)); }
     }));
+    // « Une carte du club » (docs/clubs/design.md §2): its OCAD file sent as the event's map, its source kept (rights.pixel)
+    bindPicker($("#vo-club", el), "pixel", async (list, src) => {
+      const f = list[0];
+      if (f.size > MAX_MB["map.ocd"] * 1e6) return say(t("vo.err.size", { mb: MAX_MB["map.ocd"] }));
+      try {
+        await call(`${API}/${id}/file/map.ocd`, { method: "PUT", headers: { "Content-Type": "application/octet-stream" }, body: f });
+        await post(`${API}/${id}`, { orgMap: sourceOf(src) }, "PUT");
+        detail(id);
+      } catch (e) { say(errText(e)); }
+    }, { only: (n) => /\.ocd$/i.test(n) });
     $("#vo-buildbtn", el)?.addEventListener("click", async () => {
       try { const r = await post(`${API}/${id}/build`); if (!r.started) say(t("vo.notStarted")); detail(id); } catch (e) { say(errText(e)); }
     });

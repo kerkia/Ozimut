@@ -111,8 +111,9 @@ export async function render(main, { query }) {
   // the runners each event's lists name (start lists, results; the full index only): the runner filter (owner, 2026-10-30)
   const licsOf = new Map();
   const past = [], pastIds = new Set();
-  // the competitions whose start times their organisers opened to booking (api/booking; 2026-11-03): race key -> status
-  const bookingP = fetch("api/booking", { credentials: "same-origin" }).then((r) => (r.ok ? r.json() : null)).catch(() => null);
+  // the competitions whose organisers opened their entries on Ozimut (api/entries/open; 2026-11-22, the start-time booking's
+  // heir): race key -> { event, state open | soon | closed }
+  const bookingP = fetch("api/entries/open", { credentials: "same-origin" }).then((r) => (r.ok ? r.json() : null)).catch(() => null);
   // the announcement and the start-time booking found on the organiser's own site (prov/links.json, run.site_links;
   // 2026-11-11: COLE's linked both from its post, FFCO's page neither): event id -> { ann, book }
   const siteLinksP = getProv("links.json").then((x) => x?.events || {}).catch(() => ({}));
@@ -129,7 +130,7 @@ export async function render(main, { query }) {
       if (!r.soon && r.date_iso < today) { past.push(pastEvent(r)); if (r.agenda_id) pastIds.add(String(r.agenda_id)); }
     }
   } catch (e) { /* no start lists then */ }
-  const bookings = new Map(((await bookingP)?.events || []).map((x) => [x.key, x]));
+  const bookings = new Map(((await bookingP)?.forms || []).filter((x) => x.key).map((x) => [x.key, x]));
   const siteLinks = await siteLinksP;
   // a day's races by département number (2A and 2B after 20, overseas after 95), those known by their region only last
   const depOrder = (d) => (!d ? 1e6 : /^2A$/i.test(d) ? 20.1 : /^2B$/i.test(d) ? 20.2 : parseFloat(d) || 9e5);
@@ -417,7 +418,7 @@ export async function render(main, { query }) {
     const rows = shown.map((e) => html`<tr data-key="${e.key}" data-period="${periodOf(e)}" tabindex="0" class="${e.key === st.selected ? "selected" : ""} ${e.cancelled ? "cancelled" : ""} ${e.past ? "past" : ""}">
         <td class="num nowrap d">${fmtDate(e.date, "short")}${e.end ? html`<span class="dim d-end"> → ${fmtDate(e.end, "short")}</span>` : ""}${(e.natcal?.alt || []).map((d) => html`<span class="dim d-end"> ${t("agd.nat.or")} ${fmtDate(d, "short")}</span>`)}</td>
         ${sees("FR") && fr ? html`<td class="c">${e.natcal ? html`<span class="dim" title="${t("agd.nat.cnTip")}">—</span>` : e.cn ? html`<span class="tag tag-in"><span class="m-only">CN</span><span class="d-only">${t("agd.yes")}</span></span>` : html`<span class="dim"><span class="m-only">${t("agd.notCn")}</span><span class="d-only">${t("agd.no")}</span></span>`}</td>` : ""}
-        <td class="n">${nameOf(e)}${wreTags(e)}${natTag(e)}${e.cancelled ? html` <span class="tag">${t("agd.cancelled")}</span>` : ""}${starts.has(String(e.id)) ? html` <span class="tag" style="color:var(--accent)" title="${t("agd.startsTip")}">${t("agd.starts")}</span>` : ""}${lives.get(String(e.id))?.now ? html` <a class="lv-badge" href="#/direct/${lives.get(String(e.id)).id}" title="${t("agd.liveTip")}">${t("lv.badge")}</a>` : ""}${trackOf(e) ? html` <span class="tag" title="${t("trk.tagTip")}">${t("trk.tag")}</span>` : ""}${e.past ? pastTags(e) : ""}</td>
+        <td class="n">${nameOf(e)}${wreTags(e)}${natTag(e)}${e.cancelled ? html` <span class="tag">${t("agd.cancelled")}</span>` : ""}${starts.has(String(e.id)) ? html` <span class="tag" style="color:var(--accent)" title="${t("agd.startsTip")}">${t("agd.starts")}</span>` : ""}${bookings.get(/^d/.test(String(e.id)) ? String(e.id) : `a${e.id}`)?.state === "open" ? html` <span class="tag tag-in" title="${t("agd.entriesTip")}">${t("agd.entriesTag")}</span>` : ""}${lives.get(String(e.id))?.now ? html` <a class="lv-badge" href="#/direct/${lives.get(String(e.id)).id}" title="${t("agd.liveTip")}">${t("lv.badge")}</a>` : ""}${trackOf(e) ? html` <span class="tag" title="${t("trk.tagTip")}">${t("trk.tag")}</span>` : ""}${e.past ? pastTags(e) : ""}</td>
         <td class="p">${several && hostOf(e) ? html`<span class="nowrap">${country.flagImg(hostOf(e))} ${country.name(hostOf(e))}</span>${e.place ? html` <span class="dim">· ${e.place}</span>` : ""}`
           : html`${e.place || ""}${deptTag(e) ? html` <span class="dim">${deptTag(e)}</span>` : ""}`}</td>
         ${regionCol ? html`<td class="r">${fmtRegion(e.region)}</td>` : ""}
@@ -739,7 +740,7 @@ export async function render(main, { query }) {
     const pdf = ann && /\.pdf(?:$|[?#])/i.test(ann);
     if (l && !key) setTimeout(() => liveSplits(l.id), 0);
     const b = [
-      bk ? html`<a class="btn btn-sm ${bk.status === "open" ? "btn-primary" : ""}" href="#/horaire?course=${encodeURIComponent(bk.key)}">${t(bk.status === "open" ? "agd.book" : "agd.booked")}</a>` : "",
+      bk ? html`<a class="btn btn-sm ${bk.state === "open" ? "btn-primary" : ""}" href="#/inscription?ev=${encodeURIComponent(bk.event)}${bk.state === "open" ? "" : "&onglet=inscrits"}">${t(bk.state === "open" ? "agd.enter" : "agd.entrants")}</a>` : "",
       !bk && safeUrl(sl.book) ? html`<a class="btn btn-sm btn-primary" href="${sl.book}" target="_blank" rel="noopener" title="${t("agd.fromSite")}">${t("agd.bookSite")}</a>` : "",
       ann ? html`<a class="btn btn-sm" href="${ann}" target="_blank" rel="noopener"${ann !== e.invitation ? html` title="${t("agd.fromSite")}"` : ""}>${t(pdf || ann === e.invitation ? "agd.invitation" : "agd.invitationPage")}</a>` : "",
       l ? html`<a class="btn btn-sm btn-primary" href="#/direct/${l.id}">${l.now ? html`<span class="lv-dot" aria-hidden="true"></span>` : ""}${t("agd.live.go")}</a>` : "",

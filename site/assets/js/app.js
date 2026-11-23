@@ -34,6 +34,7 @@ const PAGES = {
   agenda: () => import("./pages/agenda.js"),
   account: () => import("./pages/account.js"),      // public: sign-up, confirmation, password reset, privacy
   settings: () => import("./pages/settings.js"),
+  myClub: () => import("./pages/monclub.js"),      // « Mon club » (2026-11-22, docs/clubs/design.md): the club's members, roles, events, settings
   contact: () => import("./pages/contact.js"),
   admin: () => import("./pages/admin.js"),
   provisional: () => import("./pages/provisional.js"),   // « Résultats »: the organisers' results of the last 60 days
@@ -53,7 +54,9 @@ const PAGES = {
   orgAnalyses: () => import("./pages/shared.js"),     // « Analyses de carte »: competitions and trainings in one list (2026-11-04)
   orgResults: () => import("./pages/orgresults.js"),
   orgStarts: () => import("./pages/orgstarts.js"),    // « Horaires »: an organiser publishes a coming race's start list (2026-10-18)
-  booking: () => import("./pages/booking.js"),        // « Réserver un horaire » (Arena): the start times its organisers opened to booking (2026-11-03)
+  // « S'inscrire » (Arena, 2026-11-22: entries merged with start times, docs/clubs/design.md §3) and « Mes inscriptions »
+  entry: () => import("./pages/entry.js"),
+  myEntries: () => import("./pages/entry.js"),
   orgDirect: () => import("./pages/orgdirect.js"),    // « Direct »: an organiser feeds « En direct » from their timing software
   orgTracer: () => import("./pages/tracer.js"),
   // « Gérer » (owner, 2026-11-11): an organiser's events, each its tabs — the four pages above (Analyses, Résultats, Horaires,
@@ -107,7 +110,7 @@ const homeOf = () => "#/modules";
 // multi » (a trace is shared by an account), Stats' runner, ranking and races over the period the federation publishes
 // openly — and the pages outside the modules (the home page, the documentation, the rules, « Nous écrire »).
 const GUEST_ROUTES = new Set(["overview", "account", "hub", "modtiles", "methods", "contact", "agenda", "provisional", "live", "splits",
-  "analysis", "analysisPerso", "mapAnalysis", "analysisClub", "analysisRace", "myMaps", "learn", "games", "vma", "runner", "ranking", "courses", "needCountry", "phoneSend", "booking"]);
+  "analysis", "analysisPerso", "mapAnalysis", "analysisClub", "analysisRace", "myMaps", "learn", "games", "vma", "runner", "ranking", "courses", "needCountry", "phoneSend", "entry"]);
 // The pages shown only to the accounts named Le Helloco (auth.owner): none since 2026-11-10 (owner: « Apprendre », its three
 // tabs, for everyone; « Définitions de postes » and « Symboles de carte » were the owner's from 2026-10-31)
 const OWNER_ROUTES = new Set([]);
@@ -168,12 +171,14 @@ function parseHash(hash = location.hash) {
     : head === "reseau" ? "network"
     : head === "compte" ? "account"
     : head === "reglages" ? "settings"
+    : head === "monclub" ? "myClub"
     : head === "contact" ? "contact"
     : head === "admin" ? "admin"
     : head === "resultats" || head === "recemment" || head === "provisoires" ? "provisional"     // #/recemment, #/provisoires: old addresses
     : head === "analyse-course" || head === "temps-inter" ? "splits"     // « Analyse de course » (« Temps intermédiaires » until 2026-10-23)
     : head === "direct" ? "live"
-    : head === "horaire" || head === "horaires" ? "booking"
+    : head === "inscription" || head === "horaire" || head === "horaires" ? "entry"     // #/horaire?course=: the start-time booking of before
+    : head === "mes-inscriptions" ? "myEntries"
     : head === "deposer" ? "deposit"
     : head === "analyse" ? "analysis"
     : head === "analyse-solo" || head === "analyse-perso" ? "analysisPerso"     // « Analyse solo » (« Analyse perso » until 2026-10-15)
@@ -491,7 +496,7 @@ export function moduleMenus() {
 const ROUTE_MODULE = { club: "stats", clubcompare: "stats", relays: "stats", ask: "stats", deposit: "orga",
   orgManage: "orga", orgTracer: "orga", orgAnalyses: "orga", orgResults: "orga", orgStarts: "orga", orgDirect: "orga",
   orgMapper: "carto", virtually: "pixel",
-  agenda: "arena", provisional: "arena", splits: "arena", live: "arena", booking: "arena", myMaps: "coach", track: "coach" };
+  agenda: "arena", provisional: "arena", splits: "arena", live: "arena", entry: "arena", myEntries: "arena", myMaps: "coach", track: "coach" };
 /** Where a module opens: its first page (Arena: the competitions). */
 // Stats opens on the ranking (owner, 2026-10-30: the page every visitor has), the others on their menu's first page
 // Coach and Orga open on their pages as tiles, Stats too on a phone (owner, 2026-10-31: every choice in sight at once; a
@@ -605,7 +610,7 @@ function renderHeader(r) {
       ${me ? html`
       <div class="nav-group user-menu" data-group="me">
         <button type="button" class="nav-top user-btn" aria-expanded="false" aria-label="${t("auth.menu")}"
-          ${raw(["methods", "settings", "contact", "admin"].includes(route) ? 'aria-current="true"' : "")}>
+          ${raw(["methods", "settings", "myClub", "contact", "admin"].includes(route) ? 'aria-current="true"' : "")}>
           <span class="user-name">${(({ first, last }) => html`<span>${first}</span>${last ? html`<span>${last}</span>` : ""}`)(nameParts(me.nom))}</span>
           <svg class="user-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4.4 3.6-7 8-7s8 2.6 8 7"/></svg>${caret}</button>
         <div class="nav-menu">
@@ -613,6 +618,8 @@ function renderHeader(r) {
           <a href="${homeOf()}" ${raw(route === "hub" ? 'aria-current="page"' : "")}>${t("mod.pick")}</a>
           <a href="${docHref}" ${raw(route === "methods" ? 'aria-current="page"' : "")}>${t("nav.docs")}</a>
           <a href="#/reglages" ${raw(route === "settings" ? 'aria-current="page"' : "")}>${t("st.link")}</a>
+          ${me.demo ? "" : html`<a href="#/monclub" ${raw(route === "myClub" ? 'aria-current="page"' : "")}>${t("cl.myClub")}</a>`}
+          ${me.demo ? "" : html`<a href="#/mes-inscriptions" ${raw(route === "myEntries" ? 'aria-current="page"' : "")}>${t("nav.myEntries")}</a>`}
           ${me.demo ? "" : html`<button type="button" id="install-btn" ${raw(pwa.installState() === "ready" ? "" : "hidden")}>${t("pwa.menu")}</button>`}
           <a href="#/contact?${new URLSearchParams({ from: location.hash || "#/" })}" ${raw(route === "contact" ? 'aria-current="page"' : "")}>${t("ct.link.menu")}</a>
           ${me.admin ? html`<a href="#/admin" ${raw(route === "admin" ? 'aria-current="page"' : "")}>${t("admin.link")}</a>` : ""}
@@ -931,7 +938,7 @@ async function siteChanged() {
 // signed-in visit opening on one — the modules page, Coach's tools, Réglages — no longer waits for those files (1.6 MB
 // and 0.5 MB for France); they load once the page is drawn, for the pages that follow. Keep it to pages checked so.
 const NO_RUNNERS = new Set(["hub", "orgaOff", "modtiles", "games", "vma", "learn", "nutrition", "nutritionWrite",
-  "myMaps", "track", "settings", "contact", "orgMapper", "needCountry", "phoneSend"]);
+  "myMaps", "track", "settings", "myClub", "contact", "orgMapper", "needCountry", "phoneSend", "entry", "myEntries"]);
 // the pages a text loaded late never draws again (i18n « ocn:i18n-late »): they hold work in hand
 const NO_REDRAW = new Set(["orgTracer", "orgMapper", "analysis", "analysisPerso", "analysisOrga", "analysisClub", "analysisRace",
   "orgAnalyses", "orgManage", "orgDirect", "deposit", "games", "virtually", "learn", "nutritionWrite", "myMaps", "track"]);
@@ -956,8 +963,9 @@ async function route_() {
   // other page leads to the modules page
   const me = auth.session();
   // a link to someone's maps (« Mes cartes », #/mes-cartes?partage=…) opened without an account: the visit goes on as a visitor's
-  // (and a competition's start times opened to booking, #/horaire?course=…: its link goes round the clubs; its grid is public)
-  if (!me && !auth.guest() && ((r.route === "myMaps" && r.query.partage) || (r.route === "booking" && r.query.course))) {
+  // (and an event's entry form, #/inscription?ev=… — #/horaire?course=… before: its link goes round the clubs; its list of
+  // entrants is public, and a visitor enters through the registration blended with the entry)
+  if (!me && !auth.guest() && ((r.route === "myMaps" && r.query.partage) || (r.route === "entry" && (r.query.ev || r.query.course)))) {
     try { await ensurePass({ force: true }); auth.setGuest(true); await data.reloadCountry(); } catch (e) { /* the login page then */ }
   }
   const guest = !me && auth.guest();
@@ -1129,7 +1137,7 @@ async function route_() {
 
 // the pages a visit may open on that draw no chart (none of their modules calls charts.js's builders, checked 2026-11-06):
 // the first of them shown needs no ECharts (app.route_); keep it to pages checked so
-const NO_CHARTS = new Set(["track", "hub", "orgaOff", "overview", "modtiles", "agenda", "mapAnalysis", "account", "phoneSend", "booking",
+const NO_CHARTS = new Set(["track", "hub", "orgaOff", "overview", "modtiles", "agenda", "mapAnalysis", "account", "phoneSend", "entry", "myEntries", "myClub",
   "analysis", "analysisPerso", "analysisOrga", "games", "vma", "learn"]);
 let routed = false;
 /** Redraws the page for another method without moving anything (owner, 2026-10-12): no loading screen, the page keeps

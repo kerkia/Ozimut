@@ -27,10 +27,13 @@
 //   GET|PUT|DELETE /api/mapper/<id>/photo/<pid>
 //   POST|DELETE /api/mapper/<id>/presence   { sector?, at? } -> { editors, version } (also at …/lock, its former name)
 //   GET|POST|DELETE /api/mapper/<id>/invites, POST /api/mapper/<id>/join   as the Tracer's
+// A team may also hold club groups (docs/clubs/design.md §1, `orgGroups: [{ org, role: "mapper" }]`, set by the owner's PUT
+// { orgGroups }, a club the owner belongs to): the club's mappers are mappers, resolved at read time (_lib/orgs.js).
 
 import { allow, json, readBody, withUser, nowIso, isAdmin } from "../../_lib/api.js";
 import { showModule } from "../../_lib/modules.js";
 import { newToken, randomBytes, sha256hex } from "../../_lib/crypto.js";
+import { cleanGroups, groupsText, inGroups, inGroupsIndexed, rightsIndex } from "../../_lib/orgs.js";
 
 const META = "mapper-meta/", DATA = "mapper/";
 const MAX_DOC = 60 * 1024 * 1024, MAX_FILE = 80 * 1024 * 1024, MAX_SMALL = 4 * 1024 * 1024, MAX_PHOTO = 4 * 1024 * 1024, MAX_VERSIONS = 60, MAX_MAPS = 40;
@@ -49,7 +52,8 @@ async function presence(env, base) {
 
 const summary = (m) => ({ id: m.id, title: m.title, owner: String(m.owner), ownerName: m.ownerName || "",
   uids: m.team.filter((x) => x.uid).map((x) => x.uid).join(","), scale: String(m.scale || ""), standard: m.standard || "",
-  place: m.place ? `${m.place.lat},${m.place.lon}` : "", updated: m.updated || "", version: String(m.version || 0), objects: String(m.objects || 0) });
+  place: m.place ? `${m.place.lat},${m.place.lon}` : "", updated: m.updated || "", version: String(m.version || 0), objects: String(m.objects || 0),
+  groups: groupsText(m.orgGroups) });
 async function loadMeta(env, id) {
   const o = await env.BUCKET.get(`${META}${id}.json`);
   if (!o) return null;
@@ -103,9 +107,12 @@ export const onRequest = withUser(async (ctx, user) => {
     if (method === "GET") {
       const out = [];
       const all = await listAll(env, META);
+      let rights = null;                             // the account's rights in its clubs, for the club groups (read once)
       for (const o of all) {
         const m = o.customMetadata || {};
-        const mine = Number(m.owner) === user.id, member = (m.uids || "").split(",").includes(String(user.id));
+        if (m.groups && !rights) rights = await rightsIndex(env, user);
+        const mine = Number(m.owner) === user.id, member = (m.uids || "").split(",").includes(String(user.id))
+          || (!!m.groups && inGroupsIndexed(rights, m.groups));
         if (!mine && !member) continue;
         out.push({ id: m.id, title: m.title, ownerName: m.ownerName, mine, scale: Number(m.scale) || null, standard: m.standard || "",
           place: m.place || "", updated: m.updated, objects: Number(m.objects) || 0 });
@@ -137,7 +144,8 @@ export const onRequest = withUser(async (ctx, user) => {
   if (!/^[a-z0-9]{8,16}$/.test(id)) return json({ error: "not found" }, 404);
   const meta = await loadMeta(env, id);
   if (!meta) return json({ error: "not found" }, 404);
-  const role = roleOf(meta, user);
+  // a club group's mappers are mappers (resolved at read time)
+  const role = roleOf(meta, user) || ((await inGroups(env, user, meta.orgGroups)) ? "mapper" : null);
   const sub = parts[1] || "";
   const base = `${DATA}${id}/`;
   if (sub === "join" && method === "POST") {
@@ -170,6 +178,10 @@ export const onRequest = withUser(async (ctx, user) => {
       if (b.place !== undefined) meta.place = placeOf(b.place);
       if (b.objects != null) meta.objects = Math.max(0, Number(b.objects) | 0);
       if (b.source !== undefined) meta.source = b.source ? { name: clean(b.source.name, 200), kind: clean(b.source.kind, 20), version: Number(b.source.version) || 0 } : null;
+      if (b.orgGroups !== undefined) {
+        if (meta.owner !== user.id) return json({ error: "forbidden" }, 403);
+        meta.orgGroups = await cleanGroups(env, user, (b.orgGroups || []).map((g) => ({ ...g, role: "mapper" })), meta.orgGroups || []);
+      }
       if (b.team != null) {
         if (meta.owner !== user.id) return json({ error: "forbidden" }, 403);
         if (!Array.isArray(b.team) || b.team.length > 60) return json({ error: "team" }, 400);

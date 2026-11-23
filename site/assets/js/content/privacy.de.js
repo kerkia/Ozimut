@@ -135,15 +135,42 @@ export const body = (SITE, { world = false } = {}) => `
       <p>Sobald die Verfolgung für alle offen ist, legt niemand unter 15 allein ein Konto an: Die Registrierung fragt nach dem Geburtsjahr, und für ein jüngeres Kind legt ein Elternteil das Konto an und verwaltet es, ohne E-Mail-Adresse und Passwort. Der Elternteil verbindet die Geräte des Kindes, wählt, wer es verfolgen darf, und kann das Konto jederzeit löschen; ein zweiter Elternteil kann per Einladung hinzugefügt werden. Das Konto eines Kindes speichert nur Vorname, Nachname, Geburtsjahr, gegebenenfalls die Lizenznummer und die Spuren. Ein eigenes Konto, das jemand unter 15 bereits eröffnet hat, wartet darauf, dass ein Elternteil verbunden wird: Bis dahin bleiben seine Spuren privat und es werden keine Warnungen gesendet. Ab 15 kann der junge Mensch sein Konto selbst übernehmen (eigene Adresse und eigenes Passwort); seine Spuren und sein Verlauf bleiben seine, und seine Eltern werden zu Personen, die ihn verfolgen dürfen, was er ändern kann. Löscht ein Elternteil sein Konto, wird das Konto eines Kindes, dessen einziger Elternteil er war, mit allen Spuren gelöscht.</p>
       <h2 style="font-size:16px">Zeitmessung (Ozimut Chrono)</h2>
       <p>Ozimut Chrono, das Zeitmessungswerkzeug der Veranstalter (im Test, vorerst nur für die Administratoren der Website), arbeitet zuerst auf dem Computer des Veranstalters: Die Teilnehmer eines Laufs (Name, Vorname, Verein, Kategorie, Lizenznummer, Chipnummer, Startzeit, Startgeld und Zahlung), der Inhalt der ausgelesenen Chips und die von Hand vorgenommenen Korrekturen werden dort im Browser oder in der App gespeichert. Ist die Station mit Ozimut verbunden, werden diese Vorgänge auf Ozimut kopiert, damit der Lauf auf einem anderen Computer übernommen werden kann; nur die Veranstalter des Anlasses haben darauf Zugriff, und nichts wird ohne ihr Zutun veröffentlicht (Live-Resultate, Veröffentlichung der Resultate). Die Lizenzdatei des Verbands und die von Lauf zu Lauf gemerkten Chipnummern bleiben auf dem Computer des Veranstalters: Sie werden nicht an Ozimut gesendet.</p>
-      <h2 style="font-size:16px">Reservierung der Startzeiten</h2>
-      <p>Wenn die Veranstalter eines Wettkampfs die Reservierung der Startzeiten öffnen, reserviert ein Konto einen Start für sich
-        und für die Läufer, die es unter „Meine Läufer“ hinzufügt (seine Familie, Freunde, mit oder ohne Verein): ihr Vor- und
-        Nachname, der Verein und sein Land, die FFCO-Lizenznummer, falls angegeben, und die Chipnummer, falls die Veranstalter danach
-        fragen. Das Konto, das sie hinzufügt, verpflichtet sich, dies mit ihrem Einverständnis zu tun. Das Raster der Startzeiten
-        (Name und Verein jedes Läufers) ist öffentlich, wie eine Startliste; Lizenz- und Chipnummer sehen nur das Konto, das
-        reserviert hat, und die Veranstalter. Bei Schluss der Reservierung werden die Reservierungen zur veröffentlichten Startliste
-        des Wettkampfs. „Meine Läufer“ und die Reservierungen für kommende Wettkämpfe werden mit dem Konto gelöscht; die vergangener
-        Wettkämpfe bleiben in deren Startliste.</p>
+      <h2 style="font-size:16px">Vereine (Mein Verein)</h2>
+      <p>Ein Verein, ein Komitee oder ein Landesverband entsteht auf Ozimut, sobald ein Konto ihn braucht. In Frankreich ist ein Konto,
+        dessen Lizenz die eines Vereins ist (der Verein seines letzten Laufs in den veröffentlichten Ergebnissen), automatisch dessen
+        Mitglied; anderswo bittest du um Aufnahme in einen Verein oder wirst über einen Link eingeladen. Die Mitglieder eines Vereins
+        sehen die Namen der anderen Mitglieder und ihre Rollen (Verantwortliche, Veranstalter, Kartografen, Kassenwarte); die
+        Verantwortlichen sehen außerdem die offenen Anfragen. Ein Vorstandsmitglied, das das Verzeichnis des Verbands nennt (Präsident,
+        Sekretär, Kassenwart: Der Name des Kontos wird mit dem des Verzeichnisses verglichen), wird sofort Verantwortlicher des Vereins,
+        alle anderen nach Zustimmung der Administratoren der Website. Die Einstellungen des Vereins (welche Anmeldungen er übernimmt, sein
+        Bankkonto, seine Kontaktadresse) sehen nur seine Verantwortlichen und Kassenwarte; Kontoinhaber und IBAN werden nur denen
+        gezeigt, die sich zu einem Lauf des Vereins gemeldet haben oder ihm etwas schulden.</p>
+      <h2 style="font-size:16px">Anmeldungen zu Läufen</h2>
+      <p>Wenn die Veranstalter einer Veranstaltung die Anmeldungen öffnen, meldet ein Konto sich selbst an, ebenso die Läufer, die es zu „Meine
+        Läufer“ hinzufügt (Familie, Freunde, mit oder ohne Lizenz: Es verpflichtet sich, das mit ihrem Einverständnis zu tun), und die
+        Konten seiner Kinder. Eine Anmeldung speichert Vorname, Nachname, Verein und dessen Land, die Lizenznummer, falls angegeben, das
+        Geburtsjahr, das Geschlecht und die Altersklasse, die gewählte Kategorie, die Chipnummer oder einen Leihchip, die Optionen, die
+        Startzeit, den bei der Anmeldung festgelegten Betrag, wer ihn zahlt (der Läufer oder sein Verein), den Verwendungszweck und den
+        Zahlungsstand (offen, bezahlt, erlassen, und wie). Eine Anmeldung ohne Konto legt ein Konto an wie die Registrierung auf der
+        Website; sie bleibt offen, bis die E-Mail-Adresse bestätigt ist, und wird nach drei Tagen ohne Bestätigung storniert. Das Team der
+        Veranstaltung sieht all das; die öffentliche Anmeldeliste zeigt nur Name, Verein, Kategorie und Startzeit, nie Lizenznummer, Chip,
+        Geburtsjahr, Betrag oder Zahlung. Die Veranstalter können auch Angemeldete aus einer Datei einlesen; sie sind dafür verantwortlich.
+        Bei Anmeldeschluss werden die Startzeiten zur veröffentlichten Startliste. Wird ein Konto gelöscht, werden seine Anmeldungen und die,
+        die es für andere zu kommenden Läufen gemacht hat, storniert; die vergangener Läufe behalten die Namen der Läufer in den
+        Unterlagen der Veranstalter, ohne Verbindung zum Konto. „Meine Läufer“ wird mit dem Konto gelöscht.</p>
+      <h2 style="font-size:16px">Vereinskonten</h2>
+      <p>Keine Zahlung läuft über Ozimut: Überweisungen, Bargeld und Schecks gehen direkt zwischen Personen und Vereinen, und Ozimut
+        speichert nur, was das Team einer Veranstaltung oder der Kassenwart eines Vereins als bezahlt markiert. Betrag und Stand einer
+        Anmeldung sehen der Läufer und das Konto, das ihn angemeldet hat, das Team der Veranstaltung, die Kassenwarte und Verantwortlichen
+        des veranstaltenden Vereins und, wenn der Verein des Läufers die Anmeldung übernimmt, dessen Kassenwarte und Verantwortliche. Für
+        jedes Mitglied und jede Saison speichert ein Verein in seinen Konten, was er übernommen hat, was das Mitglied erstattet hat und
+        welche Abrechnungen er ihm geschickt hat; seine Kassenwarte und Verantwortlichen sehen das, und jedes Mitglied sieht sein
+        eigenes Konto. Die Jahresabrechnung und die Zahlungserinnerungen werden auf Wunsch des Kassenwarts im Namen des Vereins per
+        E-Mail verschickt (Erinnerungen auch als Benachrichtigung); Antworten gehen an die Kontaktadresse des Vereins. Der Kontoauszug,
+        den ein Kassenwart ablegt, wird in seinem Browser gelesen und nie an Ozimut gesendet: Nur die erkannten und angekreuzten
+        Verwendungszwecke werden gesendet, um die Zahlungen zu markieren. Die Verrechnung zwischen zwei Vereinen, die sie beide
+        akzeptiert haben, dient nur zur Information. Wird ein Konto gelöscht, bleiben die Einträge in den Vereinskonten, die es betreffen,
+        in diesen Konten, ohne Verbindung zum Konto.</p>
       <h2 style="font-size:16px">Von deinem Handy</h2>
       <p>„Vom Handy“ bringt ein Foto der Karte oder eine Datei (einen Track) von deinem Handy auf deinen Computer: Die Datei wartet im Speicher der Website (Cloudflare) unter einem Einmal-Link, 15 Minuten gültig, und wird gelöscht, sobald der Computer sie empfangen hat oder du das Fenster mit dem Code schließt; eine nie empfangene Datei wird spätestens am nächsten Tag gelöscht. Weder der Link noch die Datei tragen deinen Namen, und auf dem Handy ist kein Konto nötig.</p>
       <h2 style="font-size:16px">Gesundheit: Artikel und Urheberrecht</h2>
@@ -297,5 +324,5 @@ export const body = (SITE, { world = false } = {}) => `
       <p><b>Danksagung:</b> Die Symbole und Texte der Postenbeschreibungen (Coach › Postenbeschreibungen, die Bahnlegung)
         stammen aus Purple Pen von Peter Golde (<a href="https://github.com/petergolde/PurplePen" target="_blank" rel="noopener">github.com/petergolde/PurplePen</a>),
         unter der <a href="assets/tracer/LICENSE-PurplePen.txt" target="_blank" rel="noopener">BSD-Lizenz</a>.</p>
-      <p class="muted">Letzte Aktualisierung: 22. November 2026.</p>
+      <p class="muted">Letzte Aktualisierung: 23. November 2026.</p>
 `;

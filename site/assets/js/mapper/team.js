@@ -31,15 +31,23 @@ async function members(E) {
   const d = await S.card(E.id);
   const inv = await S.invites(E.id).catch(() => ({ invites: [] }));
   const m = d.map, mine = d.role === "owner";
+  // the club groups (docs/clubs/design.md §1): « les cartographes du club » on the team (../clubgroups.js, loaded when needed)
+  const CG = mine ? await import("../clubgroups.js").catch(() => null) : null;
+  const groupsHtml = CG ? await CG.groupsBlock(m.orgGroups, "mapper").catch(() => "") : "";
+  let groups;
   const v = await modal(E, { title: t("map.team.members"), wide: true, ok: mine ? t("map.dlg.save") : t("map.dlg.close"), cancel: mine ? t("map.dlg.cancel") : "",
     body: `<table class="data"><thead><tr><th>${esc(t("map.team.name"))}</th><th>${esc(t("map.team.role"))}</th></tr></thead><tbody>
       <tr><td>${esc(m.ownerName)}</td><td>${esc(t("map.team.owner"))}</td></tr>
       ${m.team.map((x, i) => `<tr><td>${esc(x.name)}</td><td>${mine ? sel(`r${i}`, [["mapper", t("map.team.mapper")], ["viewer", t("map.team.viewer")], ["", t("map.team.remove")]], x.role) : esc(t(`map.team.${x.role}`))}</td></tr>`).join("")}</tbody></table>
-      ${inv.invites?.length ? `<h3>${esc(t("map.team.links"))}</h3><ul class="mp-list">${inv.invites.map((x) => `<li>${esc(t(`map.team.${x.role}`))} · ${esc(t("map.team.until", { date: when(x.expires) }))} <button type="button" class="btn btn-sm" data-revoke="${x.n}">${esc(t("map.team.revoke"))}</button></li>`).join("")}</ul>` : ""}`,
-    onOpen: (form) => form.addEventListener("click", async (ev) => { const b = ev.target.closest("[data-revoke]"); if (b) { await S.revoke(E.id, b.dataset.revoke); b.closest("li").remove(); } }) });
+      ${inv.invites?.length ? `<h3>${esc(t("map.team.links"))}</h3><ul class="mp-list">${inv.invites.map((x) => `<li>${esc(t(`map.team.${x.role}`))} · ${esc(t("map.team.until", { date: when(x.expires) }))} <button type="button" class="btn btn-sm" data-revoke="${x.n}">${esc(t("map.team.revoke"))}</button></li>`).join("")}</ul>` : ""}
+      ${groupsHtml}`,
+    onOpen: (form) => {
+      form.addEventListener("click", async (ev) => { const b = ev.target.closest("[data-revoke]"); if (b) { await S.revoke(E.id, b.dataset.revoke); b.closest("li").remove(); } });
+      if (CG && groupsHtml) { groups = CG.readGroups(form); form.addEventListener("change", () => { groups = CG.readGroups(form); }); }
+    } });
   if (!v || !mine) return;
   const team = m.team.map((x, i) => ({ uid: x.uid, role: v[`r${i}`] })).filter((x) => x.role);
-  await S.setCard(E.id, { team });
+  await S.setCard(E.id, { team, ...(groups !== undefined ? { orgGroups: groups } : {}) });
   E.say(t("map.team.saved"));
 }
 async function versionSave(E) {

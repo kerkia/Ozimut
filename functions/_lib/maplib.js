@@ -19,6 +19,8 @@
 // been disallowed »): its « Mes cartes », Solo and ownerless Tracer maps not marked private are handed over (`handOver`: the
 // sources kept until the next steps copy them, then deleted), and the collection's maps lose its name and account (`forgetUser`);
 // its runs, comments and courses go.
+// A club's maps (docs/clubs/design.md §2, _lib/orgmaps.js) never enter it: a Tracer's event on a club map is marked private
+// (api/tracer's summary), and an analysis circuit drawn on one (its `orgMap`) is left out once and for all (an x/ record).
 // A sync step copies a few maps at a time (`budget`): from /api/track at most every 30 minutes an isolate, so that a map
 // deleted soon after it came is kept, and from the collection's page until nothing is left.
 import { clubLabel } from "./club.js";
@@ -108,7 +110,8 @@ async function sources(env, seen) {
       info: async () => {
         let full = null;
         try { full = await (await env.BUCKET.get(`analyses-meta/${m[1]}.json`))?.json(); } catch (err) { /* the summary's */ }
-        const c = (full?.courses || [])[Number(m[2])] || {};
+        const c = (full?.courses || []).find((x) => x.n === Number(m[2])) || (full?.courses || [])[Number(m[2])] || {};
+        if (c.orgMap) return null;                      // a club's map: never the administrators' (docs/clubs/design.md §2)
         return { src: "analysis", ref: m[1], uid: s(sm.owner), user: s(sm.ownerName), title: s([sm.title, c.name].filter(Boolean).join(" · ")), day: s(sm.date),
           club: s(sm.orgName), w: String(c.map?.w || ""), h: String(c.map?.h || ""), ...placeOf(c.geo, c.map?.w, c.map?.h) };
       } });
@@ -206,6 +209,7 @@ export async function syncStep(env, request, { budget = 4 } = {}) {
   const who = await people(env, request, pick.map((c) => c.uid));
   for (const c of pick) {
     const info = await c.info();
+    if (!info) { await env.BUCKET.put(keys.gone(c.etag), "", { customMetadata: { by: "club" } }); continue; }   // a club's map: left out
     const p = who[info.uid] || {};
     const meta = clean({ ...info, user: info.user || s(p.name), club: info.club || s(p.club), up: new Date().toISOString().slice(0, 10), from: c.key });
     if (await copy(env, c.key, keys.map(c.etag), meta)) {

@@ -260,6 +260,34 @@ export const runStart = (run) => {
 };
 export const RUN_ID = /^[ri]_\d{8}T\d{6}_[a-z0-9]{4,8}$/;
 
+/** A child's year of birth as accepted (25 years back at most), else null. */
+export const childBirth = (y) => { const n = Number(y), now = new Date().getUTCFullYear(); return Number.isInteger(n) && n >= now - 25 && n <= now ? n : null; };
+
+/**
+ * A child account made by its parent `me` (no e-mail, no password; docs/track/design.md « Data »): the tracking's « Famille »
+ * and the entry form's « Ajouter un enfant » (docs/clubs/design.md §3), whatever TRACK_OPEN says. `f`: { first, last,
+ * birthYear, licence, lang }. -> { ok, child (the users row) } or { error, status }.
+ */
+export async function createChild(env, me, f = {}) {
+  if (me.child) return { error: "forbidden", status: 403 };
+  const first = clean(f.first, 60), last = clean(f.last, 60) || me.last_name || "", by = childBirth(f.birthYear);
+  if (!first) return { error: "fields", status: 422 };
+  if (!by) return { error: "birthYear", status: 422 };
+  const n = await env.DB.prepare("SELECT COUNT(*) AS n FROM track_guardians WHERE parent_id = ?").bind(me.id).first();
+  if (n.n >= 12) return { error: "too many", status: 429 };
+  const email = `child-${[...randomBytes(6)].map((x) => x.toString(16).padStart(2, "0")).join("")}@${CHILD_DOMAIN}`;
+  const lic = String(f.licence || "").replace(/\s+/g, "").slice(0, 12);
+  const lang = ["fr", "en", "de", "es"].includes(f.lang) ? f.lang : ["fr", "en", "de", "es"].includes(me.lang) ? me.lang : "fr";
+  const row = await env.DB.prepare(`INSERT INTO users (email, pw_hash, pw_salt, pw_iter, first_name, last_name, licence, display_name,
+    consent_at, created_at, lang, email_verified, status) VALUES (?, '', '', 0, ?, ?, ?, ?, ?, ?, ?, 1, 'active') RETURNING *`)
+    .bind(email, first, last, lic, `${first} ${last}`.trim(), nowIso(), nowIso(), lang).first();
+  await env.DB.batch([
+    env.DB.prepare("UPDATE users SET child = 1, birth_year = ?, modules_checked = 1 WHERE id = ?").bind(by, row.id),
+    env.DB.prepare("INSERT INTO track_guardians (child_id, parent_id, created_at) VALUES (?, ?, ?)").bind(row.id, me.id, nowIso()),
+  ]);
+  return { ok: true, child: { ...row, child: 1, birth_year: by } };
+}
+
 /** A child account and everything tied to it deleted (its parent deletes it, or the last guardian's account goes). */
 export async function deleteChild(env, id) {
   await deleteAllRuns(env, id);

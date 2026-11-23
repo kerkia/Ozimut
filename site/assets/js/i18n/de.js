@@ -210,6 +210,7 @@ export default {
   "nav.docs": "Dokumentation",
   "auth.menu": "Mein Konto",
   "cl.myClub": "Mein Verein",
+  "cl.manageClub": "Den Verein unter „Mein Verein“ verwalten",
   "rk.noProgress": "Keine messbare Entwicklung für diese Auswahl.",
   "rk.findMe": "Meine Position",
   "rn.licenceNo": "Lizenz-Nr.",
@@ -1359,6 +1360,8 @@ export default {
   "ad.tab.conso": "Verbrauch",
   "ad.tab.perf": "Geschwindigkeit",
   "ad.lede.perf": "Wie lange die Seiten zum Anzeigen und Reagieren brauchen, gemessen in den Browsern angemeldeter Konten.",
+  "ad.tab.clubs": "Vereine",
+  "ad.lede.clubs": "Die Anfragen zur Verwaltung eines Vereins, die auf einen Administrator warten, und die auf Ozimut verwalteten Vereine.",
   "ad.pf.period": "Zeitraum", "ad.pf.days": "Letzte {n} Tage",
   "ad.pf.error": "Die Messwerte konnten nicht gelesen werden.",
   "ad.pf.notReady": "Noch wird kein Messwert gespeichert: Die Migration 0028 der Datenbank (Tabelle perf_daily) muss noch angewendet werden.",
@@ -5888,4 +5891,10 @@ export default {
   // « Cartographier » (Orga, 2026-11-06)
   "ms.s.996": "Hilfshöhenlinie (LiDAR)",
   "ms.sp.s.996": "Hilfshöhenlinie (LiDAR)",
+  // the entries (2026-11-22): the user menu, the Agenda
+  "nav.myEntries": "Meine Anmeldungen",
+  "agd.enter": "Anmelden",
+  "agd.entrants": "Gemeldete",
+  "agd.entriesTag": "Anmeldung",
+  "agd.entriesTip": "Anmeldung auf Ozimut offen",
 };

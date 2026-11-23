@@ -10,6 +10,9 @@
 //                                         conditions (owner, 2026-11-12: clear | overcast | rain | fog | snow; day | dusk | night;
 //                                         a night's headlamp normal | strong), drawn by games/vweather.js
 //   PUT    events/<id>/file/<map.ocd|courses.ocd|courses.xml>        the organiser's files (the body), kept privately in R2
+//   PUT    events/<id> { orgMap: { org, map, version } | null }      its map a club's (docs/clubs/design.md §2): the account may use
+//                                         that map in Pixel, its use written down (rights.pixel); sent after its map.ocd (which
+//                                         clears it)
 //   POST   events/<id>/build              the race package made by the workflow virtually.yml (GH_DISPATCH_TOKEN)
 //   DELETE events/<id>                    the event, its files, its package and its runs
 //   GET    events/<id>/pkg/<file>         its package (as virtual/<race>/ for the built-in maps), to whoever may play it
@@ -23,6 +26,7 @@
 // and the ranking read them all; only competitions count in the ranking.
 import { allow, currentUser, isAdmin, json, nowIso, readBody } from "../../../_lib/api.js";
 import { runnerHash } from "../../../_lib/virtual.js";
+import { checkSource, recordUse } from "../../../_lib/orgmaps.js";
 
 const EV = "virtual-events/", PKG = "virtual-ev/", REQ = "virtual-build/", RUNS = "virtual-runs/";
 const ID = /^e[a-z0-9]{9}$/, COURSE = /^[a-z0-9_]{1,24}$/;
@@ -44,7 +48,8 @@ function mayPlay(env, user, ev) {
 /** What everyone may know of an event (never who made it, beyond the name shown). */
 const view = (ev, extra = {}) => ({ id: ev.id, name: ev.name, type: ev.type, from: ev.from || "", to: ev.to || "", source: ev.source,
   status: ev.status, published: !!ev.published, org: ev.orgName || "", courses: ev.courses || [], std: ev.std || "", scale: ev.scale || 0,
-  lonlat: ev.lonlat || null, thumb: !!ev.thumb, open: ev.type === "training" || openNow(ev), env: cleanEnv(ev.env), mapOpt: cleanMapOpt(ev.mapOpt, ev), ...extra });
+  lonlat: ev.lonlat || null, thumb: !!ev.thumb, open: ev.type === "training" || openNow(ev), env: cleanEnv(ev.env), mapOpt: cleanMapOpt(ev.mapOpt, ev),
+  orgMap: ev.orgMap ? { org: ev.orgMap.org, name: ev.orgMap.name || "" } : null, ...extra });
 
 async function getEvent(env, id) {
   if (!ID.test(id || "")) return null;
@@ -255,6 +260,7 @@ export async function onRequestPut(ctx) {
     if (!size || size > INPUTS[path[2]]) return json({ error: "size", max: INPUTS[path[2]] }, 413);
     await env.BUCKET.put(`${EV}${ev.id}/${path[2]}`, request.body, { httpMetadata: { contentType: "application/octet-stream" } });
     if (path[2] !== "map.ocd") ev.coursesFrom = "file";
+    else delete ev.orgMap;                               // another map: no longer the club's (PUT { orgMap } says it again)
     ev.status = ev.status === "ready" ? "stale" : ev.status === "failed" ? "draft" : ev.status;
     await putEvent(env, ev);
     return json({ ok: true, size });
@@ -267,6 +273,15 @@ export async function onRequestPut(ctx) {
   if (b?.to !== undefined) ev.to = cleanDate(b.to);
   if (b?.env !== undefined) ev.env = cleanEnv(b.env);
   if (b?.mapOpt !== undefined) ev.mapOpt = cleanMapOpt(b.mapOpt, ev);
+  if (b?.orgMap !== undefined) {
+    if (!b.orgMap) delete ev.orgMap;
+    else {
+      const club = await checkSource(env, user, b.orgMap, "pixel").catch(() => ({ ok: false }));
+      if (!club.ok) return json({ error: "orgmap" }, 403);
+      ev.orgMap = club.src;
+      await recordUse(env, club.src, { tool: "pixel", ref: ev.id, title: ev.name }, user);
+    }
+  }
   if (b?.courses !== undefined && ev.source === "ocad") ev.coursesFrom = b.courses === "file" ? "file" : "proposed";
   if (b?.published !== undefined) {
     if (b.published && !["ready", "stale"].includes(ev.status)) return json({ error: "not built" }, 400);

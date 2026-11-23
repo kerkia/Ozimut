@@ -50,8 +50,6 @@ export async function render(main, { query = {} } = {}) {
       main.innerHTML = html`<div class="card"><div class="empty">${t("os.notMine")}</div></div>`;
       return { title: t("os.title") };
     }
-    // the start times opened to booking (2026-11-03): pages/bookingorg.js
-    if (query.resa) return (await import("./bookingorg.js")).renderBooking(main, race);
     return deposit(main, race);
   }
   main.innerHTML = html`
@@ -61,9 +59,9 @@ export async function render(main, { query = {} } = {}) {
     ${me?.admin ? html`<div class="filters"><label class="field"><span>${t("sh.org.filter")}</span><input id="os-filter" placeholder="${t("sh.org.filter.ph")}" style="width:240px"></label></div>` : ""}
     <section class="card"><div class="table-wrap" id="os-list"></div></section>
     <p class="muted" style="font-size:12.5px;margin:10px 2px 0">${t("os.hint")}</p>`;
-  // the competitions whose start times are open to booking, or were (api/booking: the coming ones, open or closed)
-  const booked = new Map(((await fetch("api/booking", { credentials: "same-origin", cache: "no-store" }).then((r) => (r.ok ? r.json() : null)).catch(() => null))?.events || [])
-    .map((x) => [x.key, x.status]));
+  // the competitions whose entries are open on Ozimut, or were (api/entries/open: the coming ones; 2026-11-22, the booking's heir)
+  const booked = new Map(((await fetch("api/entries/open", { credentials: "same-origin", cache: "no-store" }).then((r) => (r.ok ? r.json() : null)).catch(() => null))?.forms || [])
+    .filter((x) => x.key).map((x) => [x.key, x.state === "open" ? "open" : "closed"]));
   const status = (x) => {
     const bk = booked.get(x.key);
     const tag = bk ? html` <span class="tag ${bk === "open" ? "tag-in" : ""}">${t(bk === "open" ? "os.bk.open" : "os.bk.closed")}</span>` : "";

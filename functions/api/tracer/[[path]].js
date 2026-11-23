@@ -39,12 +39,20 @@
 //                                            most); lent: the map lent to whoever joins by it (no print or export of the map)
 //   DELETE /api/tracer/<id>/invites?n=…      revoke one
 //   POST   /api/tracer/<id>/join             { token } -> { role, joined }: any signed-in account (but a demo one) joins the team
+// A team may also hold club groups (docs/clubs/design.md §1, `orgGroups: [{ org, role: "organiser" }]`, set by PUT { orgGroups }
+// by a member of that club): the club's organisers are setters, resolved at read time (_lib/orgs.js).
+// A club's map (docs/clubs/design.md §2, _lib/orgmaps.js): POST and PUT take `orgMap: { org, map, version }` (null clears it),
+// checked — the account may use that map in the Tracer, its use written down — and kept as the event's source; the event's map
+// is then out of the administrators' collection (as « Carte privée »), and lent to every member of the team who may not
+// download the club's file (GET's `lent`: no print or export of the map).
 
 import { allow, isAdmin, json, readBody, withUser, nowIso } from "../../_lib/api.js";
 import { showModule } from "../../_lib/modules.js";
 import { newToken, randomBytes, sha256hex } from "../../_lib/crypto.js";
 import { clubOf, findRace, orgCode, organises } from "../../_lib/club.js";
 import { isMember, ready as eventsReady, shortName } from "../../_lib/events.js";
+import { cleanGroups, groupsText, inGroups, inGroupsIndexed, rightsIndex } from "../../_lib/orgs.js";
+import { checkSource, mayDownload, recordUse } from "../../_lib/orgmaps.js";
 
 const META = "tracer-meta/", DATA = "tracer/";
 const MAX_MAP = 80 * 1024 * 1024, MAX_EVENT = 12 * 1024 * 1024, MAX_SMALL = 4 * 1024 * 1024, MAX_PHOTO = 4 * 1024 * 1024, MAX_VERSIONS = 120;
@@ -57,7 +65,8 @@ const LOCK_MS = 150e3;
 
 const summary = (m) => ({ id: m.id, kind: m.kind, title: m.title, date: m.date, race: m.race || "", event: m.event || "", orgClub: m.orgClub || "", owner: String(m.owner),
   ownerName: m.ownerName || "", team: m.team.filter((x) => x.lic).map((x) => x.lic).join(","),
-  uids: m.team.filter((x) => x.uid).map((x) => x.uid).join(","), enc: m.encrypted ? "1" : "", priv: m.mapPrivate ? "1" : "", updated: m.updated || "", version: String(m.version || 0) });
+  uids: m.team.filter((x) => x.uid).map((x) => x.uid).join(","), enc: m.encrypted ? "1" : "", priv: m.mapPrivate || m.orgMap ? "1" : "", updated: m.updated || "", version: String(m.version || 0),
+  groups: groupsText(m.orgGroups) });
 async function loadMeta(env, id) {
   const o = await env.BUCKET.get(`${META}${id}.json`);
   if (!o) return null;
@@ -109,8 +118,10 @@ export const onRequest = withUser(async (ctx, user) => {
   if (!env.BUCKET) return json({ error: "storage not configured" }, 500);
   const parts = [].concat(params.path || []).map(String).filter(Boolean);
   const method = request.method;
-  let clubMemo;
+  let clubMemo, groupMemo;
   const lazyClub = async () => (clubMemo === undefined ? (clubMemo = await clubOf(env, request, user.licence)) : clubMemo);
+  // the account's rights in its clubs, for the teams' club groups (_lib/orgs.js), read once
+  const lazyRights = async () => (groupMemo === undefined ? (groupMemo = await rightsIndex(env, user)) : groupMemo);
 
   /** An event of Orga (functions/api/events) the account is on the team of (an administrator: any), or null. */
   const orgaEvent = async (eid) => {
@@ -132,7 +143,7 @@ export const onRequest = withUser(async (ctx, user) => {
         const m = o.customMetadata || {};
         if (m.event !== ev.id && !(ev.race_key && m.race === ev.race_key)) continue;
         const member = Number(m.owner) === user.id || (!!user.licence && (m.team || "").split(",").includes(String(user.licence)))
-          || (m.uids || "").split(",").includes(String(user.id));
+          || (m.uids || "").split(",").includes(String(user.id)) || (!!m.groups && inGroupsIndexed(await lazyRights(), m.groups));
         // the name as FFCO writes it, « SURNAME First »: the first name is its last word
         const words = String(m.ownerName || "").trim().split(/\s+/), first = words.pop() || "", rest = words;
         out.push({ id: m.id, kind: m.kind, title: m.title, date: m.date, member, encrypted: !!m.enc, updated: m.updated,
@@ -147,7 +158,7 @@ export const onRequest = withUser(async (ctx, user) => {
         const m = o.customMetadata || {};
         // (by licence or by account; no licence matches no team member: "".split gives [""])
         const mine = Number(m.owner) === user.id, member = (!!user.licence && (m.team || "").split(",").includes(String(user.licence)))
-          || (m.uids || "").split(",").includes(String(user.id));
+          || (m.uids || "").split(",").includes(String(user.id)) || (!!m.groups && inGroupsIndexed(await lazyRights(), m.groups));
         if (!mine && !member) continue;
         out.push({ id: m.id, kind: m.kind, title: m.title, date: m.date, race: m.race, event: m.event || "", ownerName: m.ownerName, mine, encrypted: !!m.enc, updated: m.updated });
       }
@@ -155,7 +166,10 @@ export const onRequest = withUser(async (ctx, user) => {
       const url = new URL(request.url);
       const stats = url.searchParams.get("stats") && isAdmin(env, user)
         ? { events: (await listAll(env, META, false)).length, bytes: (await listAll(env, DATA, false)).reduce((s, o) => s + o.size, 0) } : null;
-      return json({ events: out, club: await lazyClub(), stats });
+      // `clubs`: the French clubs whose competitions the account may set courses for as an organiser of the club (an org)
+      const clubs = [];
+      for (const [, R] of await lazyRights()) if (R.organise && R.code) clubs.push(R.code);
+      return json({ events: out, club: await lazyClub(), clubs, stats });
     }
     if (method === "POST") {
       const b = await readBody(request);
@@ -176,9 +190,13 @@ export const onRequest = withUser(async (ctx, user) => {
         // a competition: by a member of its organising club, the account that declared it (or an administrator)
         if (!(await organises(env, request, user, r, await lazyClub()))) return json({ error: "not organiser" }, 403);
       }
+      // a club's map: the account may use it here (its use written down)
+      const club = b.orgMap ? await checkSource(env, user, b.orgMap, "tracer").catch(() => ({ ok: false })) : null;
+      if (club && !club.ok) return json({ error: "orgmap" }, 403);
       const meta = { id: newId(), kind, title, date, race, orgClub, ...(orga ? { event: orga.id } : {}), owner: user.id, ownerName: user.display_name || "", ownerLic: String(user.licence || ""),
-        team: [], encrypted: null, mapPrivate: !!b.mapPrivate, created: nowIso(), updated: nowIso(), version: 0, map: null };
+        team: [], encrypted: null, mapPrivate: !!b.mapPrivate || !!club, ...(club ? { orgMap: club.src } : {}), created: nowIso(), updated: nowIso(), version: 0, map: null };
       await saveMeta(env, meta);
+      if (club) await recordUse(env, club.src, { tool: "tracer", ref: meta.id, title }, user);
       await showModule(env, user.id, "orga");        // what the account starts here shows its module (_lib/modules.js, owner 2026-11-12)
       return json({ id: meta.id });
     }
@@ -189,7 +207,8 @@ export const onRequest = withUser(async (ctx, user) => {
   if (!/^[a-z0-9]{8,16}$/.test(id)) return json({ error: "not found" }, 404);
   const meta = await loadMeta(env, id);
   if (!meta) return json({ error: "not found" }, 404);
-  const role = roleOf(meta, user);
+  // a club group's organisers are setters (resolved at read time)
+  const role = roleOf(meta, user) || ((await inGroups(env, user, meta.orgGroups)) ? "setter" : null);
   const sub = parts[1] || "";
   const base = `${DATA}${id}/`;
   // an invitation link: whoever opens it signed in joins with the link's role (one already in the team keeps theirs)
@@ -215,7 +234,9 @@ export const onRequest = withUser(async (ctx, user) => {
       const held = lock && lock.until > Date.now() && lock.uid !== user.id ? lock : null;
       // lent: the map lent to this member (the team's choice: set courses on it, neither print nor export it — the editor refuses)
       const me = meta.team.find((x) => (x.uid && Number(x.uid) === user.id) || (x.lic && user.licence && String(x.lic) === String(user.licence)));
-      return json({ event: meta, role, lent: role !== "owner" && !!me?.lent, you: { uid: user.id, lic: String(user.licence || ""), name: user.display_name || "" }, lock: held });
+      // a club's map is lent to whoever may not download its file (docs/clubs/design.md §2)
+      const clubLent = meta.orgMap ? !(await mayDownload(env, user, meta.orgMap).catch(() => false)) : false;
+      return json({ event: meta, role, lent: (role !== "owner" && !!me?.lent) || clubLent, you: { uid: user.id, lic: String(user.licence || ""), name: user.display_name || "" }, lock: held });
     }
     if (method === "PUT") {
       if (role !== "owner" && role !== "setter") return json({ error: "forbidden" }, 403);
@@ -243,6 +264,17 @@ export const onRequest = withUser(async (ctx, user) => {
           ? { salt: e.salt, check: e.check, iter: Number(e.iter) || 250000 } : null;
       }
       if (b.mapPrivate !== undefined) meta.mapPrivate = !!b.mapPrivate;
+      if (b.orgMap !== undefined) {
+        if (!b.orgMap) delete meta.orgMap;
+        else {
+          const club = await checkSource(env, user, b.orgMap, "tracer").catch(() => ({ ok: false }));
+          if (!club.ok) return json({ error: "orgmap" }, 403);
+          meta.orgMap = club.src; meta.mapPrivate = true;
+          await recordUse(env, club.src, { tool: "tracer", ref: meta.id, title: meta.title }, user);
+        }
+      }
+      // the club groups (« les organisateurs du club »): a club the account belongs to; those it may not add kept as they were
+      if (b.orgGroups !== undefined) meta.orgGroups = (await cleanGroups(env, user, (b.orgGroups || []).map((g) => ({ ...g, role: "organiser" })), meta.orgGroups || []));
       // tied to an event of Orga, or no longer (its owner or a setter, a member of that event's team)
       if (b.event !== undefined) {
         if (b.event) { const orga = await orgaEvent(b.event); if (!orga) return json({ error: "event" }, 403); meta.event = orga.id; }

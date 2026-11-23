@@ -1,16 +1,18 @@
-// « Réservation des horaires » (owner, 2026-11-03): what the runners' page (pages/booking.js) and the organisers'
-// (pages/bookingorg.js) share — the API's calls (functions/api/booking/[[path]].js), the slots of a circuit, the club rule
-// as the server applies it (_lib/booking.js clubKey), the clubs one picks from (France's and Spain's lists, the clubs other
-// runners of the race typed for another country), and the runner's form (names, the club's country, the club, the card).
+// The entries and their start times (owner, 2026-11-03, then 2026-11-22: the booking became the entries' start times): what
+// the runners' page (pages/entry.js) and the organisers' tab (pages/entriesorg.js) share — the API's calls
+// (functions/api/entries/[[path]].js), the slots of a course, the club rule as the server applies it (_lib/booking.js clubKey),
+// the clubs one picks from (France's and Spain's lists, the clubs other runners of the race typed for another country), and the
+// runner's form (names, the club's country, the club, the card).
 
 import { html, $, $$ } from "./util.js";
-import { t } from "./i18n.js";
+import { t, locale } from "./i18n.js";
 import * as country from "./country.js";
+import { fmtMoney } from "./entryprice.js";
 
-/** A call to /api/booking; -> { ok, status, data }. */
+/** A call to /api/entries; -> { ok, status, data }. */
 export async function call(method, path, body) {
   try {
-    const r = await fetch(`api/booking${path}`, { method, credentials: "same-origin", cache: "no-store",
+    const r = await fetch(`api/entries${path}`, { method, credentials: "same-origin", cache: "no-store",
       headers: body ? { "Content-Type": "application/json" } : {}, body: body ? JSON.stringify(body) : undefined });
     let data = null;
     try { data = await r.json(); } catch (e) { /* none */ }
@@ -147,3 +149,8 @@ export const takenMap = (bookings) => new Map(bookings.map((b) => [`${b.c}|${b.s
 export const clashes = (bookings, ck, s, gap, except = null) => !!ck && gap > 0
   && bookings.some((b) => b.ck === ck && b.id !== except && Math.abs(b.s - s) < gap);
 export const qs = (sel, root) => $$(sel, root);
+
+/** The parts of an entry's price, worded: « Licenciés 9 € + location de puce 3 € » (entryprice.js's codes « @rent »…). */
+export function partsText(parts, cur) {
+  return (parts || []).map(([l, c]) => `${l.startsWith("@") ? t(`ent.part.${l.slice(1)}`) : l} ${fmtMoney(c, cur, locale())}`).join(" + ");
+}

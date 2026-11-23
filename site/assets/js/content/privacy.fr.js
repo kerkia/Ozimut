@@ -132,14 +132,40 @@ export const body = (SITE, { world = false } = {}) => `
       <p>Lorsque le suivi est ouvert à tous, personne ne crée de compte seul avant 15 ans : l'inscription demande l'année de naissance, et pour un enfant plus jeune c'est un parent qui crée et gère son compte, sans adresse e-mail ni mot de passe. Le parent associe les appareils de l'enfant, choisit qui peut le suivre et peut supprimer le compte à tout moment ; un second parent peut être ajouté par une invitation. Le compte d'un enfant ne garde que son prénom, son nom, son année de naissance, éventuellement son numéro de licence, et ses traces. Un compte personnel déjà ouvert par un jeune de moins de 15 ans attend qu'un parent y soit rattaché : jusque-là ses traces restent privées et aucune alerte n'est envoyée. À partir de 15 ans, le jeune peut prendre son compte en main (son adresse et son mot de passe), ses traces et son historique restant les siens, et ses parents devenant des personnes qui peuvent le suivre, ce qu'il peut changer. Lorsqu'un parent supprime son compte, le compte de l'enfant dont il était le seul parent est supprimé avec toutes ses traces.</p>
       <h2 style="font-size:16px">Chronométrage (Ozimut Chrono)</h2>
       <p>Ozimut Chrono, l'outil de chronométrage des organisateurs (en essai, réservé pour l'instant aux administrateurs du site), travaille d'abord sur l'ordinateur de l'organisateur : les inscrits d'une course (nom, prénom, club, catégorie, numéro de licence, numéro de puce, heure de départ, tarif et paiement), le contenu des puces lues et les corrections faites à la main y sont gardés dans le navigateur ou dans l'application. Quand le poste est relié à Ozimut, ces opérations sont copiées sur Ozimut pour que la course puisse être reprise sur un autre ordinateur ; seuls les organisateurs de l'événement y accèdent, et rien n'en est publié sans leur action (les résultats en direct, la publication des résultats). Le fichier des licenciés de la fédération et les numéros de puce retenus d'une course à l'autre restent sur l'ordinateur de l'organisateur : ils ne sont pas envoyés à Ozimut.</p>
-      <h2 style="font-size:16px">Réservation des horaires de départ</h2>
-      <p>Quand les organisateurs d'une compétition ouvrent la réservation de ses horaires de départ, un compte réserve un départ pour
-        lui-même et pour les coureurs qu'il ajoute à « Mes coureurs » (sa famille, des amis, licenciés ou non) : leur prénom, leur nom,
-        le club et son pays, le numéro de licence FFCO s'il est donné, et le numéro de puce si les organisateurs le demandent. Le compte
-        qui les ajoute s'engage à le faire avec leur accord. La grille des horaires (nom et club de chaque coureur) est publique, comme
-        une liste de départ ; le numéro de licence et le numéro de puce ne sont vus que du compte qui a réservé et des organisateurs. À la
-        clôture, les réservations deviennent la liste de départ publiée de la compétition. « Mes coureurs » et les réservations des
-        compétitions à venir sont supprimés avec le compte ; celles des compétitions passées restent dans leur liste de départ.</p>
+      <h2 style="font-size:16px">Clubs (Mon club)</h2>
+      <p>Un club, un comité ou une ligue existe sur Ozimut dès qu'un compte en a besoin. En France, un compte dont la licence est celle
+        d'un club (le club de sa dernière course dans les résultats publiés) en est membre d'office ; ailleurs, on demande à rejoindre
+        un club, ou on y est invité par un lien. Les membres d'un club voient les noms des autres membres et leurs rôles (responsable,
+        organisateur, cartographe, trésorier) ; ses responsables voient en plus les demandes en attente. Devenir responsable d'un club se
+        fait d'office pour un membre du bureau que l'annuaire de la fédération nomme (président, secrétaire, trésorier : le nom du compte
+        est comparé à celui de l'annuaire), et sinon après accord des administrateurs du site. Les réglages du club (qui prend en charge
+        les inscriptions, son compte bancaire, son adresse de contact) ne sont vus que de ses responsables et trésoriers ; le titulaire et
+        l'IBAN du compte ne sont montrés qu'à ceux qui se sont inscrits à une course du club ou qui lui doivent quelque chose.</p>
+      <h2 style="font-size:16px">Inscriptions aux courses</h2>
+      <p>Quand les organisateurs d'un événement ouvrent les inscriptions, un compte inscrit lui-même, les coureurs qu'il ajoute à « Mes
+        coureurs » (sa famille, des amis, licenciés ou non : il s'engage à le faire avec leur accord) et les comptes de ses enfants. Une
+        inscription garde le prénom, le nom, le club et son pays, le numéro de licence s'il est donné, l'année de naissance, le sexe et la
+        catégorie, la catégorie choisie, le numéro de puce ou la location d'une puce, les options, l'horaire de départ, le montant fixé à
+        l'inscription, qui le paie (le coureur ou son club), sa référence de paiement et son état (à payer, payé, offert, et comment). Une
+        inscription faite sans compte crée un compte comme l'inscription au site ; elle reste en attente jusqu'à la confirmation de
+        l'adresse e-mail et est annulée au bout de trois jours sans confirmation. L'équipe de l'événement voit toutes ces informations ;
+        la liste publique des inscrits ne montre que le nom, le club, la catégorie et l'horaire de départ, jamais le numéro de licence, la
+        puce, l'année de naissance, le montant ou le paiement. Les organisateurs peuvent aussi importer des inscrits d'un fichier ; ils en
+        répondent. À la clôture, les horaires deviennent la liste de départ publiée de la compétition. Lorsqu'un compte est supprimé, ses
+        inscriptions et celles qu'il a faites pour d'autres aux courses à venir sont annulées ; celles des courses passées gardent le nom
+        des coureurs dans les registres des organisateurs, sans plus être liées au compte. « Mes coureurs » est supprimé avec le compte.</p>
+      <h2 style="font-size:16px">Comptes des clubs</h2>
+      <p>Aucun paiement ne passe par Ozimut : les virements, espèces et chèques se font entre les personnes et les clubs, et Ozimut garde
+        seulement ce que l'équipe d'un événement ou le trésorier d'un club marque comme payé. Le montant d'une inscription et son état sont
+        vus du coureur et du compte qui l'a inscrit, de l'équipe de l'événement, des trésoriers et responsables du club organisateur et,
+        quand le club du coureur la prend en charge, de ses trésoriers et responsables. Pour chaque membre et chaque saison, un club garde
+        dans ses comptes ce qu'il a pris en charge, ce que le membre a remboursé et les relevés qu'il lui a envoyés ; ses trésoriers et
+        responsables le voient, et chaque membre voit son propre compte. Le relevé de fin d'année et les rappels de paiement sont envoyés
+        par e-mail (et en notification pour les rappels) au nom du club, à la demande de son trésorier, les réponses allant à l'adresse de
+        contact du club. Le relevé bancaire qu'un trésorier dépose est lu dans son navigateur et n'est jamais envoyé à Ozimut : seules
+        les références reconnues et cochées le sont, pour marquer les paiements. La compensation entre deux clubs qui l'ont acceptée
+        l'un et l'autre n'est qu'une information. Lorsqu'un compte est supprimé, les lignes des comptes des clubs qui le concernent restent
+        dans leurs comptes, sans plus être liées au compte.</p>
       <h2 style="font-size:16px">Depuis votre téléphone</h2>
       <p>« Depuis mon téléphone » fait passer une photo de la carte ou un fichier (une trace) de votre téléphone à votre ordinateur : le fichier attend dans l'espace de stockage du site (Cloudflare) sous un lien à usage unique, valable 15 minutes, et il est effacé dès que l'ordinateur l'a reçu ou que vous fermez la fenêtre du code ; un fichier jamais reçu est effacé au plus tard le lendemain. Ni le lien ni le fichier ne portent votre nom, et aucun compte n'est demandé sur le téléphone.</p>
       <h2 style="font-size:16px">Santé : articles et droits d'auteur</h2>
@@ -292,5 +318,5 @@ export const body = (SITE, { world = false } = {}) => `
       <p><b>Crédits :</b> les symboles et les textes des définitions de postes (Coach › Définitions de postes, le tracé des circuits)
         viennent de Purple Pen, de Peter Golde (<a href="https://github.com/petergolde/PurplePen" target="_blank" rel="noopener">github.com/petergolde/PurplePen</a>),
         sous <a href="assets/tracer/LICENSE-PurplePen.txt" target="_blank" rel="noopener">licence BSD</a>.</p>
-      <p class="muted">Dernière mise à jour : 22 novembre 2026.</p>
+      <p class="muted">Dernière mise à jour : 23 novembre 2026.</p>
 `;

@@ -119,14 +119,38 @@ export const body = (SITE, { world = false } = {}) => `
       <p>Once tracking is open to everyone, nobody under 15 creates an account alone: registration asks for the year of birth, and for a younger child a parent creates and manages the account, with no email address or password. The parent pairs the child's devices, chooses who may follow them and may delete the account at any time; a second parent can be added by an invitation. A child's account keeps only the first name, last name, year of birth, possibly the licence number, and the tracks. A personal account already opened by someone under 15 waits for a parent to be attached: until then its tracks stay private and no alert is sent. From 15 the young person may take the account in hand (their own address and password), their tracks and history remaining theirs, and their parents becoming people who may follow them, which they can change. When a parent deletes their account, the account of a child they were the only parent of is deleted with all its tracks.</p>
       <h2 style="font-size:16px">Race timing (Ozimut Chrono)</h2>
       <p>Ozimut Chrono, the organisers' race-timing tool (on trial, for the site's administrators only for now), works first on the organiser's computer: a race's entries (family and given name, club, class, licence number, card number, start time, fee and payment), the content of the cards read and the corrections made by hand are kept there, in the browser or in the app. When the station is linked to Ozimut, these operations are copied to Ozimut so that the race can be taken over on another computer; only the event's organisers reach them, and nothing is published without their action (live results, the publication of the results). The federation's file of licensees and the card numbers remembered from one race to the next stay on the organiser's computer: they are not sent to Ozimut.</p>
-      <h2 style="font-size:16px">Start time booking</h2>
-      <p>When a competition's organisers open its start times to booking, an account books a start for itself and for the runners
-        it adds to “My runners” (its family, friends, members of a club or not): their first and last names, the club and its
-        country, the FFCO licence number if given, and the card number if the organisers ask for it. The account that adds them
-        undertakes to do so with their agreement. The grid of start times (each runner's name and club) is public, as a start list
-        is; the licence and card numbers are seen only by the account that booked and by the organisers. At the closing, the
-        bookings become the competition's published start list. “My runners” and the bookings of competitions still to come are
-        deleted with the account; those of past competitions stay in their start list.</p>
+      <h2 style="font-size:16px">Clubs (My club)</h2>
+      <p>A club, a committee or a league exists on Ozimut as soon as an account needs it. In France, an account whose licence is a
+        club's (the club of its latest race in the published results) is a member of it automatically; elsewhere, one asks to join a
+        club, or is invited by a link. A club's members see the names of the other members and their roles (manager, organiser, mapper,
+        treasurer); its managers also see the requests waiting. A member of the board the federation's directory names (president,
+        secretary, treasurer: the account's name is compared with the directory's) becomes a club's manager at once; anyone else after
+        the site's administrators agree. The club's settings (which entries it pays for, its bank account, its contact address) are seen
+        only by its managers and treasurers; the account holder and IBAN are shown only to those who entered one of the club's races or
+        owe it something.</p>
+      <h2 style="font-size:16px">Race entries</h2>
+      <p>When an event's organisers open entries, an account enters itself, the runners it adds to “My runners” (family, friends,
+        licensed or not: it undertakes to do so with their consent) and its children's accounts. An entry keeps the first name, last
+        name, club and its country, the licence number if given, the year of birth, sex and age category, the class chosen, the card
+        number or a rented card, the options, the start time, the amount fixed when entering, who pays it (the runner or their club),
+        its payment reference and its state (due, paid, waived, and how). An entry made without an account creates an account as
+        registering on the site does; it waits until the e-mail address is confirmed and is cancelled after three days without
+        confirmation. The event's team sees all of this; the public list of entrants shows only the name, club, class and start time,
+        never the licence number, card, year of birth, amount or payment. Organisers may also import entrants from a file; they answer
+        for it. At the closing, the start times become the competition's published start list. When an account is deleted, its entries
+        and those it made for others to coming races are cancelled; those of past races keep the runners' names in the organisers'
+        records, no longer tied to the account. “My runners” is deleted with the account.</p>
+      <h2 style="font-size:16px">Club accounts</h2>
+      <p>No payment goes through Ozimut: transfers, cash and cheques are made between people and clubs, and Ozimut only keeps what
+        an event's team or a club's treasurer marks as paid. An entry's amount and state are seen by the runner and the account that
+        entered them, the event's team, the organising club's treasurers and managers and, when the runner's club pays for it, that
+        club's treasurers and managers. For each member and season, a club keeps in its accounts what it paid for, what the member
+        repaid and the statements it sent them; its treasurers and managers see it, and each member sees their own account. The
+        year-end statement and payment reminders are sent by e-mail (and as a notification for reminders) in the club's name, at its
+        treasurer's request, replies going to the club's contact address. The bank statement a treasurer drops is read in their browser
+        and never sent to Ozimut: only the references recognised and ticked are, to mark the payments. Netting between two clubs that
+        have both accepted it is information only. When an account is deleted, the lines of the clubs' accounts about it stay in their
+        accounts, no longer tied to the account.</p>
       <h2 style="font-size:16px">From your phone</h2>
       <p>“From my phone” takes a photo of the map or a file (a trace) from your phone to your computer: the file waits in the site's storage (Cloudflare) under a one-time link, valid for 15 minutes, and is deleted as soon as the computer has received it or you close the code's window; a file never received is deleted the next day at the latest. Neither the link nor the file carries your name, and no account is needed on the phone.</p>
       <h2 style="font-size:16px">Health: articles and copyright</h2>
@@ -265,5 +289,5 @@ export const body = (SITE, { world = false } = {}) => `
       <p><b>Credits:</b> the control description symbols and texts (Coach › Control descriptions, the course setting) come from Purple
         Pen, by Peter Golde (<a href="https://github.com/petergolde/PurplePen" target="_blank" rel="noopener">github.com/petergolde/PurplePen</a>),
         under the <a href="assets/tracer/LICENSE-PurplePen.txt" target="_blank" rel="noopener">BSD licence</a>.</p>
-      <p class="muted">Last updated: 22 November 2026.</p>
+      <p class="muted">Last updated: 23 November 2026.</p>
 `;

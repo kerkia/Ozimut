@@ -932,6 +932,11 @@ async function team(E) {
   const rows = (meta.team || []).map((m) => ({ ...m }));
   const roles = [["setter", t("trc.dlg.roleSetter")], ["controller", t("trc.dlg.roleController")], ["viewer", t("trc.dlg.roleViewer")]];
   const roleName = (r) => roles.find(([k]) => k === r)?.[1] || r;
+  // the club groups (docs/clubs/design.md §1): « les organisateurs du club » on the team (../clubgroups.js; loaded here, not
+  // with the editor, so that the Tracer offline never needs it)
+  const CG = owner ? await import("../clubgroups.js").catch(() => null) : null;
+  const groupsHtml = CG ? await CG.groupsBlock(meta.orgGroups, "organiser").catch(() => "") : "";
+  let groups;
   const render = (box) => {
     box.innerHTML = `<table class="tr-table"><thead><tr><th>${esc(t("trc.dlg.member"))}</th><th>${esc(t("trc.dlg.role"))}</th><th></th></tr></thead><tbody>
       <tr><td>${esc(meta.ownerName)}${meta.ownerLic ? ` <small>(${esc(meta.ownerLic)})</small>` : ""}</td><td>${esc(t("trc.dlg.creator"))}</td><td></td></tr>
@@ -945,6 +950,7 @@ async function team(E) {
   const v = await modal(E, { title: t("trc.dlg.team"), wide: true, ok: owner ? t("trc.dlg.save") : t("trc.dlg.close"), cancel: owner ? t("trc.dlg.cancel") : null, body: `
     <p>${esc(t("trc.dlg.teamIntro"))}</p>
     <div id="tr-team"></div>
+    ${groupsHtml}
     ${owner ? `<h3>${esc(t("trc.dlg.invite"))}</h3><p><small>${esc(t("trc.dlg.inviteHint"))}</small></p>
       <div class="tr-row">${field(t("trc.dlg.role"), sel("inv-role", roles, "controller"))}<label class="tr-check" title="${esc(t("trc.dlg.lentTip"))}"><input type="checkbox" name="inv-lent"> ${esc(t("trc.dlg.lent"))}</label>
         <button type="button" class="btn btn-sm" id="tr-invite">${esc(t("trc.dlg.inviteMake"))}</button></div>
@@ -953,6 +959,7 @@ async function team(E) {
   onOpen: (f) => {
     const box = f.querySelector("#tr-team");
     render(box);
+    if (CG && groupsHtml) { groups = CG.readGroups(f); f.addEventListener("change", () => { groups = CG.readGroups(f); }); }
     // invitation links (owner, 2026-10-20: the one way to join, for everyone): made for a role, passed on by hand, revocable
     const links = f.querySelector("#tr-links");
     const linkOf = (token) => `${location.origin}/#/orga-tracer?id=${encodeURIComponent(meta.id)}&invite=${encodeURIComponent(token)}`;
@@ -987,7 +994,8 @@ async function team(E) {
     });
   } });
   if (!v || !owner) return;
-  const r = await S.api(`/${meta.id}`, { method: "PUT", body: { team: rows.map((m) => (m.uid ? { uid: m.uid, role: m.role, lent: !!m.lent } : { lic: m.lic, role: m.role, lent: !!m.lent })) } });
+  const r = await S.api(`/${meta.id}`, { method: "PUT", body: { team: rows.map((m) => (m.uid ? { uid: m.uid, role: m.role, lent: !!m.lent } : { lic: m.lic, role: m.role, lent: !!m.lent })),
+    ...(groups !== undefined ? { orgGroups: groups } : {}) } });
   E.meta = r.event;
   E.toast(t("trc.dlg.teamSaved"));
 }

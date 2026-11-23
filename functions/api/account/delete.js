@@ -4,11 +4,16 @@ import { checkPassword } from "../../_lib/crypto.js";
 import { handOver, soloHandOver, forgetUser, tracerInfo } from "../../_lib/maplib.js";
 import { runnerHash } from "../../_lib/virtual.js";
 import { deleteAllRuns, deleteChild } from "../../_lib/track.js";
+import { forgetAccount } from "../../_lib/entries.js";
+import { managersOf, orgsOf, ready as orgsReady } from "../../_lib/orgs.js";
 
 export const onRequestPost = withUser(async ({ request, env }, user) => {
   const b = await readBody(request);
   if (!(await allow(env, `pwchange:${user.id}`, 8, 600))) return json({ error: "rate" }, 429);
   if (!(await checkPassword(String(b?.password || ""), user, env))) return json({ error: "invalid" }, 401);
+  // the last manager of a claimed club with other members names another first (docs/clubs/design.md §6; migration 0030)
+  const held = await lastManagerOf(env, user.id);
+  if (held.length) return json({ error: "last_manager", orgs: held }, 409);
   // the account's traces on shared analyses (R2: analyses/<id>/trace-<n>-<uid>.json), an administrator's test traces too
   // (uid 1e9 + account × 1000 + k: api/analyses)
   if (env.BUCKET) {
@@ -227,14 +232,16 @@ export const onRequestPost = withUser(async ({ request, env }, user) => {
   try { await env.DB.prepare("DELETE FROM nut_likes WHERE user_id = ?").bind(user.id).run(); } catch (e) {}      // its likes go
   // the relay simulator's added runners (a table that may not exist yet: migration 0008)
   try { await env.DB.prepare("DELETE FROM relay_runners WHERE user_id = ?").bind(user.id).run(); } catch (e) {}
-  // « Réservation des horaires » (migration 0023): its runners go, and its bookings of races still to come (their slots free
-  // again); those of past races, now in the published start lists, keep the runners' names but no longer the account
+  // the entries (migration 0031; docs/clubs/design.md §3): its runners (« Mes coureurs ») go, its entries to come — its own and
+  // those it made for others — are cancelled, its past entries keep the names for the organisers' records, no longer the
+  // account; the same for a child account whose last guardian it is (deleted with it below)
+  try { await env.DB.prepare("DELETE FROM booking_runners WHERE user_id = ?").bind(user.id).run(); } catch (e) { /* before migration 0023 */ }
+  await forgetAccount(env, user.id);
   try {
-    await env.DB.batch([env.DB.prepare("DELETE FROM booking_runners WHERE user_id = ?").bind(user.id),
-      env.DB.prepare(`DELETE FROM bookings WHERE user_id = ? AND by_org = 0 AND race_key IN
-        (SELECT race_key FROM booking_events WHERE race_date >= date('now'))`).bind(user.id),
-      env.DB.prepare("UPDATE bookings SET user_id = 0 WHERE user_id = ?").bind(user.id)]);
-  } catch (e) { /* before migration 0023 */ }
+    const { results: lastKids } = await env.DB.prepare(`SELECT child_id AS id FROM track_guardians g WHERE parent_id = ?
+      AND NOT EXISTS (SELECT 1 FROM track_guardians h WHERE h.child_id = g.child_id AND h.parent_id != g.parent_id)`).bind(user.id).all();
+    for (const k of lastKids) await forgetAccount(env, k.id);
+  } catch (e) { /* before migration 0029 */ }
   // « Orga › Gérer » (migration 0026): it leaves its teams and its requests go; an event whose last member it was stays, in
   // the administrators' hands (what it published remains)
   try {
@@ -258,6 +265,17 @@ export const onRequestPost = withUser(async ({ request, env }, user) => {
       env.DB.prepare("DELETE FROM track_polar WHERE user_id = ?").bind(user.id),
     ]);
   } catch (e) { /* before migration 0029 */ }
+  // its clubs (migration 0030): its memberships and the invitation links it made go
+  try {
+    await env.DB.batch([env.DB.prepare("DELETE FROM org_members WHERE user_id = ?").bind(user.id),
+      env.DB.prepare("DELETE FROM org_invites WHERE created_by = ?").bind(user.id)]);
+  } catch (e) { /* before migration 0030 */ }
+  // its clubs' ledgers (migration 0031): the rows stay in the clubs' accounts (what was carried, repaid, billed), no longer tied
+  // to the account
+  try {
+    await env.DB.batch([env.DB.prepare("UPDATE club_ledger SET user_id = NULL WHERE user_id = ?").bind(user.id),
+      env.DB.prepare("UPDATE club_ledger SET by_user = NULL WHERE by_user = ?").bind(user.id)]);
+  } catch (e) { /* before migration 0031 */ }
   try {                                       // the devices' push subscriptions and what was sent to them (migration 0010)
     await env.DB.batch([env.DB.prepare("DELETE FROM push_subs WHERE user_id = ?").bind(user.id),
       env.DB.prepare("DELETE FROM push_sent WHERE user_id = ?").bind(user.id),
@@ -273,3 +291,19 @@ export const onRequestPost = withUser(async ({ request, env }, user) => {
   ]);
   return json({ ok: true }, 200, { "Set-Cookie": clearCookie() });
 });
+
+/** The claimed clubs whose only manager in force the account is while other members remain: [{ id, name }]. */
+async function lastManagerOf(env, uid) {
+  try {
+    if (!(await orgsReady(env))) return [];
+    const out = [];
+    for (const m of await orgsOf(env, uid)) {
+      if (m.org.state !== "claimed" || !m.roles.has("manager") || m.state !== "ok") continue;
+      const mgrs = await managersOf(env, m.org.id);
+      if (mgrs.length !== 1 || mgrs[0] !== uid) continue;
+      const n = await env.DB.prepare("SELECT COUNT(*) AS n FROM org_members WHERE org_id = ? AND user_id != ? AND state = 'ok'").bind(m.org.id, uid).first();
+      if (Number(n?.n) > 0) out.push({ id: m.org.id, name: m.org.name });
+    }
+    return out;
+  } catch (e) { return []; }
+}

@@ -2935,7 +2935,49 @@ Every multiple-choice game was played through to its score page at phone size, w
   file to its organisers). `localstart.js` keeps card numbers and bibs (IOF `ControlCard` / `BibNumber`, « Puce », « SI », « Dossard »
   columns, OE's chip in PDFs) and a table's rows without a start time (`nostart`), the browser's only: the server drops them. A race's
   published start list on « Résultats » gives its organisers (and administrators) the same file, without card numbers.
-- **Réservation des horaires** (owner, 2026-11-03: the Google Sheets clubs pass round for runners to put their names down for a start
+- **Clubs, entries and club accounts** (« Part D » of the study of paid plans, `C:\Kerkia\Ozimut\work\study\payments`; owner,
+  2026-11-22: « build the whole of part D now »; built 2026-11-23). **The contract is `docs/clubs/design.md`: change it first, then
+  the code.** Every payment stays outside Ozimut (transfers between people and clubs, cash at the desk): Ozimut says who owes what to
+  whom, keeps what was marked paid and draws up the statements. Migrations **0030_orgs.sql** (orgs, org_members, org_settings,
+  org_invites, org_netting, org_maps, org_map_versions; `events.org_id`, `users.org_checked`) and **0031_entries.sql** (entry_forms,
+  entries, entry_refs, club_ledger) — every route answers 503 « not ready » before them, and the pages say so. **Clubs**
+  (`_lib/orgs.js`, `api/orgs`, « Mon club » `#/monclub`, route `myClub`, area `club`; admin tab « Clubs », `pages/adminclubs.js`):
+  an org per club, committee, league or federation (France's created lazily from `fr/clubdir.json`); roles manager, organiser,
+  mapper, treasurer (`can(env, user, org, right)`); France's members by their licence's club, synced once a Paris day from
+  `/api/account/me` (`syncFederation`); **a claim**: an officer listed in `fr/clubdir_contacts.json` as president, secretary or
+  treasurer becomes manager at once, anyone else waits for an administrator (owner, 2026-11-22); guests by invitation link; a
+  club's organisers on its events' teams when « équipe par défaut » is on (`_lib/events.js canManage` → `clubTeam`, read at read
+  time), its calendar links verified at once, a non-organiser's waiting for the club's managers (`link_state` « club »); club
+  groups in the Tracer's and Cartographier's teams (`orgGroups`, `clubgroups.js`); a role given shows the Orga or Carto module.
+  **The club's maps** (`_lib/orgmaps.js`, `api/orgmaps`, `pages/clubmaps.js` — the tab « Cartes » —, area `orgmaps`): R2
+  `orgmaps/<org>/<map>/v<n>/…`, view and thumbnail made by the browser, versions, embargo, rights written down (Pixel only with
+  `rights.pixel`), 3 GB a club (`ORGMAPS_QUOTA_MB`), share links; « Une carte du club » (`orgmapuse.js`) in the Tracer's new event
+  (lent to organisers without the download right), the map analysis's circuit editor and a Pixel event's map; never in the
+  administrators' collection. **Entries** (`_lib/entries.js`, `api/entries`, `entryprice.js`, `_lib/signup.js`; area `entries`):
+  the Orga tab « Inscriptions et départs » (key `departs`, `pages/entriesorg.js`: the form — classes, prices, fields, payment,
+  refund rule —, the list, imports CSV / OE / IOF XML / Google Sheet, by hand, exports, start times booked / drawn with Chrono's
+  `draw.js` / deposited, publication, « Relevé bancaire », « Envoyer les inscriptions à Chrono »); Arena's `#/inscription?ev=`
+  and `#/mes-inscriptions` (`pages/entry.js`; `#/horaire?course=` leads there; the Agenda's « S'inscrire » from
+  `/api/entries/open`); **the list of entrants is public** (names, clubs, classes, starts); **registration blended with the
+  entry** for a visitor (an account made with it, the entries `pending` until the e-mail is confirmed); **minors through child
+  accounts** managed by their parents (`_lib/track.js createChild`, not gated by `TRACK_OPEN`); prices fixed on the entry, one
+  reference « OZ-XXXX » per payer and event. The start-time booking of 0023 is replaced (its pages removed, `api/booking`
+  answers 410 « moved »; its tables unused, `booking_runners` stays as « Mes coureurs »). **Who pays** (`_lib/clubpolicy.js
+  payerFor`): the runner, or the runner's club under its policy (self, champ, all, case; recover) for runners it recognises.
+  **Club accounts** (`api/accounts`, `pages/clubaccounts.js` — the tab « Comptes » —, `bankstatement.js`, area `accounts`):
+  à recevoir, à payer, members' ledger and year-end bills (PDF by pdf-lib, mail in the club's name), netting between clubs that
+  accepted each other (owner, 2026-11-22), the bank statement (CSV, OFX, CAMT.053) read in the browser, only matched lines sent,
+  reminders, a CSV journal. **Chrono's desk** (`_lib/entrychrono.js`, `_lib/chronolog.js`): the entries written as runners by a
+  server station `ozimut` of the event's log `e<id>`, the desk's changes read back; `/api/chrono` opens to the event's team.
+  The privacy page's sections « Clubs », « Inscriptions », « Comptes des clubs » (23 November 2026) and the guides describe it.
+  **Never tried with real clubs**; no real bank's statement file tried yet. Local test: launch config `pages-dev-partd` (8756,
+  `.wrangler/state-partd-final`: two claimed clubs, events, entries, accounts; test accounts `t10x@example.test`); the agents'
+  scripts (`t_orgs.mjs`, `t_api.mjs`, `t_guest.mjs`, `t_orgmaps.mjs`, `t_acc.mjs`, `t_chrono.mjs`) kept in
+  `C:\Kerkia\Ozimut\work\scratch-scripts\partd`. **`/api/track` was answered by `api/track/[[path]].js`** (its optional
+  catch-all matches `/api/track` itself) from 2026-11-21 to 23: page views went uncounted and the hooks they run (CI runs the site
+  starts, Santé's translations, the robots' copy, the entry forms' closing) did not run; the catch-all now hands an empty path to
+  `api/track.js`.
+- **Réservation des horaires** (owner, 2026-11-03: (**replaced by the entries on 2026-11-23**, below) the Google Sheets clubs pass round for runners to put their names down for a start
   time — Balise 77's: three tabs of three circuits, a start every 2 minutes, long and short on the odd minutes, the middle one on the
   even, « 4 minutes between two runners of a club »): **Orga › Horaires › « Ouvrir la réservation »** (each row of Horaires' list has the button beside « Déposer les horaires », « Gérer la réservation » once opened — owner, 2026-11-05: it was found only inside a competition's page; `#/orga-horaires?course=<key>&resa=1`,
   `pages/bookingorg.js`, organisers as for the start lists: `_lib/club.js` `organises`; competitions `a<agenda id>` and `d<declared id>`)

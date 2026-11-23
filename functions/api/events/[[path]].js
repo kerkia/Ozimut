@@ -6,9 +6,11 @@
 // (_lib/club.js organises → _lib/events.js canManage).
 //   GET    /api/events                     the account's events, its requests waiting, and (to its teams) the requests to answer
 //   GET    /api/events?all=1               every active event (administrators)
+//   GET    /api/events?org=<id>            a club's events (its members; docs/clubs/design.md §1)
 //   GET    /api/events/find                the events of others one may ask to join (60 days back to 400 ahead)
 //   GET    /api/events/holders?keys=a1,a2  which events hold these competitions { key: { id, name, by, mine } }
 //   GET    /api/events/pending             the links waiting for an administrator (administrators)
+//   GET    /api/events/pending?org=<id>    the links waiting for that club's managers (its managers; docs/clubs/design.md §1)
 //   POST   /api/events                     { kind, form (or type), country, name, date, place, club, terrain, epreuve, site, link? } a new event
 //   POST   /api/events/migrate             administrators: events made from what organisers did before (idempotent)
 //   GET    /api/events/<id>                members: the event, its team and requests; others: what the join screen needs
@@ -16,7 +18,8 @@
 //   DELETE /api/events/<id>                members: removed, with the map analysis it holds (2026-11-22); its start list and
 //                                          results in Arena stay for a linked competition, an unlinked one's go
 //   POST   /api/events/<id>/link           members: { key } linked (or a request to the administrators), { key: null } detached
-//   POST   /api/events/<id>/approve        administrators: { ok } a waiting link approved or refused
+//   POST   /api/events/<id>/approve        administrators: { ok } a waiting link approved or refused; a link waiting for the
+//                                          club's managers (link_state « club »): those managers too
 //   POST   /api/events/<id>/join           anyone but members: { message? } a request to join the team
 //   POST   /api/events/<id>/requests/<rid> members: { accept } — the request's author: { withdraw: true }
 //   DELETE /api/events/<id>/members/<uid>  members: a member removed, or oneself (never the last one: delete the event instead)
@@ -30,6 +33,7 @@ import { eventPush } from "../../_lib/templates.js";
 import { broadcasts } from "../../_lib/live.js";
 import { startRun } from "../upload.js";
 import { showModule } from "../../_lib/modules.js";
+import { can, clubTeam, creatorOrg, orgByCode, ready as orgsReady, rightsIndex, rightsOf, rolesOf, settingsOf } from "../../_lib/orgs.js";
 
 const TERRAINS = ["Forêt", "Sprint", "VTT", "Ski"];
 const FORMATS = ["Sprint", "MD", "LD", "Nuit", "Autre"];
@@ -60,8 +64,10 @@ const members = async (env, id) => (await env.DB.prepare(`SELECT m.user_id, m.jo
   FROM event_members m JOIN users u ON u.id = m.user_id WHERE m.event_id = ? ORDER BY m.joined_at`).bind(id).all()).results;
 const isMember = async (env, id, uid) => !!(await env.DB.prepare("SELECT 1 FROM event_members WHERE event_id = ? AND user_id = ?").bind(id, uid).first());
 const view = (e) => ({ id: e.id, type: e.type, kind: kindOf(e.type), form: formOf(e.type), country: e.country, name: e.name, date: e.date, place: e.place, club: e.club, terrain: e.terrain,
-  epreuve: e.epreuve, site: e.site, race: e.race_key || null, link: e.link_key || null, linkState: e.link_state, analysis: e.analysis || null,
-  created: e.created_at, updated: e.updated_at });
+  epreuve: e.epreuve, site: e.site, race: e.race_key || null, link: e.link_key || null,
+  // a link waiting for the club's managers (« club ») reads as one waiting, `linkWait` saying who decides
+  linkState: e.link_state === "club" ? "pending" : e.link_state, linkWait: e.link_state === "club" ? "club" : e.link_state === "pending" ? "admin" : null,
+  org: e.org_id || null, analysis: e.analysis || null, created: e.created_at, updated: e.updated_at });
 
 // a competition of the federation's calendar: the agenda's « a<id> » (coming, and kept by « Résultats » after the race), or a
 // race FFCO published that the agenda never had (« f<id> », « x<…> ») — never a declared « d » nor an uploaded « u » one
@@ -82,10 +88,46 @@ async function inClub(env, request, user, race) {
   const code = orgCode(race?.org);
   return !!code && (await clubOf(env, request, user.licence)) === code;
 }
+/**
+ * How a link to a calendar competition starts (docs/clubs/design.md §1): « verified » for an administrator and an organiser of
+ * the competition's organising club; a member of that club too, unless the club, claimed, keeps its events to its organisers
+ * (settings.events_by) — then « club », waiting for its managers; anyone else « pending », waiting for an administrator.
+ * Without a claimed club the rule of before: a member of the organising club (the club of its latest race).
+ */
+async function linkStateFor(env, request, user, race, admin) {
+  if (admin) return { state: "verified", org: null };
+  const code = orgCode(race?.org);
+  const org = code && (await orgsReady(env)) ? await orgByCode(env, request, "FR", "club", code, { create: true }).catch(() => null) : null;
+  if (org && org.state === "claimed") {
+    const R = rightsOf(await rolesOf(env, user.id, org.id));
+    if (R.organise) return { state: "verified", org };
+    if (R.member || (await inClub(env, request, user, race))) {
+      return { state: (await settingsOf(env, org.id)).events_by === "members" ? "verified" : "club", org };
+    }
+    return { state: "pending", org };
+  }
+  return { state: (await inClub(env, request, user, race)) ? "verified" : "pending", org };
+}
+/** The events made before migration 0030 take their French club by its number, once a club's events are asked for. */
+async function backfillOrg(env, orgId) {
+  try {
+    const o = await env.DB.prepare("SELECT cc, kind, code FROM orgs WHERE id = ?").bind(orgId).first();
+    if (o?.cc !== "FR" || o.kind !== "club" || !/^\d{4}$/.test(o.code)) return;
+    await env.DB.prepare("UPDATE events SET org_id = ? WHERE org_id IS NULL AND country = 'FR' AND (club = ? OR club GLOB ?)")
+      .bind(orgId, o.code, `${o.code}[^0-9]*`).run();
+  } catch (e) { /* before migration 0030 */ }
+}
+/** Stores an event's club (migration 0030; nothing before it). */
+async function setOrg(env, id, orgId) {
+  if (!orgId) return;
+  try { await env.DB.prepare("UPDATE events SET org_id = ? WHERE id = ?").bind(orgId, id).run(); } catch (e) { /* before migration 0030 */ }
+}
 /** Has anything been published under an unlinked event's own key (it could not follow the event to another key)? */
 async function published(env, key) {
   const up = await env.DB.prepare("SELECT 1 FROM uploads WHERE race_key = ? AND status = 'active' LIMIT 1").bind(key).first();
-  const bk = await env.DB.prepare("SELECT 1 FROM booking_events WHERE race_key = ? LIMIT 1").bind(key).first().catch(() => null);
+  // its entries (migration 0031; the booking of 0023 before them)
+  const bk = await env.DB.prepare(`SELECT 1 FROM entries x JOIN events e ON e.id = x.event_id WHERE e.race_key = ? AND x.state != 'cancelled' LIMIT 1`)
+    .bind(key).first().catch(() => null);
   return !!(up || bk);
 }
 
@@ -105,6 +147,17 @@ export const onRequest = withUser(async ({ request, env, params, waitUntil }, us
   const method = request.method, url = new URL(request.url), now = nowIso();
 
   // ---- lists ----------------------------------------------------------------------------------------------------
+  // a club's events (« Mon club › Événements »: its members; docs/clubs/design.md §1)
+  if (!parts.length && method === "GET" && url.searchParams.get("org")) {
+    const orgId = Number(url.searchParams.get("org")) || 0;
+    if (!(await orgsReady(env)) || !(await can(env, user, orgId, "member"))) return json({ error: "forbidden" }, 403);
+    await backfillOrg(env, orgId);
+    const team = await clubTeam(env, request, user, { org_id: orgId });
+    const { results } = await env.DB.prepare(`SELECT e.*, (SELECT COUNT(*) FROM event_members x WHERE x.event_id = e.id) AS n,
+        EXISTS (SELECT 1 FROM event_members x WHERE x.event_id = e.id AND x.user_id = ?) AS me
+      FROM events e WHERE e.status = 'active' AND e.org_id = ? ORDER BY e.date DESC LIMIT 1000`).bind(user.id, orgId).all();
+    return json({ events: results.map((e) => ({ ...view(e), members: e.n, me: !!e.me || team || admin })) });
+  }
   if (!parts.length && method === "GET") {
     const all = admin && url.searchParams.get("all") === "1";
     const { results } = await env.DB.prepare(`SELECT e.*,
@@ -115,7 +168,23 @@ export const onRequest = withUser(async ({ request, env, params, waitUntil }, us
       ORDER BY e.date DESC LIMIT 1000`).bind(...(all ? [user.id] : [user.id, user.id])).all();
     const mine = (await env.DB.prepare(`SELECT r.id, r.event_id, r.created_at, e.name, e.date FROM event_requests r JOIN events e ON e.id = r.event_id
       WHERE r.user_id = ? AND r.status = 'pending' AND e.status = 'active'`).bind(user.id).all()).results;
-    return json({ events: results.map((e) => ({ ...view(e), members: e.n, asks: e.me ? e.asks : 0, me: !!e.me })),
+    // the events of the clubs whose organisers are on their teams by default (docs/clubs/design.md §1), as the account's own
+    const viaClub = new Set();
+    if (!all && (await orgsReady(env))) {
+      const orgIds = [];
+      for (const [oid, R] of await rightsIndex(env, user)) if (R.organise && (await settingsOf(env, oid)).default_team) orgIds.push(oid);
+      if (orgIds.length) {
+        for (const oid of orgIds) await backfillOrg(env, oid);
+        const have = new Set(results.map((e) => e.id));
+        const { results: more } = await env.DB.prepare(`SELECT e.*, (SELECT COUNT(*) FROM event_members x WHERE x.event_id = e.id) AS n,
+            (SELECT COUNT(*) FROM event_requests r WHERE r.event_id = e.id AND r.status = 'pending') AS asks
+          FROM events e JOIN orgs o ON o.id = e.org_id WHERE e.status = 'active' AND o.state = 'claimed'
+            AND e.org_id IN (${orgIds.map(() => "?").join(",")}) ORDER BY e.date DESC LIMIT 500`).bind(...orgIds).all();
+        for (const e of more) if (!have.has(e.id)) { viaClub.add(e.id); results.push({ ...e, me: 1 }); }
+        results.sort((a, b) => String(b.date).localeCompare(String(a.date)));
+      }
+    }
+    return json({ events: results.map((e) => ({ ...view(e), members: e.n, asks: e.me ? e.asks : 0, me: !!e.me, ...(viaClub.has(e.id) ? { club: true } : {}) })),
       requests: mine.map((r) => ({ id: r.id, event: r.event_id, name: r.name, date: r.date, at: r.created_at })), admin });
   }
   if (parts[0] === "find" && method === "GET") {
@@ -133,7 +202,7 @@ export const onRequest = withUser(async ({ request, env, params, waitUntil }, us
     const out = {};
     if (keys.length) {
       const { results } = await env.DB.prepare(`SELECT * FROM events WHERE status = 'active' AND (race_key IN (${keys.map(() => "?").join(",")})
-        OR (link_state = 'pending' AND link_key IN (${keys.map(() => "?").join(",")})))`).bind(...keys, ...keys).all();
+        OR (link_state IN ('pending', 'club') AND link_key IN (${keys.map(() => "?").join(",")})))`).bind(...keys, ...keys).all();
       for (const e of results) {
         const k = e.race_key && keys.includes(e.race_key) ? e.race_key : e.link_key;
         if (!out[k] || e.race_key === k) out[k] = { ...(await holderOf(env, e, user.id)), pending: e.race_key !== k };
@@ -142,13 +211,18 @@ export const onRequest = withUser(async ({ request, env, params, waitUntil }, us
     return json({ holders: out });
   }
   if (parts[0] === "pending" && method === "GET") {
-    if (!admin) return json({ error: "forbidden" }, 403);
-    const { results } = await env.DB.prepare(`SELECT e.*, u.display_name AS by_name, u.email AS by_email, u.licence AS by_licence FROM events e
-      JOIN users u ON u.id = e.created_by WHERE e.status = 'active' AND e.link_state = 'pending' ORDER BY e.date`).all();
+    // ?org=<id>: the links waiting for that club's managers (« Mon club › Événements »)
+    const orgId = Number(url.searchParams.get("org")) || 0;
+    if (orgId ? !(await can(env, user, orgId, "manage")) : !admin) return json({ error: "forbidden" }, 403);
+    const { results } = await (orgId
+      ? env.DB.prepare(`SELECT e.*, u.display_name AS by_name, u.email AS by_email, u.licence AS by_licence FROM events e
+        JOIN users u ON u.id = e.created_by WHERE e.status = 'active' AND e.link_state = 'club' AND e.org_id = ? ORDER BY e.date`).bind(orgId)
+      : env.DB.prepare(`SELECT e.*, u.display_name AS by_name, u.email AS by_email, u.licence AS by_licence FROM events e
+        JOIN users u ON u.id = e.created_by WHERE e.status = 'active' AND e.link_state = 'pending' ORDER BY e.date`)).all();
     const out = [];
     for (const e of results) {
       const { race, held } = await calendarOf(env, request, e.link_key);
-      out.push({ ...view(e), byName: e.by_name, byEmail: e.by_email, byClub: await clubOf(env, request, e.by_licence),
+      out.push({ ...view(e), byName: e.by_name, byEmail: orgId ? "" : e.by_email, byClub: await clubOf(env, request, e.by_licence),
         competition: race ? { name: race.name, date: race.date_iso, org: race.org, place: race.place } : null, held: held ? held.name : null });
     }
     return json({ pending: out });
@@ -181,11 +255,19 @@ export const onRequest = withUser(async ({ request, env, params, waitUntil }, us
         || clean((mships || []).find((m) => m.country === f.country && m.status === "ok")?.club, 80) || "";
     }
     const id = newId();
-    let race_key = racing(f.type) ? `d${id}` : null, link_key = null, link_state = "none";
+    let race_key = racing(f.type) ? `d${id}` : null, link_key = null, link_state = "none", org = null;
     if (cal) {
       link_key = cal.race.key;
-      if (admin || (await inClub(env, request, user, cal.race))) { race_key = cal.race.key; link_state = "verified"; }
-      else { race_key = null; link_state = "pending"; }
+      const L = await linkStateFor(env, request, user, cal.race, admin);
+      org = L.org;
+      link_state = L.state;
+      race_key = link_state === "verified" ? cal.race.key : null;
+    }
+    // the event's club (migration 0030): France's organising club by its number, else the creator's club membership
+    if (!org && (await orgsReady(env))) {
+      const code = f.country === "FR" ? orgCode(f.club) : null;
+      org = (code ? await orgByCode(env, request, "FR", "club", code, { create: true }).catch(() => null) : null)
+        || (await creatorOrg(env, user.id, f.country, f.club).catch(() => null));
     }
     const ev = { id, ...f, race_key, link_key, link_state, analysis: null, status: "active", created_by: user.id, created_at: now, updated_at: now };
     await env.DB.batch([
@@ -194,6 +276,8 @@ export const onRequest = withUser(async ({ request, env, params, waitUntil }, us
         .bind(id, f.type, f.country, f.name, f.date, f.place, f.club, f.terrain, f.epreuve, f.site, race_key, link_key, link_state, user.id, now, now),
       env.DB.prepare("INSERT INTO event_members (event_id, user_id, joined_at) VALUES (?, ?, ?)").bind(id, user.id, now),
     ]);
+    await setOrg(env, id, org?.id);
+    ev.org_id = org?.id || null;
     await mirror(env, ev);
     await showModule(env, user.id, "orga");          // what the account starts here shows its module (_lib/modules.js, owner 2026-11-12)
     return json({ ok: true, event: view(ev), soon: race_key === `d${id}` ? await startRun(env) : false });
@@ -204,7 +288,9 @@ export const onRequest = withUser(async ({ request, env, params, waitUntil }, us
   if (!ID.test(id)) return json({ error: "not found" }, 404);
   const ev = await one(env, id);
   if (!ev) return json({ error: "not found" }, 404);
-  const member = await isMember(env, id, user.id), may = member || admin;
+  // the event's club's organisers are on its team when its settings say so (docs/clubs/design.md §1; resolved at read time)
+  const own = await isMember(env, id, user.id), viaClub = !own && (await clubTeam(env, request, user, ev));
+  const member = own || viaClub, may = member || admin;
   const sub = parts[1] || "";
 
   if (!sub && method === "GET") {
@@ -218,7 +304,7 @@ export const onRequest = withUser(async ({ request, env, params, waitUntil }, us
       FROM event_requests r JOIN users u ON u.id = r.user_id WHERE r.event_id = ? AND r.status = 'pending' ORDER BY r.created_at`).bind(id).all();
     const club = async (lic) => (lic ? await clubOf(env, request, lic) : null);
     const link = ev.link_key ? (await calendarOf(env, request, ev.link_key)).race : null;
-    return json({ event: view(ev), member, admin,
+    return json({ event: view(ev), member, admin, ...(viaClub ? { viaClub: true } : {}),
       competition: link ? { key: link.key, name: link.name, date: link.date_iso, org: link.org, place: link.place } : null,
       team: await Promise.all(team.map(async (m) => ({ uid: m.user_id, name: m.display_name || `${m.first_name} ${m.last_name}`,
         club: await club(m.licence), joined: m.joined_at, you: m.user_id === user.id, creator: m.user_id === ev.created_by }))),
@@ -271,8 +357,9 @@ export const onRequest = withUser(async ({ request, env, params, waitUntil }, us
   }
 
   if (sub === "approve" && method === "POST") {
-    if (!admin) return json({ error: "forbidden" }, 403);
-    if (ev.link_state !== "pending") return json({ error: "not pending" }, 409);
+    // an administrator; for a link waiting for its club (« club »), that club's managers too
+    if (!(admin || (ev.link_state === "club" && ev.org_id && (await can(env, user, ev.org_id, "manage"))))) return json({ error: "forbidden" }, 403);
+    if (ev.link_state !== "pending" && ev.link_state !== "club") return json({ error: "not pending" }, 409);
     const b = (await readBody(request)) || {};
     let next;
     if (b.ok === true) {
@@ -338,8 +425,10 @@ export const onRequest = withUser(async ({ request, env, params, waitUntil }, us
       const { race, held } = await calendarOf(env, request, b.key);
       if (!race) return json({ error: "unknown competition" }, 404);
       if (held && held.id !== ev.id) return json({ error: "held", holder: await holderOf(env, held, user.id) }, 409);
-      const ok = admin || (await inClub(env, request, user, race));
-      next = { ...ev, race_key: ok ? race.key : null, link_key: race.key, link_state: ok ? "verified" : "pending", country: "FR", updated_at: now };
+      const L = await linkStateFor(env, request, user, race, admin);
+      const ok = L.state === "verified";
+      next = { ...ev, race_key: ok ? race.key : null, link_key: race.key, link_state: L.state, country: "FR", updated_at: now };
+      if (L.org) await setOrg(env, id, L.org.id);
     }
     await env.DB.prepare("UPDATE events SET race_key = ?, link_key = ?, link_state = ?, country = ?, updated_at = ? WHERE id = ?")
       .bind(next.race_key, next.link_key, next.link_state, next.country, now, id).run();

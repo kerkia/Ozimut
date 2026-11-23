@@ -130,14 +130,40 @@ export const body = (SITE, { world = false } = {}) => `
       <p>Cuando el seguimiento esté abierto a todos, nadie menor de 15 años creará una cuenta solo: el registro pide el año de nacimiento y, para un niño más pequeño, es su padre o su madre quien crea y gestiona la cuenta, sin dirección de correo electrónico ni contraseña. El padre o la madre vincula los dispositivos del niño, elige quién puede seguirlo y puede eliminar la cuenta en cualquier momento; puede añadirse un segundo padre o madre mediante una invitación. La cuenta de un niño solo guarda su nombre, sus apellidos, su año de nacimiento, en su caso su número de licencia, y sus trazas. Una cuenta personal ya abierta por un menor de 15 años espera a que se le vincule su padre o su madre: hasta entonces sus trazas siguen siendo privadas y no se envía ninguna alerta. A partir de los 15 años, el joven puede encargarse de su cuenta (su propia dirección y contraseña); sus trazas y su historial siguen siendo suyos, y sus padres pasan a ser personas que pueden seguirlo, lo que puede cambiar. Cuando un padre o una madre elimina su cuenta, la cuenta del niño del que era el único responsable se elimina con todas sus trazas.</p>
       <h2 style="font-size:16px">Cronometraje (Ozimut Chrono)</h2>
       <p>Ozimut Chrono, la herramienta de cronometraje de los organizadores (en pruebas, por ahora solo para los administradores del sitio), trabaja primero en el ordenador del organizador: los inscritos de una carrera (apellidos, nombre, club, categoría, número de licencia, número de tarjeta, hora de salida, cuota y pago), el contenido de las tarjetas leídas y las correcciones hechas a mano se guardan allí, en el navegador o en la aplicación. Cuando el puesto está conectado a Ozimut, estas operaciones se copian en Ozimut para que la carrera pueda retomarse en otro ordenador; solo los organizadores del evento acceden a ellas, y nada se publica sin su intervención (resultados en directo, publicación de los resultados). El archivo de federados y los números de tarjeta recordados de una carrera a otra se quedan en el ordenador del organizador: no se envían a Ozimut.</p>
-      <h2 style="font-size:16px">Reserva de horas de salida</h2>
-      <p>Cuando los organizadores de una competición abren la reserva de sus horas de salida, una cuenta reserva una salida para sí
-        misma y para los corredores que añade a «Mis corredores» (su familia, amigos, federados o no): su nombre y apellidos, el club
-        y su país, el número de licencia FFCO si se indica y el número de tarjeta si los organizadores lo piden. La cuenta que los
-        añade se compromete a hacerlo con su consentimiento. La parrilla de horas (nombre y club de cada corredor) es pública, como
-        una lista de salida; los números de licencia y de tarjeta solo los ven la cuenta que reservó y los organizadores. Al cierre,
-        las reservas pasan a ser la lista de salida publicada de la competición. «Mis corredores» y las reservas de las competiciones
-        futuras se eliminan con la cuenta; las de competiciones pasadas permanecen en su lista de salida.</p>
+      <h2 style="font-size:16px">Clubes (Mi club)</h2>
+      <p>Un club, un comité o una federación territorial existe en Ozimut en cuanto una cuenta lo necesita. En Francia, una cuenta cuya
+        licencia es la de un club (el club de su última carrera en los resultados publicados) es miembro de él automáticamente; en otros
+        países, pides unirte a un club o te invitan con un enlace. Los miembros de un club ven los nombres de los demás miembros y sus
+        funciones (responsable, organizador, cartógrafo, tesorero); sus responsables ven además las solicitudes pendientes. Un miembro de
+        la junta que nombra el directorio de la federación (presidente, secretario, tesorero: se compara el nombre de la cuenta con el del
+        directorio) pasa a ser responsable del club en el acto; cualquier otra persona, con el acuerdo de los administradores del sitio.
+        Los ajustes del club (qué inscripciones paga, su cuenta bancaria, su dirección de contacto) solo los ven sus responsables y
+        tesoreros; el titular y el IBAN de la cuenta solo se muestran a quienes se han inscrito en una carrera del club o le deben algo.</p>
+      <h2 style="font-size:16px">Inscripciones a las carreras</h2>
+      <p>Cuando los organizadores de un evento abren las inscripciones, una cuenta se inscribe a sí misma, a los corredores que añade a
+        «Mis corredores» (familia, amigos, con o sin licencia: se compromete a hacerlo con su consentimiento) y a las cuentas de sus hijos.
+        Una inscripción guarda el nombre, los apellidos, el club y su país, el número de licencia si se indica, el año de nacimiento, el
+        sexo y la categoría de edad, la categoría elegida, el número de tarjeta o el alquiler de una tarjeta, las opciones, la hora de
+        salida, el importe fijado al inscribirse, quién lo paga (el corredor o su club), su referencia de pago y su estado (pendiente,
+        pagado, exento, y cómo). Una inscripción hecha sin cuenta crea una cuenta como el registro en el sitio; queda pendiente hasta
+        que se confirma el correo y se anula a los tres días sin confirmación. El equipo del evento ve toda esta información; la lista
+        pública de inscritos solo muestra el nombre, el club, la categoría y la hora de salida, nunca el número de licencia, la tarjeta, el
+        año de nacimiento, el importe ni el pago. Los organizadores también pueden importar inscritos desde un archivo; responden de
+        ello. Al cierre, las horas pasan a ser la lista de salida publicada de la competición. Cuando se elimina una cuenta, sus
+        inscripciones y las que hizo para otros a carreras futuras se anulan; las de carreras pasadas conservan el nombre de los
+        corredores en los registros de los organizadores, sin vínculo con la cuenta. «Mis corredores» se elimina con la cuenta.</p>
+      <h2 style="font-size:16px">Cuentas de los clubes</h2>
+      <p>Ningún pago pasa por Ozimut: las transferencias, el efectivo y los cheques se hacen entre las personas y los clubes, y Ozimut solo
+        guarda lo que el equipo de un evento o el tesorero de un club marca como pagado. El importe de una inscripción y su estado los
+        ven el corredor y la cuenta que lo inscribió, el equipo del evento, los tesoreros y responsables del club organizador y, cuando el
+        club del corredor la paga, los tesoreros y responsables de ese club. Para cada miembro y cada temporada, un club guarda en sus
+        cuentas lo que ha pagado, lo que el miembro ha devuelto y los resúmenes que le ha enviado; lo ven sus tesoreros y responsables, y
+        cada miembro ve su propia cuenta. El resumen de fin de año y los recordatorios de pago se envían por correo (y como notificación,
+        los recordatorios) en nombre del club, a petición de su tesorero, y las respuestas van a la dirección de contacto del club. El
+        extracto bancario que deja un tesorero se lee en su navegador y nunca se envía a Ozimut: solo se envían las referencias reconocidas
+        y marcadas, para marcar los pagos. La compensación entre dos clubes que la han aceptado ambos es solo informativa. Cuando se
+        elimina una cuenta, las líneas de las cuentas de los clubes que le conciernen permanecen en esas cuentas, sin vínculo con la
+        cuenta.</p>
       <h2 style="font-size:16px">Desde tu móvil</h2>
       <p>«Desde mi móvil» lleva una foto del mapa o un archivo (un track) de tu móvil a tu ordenador: el archivo espera en el almacenamiento del sitio (Cloudflare) con un enlace de un solo uso, válido 15 minutos, y se borra en cuanto el ordenador lo ha recibido o cierras la ventana del código; un archivo nunca recibido se borra como muy tarde al día siguiente. Ni el enlace ni el archivo llevan tu nombre, y no hace falta cuenta en el móvil.</p>
       <h2 style="font-size:16px">Salud: artículos y derechos de autor</h2>
@@ -289,5 +315,5 @@ export const body = (SITE, { world = false } = {}) => `
       <p><b>Créditos:</b> los símbolos y los textos de las descripciones de control (Coach › Descripciones de control, el trazado de recorridos)
         proceden de Purple Pen, de Peter Golde (<a href="https://github.com/petergolde/PurplePen" target="_blank" rel="noopener">github.com/petergolde/PurplePen</a>),
         bajo <a href="assets/tracer/LICENSE-PurplePen.txt" target="_blank" rel="noopener">licencia BSD</a>.</p>
-      <p class="muted">Última actualización: 22 de noviembre de 2026.</p>
+      <p class="muted">Última actualización: 23 de noviembre de 2026.</p>
 `;

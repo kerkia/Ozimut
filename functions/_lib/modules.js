@@ -38,12 +38,14 @@ async function existingWork(env, uid) {
   const has = { orga: false, carto: false };
   const one = async (sql) => { try { return !!(await env.DB.prepare(sql).bind(uid).first()); } catch (e) { return false; } };
   has.orga = (await one("SELECT 1 FROM event_members WHERE user_id = ? LIMIT 1"))
-    || (await one("SELECT 1 FROM booking_events WHERE created_by = ? LIMIT 1"));
+    || (await one("SELECT 1 FROM entry_forms WHERE created_by = ? LIMIT 1"))
+    || (await one("SELECT 1 FROM org_members WHERE user_id = ? AND state = 'ok' AND (roles LIKE '%manager%' OR roles LIKE '%organiser%' OR roles LIKE '%treasurer%') LIMIT 1"));
+  has.carto = await one("SELECT 1 FROM org_members WHERE user_id = ? AND state = 'ok' AND roles LIKE '%mapper%' LIMIT 1");
   if (env.BUCKET) {
     try {
       if (!has.orga) has.orga = (await listAll(env, "analyses-meta/")).some((o) => String(o.customMetadata?.owner) === String(uid));
       if (!has.orga) has.orga = (await listAll(env, "tracer-meta/")).some((o) => inTeam(o.customMetadata, uid));
-      has.carto = (await listAll(env, "mapper-meta/")).some((o) => inTeam(o.customMetadata, uid));
+      if (!has.carto) has.carto = (await listAll(env, "mapper-meta/")).some((o) => inTeam(o.customMetadata, uid));
     } catch (e) { /* R2 unreachable: looked at again next time */ return null; }
   }
   return has;

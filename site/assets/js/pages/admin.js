@@ -25,7 +25,7 @@ const spanDays = (a, b) => Math.round((Date.parse(`${b}T12:00:00Z`) - Date.parse
 function pageName(k) {
   const NAMES = { overview: "nav.overview", ranking: "nav.ranking", runner: "nav.runner", compare: "nav.compare", clubs: "nav.clubs",
     club: "ad.pg.club", clubcompare: "ad.pg.clubcompare", courses: "nav.courses", agenda: "nav.agenda", methods: "nav.methods",
-    settings: "st.link", contact: "ct.title", admin: "ad.title", provisional: "prov.title", splits: "spl.title",
+    settings: "st.link", myClub: "cl.myClub", contact: "ct.title", admin: "ad.title", provisional: "prov.title", splits: "spl.title",
     deposit: "dep.title", live: "lv.title", relays: "rl.title", analysis: "nav.analysis.long", games: "nav.games", vma: "nav.vma",
     analysisPerso: "nav.analysisPerso.long", analysisClub: "nav.analysisClub.long", analysisRace: "nav.analysisRace.long", mapAnalysis: "nav.mapAnalysis", myMaps: "nav.myMaps", analysisOrga: "an.orga.title",
     orgAnalyses: "nav.orgAnalyses", orgRace: "nav.orgAnalyses", orgTraining: "nav.orgAnalyses", orgResults: "or.title", orgStarts: "os.title", orgDirect: "nav.orgDirect", orgManage: "nav.orgManage", ask: "nav.ask", orgTracer: "nav.orgTracer", orgMapper: "nav.orgMapper", categories: "cg.title", relayHistory: "rh.title", needCountry: "cty.need.title",
@@ -45,7 +45,7 @@ export async function render(main, { query = {} } = {}) {
     return { title: t("ad.title") };
   }
   let { users, duplicates, queued, me } = await r.json();
-  let tab = { inscrits: "members", utilisation: "usage", consommation: "conso", depots: "uploads", sites: "sites", anonymises: "anon", demo: "demo", cartes: "mymaps", evenements: "events", vitesse: "perf" }[query.onglet] || "accounts";
+  let tab = { inscrits: "members", utilisation: "usage", consommation: "conso", depots: "uploads", sites: "sites", anonymises: "anon", demo: "demo", cartes: "mymaps", evenements: "events", vitesse: "perf", clubs: "clubs" }[query.onglet] || "accounts";
   await loadArea("manage");          // « Événements » (Orga › Gérer, 2026-11-11): its texts are the page's
 
   main.innerHTML = html`
@@ -131,6 +131,7 @@ export async function render(main, { query = {} } = {}) {
       <section class="card"><div class="table-wrap" id="up-list"></div></section>
     </div>
     <div data-panel="perf" hidden><div id="pf-body"></div></div>
+    <div data-panel="clubs" hidden><div id="oc-body" class="stack"></div></div>
     <div data-panel="conso" hidden>
       <p class="muted" style="margin:0 2px 12px">${t("ad.co.lede")}</p>
       <div id="co-note"></div>
@@ -160,11 +161,11 @@ export async function render(main, { query = {} } = {}) {
 
   function showTab() {
     $("#ad-tabs").innerHTML = seg("adtab", [["accounts", t("ad.tab.accounts")], ["members", t("ad.tab.members")], ["usage", t("ad.tab.usage")], ["conso", t("ad.tab.conso")], ["uploads", t("ad.tab.uploads")],
-      ["sites", t("ad.tab.sites")], ["anon", t("ad.tab.anon")], ["demo", t("ad.tab.demo")], ["mymaps", t("ad.tab.mymaps")], ["events", t("mg.ad.tab")], ["perf", t("ad.tab.perf")]], tab);
+      ["sites", t("ad.tab.sites")], ["anon", t("ad.tab.anon")], ["demo", t("ad.tab.demo")], ["mymaps", t("ad.tab.mymaps")], ["events", t("mg.ad.tab")], ["clubs", t("ad.tab.clubs")], ["perf", t("ad.tab.perf")]], tab);
     $$('[data-seg="adtab"]').forEach((b) => b.addEventListener("click", () => { tab = b.dataset.value; showTab(); }));
     $$("[data-panel]", main).forEach((p) => { p.hidden = p.dataset.panel !== tab; });
     setLede(t(`ad.lede.${tab}`));       // the head says what the tab shows (one line: the tabs' own paragraphs say more)
-    if (tab === "usage") saveUsage(); else replaceQuery({ members: { onglet: "inscrits" }, conso: { onglet: "consommation" }, uploads: { onglet: "depots" }, sites: { onglet: "sites" }, anon: { onglet: "anonymises" }, demo: { onglet: "demo" }, mymaps: { onglet: "cartes" }, events: { onglet: "evenements" }, perf: { onglet: "vitesse" } }[tab] || {});   // the address keeps the usage filters
+    if (tab === "usage") saveUsage(); else replaceQuery({ members: { onglet: "inscrits" }, conso: { onglet: "consommation" }, uploads: { onglet: "depots" }, sites: { onglet: "sites" }, anon: { onglet: "anonymises" }, demo: { onglet: "demo" }, mymaps: { onglet: "cartes" }, events: { onglet: "evenements" }, perf: { onglet: "vitesse" }, clubs: { onglet: "clubs" } }[tab] || {});   // the address keeps the usage filters
     if (tab === "usage" && !usageStarted) { usageStarted = true; startUsage(); }
     if (tab === "members") drawMembers();
     if (tab === "uploads") drawUploads();
@@ -175,6 +176,7 @@ export async function render(main, { query = {} } = {}) {
     if (tab === "perf" && !$("#pf-body").firstChild) drawPerf($("#pf-body"));     // how fast the site is (adminperf.js)
     if (tab === "mymaps") drawMymaps();
     if (tab === "events") drawEvents();
+    if (tab === "clubs") import("./adminclubs.js").then((m) => m.draw($("#oc-body")));     // « Clubs »: the claims waiting (adminclubs.js)
   }
 
   // « Consommation » (owner, 2026-10-20): the site's use of its free plans, each measure against its limit, the last 30 days

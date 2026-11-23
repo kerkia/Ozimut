@@ -21,6 +21,7 @@ const PUBLIC = [/^\/$/, /^\/index\.html$/, /^\/robots\.txt$/, /^\/assets\//, /^\
   /^\/data\/[a-z]{2}\/meta\.json$/, /^\/api\/logout$/,
   /^\/sw(-push)?\.js$/, /^\/manifest(\.(en|de|es))?\.webmanifest$/, /^\/offline(\.html)?$/,
   /^\/api\/notify$/, /^\/api\/account\/(status|register|resend|verify|login|forgot|reset|handoff)$/, /^\/api\/guest$/,
+  /^\/api\/entries\/[a-z0-9]{6,20}\/guest$/,   // the entry form's registration blended with the entry: Turnstile and limits, checked there (api/entries)
   /^\/api\/live\/mop$/,           // MeOS's online results: no session, the broadcast's MeOS password (api/live/mop.js)
   /^\/api\/chrono\/[A-Za-z0-9_-]{1,64}(\/(sync|live|token))?$/,   // Ozimut Chrono's stations: an administrator's session or the event's own key, checked there (api/chrono)
   /^\/api\/phone(\/[a-z2-9]{12}(\/file(\/\d{1,3})?)?)?$/,  // « Depuis mon téléphone »: the link's own keys (api/phone)
@@ -46,7 +47,8 @@ const DATA_FOR_ALL = [/^\/data\/[a-z]{2}\/(competitions|agenda|evaluation|valida
 const GUEST = [/^\/api\/live\/list$/, /^\/ws\/[^/]+$/, /^\/api\/tracking$/,
   /^\/api\/mymaps\/s\/[a-z2-9]+(\/[a-z0-9.]+)*$/,     // « Mes cartes »: the maps an account shares by a link (api/mymaps)
   /^\/api\/analyses\/v(\/[a-z0-9-]+){0,3}$/,          // « Analyse multi » opened to visitors by its organiser (api/analyses)
-  /^\/api\/booking(\/[ad][a-z0-9]{1,20})?$/,           // the start-time bookings: the open ones, a grid (api/booking)
+  /^\/api\/entries\/open$/,                                // the events open to entries (api/entries; the Agenda's « S'inscrire »)
+  /^\/api\/entries\/[a-z0-9]{6,20}(\/public)?$/,             // an entry form, its public list of entrants (api/entries)
   /^\/api\/virtual\/events(\/e[a-z0-9]{9}(\/runs|\/pkg\/[a-z]+\.[a-z]+(\.gz)?)?)?$/];   // « Virtually »'s trainings (api/virtual/events)
 // ...and only with a guest pass (owner, 2026-11-01: the public data were open to any script, unlimited, on the Workers' daily
 // quota): a cookie /api/guest gives after Cloudflare Turnstile, valid GUEST_HOURS, naming nobody. Turnstile's keys missing

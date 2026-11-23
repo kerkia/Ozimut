@@ -51,6 +51,19 @@ export function build(X) {
           html`Under your name: the modules page, this documentation, the ${P("#/reglages", "Settings")}, “Write to us” and signing out. The pages still
             in trial carry a “beta” mark.`,
         ])}`, "menus")}
+      ${slide("The site", "My club", html`
+        <p>${P("#/monclub", "My club")}, under your name, gathers your club: in France you are a member of it through your licence; elsewhere, you
+          ask to join it. It shows its members and their roles (manager, organiser, mapper, treasurer), its events, its maps and its accounts. A
+          board member becomes a manager by asking (“Manage my club”), then gives the roles.</p>
+        ${list([
+          html`<b>What the club pays for</b>: each club chooses who pays its members' entries — each their own, the club for championships, for all,
+            or for those the treasurer ticks. The entry form tells the runner.`,
+          html`<b>The accounts</b>: each member sees what the club paid for them and what is left to repay. The treasurer sees what other clubs owe
+            for their runners at the club's races, what the club owes organisers, each member's account and year-end statement (a PDF, e-mailed
+            in the club's name), netting with the clubs that accepted it, and a journal to download. The bank statement is read in the browser,
+            without being sent: transfers carrying a reference are marked paid.`,
+          html`No payment goes through Ozimut: transfers are made between people and clubs; Ozimut only says who owes what to whom.`,
+        ])}`, "club")}
       ${slide("The site", "Country, language and theme", html`
         ${list([
           html`<b>The country</b>, at the top, chooses the competitions you see: the calendar of some thirty countries, read every morning at their
@@ -87,6 +100,11 @@ export function build(X) {
             html`<b>A coming competition</b> opens beside the list: the place and the way there, the announcement, ${fr ? "the number of entries per course, " : ""}the
               entry deadline, and buttons when they exist — the start list${fr ? " (with each runner's CN and the place it predicts)" : ""}, “Follow live”,
               GPS tracking.`,
+            html`<b>Entering</b>: when its organisers have opened entries on Ozimut, the competition offers “Enter”. With your account you enter
+              yourself, “My runners” (family, friends, licensed or not) and your children; without an account, the form creates it at the same time.
+              The amount shows before you confirm — or “paid by your club” when your club pays for this race —, then the reference to give on the
+              transfer and the organiser's account. ${P("#/mes-inscriptions", "My entries")} gathers them; the list of entrants is public, without
+              amounts or licence numbers.`,
             html`<b>A past competition</b> opens its page: the results as the first tab, then, when split times are published, each view of their analysis.
               “‹ Competitions” brings you back to the list where you left it.`,
           ])}`)}`,
@@ -444,7 +462,7 @@ export function build(X) {
             straight on tracking (« Tracking-only mode »).</p>
           ${list([
             html`<b>A second parent</b>: « Invite the other parent » gives a link; opened with their own account, they manage the child equally.`,
-            html`<b>Who may follow</b>: « Invite someone to follow » gives an invitation link, valid 7 days and once; the person opens it with
+            html`<b>Who may follow</b>: each person has their own list. Under the child's name, « Invite someone to follow… » gives an invitation link, valid 7 days and once; the person opens it with
               their Ozimut account. Nobody follows without being invited, and a follower can be removed at any time.`,
             html`<b>The settings</b>: how often positions are sent while someone watches (30 s by default), the longest tracking, the number the
               help screen offers to call, and an area: an alert goes if the child leaves it.`,
@@ -477,7 +495,7 @@ export function build(X) {
   // ======================================================================================================
   // Orga (« Course setting », its other tab, is content/methods.*.js' tracerDoc)
   // ======================================================================================================
-  const ORGA = [["qui", "My events"], ["evenement", "Creating an event"], ["trace", "Course setting"], ["horaires", "Starts"], ["direct", "Live"],
+  const ORGA = [["qui", "My events"], ["evenement", "Creating an event"], ["trace", "Course setting"], ["horaires", "Entries and starts"], ["direct", "Live"],
     ["resultats", "Results"], ["analyses", "Analysis"],
     // Chrono, the race timing: its tab is the administrators' only for now (pages/manage.js), and so are its chapters
     ...(admin ? [["chrono", "Chrono"], ["chrono-app", "The Chrono application"]] : []), ["equipe", "The team"]];
@@ -490,16 +508,16 @@ export function build(X) {
             the organiser's tools, in tabs by its type:</p>
           ${list([
             html`<b>Competition</b> (individual or score) and <b>Public training</b> — open to all, often paid and timed, outside the
-              rankings: Course setting, Starts, Live, Results, Analysis, Team.`,
+              rankings: Course setting, Entries and starts, Live, Results, Analysis, Team.`,
             html`<b>Relay competition</b>: Course setting, Live, Analysis, Team (a relay's results and start list cannot be uploaded yet).`,
             html`<b>Club training</b>: Course setting, Analysis, Team.`,
           ])}
-          <p>An event opens on the tab that fits its day: Starts before the race, Live on the day, Results afterwards; a training session on its
+          <p>An event opens on the tab that fits its day: Entries and starts before the race, Live on the day, Results afterwards; a training session on its
             course setting before its date, on its analysis afterwards.</p>
           <p>The map itself is drawn in ${M("carto", "Carto")}, a module of its own, open to every account: a map serves many events, and you also
             work on it in the field, with your phone.</p>
-          <p>Only an event's team — and Ozimut's administrators — act as the organiser of the competition it holds: start list, start-time
-            booking, live results, GPS tracking link, results, courses sent from course setting, map analysis. A competition no event holds has no
+          <p>Only an event's team — and Ozimut's administrators — act as the organiser of the competition it holds: start list, entries
+            and start times, live results, GPS tracking link, results, courses sent from course setting, map analysis. A competition no event holds has no
             organiser on Ozimut: to become one, create its event, or ask to join the team of the event that holds it.</p>`)}`,
       evenement: () => html`
         ${slide("Orga", "Creating an event", html`
@@ -550,19 +568,26 @@ export function build(X) {
             html`After the race, the course setting publishes its courses, map included, to the event's analysis (the “Analysis” tab).`,
           ])}`)}`,
       horaires: () => html`
-        ${slide("Orga", "Starts: the start times", html`
-          <p>The “Starts” tab of a coming competition publishes its start list, up to race day. Files read: IOF XML “StartList” (the best), CSV, a
-            sheet with one pair of columns per course, HTML, OE or MeOS PDF, or a shared Google Sheets link.</p>
+        ${slide("Orga", "Entries and starts", html`
+          <p>The “Entries and starts” tab of a competition or a public training leads, in three steps, from entries to the start list; it stays
+            readable after the race.</p>
+          <div class="mx-steps">
+            <div class="mx-step"><b>Entries</b>The form: the classes and their courses, the places, the opening and the closing (and late entries),
+              the prices — by age, licensed or not, by class, a rented card, options, a family cap —, what is asked (card, year of birth, note) and
+              how to pay (a transfer to the club's account, on the day). Runners enter in Arena; you follow the list, enter people by hand or import
+              a file (CSV, OE's, IOF XML, Google Sheets).</div>
+            <div class="mx-step"><b>Start times</b>None, a grid the runners book (first and last start, interval, gap between two runners of one
+              club), a draw made in your browser, or a start list uploaded.</div>
+            <div class="mx-step"><b>Start list</b>At the closing, the start times become the published start list, published again after each
+              change; exports in IOF XML, OE's CSV and a file for O Checklist.</div>
+          </div>
           ${list([
-            html`The file is first read and checked in your browser: two runners of one club one after the other, a start minute shared, runners
-              without a time, a card or a course, the intervals and the vacant places.`,
-            html`“Check and export” also writes the start's file for the O Checklist app.`,
-            html`“Open the booking” replaces the shared sheet where runners put their names down for a start time: you set the courses (first and
-              last start, interval), the gap between two runners of the same club, the closing; each runner books on Ozimut with their account, for
-              themselves and for others (their family, members of a club or not, of any club or none); a Google Sheet already filled in is imported
-              with all its tabs. At the closing, the bookings become the published start list, and you download the CSV or the IOF XML for MeOS or OE.`,
-            html`Once published, the list appears in Arena (the competition's start list), and every runner who asked for it gets their start time by
-              notification or by e-mail.`,
+            html`<b>Payments</b>: each payer has one reference per event (“OZ-7K3F”); you mark them paid one by one, by reference, in bulk, or from
+              your bank's statement (CSV, OFX, CAMT.053), read in your browser without being sent. Clubs paying for their runners pay in one
+              transfer: their statement is in “My club › Accounts”.`,
+            html`A start list made elsewhere can still be uploaded: IOF XML “StartList”, CSV, a sheet, HTML, OE or MeOS PDF, a Google Sheets link,
+              first read and checked in your browser.`,
+            html`Once published, the list appears in Arena, and every runner who asked for it gets their start time by notification or by e-mail.`,
           ])}`)}`,
       direct: () => html`
         ${slide("Orga", "Broadcasting live", html`

@@ -2,7 +2,7 @@
 // race or one training each, held by a team whose members all have the same rights. The page opens on the account's events,
 // laid out as Arena's competitions (periods, months, today's line); each row carries its tabs as chips, each opening the
 // event on that tab. An event: its head (« ✎ Modifier »: the description, the calendar link, deletion), then its tabs —
-// Départs (the booking and the start list: pages/orgstarts.js, bookingorg.js), Direct (orgdirect.js), Résultats (deposit.js),
+// Inscriptions et départs (the entries and the start list: pages/entriesorg.js, 2026-11-22), Direct (orgdirect.js), Résultats (deposit.js),
 // Analyse (shared.js's organisers' page), Équipe — by its type (TABS). Nobody is added to a team: people ask to join
 // (« Rejoindre une équipe », or the event's own address), any member answers. Addresses: ?ev=<id>&onglet=<tab>, ?nouveau=1,
 // ?rejoindre=1, ?course=<key> (a competition's event, from the pages of before: orga-horaires, orga-resultats…).
@@ -85,15 +85,15 @@ export async function render(main, r) {
   return { title: t("mg.title") };
 }
 
-// ---- the states shown on the chips: Résultats' index, the bookings, the live broadcasts ---------------------------------
+// ---- the states shown on the chips: Résultats' index, the entry forms, the live broadcasts ---------------------------------
 async function states() {
   const [idx, bk, bc, tr, an] = await Promise.all([
     getProv("index.json").catch(() => null),
-    fetch("api/booking", { credentials: "same-origin", cache: "no-store" }).then((r) => (r.ok ? r.json() : null)).catch(() => null),
+    fetch("api/entries/team", { credentials: "same-origin", cache: "no-store" }).then((r) => (r.ok ? r.json() : null)).catch(() => null),
     fetch("api/live/broadcasts", { credentials: "same-origin", cache: "no-store" }).then((r) => (r.ok ? r.json() : null)).catch(() => null),
     fetch("api/tracer", { credentials: "same-origin", cache: "no-store" }).then((r) => (r.ok ? r.json() : null)).catch(() => null),
     fetch("api/analyses", { credentials: "same-origin", cache: "no-store" }).then((r) => (r.ok ? r.json() : null)).catch(() => null)]);
-  return { prov: new Map((idx?.races || []).map((x) => [x.key, x])), booking: new Map((bk?.events || []).map((x) => [x.key, x])),
+  return { prov: new Map((idx?.races || []).map((x) => [x.key, x])), entries: new Map((bk?.forms || []).map((x) => [x.event, x])),
     live: (bc?.broadcasts || []).filter((b) => b.race), tracer: tr?.events || [], analyses: new Map((an?.analyses || []).map((a) => [a.id, a])) };
 }
 /** What a tab of an event holds, for its chip: { note, cls } (cls empty: nothing yet). */
@@ -103,8 +103,10 @@ function stateOf(ev, k, S) {
   if (k === "trace") {
     if (S.tracer.some((x) => x.event === ev.id || (ev.race && x.race === ev.race))) { note = "✓"; cls = "ok"; }
   } else if (k === "departs") {
-    const b = S.booking.get(ev.race);
-    if (b?.status === "open") { note = t("mg.chip.bookOpen"); cls = "on"; }
+    // the entries (api/entries/team: the form's state, how many are entered), else a start list published
+    const f = S.entries.get(ev.id);
+    if (f?.state === "open") { note = `${t("mg.chip.bookOpen")} · ${tn("mg.chip.entered", f.n, { n: f.n })}`; cls = "on"; }
+    else if (f?.n) { note = tn("mg.chip.entered", f.n, { n: f.n }); cls = "ok"; }
     else if (p?.startlist) { note = t("mg.chip.startlist"); cls = "ok"; }
   } else if (k === "direct") {
     const b = S.live.find((x) => x.race === ev.race);
@@ -518,7 +520,7 @@ async function eventPage(main, id, q) {
         : html`<b class="mg-one">${fmtDate(ev.date, "short")} · ${ev.name}</b>`}
       <span class="mg-meta muted">${[typeLabel(ev.type), ev.terrain ? terrainLabel(ev.terrain) : "", ev.epreuve && ev.epreuve !== ev.terrain ? formatLabel(ev.epreuve) : "", ev.club, ev.place].filter(Boolean).join(" · ")}</span>
       <span class="mg-acts">${linkTag(ev)}${!D.member ? html`<span class="tag">${t("mg.notMember")}</span>` : ""}<button type="button" class="btn btn-sm" id="mg-edit">✎ ${t("mg.edit")}</button></span></div>
-    ${pending ? html`<div class="notice">${t("mg.link.pending", { name: D.competition?.name || "" })}</div>` : ""}
+    ${pending ? html`<div class="notice">${t(ev.linkWait === "club" ? "mg.link.pendingClub" : "mg.link.pending", { name: D.competition?.name || "" })}</div>` : ""}
     <div data-bar-tabs><nav class="page-tabs mg-tabs" role="tablist">${tabs.map((k) => html`<a role="tab" aria-selected="${k === tab}" href="${href({ ev: ev.id, onglet: k })}">${tabLabel(k)}${tabBeta(k)}${k === "equipe" && D.requests.length ? html` <span class="mg-badge">${D.requests.length}</span>` : ""}</a>`)}</nav></div>
     <div id="mg-panel" class="mg-panel"></div>`;
   $("#mg-switch")?.addEventListener("change", (e) => { const o = others.find((x) => x.id === e.target.value); location.hash = href({ ev: o.id, onglet: tabsOf(o).includes(tab) ? tab : defaultTab(o) }); });
@@ -530,12 +532,9 @@ async function eventPage(main, id, q) {
   if (pending && tab !== "analyse") { panel.innerHTML = html`<div class="card"><div class="empty">${t("mg.link.waitTools")}</div></div>`; return; }
   if (tab === "analyse") return analysisTab(panel, D, q);
   const race = await raceOf(ev);
-  if (tab === "departs") {
-    if (ev.date < today()) { panel.innerHTML = html`<div class="card"><div class="empty">${t("mg.departs.past")}</div></div>`; return; }
-    const S = await import("./orgstarts.js");
-    return q.resa ? (await import("./bookingorg.js")).renderBooking(panel, race, { base: href({ ev: ev.id, onglet: "departs" }) })
-      : S.deposit(panel, race, { base: href({ ev: ev.id, onglet: "departs" }) });
-  }
+  // « Inscriptions et départs » (2026-11-22, docs/clubs/design.md §3): the entries, their start times, the start list — readable
+  // after the race day too (pages/entriesorg.js; the start-list deposit of before is its third step's)
+  if (tab === "departs") return (await import("./entriesorg.js")).render(panel, ev, D, q, { base: href({ ev: ev.id, onglet: "departs" }), race });
   if (tab === "direct") return (await import("./orgdirect.js")).render(panel, { event: { key: ev.race, name: ev.name, date: ev.date, org: ev.club } });
   if (tab === "resultats") {
     if (ev.date > today()) { panel.innerHTML = html`<div class="card"><div class="empty">${t("mg.results.later", { d: fmtDate(ev.date) })}</div></div>`; return; }

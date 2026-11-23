@@ -886,31 +886,31 @@ export function nutritionPush(lang, posts) {
 // organisers moved or cancelled, and the reminder the day before. No mail when one books (the page confirms it).
 // race: { key, name, date, place }; items: [{ name, circuit, start }] (a moved one: its new start)
 const BOOK = {
-  fr: { moved: "Horaire de départ modifié", cancelled: "Réservation d'horaire annulée", reminder: "Vos départs de demain",
+  fr: { moved: "Horaire de départ modifié", cancelled: "Inscription annulée", reminder: "Vos départs de demain",
     introMoved: (r) => `Les organisateurs de ${r} ont modifié ces horaires de départ :`,
-    introCancelled: (r) => `Les organisateurs de ${r} ont annulé ces réservations :`,
-    introReminder: (r) => `Rappel de vos horaires de départ réservés pour ${r} :`,
+    introCancelled: (r) => `Les organisateurs de ${r} ont annulé ces inscriptions :`,
+    introReminder: (r) => `Rappel de vos horaires de départ pour ${r} :`,
     line: (x) => `${x.name} · ${x.circuit} · ${x.start}`, lineCancelled: (x) => `${x.name} · ${x.circuit} (était à ${x.start})`,
     open: "Voir les horaires", why: (s) => `Vous recevez ce message parce que l'alerte « Mes horaires réservés » est cochée dans vos ${s}.`,
     settings: "réglages", stop: "Pour ne plus le recevoir :" },
-  en: { moved: "Start time changed", cancelled: "Start time booking cancelled", reminder: "Your starts tomorrow",
+  en: { moved: "Start time changed", cancelled: "Entry cancelled", reminder: "Your starts tomorrow",
     introMoved: (r) => `The organisers of ${r} changed these start times:`,
-    introCancelled: (r) => `The organisers of ${r} cancelled these bookings:`,
-    introReminder: (r) => `A reminder of the start times you booked for ${r}:`,
+    introCancelled: (r) => `The organisers of ${r} cancelled these entries:`,
+    introReminder: (r) => `A reminder of your start times for ${r}:`,
     line: (x) => `${x.name} · ${x.circuit} · ${x.start}`, lineCancelled: (x) => `${x.name} · ${x.circuit} (was at ${x.start})`,
     open: "See the start times", why: (s) => `You receive this message because the alert “My booked start times” is ticked in your ${s}.`,
     settings: "settings", stop: "To stop receiving it:" },
-  de: { moved: "Startzeit geändert", cancelled: "Startzeit-Reservierung storniert", reminder: "Deine Starts morgen",
+  de: { moved: "Startzeit geändert", cancelled: "Anmeldung storniert", reminder: "Deine Starts morgen",
     introMoved: (r) => `Die Veranstalter von ${r} haben diese Startzeiten geändert:`,
-    introCancelled: (r) => `Die Veranstalter von ${r} haben diese Reservierungen storniert:`,
-    introReminder: (r) => `Zur Erinnerung deine reservierten Startzeiten für ${r}:`,
+    introCancelled: (r) => `Die Veranstalter von ${r} haben diese Anmeldungen storniert:`,
+    introReminder: (r) => `Zur Erinnerung deine Startzeiten für ${r}:`,
     line: (x) => `${x.name} · ${x.circuit} · ${x.start}`, lineCancelled: (x) => `${x.name} · ${x.circuit} (war um ${x.start})`,
     open: "Startzeiten ansehen", why: (s) => `Du erhältst diese Nachricht, weil die Benachrichtigung „Meine reservierten Startzeiten“ in deinen ${s} angekreuzt ist.`,
     settings: "Einstellungen", stop: "Um sie nicht mehr zu erhalten:" },
-  es: { moved: "Hora de salida modificada", cancelled: "Reserva de hora de salida anulada", reminder: "Tus salidas de mañana",
+  es: { moved: "Hora de salida modificada", cancelled: "Inscripción anulada", reminder: "Tus salidas de mañana",
     introMoved: (r) => `Los organizadores de ${r} han modificado estas horas de salida:`,
-    introCancelled: (r) => `Los organizadores de ${r} han anulado estas reservas:`,
-    introReminder: (r) => `Recordatorio de las horas de salida que reservaste para ${r}:`,
+    introCancelled: (r) => `Los organizadores de ${r} han anulado estas inscripciones:`,
+    introReminder: (r) => `Recordatorio de tus horas de salida para ${r}:`,
     line: (x) => `${x.name} · ${x.circuit} · ${x.start}`, lineCancelled: (x) => `${x.name} · ${x.circuit} (era a las ${x.start})`,
     open: "Ver las horas de salida", why: (s) => `Recibes este mensaje porque la alerta «Mis horas de salida reservadas» está marcada en tus ${s}.`,
     settings: "ajustes", stop: "Para dejar de recibirlo:" },
@@ -918,9 +918,9 @@ const BOOK = {
 const bookIntro = (T, kind, r) => (kind === "moved" ? T.introMoved(r) : kind === "cancelled" ? T.introCancelled(r) : T.introReminder(r));
 export function bookingMail(env, user, race, items, kind) {
   const lang = L(user.lang), T = BOOK[lang], base = siteUrl(env);
-  const link = `${base}/#/horaire?course=${encodeURIComponent(race.key)}`, settings = `${base}/#/reglages`;
+  const link = race.url ? `${base}${race.url}` : `${base}/#/horaire?course=${encodeURIComponent(race.key)}`, settings = `${base}/#/reglages`;
   const title = T[kind] || T.reminder, what = `${race.name} (${longDate(race.date, lang)}${race.place ? `, ${race.place}` : ""})`;
-  const line = (x) => (kind === "cancelled" ? T.lineCancelled(x) : T.line(x));
+  const line = (x) => (kind === "cancelled" ? (x.start ? T.lineCancelled(x) : `${x.name} · ${x.circuit}`) : T.line(x));
   return {
     subject: `${title}${lang === "fr" ? " : " : ": "}${race.name}`,
     html: wrap(env, title, `<p>${esc(greet(lang, user.first_name))}</p><p>${esc(bookIntro(T, kind, what))}</p>
@@ -932,11 +932,11 @@ ${button(link, T.open, lang)}<p style="font-size:13px;color:#5b6675">${T.why(a(s
 /** The push twin of bookingMail. */
 export function bookingPush(lang, race, items, kind) {
   const T = BOOK[L(lang)];
-  const line = (x) => (kind === "cancelled" ? T.lineCancelled(x) : T.line(x));
+  const line = (x) => (kind === "cancelled" ? (x.start ? T.lineCancelled(x) : `${x.name} · ${x.circuit}`) : T.line(x));
   return {
     title: `${T[kind] || T.reminder} · ${race.name}`,
     body: items.slice(0, 4).map(line).join("\n") + (items.length > 4 ? "\n…" : ""),
-    url: `/#/horaire?course=${encodeURIComponent(race.key)}`, tag: `book-${race.key}-${kind}`,
+    url: race.url || `/#/horaire?course=${encodeURIComponent(race.key)}`, tag: `book-${race.key}-${kind}`,
   };
 }
 
@@ -999,4 +999,102 @@ export function takeoverMail(env, token, firstName, lang) {
     html: wrap(env, T.s, `<p>${esc(greet(lang, firstName))}</p><p>${esc(T.p)}</p>${button(url, T.b, lang)}<p style="font-size:13px;color:#5b6675">${esc(T.n)}</p>`, lang),
     text: `${greet(lang, firstName)}\n\n${T.p}\n${url}\n\n${T.n}`,
   };
+}
+// ---- Club accounts (docs/clubs/design.md §4; functions/api/accounts): the year-end bill a club sends its member, and the
+// reminders an organising club sends those who have not paid, both in the club's name (replies to its contact when set)
+const money = (c, cur, lang) => {
+  const n = (Number(c) || 0) / 100;
+  try { return new Intl.NumberFormat(locale(lang), { style: "currency", currency: cur || "EUR", minimumFractionDigits: n % 1 ? 2 : 0 }).format(n); }
+  catch (e) { return `${n.toFixed(2)} ${cur || "EUR"}`; }
+};
+const ibanText = (s) => String(s || "").replace(/(.{4})/g, "$1 ").trim();
+const ACC = {
+  fr: { c: " : ", billTitle: (s) => `Relevé de fin d'année ${s}`, billInfo: (s) => `Relevé ${s} des inscriptions prises en charge`,
+    billIntro: (c, s) => `Voici le relevé des inscriptions que ${c} a prises en charge pour vous en ${s}.`,
+    billInfoIntro: (c, s) => `Pour information, voici les inscriptions que ${c} a prises en charge pour vous en ${s}. Vous n'avez rien à régler.`,
+    carried: "Pris en charge", repaid: "Déjà remboursé", balance: "Reste à régler", ref: "Référence à indiquer avec le virement",
+    holder: "Titulaire du compte", pay: "Merci de régler ce montant au club par virement.", nothing: "Il ne reste rien à régler.",
+    attached: "Le relevé est joint en PDF.", see: "Voir mon compte au club", by: (c) => `Message envoyé par Ozimut au nom de ${c}.`,
+    remTitle: "Paiement en attente", remIntro: (c, e) => `${c} n'a pas encore reçu le paiement de vos inscriptions à ${e} :`,
+    remClub: (c, e, p) => `${c} n'a pas encore reçu le paiement des inscriptions de ${p} à ${e}, prises en charge par votre club :`,
+    remAmount: "Montant", remDesk: "Vous pouvez aussi régler sur place, si l'organisateur le permet.", remOpen: "Voir mes inscriptions",
+    remSeen: "Si vous avez déjà payé, ne tenez pas compte de ce message : le paiement sera marqué dès que l'organisateur l'aura vu." },
+  en: { c: ": ", billTitle: (s) => `Year-end statement ${s}`, billInfo: (s) => `Statement ${s} of the entries paid by your club`,
+    billIntro: (c, s) => `Here is the statement of the entries ${c} paid for you in ${s}.`,
+    billInfoIntro: (c, s) => `For your information, here are the entries ${c} paid for you in ${s}. You have nothing to pay.`,
+    carried: "Paid by the club", repaid: "Already repaid", balance: "Left to pay", ref: "Reference to give with the transfer",
+    holder: "Account holder", pay: "Please pay this amount to the club by bank transfer.", nothing: "Nothing is left to pay.",
+    attached: "The statement is attached as a PDF.", see: "See my account with the club", by: (c) => `Message sent by Ozimut on behalf of ${c}.`,
+    remTitle: "Payment pending", remIntro: (c, e) => `${c} has not yet received the payment for your entries to ${e}:`,
+    remClub: (c, e, p) => `${c} has not yet received the payment for the entries of ${p} to ${e}, paid by your club:`,
+    remAmount: "Amount", remDesk: "You can also pay on the day, if the organisers allow it.", remOpen: "See my entries",
+    remSeen: "If you have already paid, ignore this message: the payment will be marked as soon as the organisers see it." },
+  de: { c: ": ", billTitle: (s) => `Jahresabrechnung ${s}`, billInfo: (s) => `Übersicht ${s} der vom Verein übernommenen Anmeldungen`,
+    billIntro: (c, s) => `hier ist die Abrechnung der Anmeldungen, die ${c} ${s} für dich übernommen hat.`,
+    billInfoIntro: (c, s) => `zur Information die Anmeldungen, die ${c} ${s} für dich übernommen hat. Du musst nichts bezahlen.`,
+    carried: "Vom Verein übernommen", repaid: "Bereits erstattet", balance: "Noch zu zahlen", ref: "Verwendungszweck für die Überweisung",
+    holder: "Kontoinhaber", pay: "Bitte überweise diesen Betrag an den Verein.", nothing: "Es ist nichts mehr zu zahlen.",
+    attached: "Die Abrechnung liegt als PDF bei.", see: "Mein Konto beim Verein ansehen", by: (c) => `Nachricht von Ozimut im Namen von ${c}.`,
+    remTitle: "Zahlung ausstehend", remIntro: (c, e) => `${c} hat die Zahlung für deine Anmeldungen zu ${e} noch nicht erhalten:`,
+    remClub: (c, e, p) => `${c} hat die Zahlung für die Anmeldungen von ${p} zu ${e}, die dein Verein übernimmt, noch nicht erhalten:`,
+    remAmount: "Betrag", remDesk: "Du kannst auch vor Ort bezahlen, wenn der Veranstalter das erlaubt.", remOpen: "Meine Anmeldungen ansehen",
+    remSeen: "Falls du schon bezahlt hast, ignoriere diese Nachricht: Die Zahlung wird vermerkt, sobald der Veranstalter sie sieht." },
+  es: { c: ": ", billTitle: (s) => `Resumen de fin de año ${s}`, billInfo: (s) => `Resumen ${s} de las inscripciones pagadas por tu club`,
+    billIntro: (c, s) => `este es el resumen de las inscripciones que ${c} ha pagado por ti en ${s}.`,
+    billInfoIntro: (c, s) => `a título informativo, estas son las inscripciones que ${c} ha pagado por ti en ${s}. No tienes nada que pagar.`,
+    carried: "Pagado por el club", repaid: "Ya reembolsado", balance: "Pendiente de pago", ref: "Referencia que indicar en la transferencia",
+    holder: "Titular de la cuenta", pay: "Por favor, paga este importe al club por transferencia.", nothing: "No queda nada por pagar.",
+    attached: "El resumen va adjunto en PDF.", see: "Ver mi cuenta con el club", by: (c) => `Mensaje enviado por Ozimut en nombre de ${c}.`,
+    remTitle: "Pago pendiente", remIntro: (c, e) => `${c} aún no ha recibido el pago de tus inscripciones a ${e}:`,
+    remClub: (c, e, p) => `${c} aún no ha recibido el pago de las inscripciones de ${p} a ${e}, que paga tu club:`,
+    remAmount: "Importe", remDesk: "También puedes pagar en el lugar, si la organización lo permite.", remOpen: "Ver mis inscripciones",
+    remSeen: "Si ya has pagado, no tengas en cuenta este mensaje: el pago se marcará en cuanto la organización lo vea." },
+};
+const bankHtml = (T, bank) => (bank?.iban ? `<p style="margin:8px 0 0">${esc(T.holder)}${T.c}<b>${esc(bank.holder || "—")}</b><br>IBAN${T.c}<b>${esc(ibanText(bank.iban))}</b>${bank.bic ? `<br>BIC${T.c}<b>${esc(bank.bic)}</b>` : ""}</p>` : "");
+const bankText = (T, bank) => (bank?.iban ? `\n${T.holder}${T.c}${bank.holder || "—"}\nIBAN${T.c}${ibanText(bank.iban)}${bank.bic ? `\nBIC${T.c}${bank.bic}` : ""}` : "");
+/**
+ * The year-end bill (« relevé de fin d'année »): b = { club, season, cur, recover, lines: [{ date, event, runner, amount }], carried,
+ * repaid, balance, ref, bank, attached }. Written in the member's language, sent in the club's name.
+ */
+export function billMail(env, user, b) {
+  const lang = L(user.lang), T = ACC[lang], cur = b.cur || "EUR", m = (c) => money(c, cur, lang);
+  const title = b.recover ? T.billTitle(b.season) : T.billInfo(b.season);
+  const intro = b.recover ? T.billIntro(b.club, b.season) : T.billInfoIntro(b.club, b.season);
+  const rows = b.lines.map((x) => `<tr><td style="padding:3px 8px 3px 0;color:#5b6675;white-space:nowrap">${esc(shortDate(x.date, lang))}</td><td style="padding:3px 8px 3px 0">${esc(x.event)}${x.runner ? ` <span style="color:#5b6675">· ${esc(x.runner)}</span>` : ""}</td><td style="padding:3px 0;text-align:right;white-space:nowrap">${esc(m(x.amount))}</td></tr>`).join("");
+  const sums = b.recover ? `<p style="margin:12px 0 0">${esc(T.carried)}${T.c}<b>${esc(m(b.carried))}</b><br>${esc(T.repaid)}${T.c}<b>${esc(m(b.repaid))}</b><br>${esc(T.balance)}${T.c}<b>${esc(m(b.balance))}</b></p>`
+    : `<p style="margin:12px 0 0">${esc(T.carried)}${T.c}<b>${esc(m(b.carried))}</b></p>`;
+  const pay = b.recover ? (b.balance > 0 ? `<p>${esc(T.pay)}</p><p>${esc(T.ref)} : <b style="font-family:monospace;font-size:15px">${esc(b.ref)}</b></p>${bankHtml(T, b.bank)}` : `<p>${esc(T.nothing)}</p>`) : "";
+  const link = `${siteUrl(env)}/#/monclub?onglet=comptes`;
+  const html = wrap(env, title, `<p>${esc(greet(lang, user.first_name))}</p><p>${esc(intro)}</p>
+<table style="border-collapse:collapse;font-size:14px;width:100%">${rows}</table>${sums}${pay}${b.attached ? `<p style="font-size:13px;color:#5b6675">${esc(T.attached)}</p>` : ""}
+${button(link, T.see, lang)}<p style="font-size:12px;color:#5b6675">${esc(T.by(b.club))}</p>`, lang);
+  const text = `${greet(lang, user.first_name)}\n\n${intro}\n\n${b.lines.map((x) => `- ${shortDate(x.date, lang)} · ${x.event}${x.runner ? ` · ${x.runner}` : ""} · ${m(x.amount)}`).join("\n")}\n\n`
+    + (b.recover ? `${T.carried}${T.c}${m(b.carried)}\n${T.repaid}${T.c}${m(b.repaid)}\n${T.balance}${T.c}${m(b.balance)}\n` : `${T.carried}${T.c}${m(b.carried)}\n`)
+    + (b.recover && b.balance > 0 ? `\n${T.pay}\n${T.ref}${T.c}${b.ref}${bankText(T, b.bank)}\n` : b.recover ? `\n${T.nothing}\n` : "")
+    + `\n${T.see}${T.c}${link}\n\n${T.by(b.club)}`;
+  return { subject: `${title} — ${b.club}`, html, text };
+}
+/**
+ * A reminder of a payment the organising club has not seen: r = { club (the organiser), event, date, cur, amount, ref, bank, desk,
+ * payerClub? (the runners' club: the message goes to its treasurers), runners: [names] }.
+ */
+export function payReminderMail(env, user, r) {
+  const lang = L(user.lang), T = ACC[lang], m = (c) => money(c, r.cur, lang);
+  const what = `${r.event} (${longDate(r.date, lang)})`;
+  const intro = r.payerClub ? T.remClub(r.club, what, r.payerClub) : T.remIntro(r.club, what);
+  const link = `${siteUrl(env)}${r.payerClub ? "/#/monclub?onglet=comptes" : "/#/mes-inscriptions"}`;
+  const html = wrap(env, T.remTitle, `<p>${esc(greet(lang, user.first_name))}</p><p>${esc(intro)}</p>
+${r.runners?.length ? `<ul style="padding-left:20px;margin:0 0 12px">${r.runners.slice(0, 40).map((n) => `<li>${esc(n)}</li>`).join("")}</ul>` : ""}
+<p>${esc(T.remAmount)}${T.c}<b>${esc(m(r.amount))}</b><br>${esc(T.ref)} : <b style="font-family:monospace;font-size:15px">${esc(r.ref)}</b></p>${bankHtml(T, r.bank)}
+${r.desk && !r.payerClub ? `<p style="font-size:13px;color:#5b6675">${esc(T.remDesk)}</p>` : ""}${button(link, T.remOpen, lang)}
+<p style="font-size:13px;color:#5b6675">${esc(T.remSeen)}</p><p style="font-size:12px;color:#5b6675">${esc(T.by(r.club))}</p>`, lang);
+  const text = `${greet(lang, user.first_name)}\n\n${intro}\n${(r.runners || []).slice(0, 40).map((n) => `- ${n}`).join("\n")}\n\n${T.remAmount}${T.c}${m(r.amount)}\n${T.ref}${T.c}${r.ref}${bankText(T, r.bank)}\n\n`
+    + `${r.desk && !r.payerClub ? `${T.remDesk}\n\n` : ""}${T.remOpen}${T.c}${link}\n\n${T.remSeen}\n\n${T.by(r.club)}`;
+  return { subject: `${T.remTitle} — ${r.event}`, html, text };
+}
+/** The push twin of payReminderMail. */
+export function payReminderPush(lang, r) {
+  const T = ACC[L(lang)];
+  return { title: `${T.remTitle} · ${r.event}`, body: `${money(r.amount, r.cur, lang)} · ${r.ref}`,
+    url: r.payerClub ? "/#/monclub?onglet=comptes" : "/#/mes-inscriptions", tag: `pay-${r.ref}` };
 }

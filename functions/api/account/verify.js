@@ -7,6 +7,7 @@ import { sha256hex } from "../../_lib/crypto.js";
 import { sendOrQueue } from "../../_lib/mail.js";
 import { duplicateAlert, newUserMail, welcomeMail } from "../../_lib/templates.js";
 import { memberships } from "../../_lib/countries.js";
+import { confirmPending } from "../../_lib/entries.js";
 
 export async function onRequestPost({ request, env }) {
   const b = await readBody(request);
@@ -20,6 +21,8 @@ export async function onRequestPost({ request, env }) {
     env.DB.prepare("UPDATE users SET email_verified = 1 WHERE id = ?").bind(user.id),
     env.DB.prepare("UPDATE tokens SET used = 1 WHERE token_hash = ?").bind(hash),
   ]);
+  // the entries made with the registration (the entry form's, api/entries guest): entered now (docs/clubs/design.md §3)
+  await confirmPending(env, user.id);
   // (an account without France has no licence: nothing to compare)
   const { results } = user.licence
     ? await env.DB.prepare("SELECT * FROM users WHERE licence = ? AND email_verified = 1 ORDER BY id").bind(user.licence).all()
