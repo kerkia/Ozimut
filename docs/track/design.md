@@ -7,6 +7,11 @@ the owner on 2026-11-21 after the study `C:\Kerkia\Ozimut\work\study\gps-trackin
 (second version). This file is the contract between the server (`functions/api/track`, `live/src/track.js`), the site's
 pages and the native code (`track/android`, `track/ios`, `track/garmin`). Change it first, then the code.
 
+**Since 2026-11-23 the native app is Ozitrac** (`docs/track/ozitrac.md`): a tracking app of its own, used without an account
+(phones linked to each other by a code, through the relay's `TracChannel`), that can also send its runs to an Ozimut account
+with this file's « Pairing a phone » and « Sending ». It holds no page of the site: « The site ↔ app bridge » below and the web
+view's session describe the app of before 2026-11-23. The rules below are Ozimut's accounts'; Ozitrac's are in its own file.
+
 ## The rules
 
 1. **A run always belongs to an account.** A device (phone app, watch app) is signed in to one account once, and stays so

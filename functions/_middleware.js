@@ -27,6 +27,8 @@ const PUBLIC = [/^\/$/, /^\/index\.html$/, /^\/robots\.txt$/, /^\/assets\//, /^\
   /^\/api\/phone(\/[a-z2-9]{12}(\/file(\/\d{1,3})?)?)?$/,  // « Depuis mon téléphone »: the link's own keys (api/phone)
   // the tracking's devices (docs/track/design.md): their own key, a pair or claim code, the relay's secret, Polar's signature
   /^\/api\/track\/(pair|push|claim|webtoken|session|pushtoken|alert|polar\/webhook)$/, /^\/api\/track\/osmand\/[A-Za-z0-9_-]{20,80}$/,
+  // Ozitrac (docs/track/ozitrac.md): no account; its channel's and watchers' own secrets, checked by the relay
+  /^\/api\/ozitrac(\/[a-z0-9_]{1,16}(\/[a-z0-9_]{1,16}){0,3})?$/, /^\/z\/[a-z2-7]{16}$/,
   /^\/t\/[A-Za-z0-9]{0,12}$/, /^\/\.well-known\/(assetlinks\.json|apple-app-site-association)$/];
 const RECHECK_MS = 3600e3;       // how often a session is re-validated against the accounts database
 // A demo account (admin page, « Démo »; 2026-10-18) only reads: any other method is refused, but for these

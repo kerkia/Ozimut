@@ -450,24 +450,25 @@ export function build(X) {
         ${slide("Coach", "2. Con qué se registra", html`
           <p>Una página web no puede registrar una posición con la pantalla bloqueada. Por eso se registra con:</p>
           ${list([
-            html`<b>la aplicación Ozimut</b> en Android o iPhone: todo el sitio, más el seguimiento. Se inicia, se guarda el teléfono en un
+            html`<b>la aplicación Ozitrac</b> en Android o iPhone: el seguimiento en directo, sin cuenta, cada carrera guardada en GPX; vinculada con Ozimut, también envía sus carreras a la cuenta. Se inicia, se guarda el teléfono en un
               bolsillo o un brazalete y se detiene manteniendo pulsado el botón dos segundos. Un botón « Necesito ayuda » avisa enseguida a los
               seguidores;`,
-            html`<b>un reloj Wear OS con 4G</b> (Samsung Galaxy Watch LTE, Google Pixel Watch LTE…) con la aplicación Ozimut: registra y envía
+            html`<b>un reloj Wear OS con 4G</b> (Samsung Galaxy Watch LTE, Google Pixel Watch LTE…) con la aplicación Ozitrac: registra y envía
               solo, sin teléfono, si tiene una línea móvil;`,
-            html`<b>un Apple Watch</b> con la aplicación Ozimut: registra solo y envía solo si tiene datos móviles;`,
+            html`<b>un Apple Watch</b> con la aplicación Ozitrac: registra solo y envía solo si tiene datos móviles;`,
             html`los demás relojes (Garmin, Polar, Suunto, Coros…) no dan a las aplicaciones acceso a la red móvil: solo pueden enviar su posición
               a través de un teléfono, que entonces puede registrar solo. Su traza se añade después de la carrera;`,
-            html`<b>Traccar Client</b>, una aplicación gratuita, para probar sin la aplicación Ozimut.`,
+            html`<b>Traccar Client</b>, una aplicación gratuita, para probar sin Ozitrac.`,
           ])}
+          <p>Ozitrac también funciona sola, sin cuenta de Ozimut: el teléfono seguido muestra un código que los teléfonos que lo siguen escanean en Ozitrac; su posición, cifrada solo para ellos, pasa por Ozimut sin poder leerse allí. Una cuenta de Ozimut guarda el historial de carreras y las analiza.</p>
           <p>Antes de la primera carrera, haz la <b>prueba de dos minutos</b> de la aplicación: con la pantalla bloqueada, comprueba que el
             teléfono registra bien. En algunos teléfonos Android hay que permitir que la aplicación funcione en segundo plano en los ajustes de
             batería; la prueba lo dice y abre la pantalla correcta.</p>`)}
         ${slide("Coach", "3. Vincular un dispositivo", html`
           <p>Un dispositivo siempre pertenece a una cuenta: sin cuenta no se registra nada. En « Familia y dispositivos », elige primero en « ¿Para quién? » la persona — tú o uno de tus hijos: cada una tiene sus propios dispositivos, sus propios seguidores y sus propios ajustes. Luego:</p>
           ${list([
-            html`<b>un teléfono</b>: « Vincular un teléfono » muestra un código QR; se escanea con la aplicación Ozimut del teléfono (o se
-              escriben sus 8 caracteres). El código sirve una vez y dura 15 minutos. En la propia aplicación basta con « Vincular este teléfono »;`,
+            html`<b>un teléfono</b>: « Vincular un teléfono » muestra un código QR; se escanea en la aplicación Ozitrac del teléfono, « Vincular con Ozimut » (o se
+              escriben sus 8 caracteres). El código sirve una vez y dura 15 minutos. El teléfono envía luego cada carrera a esta cuenta, hasta que la cuenta lo retire;`,
             html`<b>un reloj</b>: el reloj muestra un código de 6 caracteres; se escribe en « Vincular un reloj ». Un Apple Watch también se
               puede vincular desde el iPhone que lo acompaña;`,
             html`<b>Traccar Client</b>: « Traccar Client » da un código QR que se escanea desde los ajustes de Traccar Client (el icono arriba de la pantalla), no con la cámara del teléfono, o una dirección para pegar en « URL del servidor ».`,

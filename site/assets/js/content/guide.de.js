@@ -457,24 +457,25 @@ export function build(X) {
         ${slide("Coach", "2. Womit aufgezeichnet wird", html`
           <p>Eine Webseite kann bei gesperrtem Bildschirm keine Position aufzeichnen. Aufgezeichnet wird daher mit:</p>
           ${list([
-            html`<b>der Ozimut-App</b> auf Android oder iPhone: die ganze Website, dazu die Verfolgung. Starten, das Telefon in eine Tasche oder
+            html`<b>der App Ozitrac</b> auf Android oder iPhone: die Live-Verfolgung, ohne Konto, jeder Lauf als GPX behalten; mit Ozimut verbunden, sendet sie ihre Läufe auch an das Konto. Starten, das Telefon in eine Tasche oder
               ein Armband stecken, zum Beenden den Knopf zwei Sekunden gedrückt halten. Ein Knopf « Ich brauche Hilfe » warnt sofort die
               Verfolgenden;`,
-            html`<b>einer Wear-OS-Uhr mit 4G</b> (Samsung Galaxy Watch LTE, Google Pixel Watch LTE…) mit der Ozimut-App: Sie zeichnet auf und
+            html`<b>einer Wear-OS-Uhr mit 4G</b> (Samsung Galaxy Watch LTE, Google Pixel Watch LTE…) mit der App Ozitrac: Sie zeichnet auf und
               sendet allein, ohne Telefon, wenn sie einen Mobilfunkvertrag hat;`,
-            html`<b>einer Apple Watch</b> mit der Ozimut-App: Sie zeichnet allein auf und sendet allein, wenn sie mobiles Netz hat;`,
+            html`<b>einer Apple Watch</b> mit der App Ozitrac: Sie zeichnet allein auf und sendet allein, wenn sie mobiles Netz hat;`,
             html`andere Uhren (Garmin, Polar, Suunto, Coros…) geben Apps keinen Zugang zum Mobilfunknetz: Sie können ihre Position nur über
               ein Telefon senden, das dann auch allein aufzeichnen kann. Ihre Spur wird nach dem Lauf hinzugefügt;`,
-            html`<b>Traccar Client</b>, einer kostenlosen App, um es ohne die Ozimut-App auszuprobieren.`,
+            html`<b>Traccar Client</b>, einer kostenlosen App, um es ohne Ozitrac auszuprobieren.`,
           ])}
+          <p>Ozitrac funktioniert auch allein, ohne Ozimut-Konto: Das verfolgte Telefon zeigt einen Code, den die folgenden Telefone in Ozitrac scannen; seine Position, nur für sie verschlüsselt, läuft über Ozimut, ohne dort lesbar zu sein. Ein Ozimut-Konto bewahrt die Läufe auf und analysiert sie.</p>
           <p>Mach vor dem ersten Lauf den <b>Zwei-Minuten-Test</b> der App: Bei gesperrtem Bildschirm prüft er, ob das Telefon richtig
             aufzeichnet. Bei manchen Android-Telefonen muss die App in den Akku-Einstellungen im Hintergrund laufen dürfen; der Test sagt es
             und öffnet den richtigen Bildschirm.</p>`)}
         ${slide("Coach", "3. Ein Gerät verbinden", html`
           <p>Ein Gerät gehört immer zu einem Konto: Ohne Konto wird nichts aufgezeichnet. Wähle unter « Familie und Geräte » zuerst bei « Für wen? » die Person — dich selbst oder eines deiner Kinder: Jede hat ihre eigenen Geräte, ihre eigenen Verfolger und ihre eigenen Einstellungen. Dann:</p>
           ${list([
-            html`<b>ein Telefon</b>: « Ein Telefon verbinden » zeigt einen QR-Code; scanne ihn mit der Ozimut-App des Telefons (oder tippe
-              seine 8 Zeichen ein). Der Code gilt einmal und 15 Minuten lang. In der App selbst genügt « Dieses Telefon verbinden »;`,
+            html`<b>ein Telefon</b>: « Ein Telefon verbinden » zeigt einen QR-Code; scanne ihn in der App Ozitrac des Telefons unter « Mit Ozimut verbinden » (oder tippe
+              seine 8 Zeichen ein). Der Code gilt einmal und 15 Minuten lang. Das Telefon sendet dann jeden Lauf an dieses Konto, bis das Konto es entfernt;`,
             html`<b>eine Uhr</b>: Die Uhr zeigt einen Code mit 6 Zeichen; tippe ihn unter « Eine Uhr verbinden » ein. Eine Apple Watch kann
               auch über das zugehörige iPhone verbunden werden;`,
             html`<b>Traccar Client</b>: « Traccar Client » gibt einen QR-Code, den man in den Einstellungen von Traccar Client scannt (das Symbol oben auf dem Bildschirm), nicht mit der Kamera des Telefons, oder eine Adresse zum Einfügen in « Server-URL ».`,

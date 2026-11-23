@@ -351,7 +351,7 @@ async function alert({ request, env }) {
     const wants = parseJson(row?.alerts);
     if (wants && kind !== "help" && wants[kind] === false) continue;              // help always goes
     const msg = trackPush(userLang(w), kind, nameOf(who), b, uid);
-    sent += await pushToUser(env, id, msg, { topic: `trk${uid}${kind}`, ttl: kind === "help" ? 3600 : 1800 });
+    sent += await pushToUser(env, id, msg, { topic: `trk${uid}${kind}`, ttl: kind === "help" ? 3600 : 1800, native: true });
   }
   return json({ ok: true, sent });
 }

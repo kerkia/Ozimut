@@ -102,8 +102,9 @@ export async function sendPush(env, sub, msg, { topic = null, ttl = 4 * 86400 } 
 
 /** Send to every device of an account; drop the subscriptions gone, count the failures. -> number of devices reached. */
 export async function pushToUser(env, userId, msg, opts) {
-  // the Ozimut app's devices too, natively (_lib/nativepush.js, migration 0029)
-  let reached = await nativeToUser(env, userId, msg, opts);
+  // the tracking's alerts also go natively to the account's tracking phones (Ozitrac linked to Ozimut, _lib/nativepush.js);
+  // nothing else of the site goes to the app (owner, 2026-11-23: Ozitrac shows tracking only, docs/track/ozitrac.md)
+  let reached = opts?.native ? await nativeToUser(env, userId, msg, opts) : 0;
   if (!pushReady(env)) return reached;
   const { results: subs } = await env.DB.prepare("SELECT * FROM push_subs WHERE user_id = ?").bind(userId).all();
   for (const s of subs) {

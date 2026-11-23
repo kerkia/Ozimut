@@ -454,23 +454,24 @@ export function build(X) {
         ${slide("Coach", "2. Avec quoi on enregistre", html`
           <p>Une page web ne peut pas enregistrer une position écran verrouillé. L'enregistrement se fait donc avec :</p>
           ${list([
-            html`<b>l'application Ozimut</b> sur Android ou iPhone : tout le site, plus le suivi. On démarre, on range le téléphone dans une poche
+            html`<b>l'application Ozitrac</b> sur Android ou iPhone : le suivi en direct, sans compte, chaque course gardée en GPX ; reliée à Ozimut, elle envoie aussi ses courses au compte. On démarre, on range le téléphone dans une poche
               ou un brassard, on arrête en gardant le bouton appuyé deux secondes. Un bouton « J'ai besoin d'aide » prévient aussitôt les suiveurs ;`,
-            html`<b>une montre Wear OS avec 4G</b> (Samsung Galaxy Watch LTE, Google Pixel Watch LTE…) avec l'application Ozimut : elle enregistre et
+            html`<b>une montre Wear OS avec 4G</b> (Samsung Galaxy Watch LTE, Google Pixel Watch LTE…) avec l'application Ozitrac : elle enregistre et
               envoie seule, sans téléphone, si elle a un abonnement mobile ;`,
-            html`<b>une Apple Watch</b> avec l'application Ozimut : elle enregistre seule, et envoie seule si elle a le réseau mobile ;`,
+            html`<b>une Apple Watch</b> avec l'application Ozitrac : elle enregistre seule, et envoie seule si elle a le réseau mobile ;`,
             html`les autres montres (Garmin, Polar, Suunto, Coros…) ne donnent pas aux applications d'accès au réseau mobile : elles ne peuvent
               envoyer leur position que par un téléphone, qui peut alors enregistrer seul. Leur trace s'ajoute après la course ;`,
-            html`<b>Traccar Client</b>, une application gratuite, pour essayer sans l'application Ozimut.`,
+            html`<b>Traccar Client</b>, une application gratuite, pour essayer sans Ozitrac.`,
           ])}
+          <p>Ozitrac s'utilise aussi seule, sans compte Ozimut : le téléphone suivi montre un code que les téléphones qui le suivent scannent dans Ozitrac ; sa position, chiffrée pour eux seuls, passe par Ozimut sans y être lisible. Un compte Ozimut sert à garder l'historique des courses et à les analyser.</p>
           <p>Avant la première course, faites le <b>test de deux minutes</b> de l'application : écran verrouillé, il vérifie que le téléphone
             enregistre bien. Sur certains téléphones Android, il faut autoriser l'application à fonctionner en arrière-plan dans les réglages de
             batterie ; le test le dit et ouvre le bon écran.</p>`)}
         ${slide("Coach", "3. Associer un appareil", html`
           <p>Un appareil appartient toujours à un compte : rien n'est enregistré sans compte. Dans « Famille et appareils », choisissez d'abord sous « Pour qui ? » la personne — vous-même ou un de vos enfants : chacun a ses propres appareils, ses propres suiveurs et ses propres réglages. Puis :</p>
           ${list([
-            html`<b>un téléphone</b> : « Associer un téléphone » montre un code QR ; on le scanne avec l'application Ozimut du téléphone (ou on
-              tape ses 8 caractères). Le code sert une fois et dure 15 minutes. Dans l'application elle-même, « Associer ce téléphone » suffit ;`,
+            html`<b>un téléphone</b> : « Associer un téléphone » montre un code QR ; on le scanne dans l'application Ozitrac du téléphone, « Relier à Ozimut » (ou on
+              tape ses 8 caractères). Le code sert une fois et dure 15 minutes. Le téléphone envoie ensuite chaque course à ce compte, jusqu'à ce que le compte le retire ;`,
             html`<b>une montre</b> : la montre affiche un code de 6 caractères ; on le tape dans « Associer une montre ». Une Apple Watch peut aussi
               être associée par l'iPhone qui l'accompagne ;`,
             html`<b>Traccar Client</b> : « Traccar Client » donne un code QR à scanner depuis les réglages de Traccar Client (l'icône en haut de l'écran), pas avec l'appareil photo du téléphone, ou une adresse à coller dans « URL du serveur ».`,

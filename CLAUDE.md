@@ -835,6 +835,18 @@ banner asking a parent), a child taking the account over from 15 (`POST /api/tra
   the phone app's tracker files compiled into it as they are (`SHARED` in its build file); built by `track-android.yml`, artifact
   `ozimut-wearos-apks`; installed by hand (`docs/track/setup.md` 3b). **Only
   built and unit-tested in CI, never run on a device**; signing, stores, icons and the owner's accounts still to come.
+- **Ozitrac** (owner, 2026-11-23, after the session on paid plans: the app holds no page of Ozimut, sells nothing, shows no
+  price): **the tracking app is a product of its own** — contract `docs/track/ozitrac.md`, change it first. No account: a
+  followed phone makes a channel on the relay (`live/src/ozitrac.js` `TracChannel`, migration v4, binding `OZITRAC` in both
+  wrangler.toml), its watchers join by scanning `https://ozimut.com/z/<c>#<code>.<key>.<name>` (a browser gets
+  `functions/z/[[path]].js`'s page), every batch sealed per watcher with AES-256-GCM so the relay reads no position; the site's
+  `functions/api/ozitrac/[[path]].js` (public in `_middleware.js`) makes channels, limits the anonymous routes and sends the
+  watchers' notifications as FCM data (`nativepush.sendData`); « silent » comes from the object's alarm through
+  `/api/ozitrac/alert`. The run under way only, deleted 24 h after it ends; a channel unused 180 days goes; the runs as GPX on
+  the phone. « Relier à Ozimut » = the pair code of « Associer un téléphone »: the phone then also sends to the account with
+  this section's protocol. Android and Wear OS id `com.ozimut.ozitrac` (namespace `com.ozimut.app`). Site notifications no
+  longer go to the native devices: only the tracking's alerts (`pushToUser`'s `native`). Relay test: `C:\Kerkia\Ozimut\work\scratch-scripts\t_ozitrac.mjs`
+  (30 checks), launch configs `ocn-live-track` + `pages-dev-track-open` (binds `OZITRAC=TracChannel@ocn-live`).
 - **Administrators only for now** (owner, 2026-11-22: « make all this visible to admin only for now »): while `TRACK_OPEN` is "0" the
   menu entry, the page (`app.trackShown`, the router sends others to the modules page), the Coach guide's chapter « Suivi GPS »
   (`content/guide.*.js` `suivi`, `track` passed by `pages/methods.js`) and the API (`trackAllowed`: administrators and the child accounts
