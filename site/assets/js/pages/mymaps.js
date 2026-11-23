@@ -208,21 +208,23 @@ export async function render(main, { query = {} } = {}) {
     compte: [(m) => (m.uid ? { k: m.uid, label: m.user || `#${m.uid}` } : null)],
     club: [(m) => (m.club ? { k: m.club, label: m.club } : null)],
   };
+  // the folder of maps without a place / date / club / account: its key must never hold "~", which joins a folder's path
+  const NONE = "_none";
   /** The folders of maps: { key, label, maps (all below), kids: [node], direct: [map], depth }. */
   function build(maps) {
     const L = LEVELS[group];
     const grow = (n, d) => {
       n.kids = []; n.direct = [];
-      if (!L || d >= L.length || n.key === "~") { n.direct = n.maps; return; }
+      if (!L || d >= L.length || n.key === NONE) { n.direct = n.maps; return; }
       const kids = new Map();
       for (const m of n.maps) {
         let g = L[d](m);
-        if (!g && d === 0) g = { k: "~", label: t(group === "date" ? "mm.lib.noDate" : group === "lieu" ? "mm.lib.noPlace" : group === "club" ? "mm.adm.noClub" : "mm.adm.noUser") };
+        if (!g && d === 0) g = { k: NONE, label: t(group === "date" ? "mm.lib.noDate" : group === "lieu" ? "mm.lib.noPlace" : group === "club" ? "mm.adm.noClub" : "mm.adm.noUser") };
         if (!g) { n.direct.push(m); continue; }
         if (!kids.has(g.k)) kids.set(g.k, { key: g.k, label: g.label, maps: [], depth: d + 1 });
         kids.get(g.k).maps.push(m);
       }
-      n.kids = [...kids.values()].sort((a, b) => (a.key === "~") - (b.key === "~") || (group === "date" ? b.key.localeCompare(a.key) : coll.compare(a.label, b.label)));
+      n.kids = [...kids.values()].sort((a, b) => (a.key === NONE) - (b.key === NONE) || (group === "date" ? b.key.localeCompare(a.key) : coll.compare(a.label, b.label)));
       for (const k of n.kids) grow(k, d + 1);
     };
     const root = { key: "", label: token ? t("mm.shared.title", { name: st.name }) : t("mm.lib.root"), maps, depth: 0 };
