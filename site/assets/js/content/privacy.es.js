@@ -15,7 +15,7 @@ export const body = (SITE, { world = false } = {}) => `
       <p>Para una necesidad particular (un estudio, las necesidades de un club o de una liga regional, datos destinados a otra herramienta), puedes
         escribir al editor, desde la página «Contacto» o a contact@ozimut.com: la solicitud será examinada.</p>
       <h2 style="font-size:16px">Independencia y fuentes</h2>
-      <p>${SITE} es independiente, no oficial y gratuito, sin vínculo con ninguna federación ni ningún organizador. Sus fuentes: para Francia,
+      <p>${SITE} es independiente, no oficial y abierto a todos, sin vínculo con ninguna federación ni ningún organizador. Sus fuentes: para Francia,
         los resultados, la clasificación nacional (CN) y el calendario publicados por la Federación Francesa de Orientación (FFCO)
         en cn.ffcorientation.fr y ffcorientation.fr, que siguen siendo la referencia; para España, el calendario y las inscripciones
         publicados por la Federación Española de Orientación (FEDO) en sico.fedo.org, y los resultados publicados en O-Replay (oreplay.es); para

@@ -17,7 +17,7 @@ export const body = (SITE, { world = false } = {}) => `
         Werkzeug) kannst du dem Herausgeber über die Seite „Kontakt“ oder an contact@ozimut.com schreiben: Die Anfrage wird
         geprüft.</p>
       <h2 style="font-size:16px">Unabhängigkeit und Quellen</h2>
-      <p>${SITE} ist unabhängig, inoffiziell und kostenlos, ohne Verbindung zu einem Verband oder Veranstalter. Die Quellen: für Frankreich
+      <p>${SITE} ist unabhängig, inoffiziell und für alle offen, ohne Verbindung zu einem Verband oder Veranstalter. Die Quellen: für Frankreich
         die Ergebnisse, die nationale Rangliste (CN) und der Kalender, die der französische Orientierungslaufverband (FFCO)
         auf cn.ffcorientation.fr und ffcorientation.fr veröffentlicht und die die Referenz bleiben; für Spanien der Kalender und die
         Anmeldungen, die der spanische Verband (FEDO) auf sico.fedo.org veröffentlicht, sowie die auf O-Replay (oreplay.es)

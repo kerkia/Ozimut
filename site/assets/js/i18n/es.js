@@ -229,7 +229,7 @@ export default {
   "home.metaDesc": "La orientación, en mapas y en cifras: tu historial carrera a carrera, tus tracks GPS, los resultados de los organizadores, el entrenamiento, el trazado de recorridos y, para Francia, las clasificaciones.",
   "tour.eyebrow": "Resumen",
   "tour.title": "Tu orientación, desde todos los ángulos",
-  "tour.lede": "Un sitio vivo para los orientadores: tu historial carrera a carrera, los resultados de los organizadores a menudo la misma noche, el análisis de tu track GPS, herramientas para clubes y organizadores, y las clasificaciones de las federaciones cuyos resultados tiene Ozimut. Gratis y sin publicidad.",
+  "tour.lede": "Un sitio vivo para los orientadores: tu historial carrera a carrera, los resultados de los organizadores a menudo la misma noche, el análisis de tu track GPS, herramientas para clubes y organizadores, y las clasificaciones de las federaciones cuyos resultados tiene Ozimut. Abierto a todos y sin publicidad.",
   "tour.fig.runners": "corredores",
   "tour.fig.competitions": "competiciones",
   "tour.fig.results": "resultados",

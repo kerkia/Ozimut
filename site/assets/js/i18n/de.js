@@ -229,7 +229,7 @@ export default {
   "home.metaDesc": "Orientierungslauf, in Karten und Zahlen: deine Historie Lauf für Lauf, deine GPS-Tracks, die Ergebnisse der Veranstalter, Training, Bahnlegung und, für Frankreich, die Ranglisten.",
   "tour.eyebrow": "Überblick",
   "tour.title": "Dein Orientierungslauf aus allen Blickwinkeln",
-  "tour.lede": "Eine lebendige Seite für Orientierungsläufer: deine Geschichte Lauf für Lauf, die Ergebnisse der Veranstalter oft schon am selben Abend, die Analyse deines GPS-Tracks, Werkzeuge für Vereine und Veranstalter und die Ranglisten der Verbände, deren Ergebnisse Ozimut hat. Kostenlos, ohne Werbung.",
+  "tour.lede": "Eine lebendige Seite für Orientierungsläufer: deine Geschichte Lauf für Lauf, die Ergebnisse der Veranstalter oft schon am selben Abend, die Analyse deines GPS-Tracks, Werkzeuge für Vereine und Veranstalter und die Ranglisten der Verbände, deren Ergebnisse Ozimut hat. Offen für alle, ohne Werbung.",
   "tour.fig.runners": "Läufer",
   "tour.fig.competitions": "Wettkämpfe",
   "tour.fig.results": "Ergebnisse",

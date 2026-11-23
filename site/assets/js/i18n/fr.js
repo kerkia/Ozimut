@@ -170,7 +170,7 @@ export default {
   // the home page's presentation of the site (overview.js, under the hero)
   "tour.eyebrow": "Aperçu",
   "tour.title": "Votre course d'orientation, sous tous les angles",
-  "tour.lede": "Un site vivant pour les orienteurs : votre historique course par course, les résultats des organisateurs dès le soir même, l'analyse de votre trace GPS, des outils pour les clubs et les organisateurs, et les classements des fédérations dont Ozimut a les résultats. Gratuit, sans publicité.",
+  "tour.lede": "Un site vivant pour les orienteurs : votre historique course par course, les résultats des organisateurs dès le soir même, l'analyse de votre trace GPS, des outils pour les clubs et les organisateurs, et les classements des fédérations dont Ozimut a les résultats. Ouvert à tous, sans publicité.",
   "tour.fig.runners": "coureurs",
   "tour.fig.competitions": "compétitions",
   "tour.fig.results": "résultats",

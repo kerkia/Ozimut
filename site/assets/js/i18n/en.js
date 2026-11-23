@@ -230,7 +230,7 @@ export default {
   // the home page's presentation of the site (overview.js, under the hero)
   "tour.eyebrow": "Overview",
   "tour.title": "Your orienteering, from every angle",
-  "tour.lede": "A living site for orienteers: your history race by race, organisers' results often the same evening, the analysis of your GPS track, tools for clubs and organisers, and the rankings of the federations whose results Ozimut has. Free, no advertising.",
+  "tour.lede": "A living site for orienteers: your history race by race, organisers' results often the same evening, the analysis of your GPS track, tools for clubs and organisers, and the rankings of the federations whose results Ozimut has. Open to all, no advertising.",
   "tour.fig.runners": "runners",
   "tour.fig.competitions": "competitions",
   "tour.fig.results": "results",

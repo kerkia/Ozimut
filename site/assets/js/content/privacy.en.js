@@ -13,7 +13,7 @@ export const body = (SITE, { world = false } = {}) => `
       <p>For a particular need (a study, the needs of a club or a region, data meant for another tool), you can write to the
         publisher, through the “Contact us” page or at contact@ozimut.com: the request will be considered.</p>
       <h2 style="font-size:16px">Independence and sources</h2>
-      <p>${SITE} is independent, unofficial and free, not affiliated with any federation or organiser. Its sources: for France, the results,
+      <p>${SITE} is independent, unofficial and open to all, not affiliated with any federation or organiser. Its sources: for France, the results,
         the national ranking (CN) and the calendar published by the French orienteering federation (FFCO) on cn.ffcorientation.fr
         and ffcorientation.fr, which remain the reference; for Spain, the calendar and entries published by the Spanish federation
         (FEDO) on sico.fedo.org, and the results published on O-Replay (oreplay.es); for every race, the results and start times
