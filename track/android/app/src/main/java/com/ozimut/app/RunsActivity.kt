@@ -111,7 +111,6 @@ class RunViewActivity : ComponentActivity() {
             return
         }
         val fixes = RunLog.read(info.file)
-        val cfg = RelayConfig.get(this)
         val root = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setBackgroundColor(0xFFFFFFFF.toInt()) }
         Ui.padForBars(root)
         setContentView(root)
@@ -121,7 +120,6 @@ class RunViewActivity : ComponentActivity() {
         root.addView(head)
         val frame = FrameLayout(this)
         val map = TileMapView(this).apply {
-            template = cfg.tiles; credit = cfg.credit; maxZoom = cfg.maxZoom
             follow = false
             trail = fixes
         }

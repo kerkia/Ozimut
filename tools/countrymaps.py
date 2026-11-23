@@ -6,11 +6,15 @@ Made from Natural Earth's 1:10m countries and first-level units (public domain, 
 
     python tools/countrymaps.py fetch          # download the two GeoJSON files into $CN_DATA_DIR/naturalearth
     python tools/countrymaps.py build [cc …]   # rebuild site/assets/geo/<cc>.json (every agenda's country by default)
+    python tools/countrymaps.py index          # rebuild site/assets/geo/index.json alone (build does it too)
 
 A file: { v, source, q, box: [west, south, east, north], land: [ring…], units: [ring…], near: [ring…] } — the country's own
 land (the part around its largest piece: overseas lands left out), its first-level units (France's départements, the
 German Länder…), the neighbours' land cut to the frame; a ring is [x0, y0, dx1, dy1, …], longitude and latitude × q,
 each point after the first as its difference with the one before. Simplified to about a pixel of a 600-pixel-wide map.
+
+index.json: { cc: [west, south, east, north] } of every country file — the boxes the browser looks in first to name the
+country a point lies in (« Mes cartes »: a georeferenced map's country, site/assets/js/trace/mymapsplace.js `countryAt`).
 """
 from __future__ import annotations
 
@@ -25,6 +29,26 @@ sys.path.insert(0, str(ROOT))
 OUT = ROOT / "site" / "assets" / "geo"
 URL = "https://raw.githubusercontent.com/nvkelso/natural-earth-vector/v5.1.2/geojson/"
 FILES = ("ne_10m_admin_0_countries", "ne_10m_admin_1_states_provinces")
+
+
+def write_index() -> None:
+    """index.json from the country files written: each one's box (its land's, read from its rings: the file's own box is padded)."""
+    out = {}
+    for p in sorted(OUT.glob("??.json")):
+        if p.stem in ("xw", "xa"):
+            continue
+        m = json.loads(p.read_text(encoding="utf-8"))
+        q, w, s, e, n = m["q"], 999.0, 999.0, -999.0, -999.0
+        for r in m["land"]:
+            x, y = r[0], r[1]
+            for i in range(0, len(r), 2):
+                if i:
+                    x += r[i]; y += r[i + 1]
+                w, e, s, n = min(w, x / q), max(e, x / q), min(s, y / q), max(n, y / q)
+        if w <= e:
+            out[p.stem.upper()] = [round(w, 3), round(s, 3), round(e, 3), round(n, 3)]
+    (OUT / "index.json").write_text(json.dumps(out, separators=(",", ":"), sort_keys=True), encoding="utf-8")
+    print(f"index.json: {len(out)} countries")
 
 
 def src_dir() -> Path:
@@ -196,6 +220,9 @@ def main(argv) -> None:
     if cmd == "fetch":
         fetch()
         return
+    if cmd == "index":
+        write_index()
+        return
     import countries
     # every agenda's country, and every country the IOF's WRE calendar may name (countries/wre.py: their WREs have a list)
     from countries import wre
@@ -215,6 +242,7 @@ def main(argv) -> None:
         p.write_text(json.dumps(m, separators=(",", ":")), encoding="utf-8")
         print(f"{cc}: {len(m['land'])} land rings, {len(m['units'])} unit rings, {len(m['near'])} neighbours' rings, "
               f"{p.stat().st_size // 1024} KB")
+    write_index()
 
 
 if __name__ == "__main__":

@@ -3,7 +3,7 @@
 // secrets itself; this Function makes new channels, limits the anonymous routes by address, and sends the notifications the
 // object asks for (data only, _lib/nativepush.js sendData). Public in _middleware.js: no session, ever.
 //
-//   GET    config                 the map's tiles and the batch intervals
+//   GET    config                 the map's layers by country (_lib/ozitracmaps.js) and the batch intervals
 //   POST   channel                a new channel -> { c, cs }
 //   POST   alert                  the relay's own alerts (X-Relay = TRACK_RELAY_SECRET) -> notifications
 //   GET    <c>                    the watchee's view (Bearer cs)
@@ -17,6 +17,7 @@
 
 import { allow, clientIp, json } from "../../_lib/api.js";
 import { sendData } from "../../_lib/nativepush.js";
+import { maps } from "../../_lib/ozitracmaps.js";
 
 const A32 = "abcdefghijklmnopqrstuvwxyz234567";
 const MAX_BODY = 512 * 1024;
@@ -55,12 +56,7 @@ export async function onRequest(ctx) {
   const head = parts[0] || "";
 
   if (head === "config" && method === "GET") {
-    return json({
-      tiles: env.OZITRAC_TILES || "https://tile.openstreetmap.org/{z}/{x}/{y}.png",
-      attribution: env.OZITRAC_TILES_CREDIT || "© OpenStreetMap",
-      maxZoom: Number(env.OZITRAC_MAX_ZOOM) || 19,
-      watched: 15, idle: 120,
-    }, 200, { "Cache-Control": "public, max-age=3600" });
+    return json({ ...maps(env), watched: 15, idle: 120 }, 200, { "Cache-Control": "public, max-age=3600" });
   }
   if (!env.OZITRAC) return json({ error: "off" }, 503);
 

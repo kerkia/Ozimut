@@ -1,6 +1,7 @@
 package com.ozimut.app
 
 import android.annotation.SuppressLint
+import android.app.AlertDialog
 import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
@@ -14,6 +15,10 @@ import android.view.GestureDetector
 import android.view.MotionEvent
 import android.view.ScaleGestureDetector
 import android.view.View
+import android.widget.LinearLayout
+import android.widget.RadioButton
+import android.widget.RadioGroup
+import android.widget.ScrollView
 import java.io.File
 import java.net.HttpURLConnection
 import java.net.URL
@@ -28,15 +33,16 @@ import kotlin.math.pow
 import kotlin.math.tan
 
 /**
- * A small map of raster tiles (Web Mercator, 256 px; docs/track/ozitrac.md « The map »): the relay's tile address, a memory
- * cache and a disk cache, two loaders, pan, pinch and double tap; a trail, a position with its accuracy, a zone's circle, the
- * credit bottom right, and « follow » (the position kept in the middle until the map is moved by hand). No map library.
+ * A small map of raster tiles (Web Mercator, 256 px; docs/track/ozitrac.md « The map »): each tile from the layer of the
+ * country it lies in (MapLayers: Plan IGN in France, swisstopo in Switzerland, OpenStreetMap elsewhere, or the layer the
+ * person chose there) fetched by the phone itself, a memory cache and a disk cache per layer, two loaders, pan, pinch and
+ * double tap; a trail, a position with its accuracy, a zone's circle, the credits of the layers drawn bottom right,
+ * « Fond de carte » top left, and « follow » (the position kept in the middle until the map is moved by hand). No map library.
  */
 @SuppressLint("ViewConstructor")
 class TileMapView(c: Context) : View(c) {
-    var template = RelayConfig.OSM
-    var credit = RelayConfig.OSM_CREDIT
     var maxZoom = 19
+    private var layers = MapLayers.get(c)
 
     /** The map's centre in world units (0..1 both ways) and its zoom (fractional). */
     private var cx = 0.5
@@ -144,6 +150,10 @@ class TileMapView(c: Context) : View(c) {
 
     private val gestures = GestureDetector(c, object : GestureDetector.SimpleOnGestureListener() {
         override fun onDown(e: MotionEvent) = true
+        override fun onSingleTapUp(e: MotionEvent): Boolean {
+            if (layersButton.contains(e.x, e.y)) { openLayers(); return true }
+            return false
+        }
         override fun onScroll(e1: MotionEvent?, e2: MotionEvent, dx: Float, dy: Float): Boolean {
             if (scaler.isInProgress) return false
             if (follow) follow = false
@@ -154,6 +164,7 @@ class TileMapView(c: Context) : View(c) {
             return true
         }
         override fun onDoubleTap(e: MotionEvent): Boolean {
+            if (layersButton.contains(e.x, e.y)) return true
             val wx = cx + (e.x - width / 2.0) / worldPx()
             val wy = cy + (e.y - height / 2.0) / worldPx()
             zoom = (zoom + 1).coerceIn(2.0, maxZoom.toDouble())
@@ -178,21 +189,44 @@ class TileMapView(c: Context) : View(c) {
     private val failedAt = ConcurrentHashMap<String, Long>()
     private val loaders = Executors.newFixedThreadPool(2)
     private val diskDir = File(c.cacheDir, "tiles")
+    private val layerOf = object : LruCache<String, MapLayers.Layer>(2048) {}
+
+    /** The relay's layers or the person's choice changed: every tile is chosen again. */
+    fun reloadLayers() {
+        layers = MapLayers.get(context)
+        layerOf.evictAll()
+        invalidate()
+    }
+
+    /** The layer of tile [z]/[x]/[y]: an area's when its four corners lie inside that area, else elsewhere's. */
+    private fun layerFor(z: Int, x: Int, y: Int): MapLayers.Layer {
+        val key = "$z/$x/$y"
+        layerOf.get(key)?.let { return it }
+        val n = (1 shl z).toDouble()
+        val lon0 = lonOf(x / n); val lon1 = lonOf((x + 1) / n)
+        val lat0 = latOf(y / n); val lat1 = latOf((y + 1) / n)
+        val area = if (z < 5) null else layers.areas.firstOrNull {
+            it.contains(lon0, lat0) && it.contains(lon1, lat0) && it.contains(lon0, lat1) && it.contains(lon1, lat1)
+        }
+        val l = layers.chosen(context, area ?: layers.elsewhere)
+        layerOf.put(key, l)
+        return l
+    }
 
     override fun onDetachedFromWindow() {
         super.onDetachedFromWindow()
         loaders.shutdownNow()
     }
 
-    private fun tile(z: Int, x: Int, y: Int): Bitmap? {
-        val key = "$z/$x/$y"
+    private fun tile(l: MapLayers.Layer, z: Int, x: Int, y: Int): Bitmap? {
+        val key = "${l.id}/$z/$x/$y"
         mem.get(key)?.let { return it }
         if (pending.contains(key)) return null
         if ((failedAt[key] ?: 0L) > System.currentTimeMillis() - 30_000) return null
         pending.add(key)
         try {
             loaders.execute {
-                val bmp = load(z, x, y)
+                val bmp = load(l, z, x, y)
                 if (bmp != null) mem.put(key, bmp) else failedAt[key] = System.currentTimeMillis()
                 pending.remove(key)
                 postInvalidate()
@@ -203,13 +237,13 @@ class TileMapView(c: Context) : View(c) {
         return null
     }
 
-    private fun load(z: Int, x: Int, y: Int): Bitmap? {
-        val f = File(diskDir, "$z/$x/$y.png")
+    private fun load(l: MapLayers.Layer, z: Int, x: Int, y: Int): Bitmap? {
+        val f = File(diskDir, "${l.id}/$z/$x/$y")
         if (f.exists() && System.currentTimeMillis() - f.lastModified() < 30L * 86_400_000L) {
             BitmapFactory.decodeFile(f.path)?.let { return it }
         }
         return try {
-            val url = template.replace("{z}", z.toString()).replace("{x}", x.toString()).replace("{y}", y.toString())
+            val url = l.tiles.replace("{z}", z.toString()).replace("{x}", x.toString()).replace("{y}", y.toString())
             val conn = URL(url).openConnection() as HttpURLConnection
             conn.connectTimeout = 15_000
             conn.readTimeout = 20_000
@@ -234,6 +268,7 @@ class TileMapView(c: Context) : View(c) {
 
     override fun onDraw(canvas: Canvas) {
         canvas.drawRect(0f, 0f, width.toFloat(), height.toFloat(), emptyPaint)
+        drawn.clear()
         val tz = floor(zoom + 1e-6).toInt().coerceIn(0, maxZoom)
         val n = 1 shl tz
         val tilePx = 256.0 * density * 2.0.pow(zoom - tz)
@@ -247,15 +282,11 @@ class TileMapView(c: Context) : View(c) {
                 val wx = ((tx % n) + n) % n
                 val px = ((tx - left) * tilePx).toFloat(); val py = ((ty - top) * tilePx).toFloat()
                 dst.set(px, py, (px + tilePx).toFloat(), (py + tilePx).toFloat())
-                val b = tile(tz, wx, ty)
-                if (b != null) {
-                    canvas.drawBitmap(b, null, dst, tilePaint)
-                } else if (tz > 0) {
-                    // the parent tile's quarter while this one loads
-                    val parent = mem.get("${tz - 1}/${wx / 2}/${ty / 2}") ?: continue
-                    val half = parent.width / 2
-                    src.set((wx % 2) * half, (ty % 2) * half, (wx % 2) * half + half, (ty % 2) * half + half)
-                    canvas.drawBitmap(parent, src, dst, tilePaint)
+                val l = layerFor(tz, wx, ty)
+                drawn += l
+                // past the layer's last zoom, its ancestor's part enlarged; while a tile loads, its parent's quarter
+                if (!drawPart(canvas, l, tz, wx, ty, (tz - l.maxZoom).coerceAtLeast(0)) && tz > 0 && tz <= l.maxZoom) {
+                    drawPart(canvas, l, tz, wx, ty, 1, load = false)
                 }
             }
         }
@@ -268,6 +299,25 @@ class TileMapView(c: Context) : View(c) {
             canvas.drawLine(m, h - r, m, h + r, zonePaint)
         }
         drawCredit(canvas)
+    }
+
+    private val drawn = LinkedHashSet<MapLayers.Layer>()
+
+    /** Draws tile [z]/[x]/[y] from its ancestor [up] levels higher (0: itself); false when that one is not there yet. */
+    private fun drawPart(canvas: Canvas, l: MapLayers.Layer, z: Int, x: Int, y: Int, up: Int, load: Boolean = true): Boolean {
+        val az = z - up
+        val ax = x shr up; val ay = y shr up
+        val b = if (load) tile(l, az, ax, ay) else mem.get("${l.id}/$az/$ax/$ay")
+        if (b == null) return false
+        if (up == 0) {
+            canvas.drawBitmap(b, null, dst, tilePaint)
+        } else {
+            val part = (b.width shr up).coerceAtLeast(1)
+            val sx0 = (x - (ax shl up)) * part; val sy0 = (y - (ay shl up)) * part
+            src.set(sx0, sy0, sx0 + part, sy0 + part)
+            canvas.drawBitmap(b, src, dst, tilePaint)
+        }
+        return true
     }
 
     private fun metresPerPx(lat: Double) = 156_543.03392 * cos(Math.toRadians(lat)) / 2.0.pow(zoom) / density
@@ -306,11 +356,70 @@ class TileMapView(c: Context) : View(c) {
     }
 
     private fun drawCredit(canvas: Canvas) {
-        val w = creditPaint.measureText(credit)
-        val pad = 4 * density
-        val h = creditPaint.textSize + 2 * pad
-        canvas.drawRect(width - w - 2 * pad, height - h, width.toFloat(), height.toFloat(), creditBack)
-        canvas.drawText(credit, width - w - pad, height - pad - creditPaint.descent(), creditPaint)
+        val credit = drawn.map { it.credit }.filter { it.isNotBlank() }.distinct().joinToString(" · ")
+        if (credit.isNotEmpty()) {
+            val w = creditPaint.measureText(credit)
+            val pad = 4 * density
+            val h = creditPaint.textSize + 2 * pad
+            canvas.drawRect(width - w - 2 * pad, height - h, width.toFloat(), height.toFloat(), creditBack)
+            canvas.drawText(credit, width - w - pad, height - pad - creditPaint.descent(), creditPaint)
+        }
+        drawLayersButton(canvas)
+    }
+
+    // ---- « Fond de carte »
+
+    private val layersButton = RectF()
+    private val buttonPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = 0xEEFFFFFF.toInt() }
+    private val buttonLine = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        style = Paint.Style.STROKE; strokeWidth = 1.5f * density; color = 0xFF1F2933.toInt(); strokeJoin = Paint.Join.ROUND
+    }
+
+    /** Two stacked sheets, top left (the zoom and « follow » sit top right). */
+    private fun drawLayersButton(canvas: Canvas) {
+        val m = 8 * density; val side = 44 * density
+        layersButton.set(m, m, m + side, m + side)
+        canvas.drawRoundRect(layersButton, 8 * density, 8 * density, buttonPaint)
+        canvas.drawRoundRect(layersButton, 8 * density, 8 * density, buttonLine)
+        val mx = layersButton.centerX(); val my = layersButton.centerY(); val r = 11 * density
+        for (dy in floatArrayOf(4 * density, -4 * density)) {
+            val p = Path()
+            p.moveTo(mx, my + dy - r / 2); p.lineTo(mx + r, my + dy); p.lineTo(mx, my + dy + r / 2); p.lineTo(mx - r, my + dy); p.close()
+            canvas.drawPath(p, buttonPaint)
+            canvas.drawPath(p, buttonLine)
+        }
+    }
+
+    /** The layers offered, the area the map's centre lies in first; a choice applies at once, to every map. */
+    private fun openLayers() {
+        val c = context
+        val (lat, lon) = centre()
+        val here = layers.areaAt(lon, lat)
+        val areas = (listOf(here) + layers.areas + layers.elsewhere).distinctBy { it.id }
+        val box = LinearLayout(c).apply { orientation = LinearLayout.VERTICAL }
+        val pad = (20 * density).toInt()
+        box.setPadding(pad, pad / 2, pad, 0)
+        for (a in areas) {
+            val offered = a.layers.mapNotNull { layers.layers[it] }
+            if (offered.isEmpty()) continue
+            box.addView(Ui.text(c, a.name(), 17f, bold = true).apply { setPadding(0, pad / 2, 0, 0) })
+            val group = RadioGroup(c)
+            val current = layers.chosen(c, a).id
+            for (l in offered) {
+                val b = RadioButton(c).apply { text = l.name(); textSize = 16f; id = View.generateViewId() }
+                group.addView(b)
+                if (l.id == current) b.isChecked = true
+                b.setOnCheckedChangeListener { _, on ->
+                    if (on) { MapLayers.choose(c, a.id, l.id); reloadLayers() }
+                }
+            }
+            box.addView(group)
+        }
+        AlertDialog.Builder(c)
+            .setTitle(R.string.map_layers)
+            .setView(ScrollView(c).apply { addView(box) })
+            .setPositiveButton(R.string.ok, null)
+            .show()
     }
 
     companion object {

@@ -50,7 +50,6 @@ class ZoneActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         val z = Zone.get(this)
-        val cfg = RelayConfig.get(this)
         val root = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setBackgroundColor(0xFFFFFFFF.toInt()) }
         Ui.padForBars(root)
         setContentView(root)
@@ -61,7 +60,6 @@ class ZoneActivity : ComponentActivity() {
 
         val frame = FrameLayout(this)
         map = TileMapView(this).apply {
-            template = cfg.tiles; credit = cfg.credit; maxZoom = cfg.maxZoom
             follow = false
             crosshair = true
         }

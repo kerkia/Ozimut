@@ -36,15 +36,19 @@ object RelayConfig {
         )
     }
 
-    /** Asks the relay again when a day has passed (blocking). */
+    /** The relay's last answer, for the map's layers (MapLayers, the phone app's). */
+    fun mapsJson(c: Context): String? = p(c).getString("maps", null)
+
+    /** Asks the relay again when a day has passed, or when its map layers were never read (blocking). */
     fun refresh(c: Context) {
-        if (System.currentTimeMillis() - p(c).getLong("at", 0) < 86_400_000L) return
+        if (System.currentTimeMillis() - p(c).getLong("at", 0) < 86_400_000L && p(c).contains("maps")) return
         try {
             val r = Http.get("$PATH/config")
             val j = r.json ?: return
             if (r.code != 200) return
             val tiles = j.optString("tiles", "")
             p(c).edit()
+                .putString("maps", if (j.has("layers")) j.toString() else "")
                 .putString("tiles", if (tiles.contains("{z}") && tiles.startsWith("https://")) tiles else OSM)
                 .putString("credit", j.optString("attribution", OSM_CREDIT).ifBlank { OSM_CREDIT })
                 .putInt("maxZoom", j.optInt("maxZoom", 19).coerceIn(10, 22))

@@ -849,7 +849,7 @@ banner asking a parent), a child taking the account over from 15 (`POST /api/tra
   all native, no web view): `HomeActivity` « Ma course » (Start, Qui me suit, Mes courses as GPX, Zone, the two-minute test,
   Relier à Ozimut, « Effacer mes données ») and « Je suis » (`FollowActivity`: the person's live map), `Relay.kt` (channel,
   invites, `RelaySender` beside Ozimut's `Uploader`, device alerts), `TrackForm.kt` (sealing, delta form, code links),
-  `TileMapView` (its own raster map, tiles from `/api/ozitrac/config`), `RunLog.kt` (runs as CSV, GPX on demand); the Wear
+  `TileMapView` (its own raster map; **its layers by country**, owner 2026-11-23: `/api/ozitrac/config` lists them — `functions/_lib/ozitracmaps.js`, the outlines by `tools/ozitrac_areas.py` from Natural Earth —, Plan IGN or IGN's photos in France, swisstopo's map, grey map or SWISSIMAGE in Switzerland and Liechtenstein, OpenStreetMap everywhere and the default elsewhere; a tile is its area's when its four corners lie inside, the person's choice per area by « Fond de carte » (`MapLayers`), each phone fetching its own tiles, never through Ozimut), `RunLog.kt` (runs as CSV, GPX on demand); the Wear
   app compiles those files too (`SHARED`); **its runs reach the phone by themselves** when the two are connected (owner,
   2026-11-23): the Wear OS Data Layer, an item `/ozitrac/run/<run>` with the run's CSV as an asset (`wear` `RunSync`, after
   each run's end), filed in « Mes courses » by the phone (`WatchRuns`, a `WearableListenerService`; « Mes courses » collects
@@ -1952,6 +1952,11 @@ Every multiple-choice game was played through to its score page at phone size, w
   disallowed »): its Mes cartes maps, its unmarked Solo maps and its ownerless Tracer events' unmarked, unencrypted maps are handed
   over (`handOver`: `admin-maps/in/<uid>-<ms>.json`, the sources left in place until a step copies them, then deleted), its runs,
   comments and courses go, and the collection's maps lose its name and number (`forgetUser`).
+  **A map is placed by its georeference** (owner, 2026-11-23: georeferenced maps in « Lieu inconnu »): the page names the country
+  of any position (`mymapsplace.countryAt`, on `geo/index.json` — each country file's box, written by `tools/countrymaps.py` —
+  and the country's outline, a coast within 25 km accepted), France's down to the département; a collection map copied before
+  its source was georeferenced gets its `pos` from the source later (`maplib.placeLater`, once a day a map, `admin-maps/placed.json`).
+  The folder of maps without a place has the key `_none`: `~` joins a folder's path (`?dossier=`).
   Shown in « Mes cartes » `?vue=toutes` (administrators: « Ma bibliothèque | Toutes les cartes »), with every account's library
   (read in place, not copied), each card tagged by origin and account, filters origin / account / club, folders by account or club;
   read only, « Fichier d'origine » to download. Admin page tab « Mes cartes » (`?onglet=cartes`): accounts, maps, runs, size against

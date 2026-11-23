@@ -11,6 +11,7 @@
 //                         viewing copy (made by the browser, as « Mes cartes »')
 //   admin-maps/x/<etag>   a map left out: another of the same place replaced it (`by`) — so that it is not copied again
 //   admin-maps/in/<uid>-<ms>.json   a deleted account's maps handed over (below), until copied
+//   admin-maps/placed.json   the day each map without a place was last looked at again (`placeLater`)
 // One place, one map: maps whose centres lie within a quarter of the smaller one's extent (200 m when an extent is unknown),
 // of extents within 1.5 times, are one place; the latest (its event's day, else the day it came) is kept, or, among those
 // within 60 days of it, the one of most pixels — the best quality. « Mes cartes »' own maps are not copied while their account
@@ -26,7 +27,7 @@
 import { clubLabel } from "./club.js";
 
 export const PFX = "admin-maps/";
-const M = `${PFX}m/`, X = `${PFX}x/`, T = `${PFX}t/`, V = `${PFX}v/`, IN = `${PFX}in/`;
+const M = `${PFX}m/`, X = `${PFX}x/`, T = `${PFX}t/`, V = `${PFX}v/`, IN = `${PFX}in/`, PLACED = `${PFX}placed.json`;
 export const keys = { map: (e) => `${M}${e}`, thumb: (e) => `${T}${e}`, view: (e) => `${V}${e}`, gone: (e) => `${X}${e}` };
 const RAD = Math.PI / 180;
 const km = (a, b) => { const dl = (b[0] - a[0]) * RAD, dn = (b[1] - a[1]) * RAD, s = Math.sin(dl / 2) ** 2 + Math.cos(a[0] * RAD) * Math.cos(b[0] * RAD) * Math.sin(dn / 2) ** 2; return 12742 * Math.asin(Math.sqrt(s)); };
@@ -82,8 +83,10 @@ function soloMaps(objects) {
  * does not give (an analysis's or an event's own record) only for a map to copy.
  */
 async function sources(env, seen) {
-  const todo = [], priv = new Set(), pub = new Set();
+  const todo = [], priv = new Set(), pub = new Set(), all = new Map();
   const note = (etag, isPriv) => (isPriv ? priv : pub).add(etag);
+  // every public source by its etag (`all`: a map already held is described again when it had no place); the new ones to copy
+  const offer = (c) => { all.set(c.etag, c); if (!seen.has(c.etag)) todo.push(c); };
   // Analyse solo: each account's maps, named by their SHA-256, described by the analyses that use them
   const solo = await listAll(env, "solo/");
   const soloMeta = soloMaps(solo);
@@ -92,8 +95,8 @@ async function sources(env, seen) {
     if (!m) continue;
     const a = soloMeta.get(`${m[1]}/${m[2]}`) || {}, e = etagOf(o);
     note(e, a.priv);
-    if (a.priv || seen.has(e)) continue;
-    todo.push({ etag: e, key: o.key, thumb: `${o.key}.thumb`, uid: m[1],
+    if (a.priv) continue;
+    offer({ etag: e, key: o.key, thumb: `${o.key}.thumb`, uid: m[1],
       info: async () => ({ src: "solo", uid: m[1], title: s(a.title), day: s(a.day || (a.created || "").slice(0, 10)), runs: String(a.runs || 0),
         w: String(a.w || ""), h: String(a.h || ""), ...placeOf(a.geo, a.w, a.h) }) });
   }
@@ -104,9 +107,8 @@ async function sources(env, seen) {
     if (!m || !metas.has(m[1])) continue;
     const e = etagOf(o);
     note(e, false);
-    if (seen.has(e)) continue;
     const sm = metas.get(m[1]);
-    todo.push({ etag: e, key: o.key, thumb: `analyses/${m[1]}/thumb-${m[2]}`, uid: sm.owner,
+    offer({ etag: e, key: o.key, thumb: `analyses/${m[1]}/thumb-${m[2]}`, uid: sm.owner,
       info: async () => {
         let full = null;
         try { full = await (await env.BUCKET.get(`analyses-meta/${m[1]}.json`))?.json(); } catch (err) { /* the summary's */ }
@@ -124,10 +126,10 @@ async function sources(env, seen) {
     if (!h) continue;
     const e = etagOf(h);
     note(e, sm.priv === "1");
-    if (sm.priv === "1" || seen.has(e)) continue;
-    todo.push({ etag: e, key: h.key, thumb: null, uid: sm.owner, info: () => tracerInfo(env, sm) });
+    if (sm.priv === "1") continue;
+    offer({ etag: e, key: h.key, thumb: null, uid: sm.owner, info: () => tracerInfo(env, sm) });
   }
-  return { todo, priv, pub };
+  return { todo, priv, pub, all };
 }
 /** An event's map described: its title and day, its organiser, and its place from the georeference (its controls' centroid). */
 export async function tracerInfo(env, sm) {
@@ -199,7 +201,7 @@ export async function syncStep(env, request, { budget = 4 } = {}) {
     if (list.length) await env.BUCKET.put(f.key, JSON.stringify(list), { httpMetadata: { contentType: "application/json" } });
     else await env.BUCKET.delete(f.key);
   }
-  const { todo, priv, pub } = await sources(env, seen);
+  const { todo, priv, pub, all } = await sources(env, seen);
   // marked private since it was copied (and no unmarked source holds the same image): out of the collection
   for (const o of held) {
     const e = tail(o.key);
@@ -217,9 +219,31 @@ export async function syncStep(env, request, { budget = 4 } = {}) {
       if (c.thumb) await copy(env, c.thumb, keys.thumb(c.etag), {}).catch(() => false);
     }
   }
+  await placeLater(env, held, all, Math.max(2, room - pick.length));
   const left = todo.length - pick.length + (await listAll(env, IN, false)).length;
   const gone = left ? 0 : await onePerPlace(env);
   return { copied, left, gone };
+}
+
+/**
+ * A map copied before it was georeferenced (an analysis's circuit placed after its map was sent, a Tracer event georeferenced
+ * later: the copy keeps the image's etag, so it is never copied again) gets its place from its source once it has one; each map
+ * without a place is looked at again once a day at most (admin-maps/placed.json: { etag: day }), `n` a step.
+ */
+async function placeLater(env, held, all, n) {
+  const day = new Date().toISOString().slice(0, 10);
+  const done = (await (await env.BUCKET.get(PLACED))?.json().catch(() => null)) || {};
+  const due = held.filter((o) => !o.customMetadata?.pos && all.has(tail(o.key)) && done[tail(o.key)] !== day).slice(0, n);
+  if (!due.length) return;
+  for (const o of due) {
+    const e = tail(o.key);
+    done[e] = day;
+    const info = await all.get(e).info().catch(() => null);
+    if (info?.pos) await copy(env, o.key, o.key, clean({ ...o.customMetadata, pos: info.pos, ext: info.ext, w: o.customMetadata?.w || info.w, h: o.customMetadata?.h || info.h }));
+  }
+  const live = new Set(held.map((o) => tail(o.key)));
+  for (const e of Object.keys(done)) if (!live.has(e)) delete done[e];
+  await env.BUCKET.put(PLACED, JSON.stringify(done), { httpMetadata: { contentType: "application/json" } });
 }
 
 /** One place, one map: the others of a place are left out (their copies deleted, a record kept). -> how many. */
