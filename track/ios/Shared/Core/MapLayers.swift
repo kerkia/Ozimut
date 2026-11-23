@@ -145,8 +145,8 @@ enum MapLayers {
     }
 
     /// A name in the phone's language among the four the relay gives, else English.
-    static func name(_ names: [String: String], _ fallback: String, lang: String = appLanguage) -> String {
-        if let s = names[lang], !s.isEmpty { return s }
+    static func name(_ names: [String: String], _ fallback: String, lang: String? = nil) -> String {
+        if let s = names[lang ?? appLanguage], !s.isEmpty { return s }
         if let s = names["en"], !s.isEmpty { return s }
         return fallback
     }
