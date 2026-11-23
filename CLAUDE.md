@@ -4310,8 +4310,17 @@ Every multiple-choice game was played through to its score page at phone size, w
   `baseline_2026-11-23_levels.json`): map 2 tracks laid 16 → 18 of 18 (13-14 and 14-15 up the stairway, as the runner), lines on
   every route 18 → 10, best routes 3 → 1; map 3 lines on every route 30 → 19, best routes 13 → 8, buildings' grey 8 → 1 m, olive
   on every route 16 → 21 m (routes cutting a street's corner over its kerbs by a garden on 7-8); photos and forest maps unchanged.
-  Checked in the page on scans 2 and 3: every leg computed, no error. Still open: 15 reached only by crawling over a 3 m black
-  wall by the underpass (the runner's GPS lies over the building beside it); the greens' depths per map.
+  Checked in the page on scans 2 and 3: every leg computed, no error. Still open: the greens' depths per map.
+  **The two levels at that tunnel symbol, checked on the grid** (owner, 2026-11-23: « understand what road is above what other
+  road … run under, above, but not from under to above »; never judged on the runner's track): the diagonal road is the deck (its
+  edge lines run on across the symbol, the triangles outside them at the passage's mouths), the road through 6 the passage under
+  it, along the dotted rows. On the route grid the deck is open across the striped band, the passage is the link between its two
+  mouths, and the deck's edges at both mouths are walls: from the passage's south-west mouth to the deck 30 m away costs 413 m (the
+  way round), from its north-east mouth to the road by 15 144 m — the lower road's own loop round the small park, which joins the
+  diagonal road at grade south-east of the bridge. 14-15: up the stairway and round by the upper streets (350 m), or the lower
+  road, under the bridge, that loop and back over the bridge (371 m); 15 stands in a walled nook against the deck's side and is
+  punched from the road, 3 m across its wall. Check: `GC=… node scans/stairtest.mjs 2 1530 2075 1575 2040` (« top->bottom » the
+  cost from the lower road to the deck: hundreds, never tens).
 - **Languages: French, English, German and Spanish** (owner, 2026-10-17 French and English, open to everyone since 2026-10-18,
   `i18n.OPEN` true; **German and Spanish since 2026-11-01**: `i18n.LANGS`, catalogues `i18n/de.js`, `es.js`, `tracer.de.js`,
   `tracer.es.js`, long texts `content/<name>.de.js` / `.es.js`, e-mails in `_lib/templates.js`, `manifest.de|es.webmanifest`;
