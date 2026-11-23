@@ -104,9 +104,18 @@ Mapper, PDF, image with georeference — kept byte for byte) or a Cartographier 
 `embargo_ok` events may use it. **Rights written down** (`rights`): course setting, analyses open to runners, Pixel, a public
 thumbnail — each a manager's tick with name and date; Pixel uses a club map only with `rights.pixel` (the owner's rule).
 Club maps never enter the administrators' collection (`_lib/maplib.js`). « Une carte du club » is offered by the Tracer's
-« Nouvel événement », the map analysis's circuit editor and Pixel's « Nouvel événement »: the tool receives the file (lent:
-the Tracer's `lent` flag for organisers) and records `{ org, map, version }` as its source; a new version lists the events using
-the old one.
+« Nouvel événement », the map analysis's circuit editor and Pixel's « Nouvel événement » (and an existing Pixel event's page):
+the tool receives the file (lent: the Tracer's `lent` flag for organisers) and records `{ org, map, version }` as its source; a
+new version lists the events using the old one.
+
+**A Cartographier document linked** has no stored file (owner, 2026-11-23: it must reach the tools all the same): the browser
+writes it as an OCAD file, as Cartographier's « Envoyer au tracé » does (`orgmapuse.js cartoFile` → `mapper/ocadout.js`
+`writeOcadDoc`, the OCAD file it came from carried through), from `GET …/maps/<id>/carto/doc | /carto/source` — served to those
+who may download the map, use it in that tool, or edit its card, whether or not they are on the Cartographier team. The tools
+receive the map as it is the day they take it (`usable` lists it with one virtual file « <name>.ocd » and the document's
+version). Its viewing copy and thumbnail are made from that file when it is linked and again by « Mettre à jour l'aperçu »;
+those allowed download it with « Télécharger en OCAD »; its georeference and place come from the OCAD file's grid when the card
+has none. A document deleted in Cartographier: the map leaves the tools' lists, the card says so.
 
 ## 3. Entries
 
@@ -192,7 +201,7 @@ treasurer's request.
   transfer expected, paid or not — a statement page (print / PDF in the browser).
 - **As the runners' club**: what it owes each organiser (entries `payer_org` = it), and the **ledger per member**: what it
   carried (entries), what the member paid back (`club_ledger` repaid), bills sent; the **year-end bill** (« relevé de fin
-  d'année ») per member and season — PDF made in the browser (pdf-lib, vendored), e-mailed in the club's name, its reference
+  d'année ») per member and season (the calendar year, orienteering's season: owner, 2026-11-23) — PDF made in the browser (pdf-lib, vendored), e-mailed in the club's name, its reference
   `OZ-<club>-<member>` — and each member's balance under « Mon club ». CSV journal by event and by member.
 - **Netting** (owner, 2026-11-22): each club ticks the clubs it accepts netting with (`org_netting`); when both have accepted
   each other, both see what each owes the other for the season and the net, with « solder » (each marks its side paid once

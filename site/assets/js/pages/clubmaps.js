@@ -43,7 +43,7 @@ function placeText(m) {
 }
 const scaleText = (m) => (m.scale ? `1:${fmt(m.scale)}` : "");
 const yearText = (m) => m.revised || m.surveyed || "";
-const thumbOf = (org, m, cls = "om-thumb") => (m.may?.thumb && !m.hidden && !m.carto
+const thumbOf = (org, m, cls = "om-thumb") => (m.may?.thumb && !m.hidden
   ? html`<span class="${cls}"><img loading="lazy" alt="" src="${base(org, m.id)}/thumb?u=${stamp(m)}" onerror="this.parentNode.classList.add('om-none');this.remove()"></span>`
   : html`<span class="${cls} om-none"></span>`);
 const embargoTag = (m) => (m.embargo?.until && (m.embargo.on !== false) ? html`<span class="tag om-embargo">${t("om.embargo.until", { d: fmtDate(m.embargo.until) })}</span>` : "");
@@ -132,6 +132,34 @@ async function sendPictures(org, id, read) {
   if (v) await api(`orgmaps/${org}/maps/${id}/view`, { method: "PUT", raw: v, type: v.type }).catch(() => null);
   const th = await MM.thumbnail(read.image).catch(() => null);
   if (th) await api(`orgmaps/${org}/maps/${id}/thumb`, { method: "PUT", raw: th, type: th.type }).catch(() => null);
+}
+/**
+ * A map linked to a Cartographier document: the document written as an OCAD file in this browser (orgmapuse.js cartoFile), read
+ * as any map file, its viewing copy and thumbnail sent; its georeference and place kept when the card has none (`card`: the
+ * card's fields as they are). Returns the file.
+ */
+async function cartoPictures(org, m, say, card = m) {
+  const { cartoFile } = await import("../orgmapuse.js");
+  say?.(t("om.carto.converting"));
+  const file = await cartoFile(org, m.id, m.name);
+  const read = await readFiles([file]);
+  say?.(t("om.pictures"));
+  await sendPictures(org, m.id, read);
+  if (read.geo) {
+    const extra = await placeOf(read), patch = { geo: read.geo };
+    if (card.lat == null && extra.lat != null) Object.assign(patch, { lat: extra.lat, lon: extra.lon });
+    if (!card.country && extra.country) Object.assign(patch, { country: extra.country, region: card.region || extra.region || "", dept: card.dept || extra.dept || "" });
+    await api(`orgmaps/${org}/maps/${m.id}`, { method: "PUT", body: patch }).catch(() => null);
+  }
+  return file;
+}
+/** A file handed to the browser to save. */
+function save(file) {
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(file);
+  a.download = file.name;
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(a.href), 60e3);
 }
 /** The files sent to the map's current version, one by one. */
 async function sendFiles(org, id, files, say) {
@@ -227,6 +255,7 @@ function addForm(box, org, done) {
       const body = { ...card, ...(way === "carto" ? { carto_id: carto } : { lat: extra.lat, lon: extra.lon, geo: read.geo }) };
       const { map } = await api(`orgmaps/${org.id}/maps`, { method: "POST", body });
       if (way === "files") { await sendFiles(org.id, map.id, files, note); note(t("om.pictures")); await sendPictures(org.id, map.id, read); }
+      else await cartoPictures(org.id, map, note, card).catch(() => null);   // its pictures and place, when the document can be read
       box.innerHTML = "";
       done();
     } catch (e) { note(errText(e)); ev.target.disabled = false; }
@@ -299,7 +328,7 @@ async function mapPage(panel, org, id, back) {
         <span>${t("om.version", { v: m.version })}</span></div></div>
       <span class="om-tags">${stateTag(m)}${embargoTag(m)}</span></div>
     <div class="card-body om-page">
-      <div class="om-view">${m.carto ? html`<div class="empty">${t("om.carto.is")}<br><a class="btn btn-sm" href="#/carto?id=${m.carto}">${t("om.carto.open")}</a></div>`
+      <div class="om-view">${m.carto && !may.view ? html`<div class="empty">${t("om.carto.is")}</div>`
         : may.view ? html`<a href="${base(org.id, m.id)}/view?u=${stamp(m)}" target="_blank" rel="noopener"><img alt="${m.name}" src="${base(org.id, m.id)}/view?u=${stamp(m)}" onerror="this.closest('.om-view').classList.add('om-none');this.remove()"></a>`
         : may.thumb ? html`<img alt="${m.name}" src="${base(org.id, m.id)}/thumb?u=${stamp(m)}">` : html`<div class="empty">${t("om.noView")}</div>`}</div>
       <div class="stack om-side" style="gap:12px">
@@ -308,6 +337,12 @@ async function mapPage(panel, org, id, back) {
             ["om.c.state", t(`om.state.${m.state || "current"}`)], ["om.c.added", [D.by, m.created ? fmtDate(m.created.slice(0, 10)) : ""].filter(Boolean).join(", ")]]
             .filter(([, v]) => v).map(([k, v]) => html`<dt>${t(k)}</dt><dd>${v}</dd>`)}</dl>
         ${files.length ? html`<div><b class="om-h3">${t("om.files")}</b>${fileList(files)}${!may.download ? html`<p class="muted">${t(may.use ? "om.lentNote" : "om.noDownload")}</p>` : ""}</div>` : ""}
+        ${m.carto ? html`<div class="stack" style="gap:6px"><b class="om-h3">${t("om.carto.tag")}</b><p class="muted om-small">${t("om.carto.linked")}</p>
+          <div class="row" style="gap:6px"><a class="btn btn-sm" href="#/carto?id=${m.carto}">${t("om.carto.open")}</a>
+            ${may.download ? html`<button type="button" class="btn btn-sm" id="om-cdl">${t("om.carto.download")}</button>` : ""}
+            ${may.edit ? html`<button type="button" class="btn btn-sm" id="om-cpic">${t("om.carto.refresh")}</button>` : ""}</div>
+          ${!may.download ? html`<p class="muted om-small">${t(may.use ? "om.lentNote" : "om.noDownload")}</p>` : ""}
+          <span class="muted om-small" id="om-cmsg"></span></div>` : ""}
         <div><b class="om-h3">${t("om.rights")}</b><p class="muted om-small">${t("om.rights.hint")}</p>
           <ul class="om-rights">${WRITTEN.map((k) => { const r = m.rights?.[k]; return html`<li><label class="check"><input type="checkbox" data-right="${k}" ${raw(r ? "checked" : "")} ${raw(may.govern ? "" : "disabled")}>
             <span>${t(`om.right.${k}`)}</span></label>${r ? html`<span class="muted om-small">${t("om.right.by", { name: r.name || "?", d: fmtDate(String(r.at).slice(0, 10)) })}</span>` : ""}</li>`; })}</ul></div>
@@ -344,6 +379,20 @@ async function mapPage(panel, org, id, back) {
       <div class="row"><button type="button" class="btn btn-sm btn-ghost" id="om-del">${t("om.delete")}</button></div></div></section>` : ""}`;
   $("#om-back", panel).addEventListener("click", leave);
   const reopen = () => mapPage(panel, org, id, back);
+  // a Cartographier map: written as an OCAD file here, to download or to make its pictures again
+  const cmsg = (s) => { const n = $("#om-cmsg", panel); if (n) n.textContent = s || ""; };
+  const cartoErr = (e) => cmsg(t(e?.code === "carto_gone" ? "om.pick.cartoGone" : "om.err.other"));
+  $("#om-cdl", panel)?.addEventListener("click", async (e) => {
+    e.target.disabled = true; cmsg(t("om.carto.converting"));
+    try { const { cartoFile } = await import("../orgmapuse.js"); save(await cartoFile(org.id, m.id, m.name)); cmsg(""); }
+    catch (err) { cartoErr(err); }
+    e.target.disabled = false;
+  });
+  $("#om-cpic", panel)?.addEventListener("click", async (e) => {
+    e.target.disabled = true;
+    try { await cartoPictures(org.id, m, cmsg); reopen(); }
+    catch (err) { cartoErr(err); e.target.disabled = false; }
+  });
   // the rights written down: a tick saved at once
   $$("[data-right]", panel).forEach((cb) => cb.addEventListener("change", async () => {
     try { await api(`orgmaps/${org.id}/maps/${id}`, { method: "PUT", body: { rights: { [cb.dataset.right]: cb.checked } } }); reopen(); }

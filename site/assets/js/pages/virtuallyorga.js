@@ -87,6 +87,7 @@ export async function renderOrga(el, { onPlay, onChange } = {}) {
         <fieldset><legend>${t("vo.f.source")}</legend>
           <label class="vo-radio"><input type="radio" name="vo-src" value="ocad" checked> <b>${t("vo.src.ocad")}</b> <span class="muted">${t("vo.src.ocadHint")}</span></label>
           ${admin ? html`<label class="vo-radio"><input type="radio" name="vo-src" value="lidar"> <b>${t("vo.src.lidar")}</b> <span class="muted">${t("vo.src.lidarHint")}</span></label>` : ""}
+          <div class="om-pick" id="vo-club" hidden></div>
         </fieldset>
         <div class="vo-lidar" hidden>
           <label>${t("vo.f.place")} <input type="text" id="vo-ll" placeholder="48.3894, 2.5272"></label>
@@ -108,9 +109,21 @@ export async function renderOrga(el, { onPlay, onChange } = {}) {
       $(".vo-lidar", el).hidden = val("vo-src") !== "lidar";
       $(".vo-coursesf", el).hidden = val("vo-src") === "lidar";
       $(".vo-layer", el).hidden = val("vo-src") === "lidar"; $(".vo-mo-lidar", el).hidden = val("vo-src") !== "lidar";
+      const pick = $("#vo-club", el);
+      if (pick && pick.dataset.has) pick.hidden = val("vo-src") !== "ocad";
     };
     $$("input[type=radio]", el).forEach((r) => r.addEventListener("change", sync));
     $("#vo-back", el).addEventListener("click", list);
+    // « Une carte du club » from the start (docs/clubs/design.md §2): its OCAD file kept here, sent as the event's map once the
+    // event exists, its source recorded (rights.pixel); the event's name taken from the map when none is typed
+    let club = null;
+    const pickBox = $("#vo-club", el);
+    bindPicker(pickBox, "pixel", async (files, src) => {
+      const f = files[0];
+      if (f.size > MAX_MB["map.ocd"] * 1e6) { club = null; return; }
+      club = { file: f, src };
+      if (!$("#vo-name", el).value.trim()) $("#vo-name", el).value = src.name;
+    }, { only: (n) => /\.ocd$/i.test(n) }).then(() => { if (!pickBox.hidden) { pickBox.dataset.has = "1"; sync(); } });
     $("#vo-create", el).addEventListener("click", async () => {
       const err = $("#vo-err", el), say = (m) => { err.textContent = m; err.hidden = !m; };
       const body = { name: $("#vo-name", el).value.trim(), type: val("vo-type"), source: val("vo-src"), courses: val("vo-courses"), env: readEnv(), mapOpt: readMo() };
@@ -121,7 +134,17 @@ export async function renderOrga(el, { onPlay, onChange } = {}) {
         if (!m) return say(t("vo.err.area"));
         body.area = { lat: +m[1].replace(",", "."), lon: +m[2].replace(",", "."), size: +$("#vo-size", el).value };
       }
-      try { const ev = await post(API, body); detail(ev.id); } catch (e) { say(errText(e)); }
+      $("#vo-create", el).disabled = true;
+      try {
+        const ev = await post(API, body);
+        if (club && body.source === "ocad") {
+          try {
+            await call(`${API}/${ev.id}/file/map.ocd`, { method: "PUT", headers: { "Content-Type": "application/octet-stream" }, body: club.file });
+            await post(`${API}/${ev.id}`, { orgMap: sourceOf(club.src) }, "PUT");
+          } catch (e) { /* the event exists: its page offers the club's map again */ }
+        }
+        detail(ev.id);
+      } catch (e) { say(errText(e)); $("#vo-create", el).disabled = false; }
     });
     sync(); bindEnv();
   }

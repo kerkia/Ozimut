@@ -2952,8 +2952,11 @@ Every multiple-choice game was played through to its score page at phone size, w
   **The club's maps** (`_lib/orgmaps.js`, `api/orgmaps`, `pages/clubmaps.js` — the tab « Cartes » —, area `orgmaps`): R2
   `orgmaps/<org>/<map>/v<n>/…`, view and thumbnail made by the browser, versions, embargo, rights written down (Pixel only with
   `rights.pixel`), 3 GB a club (`ORGMAPS_QUOTA_MB`), share links; « Une carte du club » (`orgmapuse.js`) in the Tracer's new event
-  (lent to organisers without the download right), the map analysis's circuit editor and a Pixel event's map; never in the
-  administrators' collection. **Entries** (`_lib/entries.js`, `api/entries`, `entryprice.js`, `_lib/signup.js`; area `entries`):
+  (lent to organisers without the download right), the map analysis's circuit editor and Pixel's new event (and an event's
+  page); a map linked to a Cartographier document reaches them too, written as an OCAD file in the browser from
+  `GET …/carto/doc|source` (`orgmapuse.js cartoFile`, mapper/ocadout.js; owner, 2026-11-23), its pictures made the same way, a
+  « Télécharger en OCAD » for those allowed; never in the administrators' collection. A season is the calendar year
+  (orienteering's own; owner, 2026-11-23). **Entries** (`_lib/entries.js`, `api/entries`, `entryprice.js`, `_lib/signup.js`; area `entries`):
   the Orga tab « Inscriptions et départs » (key `departs`, `pages/entriesorg.js`: the form — classes, prices, fields, payment,
   refund rule —, the list, imports CSV / OE / IOF XML / Google Sheet, by hand, exports, start times booked / drawn with Chrono's
   `draw.js` / deposited, publication, « Relevé bancaire », « Envoyer les inscriptions à Chrono »); Arena's `#/inscription?ev=`

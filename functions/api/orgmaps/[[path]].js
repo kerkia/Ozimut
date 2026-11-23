@@ -26,6 +26,10 @@
 //                                                    kept, with its files
 //   GET    /api/orgmaps/<org>/maps/<id>/file/<name>?v=&use=&event=   a file: to those who may download it, or to one using it
 //                                                    in a tool (use= tracer|analyses|pixel: lent)
+//   GET    /api/orgmaps/<org>/maps/<id>/carto/doc | /carto/source?use=   a linked Cartographier document and the OCAD file it
+//                                                    came from (X-Version: the document's version), for the browser to write
+//                                                    the map as an OCAD file: to those who may download it, use it in that tool,
+//                                                    or edit the card (its pictures); « carto gone » when the document was deleted
 //   GET|PUT /api/orgmaps/<org>/maps/<id>/view | /thumb   the viewing copy (6 MB) and thumbnail (600 KB), WebP or JPEG
 //   POST   /api/orgmaps/<org>/maps/<id>/uses         { tool, ref, title } a use recorded (a tool that took the map)
 //   GET    /api/orgmaps/<org>/maps/<id>/links        governors: the share links;  POST { download, use, days } -> { link };
@@ -253,6 +257,22 @@ async function route({ request, env, params }, user) {
       "Content-Disposition": `attachment; filename*=UTF-8''${encodeURIComponent(f.name)}` } });
   }
 
+  // a Cartographier document linked: its document (gzip JSON, as Cartographier keeps it) and the OCAD file it came from, for the
+  // browser to write the map as an OCAD file (site/assets/js/orgmapuse.js cartoFile) — to those who may download the map, use it
+  // in a tool (use=), or make its pictures (editors)
+  if (sub === "carto" && method === "GET") {
+    if (!m.carto_id) return json({ error: "not found" }, 404);
+    const use = String(url.searchParams.get("use") || "");
+    if (!(A.download || A.edit || (use && mayUse(A, m, use)))) return json({ error: "forbidden" }, 403);
+    const what = parts[4] || "";
+    if (what !== "doc" && what !== "source") return json({ error: "not found" }, 404);
+    const c = await cartoCard(env, m.carto_id);
+    if (!c) return json({ error: "carto gone" }, 404);
+    const o = await env.BUCKET.get(`mapper/${m.carto_id}/${what}`);
+    if (!o) return json({ error: what === "doc" ? "carto gone" : "not found" }, 404);
+    return new Response(o.body, { headers: { "Content-Type": "application/octet-stream", "Cache-Control": "private, no-store", "X-Version": String(c.version) } });
+  }
+
   if (sub === "view" || sub === "thumb") {
     if (method === "GET") {
       if (!(sub === "thumb" ? A.thumb : A.view)) return json({ error: "forbidden" }, 403);
@@ -363,6 +383,16 @@ async function dropPrefix(env, prefix) {
     cursor = r.truncated ? r.cursor : undefined;
   } while (cursor);
 }
+/** A linked Cartographier document's card as its list keeps it (custom metadata: version, updated), or null when it is gone. */
+async function cartoCard(env, id) {
+  if (!/^[a-z0-9]{8,16}$/.test(String(id || ""))) return null;
+  const h = await env.BUCKET.head(`mapper-meta/${id}.json`).catch(() => null);
+  if (!h) return null;
+  const c = h.customMetadata || {};
+  return { version: Number(c.version) || 0, updated: c.updated || "", title: c.title || "" };
+}
+/** A map's name as a file's base name. */
+const cartoName = (s) => String(s || "map").replace(/[\u0000-\u001f"<>|*?:\\/]+/g, "_").trim().slice(0, 100) || "map";
 /** May the account open a Cartographier document (its owner, its team, a club group of its team)? */
 async function cartoOpens(env, user, id) {
   if (!/^[a-z0-9]{8,16}$/.test(id)) return false;
@@ -381,12 +411,21 @@ async function usable(env, user, tool) {
   for (const mo of await orgsOf(env, user.id)) {
     const R = rightsOf(mo);
     if (!R.organise && !R.map && !R.manage) continue;
-    const { results } = await env.DB.prepare("SELECT * FROM org_maps WHERE org_id = ? AND status = 'active' AND carto_id IS NULL ORDER BY name COLLATE NOCASE").bind(mo.org.id).all();
+    const { results } = await env.DB.prepare("SELECT * FROM org_maps WHERE org_id = ? AND status = 'active' ORDER BY name COLLATE NOCASE").bind(mo.org.id).all();
     for (const m of results) {
       const A = await accessOf(env, user, m, R);
-      if (!mayUse(A, m, tool) || !parse(m.files, []).length) continue;
-      out.push({ org: mo.org.id, orgName: mo.org.name, id: m.id, name: m.name, version: m.version, files: parse(m.files, []).map(fileView),
-        scale: m.scale, standard: m.standard, lent: !A.download, thumb: A.thumb });
+      if (!mayUse(A, m, tool)) continue;
+      let files = parse(m.files, []).map(fileView), carto = null;
+      if (m.carto_id) {
+        // a Cartographier document: the browser writes it as an OCAD file (orgmapuse.js cartoFile), one virtual file here
+        const c = await cartoCard(env, m.carto_id);
+        if (!c) continue;
+        carto = { id: m.carto_id, version: c.version };
+        files = [{ name: `${cartoName(m.name)}.ocd`, size: 0, type: "application/x-ocad" }];
+      }
+      if (!files.length) continue;
+      out.push({ org: mo.org.id, orgName: mo.org.name, id: m.id, name: m.name, version: m.version, files,
+        scale: m.scale, standard: m.standard, lent: !A.download, thumb: A.thumb, ...(carto ? { carto } : {}) });
     }
   }
   return out;
