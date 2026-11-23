@@ -23,7 +23,10 @@ import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
 import kotlin.math.roundToInt
 
-/** The native tracker's screens: Start, Running (hold to stop, help) and Ended. */
+/**
+ * The run's screens: Start, Running (hold to stop, help) and Ended. A run is kept on this phone; it goes to the people who
+ * follow it (Ozitrac's relay) and to the Ozimut account the phone is linked to, when there are any.
+ */
 class TrackerActivity : ComponentActivity() {
     companion object {
         const val EXTRA_CONFIRM_STOP = "confirmStop"
@@ -96,7 +99,7 @@ class TrackerActivity : ComponentActivity() {
             override fun handleOnBackPressed() {
                 when {
                     Device.paired(this@TrackerActivity) && Device.settings(this@TrackerActivity).onlyTracker -> moveTaskToBack(true)
-                    isTaskRoot -> { startActivity(Intent(this@TrackerActivity, MainActivity::class.java)); finish() }
+                    isTaskRoot -> { startActivity(Intent(this@TrackerActivity, HomeActivity::class.java)); finish() }
                     else -> finish()
                 }
             }
@@ -146,7 +149,6 @@ class TrackerActivity : ComponentActivity() {
         val want = when {
             s.state == RunState.RUNNING -> "running"
             s.state == RunState.ENDING || s.state == RunState.ENDED -> "ended"
-            !Device.paired(this) -> "unpaired"
             else -> "start"
         }
         if (want != shown) {
@@ -156,7 +158,6 @@ class TrackerActivity : ComponentActivity() {
             when (want) {
                 "running" -> buildRunning()
                 "ended" -> buildEnded()
-                "unpaired" -> buildUnpaired()
                 else -> buildStart()
             }
         }
@@ -169,24 +170,17 @@ class TrackerActivity : ComponentActivity() {
 
     private fun add(v: View) = root.addView(Ui.full(v))
 
-    // ---- Not paired
-
-    private fun buildUnpaired() {
-        add(Ui.text(this, getString(R.string.tr_title), 26f, bold = true))
-        add(Ui.text(this, getString(R.string.tr_not_paired)))
-        add(Ui.button(this, getString(R.string.tr_pair), style = 1, big = true) {
-            startActivity(Intent(this, PairActivity::class.java))
-        })
-        add(Ui.button(this, getString(R.string.tr_open_site)) { openSite() })
-    }
-
     // ---- Start
 
     private fun buildStart() {
-        val name = Device.name(this)
+        val name = Me.name(this).ifBlank { Device.name(this) }
         add(Ui.text(this, name.ifBlank { getString(R.string.tr_title) }, 26f, bold = true))
-        val w = Device.watchers(this)
-        add(Ui.text(this, if (w.isEmpty()) getString(R.string.tr_followed_nobody) else getString(R.string.tr_followed_by, w.joinToString(", ")), color = Ui.GREY))
+        val w = followers()
+        add(Ui.text(this, when {
+            w.isNotEmpty() -> getString(R.string.tr_followed_by, w.joinToString(", "))
+            Device.paired(this) -> getString(R.string.tr_followed_ozimut)
+            else -> getString(R.string.tr_followed_nobody)
+        }, color = Ui.GREY))
         add(Ui.gap(this, 4))
         gpsText = Ui.text(this, "", 18f).also { add(it) }
         netText = Ui.text(this, "").also { add(it) }
@@ -211,9 +205,18 @@ class TrackerActivity : ComponentActivity() {
         waitText = Ui.text(this, getString(R.string.tr_wait_gps), 14f, color = Ui.GREY).also { add(it) }
         add(Ui.gap(this, 16))
         add(Ui.button(this, getString(R.string.tr_selftest)) { startActivity(Intent(this, SelfTestActivity::class.java)) })
-        if (!Device.settings(this).onlyTracker) add(Ui.button(this, getString(R.string.tr_open_site)) { openSite() })
         if (hasLocation()) startPreview()
     }
+
+    /** Who follows this phone: Ozitrac's watchers by name, and those of the Ozimut account it is linked to. */
+    private fun followers(): List<String> {
+        val names = Channel.keyed(this).mapNotNull { it.name?.takeIf { n -> n.isNotBlank() } }
+        val oz = if (Device.paired(this)) Device.watchers(this) else emptyList()
+        return (names + oz).distinct()
+    }
+
+    /** The run goes nowhere but this phone. */
+    private fun local() = RunState.get(this).dests.isEmpty()
 
     private fun goodFix() = previewAcc in 0f..GOOD_START.toFloat() && System.currentTimeMillis() - previewAt < 10_000
 
@@ -294,14 +297,18 @@ class TrackerActivity : ComponentActivity() {
         distText?.text = getString(R.string.tr_distance, Ui.km(s.distance))
         accText?.text = if (s.lastAcc >= 0 && System.currentTimeMillis() - s.lastFixAt < 15_000)
             getString(R.string.tr_gps_acc, s.lastAcc) else getString(R.string.tr_gps_searching)
-        val pending = if (s.run.isNotEmpty()) FixDb.get(this).count(s.run) else 0
-        pendText?.text = getString(R.string.tr_pending, pending)
-        sentText?.text = when {
+        if (local()) {
+            pendText?.text = getString(R.string.tr_local)
+            sentText?.text = ""
+        } else {
+            pendText?.text = getString(R.string.tr_pending, Tracker.pending(this))
+            sentText?.text = when {
             s.failing -> getString(R.string.tr_send_failed)
             s.lastSent == 0L -> getString(R.string.tr_never_sent)
-            else -> getString(R.string.tr_last_sent, ((System.currentTimeMillis() - s.lastSent) / 1000).toString() + " s")
+                else -> getString(R.string.tr_last_sent, ((System.currentTimeMillis() - s.lastSent) / 1000).toString() + " s")
+            }
+            sentText?.setTextColor(if (s.failing) Ui.ORANGE else Ui.GREY)
         }
-        sentText?.setTextColor(if (s.failing) Ui.ORANGE else Ui.GREY)
         val box = helpBox ?: return
         val helped = s.helpAt > 0
         if (helped && box.childCount == 0) {
@@ -335,12 +342,13 @@ class TrackerActivity : ComponentActivity() {
                 render()
             }
         }.also { add(it) }
-        if (!Device.settings(this).onlyTracker) add(Ui.button(this, getString(R.string.tr_open_site)) { openSite() })
+        add(Ui.button(this, getString(R.string.runs_title)) { startActivity(Intent(this, RunsActivity::class.java)) })
+        add(Ui.button(this, getString(R.string.tr_home)) { home() })
     }
 
     private fun updateEnded() {
         val s = RunState.get(this)
-        val pending = if (s.run.isNotEmpty()) FixDb.get(this).count(s.run) else 0
+        val pending = Tracker.pending(this)
         val t = endStatus ?: return
         when {
             s.error == "device" -> { t.text = getString(R.string.tr_err_device); t.setTextColor(Ui.RED) }
@@ -350,13 +358,14 @@ class TrackerActivity : ComponentActivity() {
                 t.setTextColor(Ui.ORANGE)
             }
             s.state == RunState.ENDING -> { t.text = getString(R.string.tr_ended_sending); t.setTextColor(Ui.GREY) }
+            s.dests.isEmpty() && s.lastSent == 0L -> { t.text = getString(R.string.tr_kept); t.setTextColor(Ui.GREEN) }
             else -> { t.text = getString(R.string.tr_all_sent); t.setTextColor(Ui.GREEN) }
         }
         (endButton as? TextView)?.text = getString(if (s.state == RunState.ENDING) R.string.tr_send_now else R.string.tr_new_run)
     }
 
-    private fun openSite() {
-        startActivity(Intent(this, MainActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP))
+    private fun home() {
+        startActivity(Intent(this, HomeActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP))
         finish()
     }
 }

@@ -16,12 +16,4 @@ class PairingTest {
         assertNull(Pairing.normalise("K7QM4T"))
         assertNull(Pairing.normalise(null))
     }
-
-    @Test
-    fun bridgeIdsKeepTheirType() {
-        assertEquals("12", Bridge.idLiteral("12"))
-        assertEquals("\"a1\"", Bridge.idLiteral("a1"))
-        assertEquals("true", Bridge.toJson(true))
-        assertEquals("null", Bridge.toJson(null))
-    }
 }

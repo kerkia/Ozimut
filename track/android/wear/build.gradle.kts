@@ -1,9 +1,11 @@
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 
 /*
- * The Wear OS app (owner, 2026-11-23): a watch with its own mobile connection (LTE, eSIM) records and sends alone, as the
- * phone app does. The recording and the sending are the phone app's own files, compiled here as they are (SHARED below):
- * one tracker, never forked. Only the screen, the notifications and the pairing by a claim code are the watch's.
+ * Ozitrac on Wear OS (owner, 2026-11-23; docs/track/ozitrac.md): a watch with its own mobile connection (LTE, eSIM) records
+ * and sends alone, as the phone app does — to the people who follow it through Ozitrac's relay, and to an Ozimut account
+ * when it is linked to one. The recording, the run's file, the relay and the sending are the phone app's own files, compiled
+ * here as they are (SHARED below): one tracker, never forked. Only the screen, the notifications and Ozimut's claim code are
+ * the watch's.
  */
 plugins {
     id("com.android.application")
@@ -13,8 +15,14 @@ plugins {
 val debugBase = (project.findProperty("ozimutBase") as String?) ?: "https://ozimut.com"
 val keystorePath: String? = System.getenv("ANDROID_KEYSTORE_PATH")?.takeIf { it.isNotBlank() && file(it).exists() }
 
-/** The phone app's files the watch compiles as they are: the queue, the batches, the pairing's storage, the sending, the service. */
-val SHARED = listOf("Batch.kt", "FixDb.kt", "Device.kt", "Http.kt", "Uploader.kt", "Tracker.kt", "Phone.kt", "TrackerService.kt")
+/**
+ * The phone app's files the watch compiles as they are: the queue, the batches, the pairing's storage, the sending to
+ * Ozimut, the service, Ozitrac's sealing and codes, the relay (channel, watchers, alerts, sender) and the run's file.
+ */
+val SHARED = listOf(
+    "Batch.kt", "FixDb.kt", "Device.kt", "Http.kt", "Uploader.kt", "Tracker.kt", "Phone.kt", "TrackerService.kt",
+    "TrackForm.kt", "Relay.kt", "RunLog.kt",
+)
 
 abstract class SharedSources : DefaultTask() {
     @get:InputFiles abstract val sources: ConfigurableFileCollection
@@ -40,7 +48,7 @@ android {
 
     defaultConfig {
         // the phone's id: Play lists the watch app with the phone app (Wear OS asks for the same package name)
-        applicationId = "com.ozimut.app"
+        applicationId = "com.ozimut.ozitrac"
         minSdk = 30
         targetSdk = 36
         // a watch build's numbers never meet the phone's (Play wants each APK's own)
@@ -103,6 +111,8 @@ kotlin {
 dependencies {
     implementation("androidx.core:core-ktx:1.16.0")
     implementation("androidx.activity:activity-ktx:1.10.1")
+    // QR codes drawn on the watch (Apache-2.0)
+    implementation("com.google.zxing:core:3.5.3")
 
     testImplementation("junit:junit:4.13.2")
 }

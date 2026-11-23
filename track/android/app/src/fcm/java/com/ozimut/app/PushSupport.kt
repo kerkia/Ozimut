@@ -21,18 +21,28 @@ object PushSupport {
     }
 }
 
-/** Receives the site's notifications: `{ title, body, url }`, the url opened in the web view when tapped. */
+/**
+ * Receives Ozitrac's alerts — data messages `{ app: "ozitrac", c, kind, t, run }` (docs/track/ozitrac.md « Alerts »), shown
+ * as « <name> : <alert> » for the person followed on channel c — and the Ozimut account's own notifications `{ title, body }`.
+ */
 class OzMessagingService : FirebaseMessagingService() {
     private val io = Executors.newSingleThreadExecutor()
 
     override fun onNewToken(token: String) {
-        if (Device.paired(this)) io.execute { PushTokens.send(applicationContext, token) }
+        io.execute {
+            if (Device.paired(applicationContext)) PushTokens.send(applicationContext, token)
+            Follows.registerPushAll(applicationContext, token)
+        }
     }
 
     override fun onMessageReceived(message: RemoteMessage) {
         val d = message.data
-        val title = d["title"] ?: message.notification?.title
-        val body = d["body"] ?: message.notification?.body
-        Notifs.push(this, title, body, d["url"])
+        if (d["app"] == "ozitrac") {
+            val ch = d["c"] ?: return
+            val kind = d["kind"] ?: return
+            Notifs.alert(this, ch, kind)
+            return
+        }
+        Notifs.plain(this, d["title"] ?: message.notification?.title, d["body"] ?: message.notification?.body)
     }
 }

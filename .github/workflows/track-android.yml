@@ -1,6 +1,6 @@
 name: track-android
 
-# The Ozimut Android app and its Wear OS app (track/android: modules app and wear): built and tested on every push touching it.
+# Ozitrac for Android and its Wear OS app (track/android: modules app and wear): built and tested on every push touching it.
 on:
   push:
     paths:
@@ -120,13 +120,13 @@ jobs:
       - name: APKs
         uses: actions/upload-artifact@v7
         with:
-          name: ozimut-android-apks
+          name: ozitrac-android-apks
           path: track/android/app/build/outputs/apk/**/*.apk
           if-no-files-found: error
 
       - name: Wear OS APKs
         uses: actions/upload-artifact@v7
         with:
-          name: ozimut-wearos-apks
+          name: ozitrac-wearos-apks
           path: track/android/wear/build/outputs/apk/**/*.apk
           if-no-files-found: error

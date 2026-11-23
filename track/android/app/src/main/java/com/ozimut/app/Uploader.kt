@@ -7,7 +7,7 @@ import android.os.Handler
 import android.os.HandlerThread
 
 /**
- * Sends the queue to /api/track/push on a thread of its own (design.md « Sending »): the open batches in order,
+ * Ozimut's destination (the account the phone is linked to): sends the queue to /api/track/push on a thread of its own (design.md « Sending »): the open batches in order,
  * then new ones every `next` seconds; at once for help, at the end, and when a network returns after a failure.
  */
 class Uploader(private val ctx: Context, private val store: FixStore, private val events: Events) {
@@ -87,9 +87,10 @@ class Uploader(private val ctx: Context, private val store: FixStore, private va
             val rs = RunState.get(ctx)
             if (rs.run.isEmpty() || !rs.active) return
             val ending = rs.state == RunState.ENDING
-            val b = batcher.next(rs.run, ending, rs.help, heartbeat && !ending) ?: break
+            val help = RunState.helpPending(ctx, RunState.OZ)
+            val b = batcher.next(rs.run, ending, help, heartbeat && !ending) ?: break
             heartbeat = false
-            if (b.state == States.HELP && rs.help) RunState.setHelp(ctx, false)
+            if (b.state == States.HELP && help) RunState.helpSent(ctx, RunState.OZ, rs.helpAt)
             val left = (store.count(rs.run) - b.fixes.size).coerceAtLeast(0)
             val body = BatchEncoder.encode(b, rs.share, Phone.battery(ctx), Phone.lowPower(ctx), left, System.currentTimeMillis() / 1000)
             val res = try {
@@ -140,7 +141,7 @@ class Uploader(private val ctx: Context, private val store: FixStore, private va
         }
         val rs = RunState.get(ctx)
         if (!rs.active) return
-        if (rs.state == RunState.ENDING || rs.help) kickIn(1_000) else kickIn(nextSec.coerceIn(5, 600) * 1000)
+        if (rs.state == RunState.ENDING || RunState.helpPending(ctx, RunState.OZ)) kickIn(1_000) else kickIn(nextSec.coerceIn(5, 600) * 1000)
     }
 
     companion object {

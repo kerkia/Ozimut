@@ -15,7 +15,10 @@ import com.journeyapps.barcodescanner.ScanContract
 import com.journeyapps.barcodescanner.ScanOptions
 import java.util.concurrent.Executors
 
-/** Pairs this phone: a QR code scanned, or the 8-character code typed (design.md « Pairing a phone »). */
+/**
+ * « Relier à Ozimut »: links this phone to an Ozimut account by the code its « Suivi GPS » page shows — a QR code scanned,
+ * or the 8 characters typed (design.md « Pairing a phone »). The runs then go to that account too.
+ */
 class PairActivity : ComponentActivity() {
     companion object {
         const val EXTRA_CODE = "code"
@@ -66,7 +69,7 @@ class PairActivity : ComponentActivity() {
         status = Ui.text(this, "", 16f, color = Ui.GREY)
         root.addView(Ui.full(status))
 
-        Pairing.normalise(intent.getStringExtra(EXTRA_CODE))?.let {
+        Pairing.normalise(intent.getStringExtra(EXTRA_CODE) ?: intent.dataString)?.let {
             field.setText(it)
             pair(it)
         }
@@ -98,12 +101,9 @@ class PairActivity : ComponentActivity() {
                     return@runOnUiThread
                 }
                 Toast.makeText(this, getString(R.string.pair_ok, Device.name(this)), Toast.LENGTH_LONG).show()
-                // Sign the web view in to the account (design.md « The web view's session »).
-                val i = Intent(this, MainActivity::class.java)
-                    .addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP)
-                if (r.webToken != null) i.putExtra(MainActivity.EXTRA_WEB_TOKEN, r.webToken)
-                i.putExtra(MainActivity.EXTRA_AFTER_PAIR, true)
-                startActivity(i)
+                val app = applicationContext
+                PushSupport.token(app) { t -> if (t != null) io.execute { PushTokens.send(app, t) } }
+                startActivity(Intent(this, HomeActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP))
                 finish()
             }
         }

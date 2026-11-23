@@ -20,9 +20,11 @@ import kotlin.math.roundToInt
 
 /**
  * The run: a foreground service of type « location », started only from the visible Start screen.
- * One GPS fix a second (the platform's GPS provider, no Play Services), each written at once to the queue on disk;
- * the uploader sends them. START_STICKY and the state in SharedPreferences bring an open run back after the process
- * was killed. Also runs the two-minute self-test (no queue, no sending).
+ * One GPS fix a second (the platform's GPS provider, no Play Services), each written at once to the run's file on the phone
+ * (RunLog) and to the queue of each destination: Ozimut's account when the phone is linked (Uploader), Ozitrac's relay when
+ * someone follows (RelaySender; docs/track/ozitrac.md). The run ends once every destination has sent its last batch.
+ * START_STICKY and the state in SharedPreferences bring an open run back after the process was killed. Also runs the
+ * two-minute self-test (no queue, no sending).
  */
 class TrackerService : Service(), LocationListener {
     companion object {
@@ -38,11 +40,14 @@ class TrackerService : Service(), LocationListener {
             private set
         /** Fixes worse than this are kept (their accuracy says so) but not counted in the distance. */
         const val GOOD_FOR_DISTANCE = 30
+        const val LOW_BATTERY = 15
     }
 
     private val main = Handler(Looper.getMainLooper())
     private lateinit var store: FixDb
     private var uploader: Uploader? = null
+    private var relay: RelaySender? = null
+    private var alertWatch: AlertWatch? = null
     private var gpsThread: HandlerThread? = null
     private var gpsOn = false
     private var wakeLock: PowerManager.WakeLock? = null
@@ -52,9 +57,22 @@ class TrackerService : Service(), LocationListener {
 
     private val capCheck = object : Runnable {
         override fun run() {
-            val s = RunState.get(this@TrackerService)
-            if (s.state == RunState.RUNNING && System.currentTimeMillis() - s.started >= s.cap * 1000L) endRun()
-            else if (s.state == RunState.RUNNING) main.postDelayed(this, 10_000)
+            val c = this@TrackerService
+            val s = RunState.get(c)
+            if (s.state == RunState.RUNNING && System.currentTimeMillis() - s.started >= s.cap * 1000L) { endRun(); return }
+            if (s.state != RunState.RUNNING) return
+            // a channel made during the run (a first code shown): the relay joins from now on
+            if (s.share == "watchers" && RunState.RELAY !in s.dests && Channel.exists(c)) {
+                RunState.setDests(c, s.dests + RunState.RELAY)
+                startSenders()
+                relay?.kick()
+            }
+            val bat = Phone.battery(c)
+            if (bat != null && bat < LOW_BATTERY && RunState.RELAY in s.dests && RunState.once(c, "battery")) {
+                Alerts.add(c, Alerts.BATTERY)
+                relay?.kick()
+            }
+            main.postDelayed(this, 10_000)
         }
     }
 
@@ -83,6 +101,7 @@ class TrackerService : Service(), LocationListener {
             ACTION_HELP -> {
                 if (!running) resume()
                 uploader?.kick()
+                relay?.kick()
             }
             else -> resume() // ACTION_RESUME, or a restart after the process was killed (null intent)
         }
@@ -116,30 +135,69 @@ class TrackerService : Service(), LocationListener {
         }
         mode = "run"
         running = true
-        if (uploader == null) {
-            uploader = Uploader(this, store, object : Uploader.Events {
-                override fun onFinished(how: String) {
-                    main.post { finishRun() }
-                }
-                override fun onServerStop() {
-                    RunState.setState(this@TrackerService, RunState.ENDING)
-                    main.post { endRun() }
-                }
-                override fun onDeviceRemoved() {
-                    Device.forget(this@TrackerService)
-                    main.post { abandonRun() }
-                }
-            }).also { it.start() }
-        }
+        if (alertWatch == null) alertWatch = AlertWatch(this) { relay?.kick() }
+        startSenders()
         holdWakeLock()
         if (s.state == RunState.RUNNING) {
             startGps()
             main.removeCallbacks(capCheck)
             main.post(capCheck)
             uploader?.kickIn(3_000)
+            relay?.kick()
         } else {
             uploader?.kick()
+            relay?.kick()
+            if (RunState.get(this).dests.isEmpty()) main.post { finishRun() }
         }
+        Tracker.changed()
+    }
+
+    /** Starts the sender of each destination of the run not yet started (and drops a destination that no longer exists). */
+    private fun startSenders() {
+        val c = this
+        var dests = RunState.get(c).dests
+        if (RunState.OZ in dests && !Device.paired(c)) dests = dests - RunState.OZ
+        if (RunState.RELAY in dests && !Channel.exists(c)) dests = dests - RunState.RELAY
+        if (dests != RunState.get(c).dests) RunState.setDests(c, dests)
+        if (RunState.OZ in dests && uploader == null) {
+            uploader = Uploader(c, store, object : Uploader.Events {
+                override fun onFinished(how: String) {
+                    main.post { destDone(RunState.OZ) }
+                }
+                override fun onServerStop() {
+                    RunState.setState(c, RunState.ENDING)
+                    main.post { endRun() }
+                }
+                override fun onDeviceRemoved() {
+                    // the phone was removed from the Ozimut account: the run goes on without it
+                    Device.forget(c)
+                    store.drop(RunState.get(c).run)
+                    main.post { destDone(RunState.OZ) }
+                }
+            }).also { it.start() }
+        }
+        if (RunState.RELAY in dests && relay == null) {
+            relay = RelaySender(c, store, object : Uploader.Events {
+                override fun onFinished(how: String) {
+                    main.post { destDone(RunState.RELAY) }
+                }
+                override fun onServerStop() {}
+                override fun onDeviceRemoved() {
+                    main.post { destDone(RunState.RELAY) }
+                }
+            })
+        }
+    }
+
+    /** One destination has sent its last batch (or is gone): the run ends when none is left. */
+    private fun destDone(dest: String) {
+        val s = RunState.get(this)
+        RunState.setDests(this, s.dests - dest)
+        when (dest) {
+            RunState.OZ -> { uploader?.quit(); uploader = null }
+            RunState.RELAY -> { relay?.quit(); relay = null }
+        }
+        if (s.state == RunState.ENDING && RunState.get(this).dests.isEmpty()) finishRun()
         Tracker.changed()
     }
 
@@ -148,20 +206,17 @@ class TrackerService : Service(), LocationListener {
         main.removeCallbacks(capCheck)
         val s = RunState.get(this)
         if (s.state == RunState.RUNNING) RunState.setState(this, RunState.ENDING)
+        if (RunState.get(this).dests.isEmpty()) {
+            finishRun()
+            return
+        }
         foreground(Notifs.sending(this))
         uploader?.kick()
+        relay?.kick()
         Tracker.changed()
     }
 
     private fun finishRun() {
-        RunState.setState(this, RunState.ENDED)
-        shutDown()
-    }
-
-    /** The device was removed (401): nothing more can be sent. */
-    private fun abandonRun() {
-        val s = RunState.get(this)
-        store.drop(s.run)
         RunState.setState(this, RunState.ENDED)
         shutDown()
     }
@@ -171,6 +226,9 @@ class TrackerService : Service(), LocationListener {
         main.removeCallbacks(capCheck)
         uploader?.quit()
         uploader = null
+        relay?.quit()
+        relay = null
+        alertWatch = null
         releaseWakeLock()
         running = false
         mode = ""
@@ -266,7 +324,9 @@ class TrackerService : Service(), LocationListener {
             t, (loc.latitude * 1e6).roundToInt(), (loc.longitude * 1e6).roundToInt(), acc,
             if (loc.hasAltitude()) loc.altitude.roundToInt() else null
         )
-        store.add(s.run, fix)
+        RunLog.append(this, s.run, fix)
+        for (d in s.dests) store.add(RunState.queueKey(d, s.run), fix)
+        alertWatch?.onFix(fix, s.started / 1000)
         var add = 0.0
         if (acc <= GOOD_FOR_DISTANCE) {
             prev?.let { p -> add = Tracker.haversine(p.la, p.lo, fix.la, fix.lo) }
@@ -289,6 +349,8 @@ class TrackerService : Service(), LocationListener {
         main.removeCallbacksAndMessages(null)
         uploader?.quit()
         uploader = null
+        relay?.quit()
+        relay = null
         releaseWakeLock()
         running = false
         testing = false

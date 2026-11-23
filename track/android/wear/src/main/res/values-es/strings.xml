@@ -1,20 +1,18 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <string name="app_name">Ozitrac</string>
     <string name="notif_channel_run">Registro de la carrera</string>
-    <string name="notif_run_title">Ozimut registra tu carrera</string>
+    <string name="notif_run_title">Ozitrac registra tu carrera</string>
     <string name="notif_run_text">Para parar, mantén Parar en el reloj.</string>
     <string name="notif_sending_title">Enviando tu carrera</string>
     <string name="notif_sending_text">Las posiciones se envían en cuanto hay red.</string>
     <string name="notif_resume_title">Tu carrera se interrumpió</string>
     <string name="notif_resume_text">Toca para reanudar el registro.</string>
-    <string name="w_code_title">Vincular este reloj</string>
     <string name="w_code_text">En ozimut.com › Seguimiento GPS › Vincular un reloj, escribe este código.</string>
     <string name="w_new_code">Nuevo código</string>
     <string name="w_offline">Sin red: el reloj necesita datos móviles o Wi-Fi.</string>
     <string name="w_too_many">Demasiados intentos: espera un poco.</string>
-    <string name="w_for">Para %1$s</string>
     <string name="w_watchers">Te siguen: %1$s</string>
-    <string name="w_nobody">Todavía nadie te sigue en directo.</string>
     <string name="w_start">Empezar</string>
     <string name="w_need_location">Permite la ubicación para registrar tu carrera.</string>
     <string name="w_help">Ayuda (mantener)</string>
@@ -28,4 +26,24 @@
     <string name="w_sending">Enviando las últimas posiciones…</string>
     <string name="w_sent">Carrera enviada.</string>
     <string name="w_closed">La carrera se terminó en el sitio.</string>
+    <string name="w_nobody">Todavía nadie te sigue: la carrera se queda en el reloj.</string>
+    <string name="w_kept">Carrera guardada en el reloj.</string>
+    <string name="w_add">Añadir a alguien</string>
+    <string name="w_who">Quién me sigue</string>
+    <string name="w_oz_linked">Ozimut: %1$s</string>
+    <string name="w_oz_unlink">Desvincular de Ozimut (mantener)</string>
+    <string name="w_oz_link">Vincular con Ozimut</string>
+    <string name="w_code_title">Vincular con Ozimut</string>
+    <string name="w_back">Volver</string>
+    <string name="w_name_title">Tu nombre</string>
+    <string name="w_name_text">Se muestra a quienes te siguen.</string>
+    <string name="w_name_hint">Nombre</string>
+    <string name="w_ok">Aceptar</string>
+    <string name="w_qr_title">Escanea con Ozitrac en el móvil</string>
+    <string name="w_qr_making">Creando el código…</string>
+    <string name="w_qr_once">Para una persona, en 24 horas.</string>
+    <string name="w_done">Hecho</string>
+    <string name="w_someone">Alguien</string>
+    <string name="w_remove">Quitar (mantener)</string>
+    <string name="w_local">Guardada en el reloj: nadie te sigue</string>
 </resources>

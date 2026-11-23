@@ -1,21 +1,18 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name">Ozimut</string>
+    <string name="app_name">Ozitrac</string>
     <string name="notif_channel_run">Run recording</string>
-    <string name="notif_run_title">Ozimut is recording your run</string>
+    <string name="notif_run_title">Ozitrac is recording your run</string>
     <string name="notif_run_text">To stop, hold Stop on the watch.</string>
     <string name="notif_sending_title">Sending your run</string>
     <string name="notif_sending_text">Positions are sent as soon as there is a network.</string>
     <string name="notif_resume_title">Your run was interrupted</string>
     <string name="notif_resume_text">Tap to resume recording.</string>
-    <string name="w_code_title">Pair this watch</string>
     <string name="w_code_text">On ozimut.com › GPS tracking › Pair a watch, type this code.</string>
     <string name="w_new_code">New code</string>
     <string name="w_offline">No network: the watch needs mobile data or Wi-Fi.</string>
     <string name="w_too_many">Too many tries: wait a little.</string>
-    <string name="w_for">For %1$s</string>
     <string name="w_watchers">Followed by %1$s</string>
-    <string name="w_nobody">Nobody follows you live yet.</string>
     <string name="w_start">Start</string>
     <string name="w_need_location">Allow the location to record your run.</string>
     <string name="w_help">Help (hold)</string>
@@ -29,4 +26,24 @@
     <string name="w_sending">Sending the last positions…</string>
     <string name="w_sent">Run sent.</string>
     <string name="w_closed">The run was ended on the site.</string>
+    <string name="w_nobody">Nobody follows you yet: the run stays on the watch.</string>
+    <string name="w_kept">Run kept on the watch.</string>
+    <string name="w_add">Add someone</string>
+    <string name="w_who">Who follows me</string>
+    <string name="w_oz_linked">Ozimut: %1$s</string>
+    <string name="w_oz_unlink">Unlink Ozimut (hold)</string>
+    <string name="w_oz_link">Link to Ozimut</string>
+    <string name="w_code_title">Link to Ozimut</string>
+    <string name="w_back">Back</string>
+    <string name="w_name_title">Your first name</string>
+    <string name="w_name_text">Shown to the people who follow you.</string>
+    <string name="w_name_hint">First name</string>
+    <string name="w_ok">OK</string>
+    <string name="w_qr_title">Scan with Ozitrac on the phone</string>
+    <string name="w_qr_making">Making a code…</string>
+    <string name="w_qr_once">For one person, within 24 hours.</string>
+    <string name="w_done">Done</string>
+    <string name="w_someone">Someone</string>
+    <string name="w_remove">Remove (hold)</string>
+    <string name="w_local">Kept on the watch: nobody follows you</string>
 </resources>

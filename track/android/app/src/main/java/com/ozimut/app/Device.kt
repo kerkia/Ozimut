@@ -79,16 +79,6 @@ object Device {
         keyCache = key
     }
 
-    /** The pairing as the bridge's `info.paired`. */
-    fun pairedJson(c: Context): Any {
-        if (!paired(c)) return JSONObject.NULL
-        val acc = account(c)
-        return JSONObject()
-            .put("device", id(c))
-            .put("account", acc?.opt("id") ?: JSONObject.NULL)
-            .put("name", acc?.optString("name", "") ?: "")
-    }
-
     fun forget(c: Context) {
         prefs(c).edit().clear().apply()
         keyCache = null

@@ -4,7 +4,6 @@ import android.content.Context
 import android.content.Intent
 import android.os.Handler
 import android.os.Looper
-import org.json.JSONObject
 import java.security.SecureRandom
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -37,9 +36,17 @@ object RunState {
         val error: String,
         val endedAt: Long,
         val cap: Int,
+        /** Where the run goes: "oz" (the Ozimut account the phone is linked to), "z" (Ozitrac's relay, to the watchers). */
+        val dests: Set<String>,
     ) {
         val active get() = state == RUNNING || state == ENDING
     }
+
+    const val OZ = "oz"
+    const val RELAY = "z"
+
+    /** The queue's key of a run for a destination: Ozimut's is the run itself, the relay's « z: » + the run. */
+    fun queueKey(dest: String, run: String) = if (dest == RELAY) "z:$run" else run
 
     const val RUNNING = "running"
     const val ENDING = "ending"
@@ -65,13 +72,35 @@ object RunState {
             error = p.getString("error", "") ?: "",
             endedAt = p.getLong("endedAt", 0),
             cap = p.getInt("cap", 9000),
+            dests = (p.getString("dests", "") ?: "").split(',').filter { it.isNotBlank() }.toSet(),
         )
     }
 
-    @Synchronized fun begin(c: Context, run: String, share: String, cap: Int) {
+    @Synchronized fun begin(c: Context, run: String, share: String, cap: Int, dests: Set<String>) {
         p(c).edit().clear()
             .putString("run", run).putString("state", RUNNING).putLong("started", System.currentTimeMillis())
-            .putString("share", share).putInt("cap", cap).commit()
+            .putString("share", share).putInt("cap", cap).putString("dests", dests.joinToString(",")).commit()
+    }
+
+    @Synchronized fun setDests(c: Context, dests: Set<String>) {
+        p(c).edit().putString("dests", dests.joinToString(",")).commit()
+    }
+
+    /** Help asked and not yet sent by [who] (each destination sends it once). */
+    @Synchronized fun helpPending(c: Context, who: String): Boolean {
+        val s = get(c)
+        return s.helpAt > 0 && s.helpAt > p(c).getLong("helpDone_$who", 0)
+    }
+
+    @Synchronized fun helpSent(c: Context, who: String, at: Long) {
+        p(c).edit().putLong("helpDone_$who", at).commit()
+    }
+
+    /** Something said once a run (the low battery alert). */
+    @Synchronized fun once(c: Context, key: String): Boolean {
+        if (p(c).getBoolean("once_$key", false)) return false
+        p(c).edit().putBoolean("once_$key", true).commit()
+        return true
     }
 
     @Synchronized fun setState(c: Context, state: String) {
@@ -126,10 +155,15 @@ object Tracker {
         return "r_" + f.format(now) + "_" + tail
     }
 
-    /** Called from the visible Start screen only. */
+    /** Called from the visible Start screen only. Without Ozimut the cap is six hours. */
     fun start(c: Context, share: String) {
         FixDb.get(c).dropAllBut(null)
-        RunState.begin(c, newRunId(), share, Device.settings(c).cap)
+        Alerts.clear(c)
+        val dests = mutableSetOf<String>()
+        if (Device.paired(c)) dests += RunState.OZ
+        if (share == "watchers" && Channel.exists(c)) dests += RunState.RELAY
+        val cap = if (Device.paired(c)) Device.settings(c).cap else 6 * 3600
+        RunState.begin(c, newRunId(), share, cap, dests)
         c.startForegroundService(Intent(c, TrackerService::class.java).setAction(TrackerService.ACTION_START))
         changed()
     }
@@ -158,27 +192,22 @@ object Tracker {
         if (s.active && !TrackerService.running && !TrackerService.testing) send(c, TrackerService.ACTION_RESUME)
     }
 
-    /** "none" (not paired), "ready", "running", "ending". */
+    /** "ready", "running", "ending". */
     fun stateName(c: Context): String {
         val s = RunState.get(c)
-        return when {
-            s.state == RunState.RUNNING -> "running"
-            s.state == RunState.ENDING -> "ending"
-            !Device.paired(c) -> "none"
+        return when (s.state) {
+            RunState.RUNNING -> "running"
+            RunState.ENDING -> "ending"
             else -> "ready"
         }
     }
 
-    fun stateJson(c: Context): JSONObject {
+    /** Fixes still waiting to be sent, every destination together. */
+    fun pending(c: Context): Int {
         val s = RunState.get(c)
-        val name = stateName(c)
-        val active = name == "running" || name == "ending"
-        return JSONObject()
-            .put("state", name)
-            .put("run", if (s.run.isNotEmpty()) s.run else JSONObject.NULL)
-            .put("since", if (active) s.started / 1000 else JSONObject.NULL)
-            .put("fixes", s.fixes)
-            .put("pending", if (s.run.isNotEmpty()) FixDb.get(c).count(s.run) else 0)
+        if (s.run.isEmpty()) return 0
+        val db = FixDb.get(c)
+        return s.dests.sumOf { db.count(RunState.queueKey(it, s.run)) }
     }
 
     fun haversine(la1: Int, lo1: Int, la2: Int, lo2: Int): Double {
