@@ -293,12 +293,15 @@ export function finishArrival(tr, d, k0 = 0, lim = 25, far = 300) {
   for (let k = k0; k < n; k++) if (d[k] <= lim && (k === k0 || d[k - 1] > lim) && farAfter[k] <= far) near.push(k);
   if (!near.length) return -1;
   const k = near.find((q) => stopsAt(tr, q)) ?? near[near.length - 1];
+  // the run in: the closest approach within 30 s (a walk back later apart), even if the trace steps out of the zone on
+  // the way — a last control on the zone's edge is the zone's « entry », and its next fix may lie a metre outside (the
+  // third Morbihan scan's 17, 30 m from the finish: the finish took its second, 2026-11-23)
   let m = d[k];
-  const T = tr.t, end = T[k] + 30;                             // the run in: the zone crossed within 30 s (a walk back later apart)
-  for (let q = k; q < n && d[q] <= lim && T[q] <= end; q++) if (d[q] < m) m = d[q];
+  const T = tr.t, end = T[k] + 30;
+  for (let q = k; q < n && T[q] <= end; q++) if (d[q] < m) m = d[q];
   const slack = Math.max(3, 0.15 * lim);
   let e = k;
-  while (e + 1 < n && d[e] > m + slack && d[e + 1] <= lim && T[e + 1] <= end) e++;
+  while (e + 1 < n && d[e] > m + slack && T[e + 1] <= end) e++;
   return e;
 }
 /**

@@ -1188,6 +1188,7 @@ export async function render(main, { query = {}, route } = {}) {
     }
     // the course's order as the map prints it — its legs, followed from the start (course.js `order`) — the trace only
     // timing it (owner, 2026-11-01: the trace's own order had numbered 8 before 5, 6, 7); else the trace's order
+    legChain.clear();
     const mapOrder = !iofCourse ? courseOrder(geometry, located) : null;
     mapOrdered = !!mapOrder;
     if (mapOrder) located = mapOrder;
@@ -1211,9 +1212,10 @@ export async function render(main, { query = {}, route } = {}) {
         notes.push(t(st.onTrace ? "an.st.startTrace" : st.triangle ? "an.st.startTriangle" : "an.st.startFound"));
       }
     }
-    // two circles passed within 15 s are not two controls (a leg takes longer): the second is a phantom
+    // two circles passed within 15 s are not two controls (a leg takes longer): the second is a phantom — unless the map
+    // prints a leg into it (a sprint's leg can be run in 12 s; the course read on the map is no phantom)
     let prevT = -Infinity;
-    const visited = vo.order.map((i) => located[i]).map((p) => { const tp = passOf(p); const ok = tp == null || tp - prevT >= 15; if (ok && tp != null) prevT = tp; return ok ? p : { ...p, missed: true }; });
+    const visited = vo.order.map((i) => located[i]).map((p) => { const tp = passOf(p); const ok = tp == null || tp - prevT >= 15 || legChain.has(p); if (ok && tp != null) prevT = tp; return ok ? p : { ...p, missed: true }; });
     const slot = (kind) => pts.find((p) => p.kind === kind) || { kind, code: "", pos: null };
     const ordered = iofCourse || orgaPts ? pts
       : mapOrder ? located.map((p) => (p.kind === "control" && !visited.includes(p) ? { ...p, missed: true } : p))
@@ -1268,6 +1270,8 @@ export async function render(main, { query = {}, route } = {}) {
     else if (replayGo) openShown(false);
   }
   const median = (xs) => { const v = [...xs].sort((a, b) => a - b); return v.length ? v[Math.floor((v.length - 1) / 2)] : 0; };
+  /** The points the map's printed legs lead to (courseOrder): never taken for a phantom circle. */
+  const legChain = new Set();
   /** The trace's sharp turns (over 50°) with no control placed nearby, probed on the map for a ring: the rings found. */
   function probeTurns(geometry, located) {
     const r = course.r, V = simplify(track.x, track.y, track.n, 10), out = [];
@@ -1297,6 +1301,7 @@ export async function render(main, { query = {}, route } = {}) {
     const take = (q) => located.find((p) => p.kind === q.kind && Math.hypot(p.pos[0] - q.x, p.pos[1] - q.y) < 1.2 * r0) || { kind: q.kind, code: "", pos: [q.x, q.y], legs: true };
     // (not a control where the finish is: its inner circle, read as one when its outer ring is cut)
     let list = seq.points.filter((q) => !(q.kind === "control" && fin && Math.hypot(q.x - fin.pos[0], q.y - fin.pos[1]) < 0.6 * r0)).map(take);
+    for (const p of list) legChain.add(p);
     if (seq.reversible) {
       const rev = [...list.filter((p) => p.kind === "start"), ...list.filter((p) => p.kind === "control").reverse(), ...list.filter((p) => p.kind === "finish")];
       const a = passesInOrder(track, geometry, ptsOf(list), TOL), b = passesInOrder(track, geometry, ptsOf(rev), TOL);

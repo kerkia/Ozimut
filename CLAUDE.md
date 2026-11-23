@@ -4222,6 +4222,34 @@ Every multiple-choice game was played through to its score page at phone size, w
   control within 0.6 radii of what it finds — control 24's circle is 30 m from the finish; the course bench reads it); route C
   to 20 along a contour through a house; hatched areas crossed near the controls (`releaseAround`'s 30 m); map 3's fence end
   at 8 (a 1.3 m gap), the narrow passages to 16 and 17, the wall to 7; map 2's other side at 16 now offered.
+  **The rest of the owner's points, the same afternoon** (« continue, and to the rest too »). (1) **North lines: one family a map,
+  blue first** (upright, then across the page), black only where there is no blue: on all three scans the reading had « found » a
+  family of black lines 65-77 m apart — walls and outlines that happen to line up — and erased the black along them down the whole
+  page (map 3's park wall, which the route to 7 then crossed); on maps 1 and 2 that false family also kept their real blue lines,
+  across the page, from being looked for. (2) **No release round the controls on a sharp image**: the 30 m round each control
+  where hatching did not count let the routes through real hatching (map 1's 10 and 20); the blobs that a circle, its leg and
+  its printed number make when the overprint's closing joins them are told apart instead — the controls' numbers (purple glyphs
+  off the course's lines, 0.5-2.4 r tall, 0.2 r thick at least, a fifth to two thirds filled, within 6 r of a control) count as
+  course ink with the circles and legs, an area 80 % course ink is released, the rest cut back to the setter's own marks closed by
+  2 m (`trimToInk`: the stripes and crosses, not the closing's spread over a street or a sidewalk — the closed crossroads by
+  map 3's 16). (3) A narrow way's sides include ground out of bounds, and its middle cell is open whatever hatching shares it (the
+  1.4 m sidewalk along that crossroads, which the runner took). (4) **A route ends where its control is reached** — the point of
+  that cell nearest the centre (`besideAt`) —, not drawn on to the centre across the wall or house the control stands by (map 1's
+  6). (5) Olive on a sharp image: a 3 px window, not 5 (a 1.1 m garden strip), and a strip 8 m long or more with outlines along
+  both sides and a house along one counts at 60 % olive (map 1's garden strip on 4-5, which the uncleared north line had hidden;
+  without the length and the house the rule turned dozens of rough-open dots and a lane's mouth olive on map 3). (6) The page: the
+  finish's arrival is the closest approach in the 30 s after entering its zone even where the trace steps out of the zone (map 3's
+  17, on the zone's edge 30 m away, gave the finish its second), and in the map's order a control a printed leg leads to is never
+  dropped as a « phantom » passed under 15 s after the previous one (a sprint's leg can take 12 s). Map 1's 24: every control is
+  found in the page on the three scans and photo 1 (checked headless, `solo.mjs`); an analysis calibrated before the finish's fix
+  keeps its old controls until « Refaire le calage automatique ». Gate (baseline accepted, the one before
+  `baseline_2026-11-23_before_north.json`): tracks laid 57/59 and photos and forest maps unchanged; map 2 olive crossed every route
+  7 → 3 m, lines 14 → 12; map 3 lines 13 → 12; map 1 olive 25 → 31 m on best routes, lines 12 → 16 (a third route straight over
+  the dotted sand — the dots' rims count as olive in the measure — and a kerb's corner). Checked by eye: map 1's routes to 4, 6,
+  10, 10-11, 20 (route C gone), map 3's to 7 (one route round the wall's end, one by the park's gate), 8-9 (round the fence's
+  ends), 16 (the sidewalk), 17 (the runner's passage). **Tried and dropped**: keeping straightened lines in the open half of edge cells
+  (the routes zigzagged over more lines and olive). **Still open**: stairways (map 2's 5-6 and 14) and the two levels at 14; the
+  course's crossing-point marks; per-map colour calibration (a pale green read as olive or the reverse).
 - **Languages: French, English, German and Spanish** (owner, 2026-10-17 French and English, open to everyone since 2026-10-18,
   `i18n.OPEN` true; **German and Spanish since 2026-11-01**: `i18n.LANGS`, catalogues `i18n/de.js`, `es.js`, `tracer.de.js`,
   `tracer.es.js`, long texts `content/<name>.de.js` / `.es.js`, e-mails in `_lib/templates.js`, `manifest.de|es.webmanifest`;
