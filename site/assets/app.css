@@ -2076,6 +2076,28 @@ table.data.ma-two .ma-name .ma-l2 { white-space: nowrap; overflow: hidden; text-
 .sh-m-sub { margin: -4px 0 8px; font-size: 13px; }
 .sh-m-mapcard { position: sticky; top: calc(var(--bar-h, 56px) + 8px); padding: 8px; }
 .sh-m-map { height: min(68vh, 640px); }
+/* choosing the circuit a track runs (2026-11-24): the circuits that may fit beside the map with the track over the one hovered or chosen */
+.tr-dialog.sh-cc-dlg { width: min(980px, 96vw); }
+.sh-cc { display: grid; grid-template-columns: minmax(180px, 250px) 1fr; gap: 12px; align-items: start; margin: 4px 0 8px; }
+.sh-cc-list { display: flex; flex-direction: column; gap: 6px; }
+.sh-cc > * { min-width: 0; }
+.sh-cc-item { display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px 6px; text-align: left; padding: 8px 10px; border: 1px solid var(--border); border-radius: var(--radius); background: var(--surface); color: var(--ink); cursor: pointer; font: inherit; }
+.sh-cc-item:hover { border-color: var(--course, #a626a4); }
+.sh-cc-item[aria-checked="true"] { border-color: var(--flag); background: var(--flag-wash); box-shadow: inset 3px 0 0 var(--flag); }
+.sh-cc-name { font-weight: 600; }
+.sh-cc-fit { flex-basis: 100%; font-size: 12.5px; }
+.sh-cc-more { align-self: flex-start; }
+.sh-cc-hint { font-size: 12.5px; margin: 8px 0 0; }
+.sh-cc-map { height: min(56vh, 520px); }
+.sh-cc-wait { position: absolute; inset: 0; display: grid; place-items: center; margin: 0; background: rgba(233, 230, 220, .75); color: #333; }
+.sh-cc-wait[hidden] { display: none; }
+.sh-cc-cap { font-size: 12.5px; margin-top: 4px; }
+@media (max-width: 700px) {
+  .sh-cc { grid-template-columns: minmax(0, 1fr); }
+  .sh-cc-list { flex-direction: row; overflow-x: auto; padding-bottom: 2px; }
+  .sh-cc-item { flex: none; max-width: 70vw; }
+  .sh-cc-map { height: 46vh; }
+}
 .sh-m-nomap { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; background: var(--surface); }
 .sh-m-cap { font-size: 13px; margin: 6px 2px 0; }
 .sh-m-status { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; padding: 10px 12px; border-radius: var(--radius); margin-bottom: 10px;

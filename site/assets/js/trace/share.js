@@ -170,6 +170,9 @@ export function inOrderAnyStart(visits) {
  * The passes at a course's controls (px, in order: start, controls, finish), in trace seconds, null where not found.
  * tol: metres. A control's pass is the closest approach on the first visit (within tol, else 1.6 tol) after the
  * previous control's pass; the start's, the departure before control 1; the finish's, the arrival after the last one.
+ * When the course's loops were run in another order (the course taken from one of its controls on, then from the start up to it,
+ * passes more controls), that order is used: the start's departure is before the first control passed in time, the finish's
+ * arrival after the last, and the legs not run as such are listed in the result's `cut`.
  */
 export function coursePasses(track, fit, controls, tol = 25) {
   const n = track.n, out = new Array(controls.length).fill(null);
@@ -182,27 +185,59 @@ export function coursePasses(track, fit, controls, tol = 25) {
     while (k < n && d[k] <= 1.6 * lim) { if (d[k] < d[best]) best = k; k++; }
     return best;
   };
-  let from = 0;
-  for (let j = 0; j < controls.length; j++) {
-    const c = controls[j];
-    if (c.kind === "start") continue;
-    const d = dist(c);
-    let k = c.kind === "finish" ? -1 : visit(d, from, tol);
-    if (c.kind === "finish") {                              // the arrival: after the last control, the pass that ends the race
-      k = finishArrival(track, d, from, tol);
-      if (k < 0) k = finishArrival(track, d, from, 1.6 * tol);
-      if (k < 0 && !controls.some((q, i) => i < j && q.kind === "control" && out[i] == null)) k = finishAfterAll(track, d, from, 1.6 * tol);
-    } else if (k < 0) k = visit(d, from, 1.6 * tol);
-    if (k >= 0) { out[j] = track.t[k]; from = k; }
+  // the controls, chained in an order: each one's first visit after the previous one's pass
+  const D = new Map(), distOf = (j) => { if (!D.has(j)) D.set(j, dist(controls[j])); return D.get(j); };
+  const chain = (order) => {
+    const got = new Map();
+    let from = 0;
+    for (const j of order) {
+      const d = distOf(j);
+      let k = visit(d, from, tol);
+      if (k < 0) k = visit(d, from, 1.6 * tol);
+      if (k >= 0) { got.set(j, k); from = k; }
+    }
+    return got;
+  };
+  const ctl = controls.map((c, j) => (c.kind === "control" ? j : -1)).filter((j) => j >= 0);
+  let got = chain(ctl), rotated = false;
+  // the course's loops run in another order (2026-11-24: OPA's Marcel Sol ran E's second loop first; chained in the printed order,
+  // his race began when he came back to the start, an hour in): the course from any control on, then from the start up to it,
+  // when that passes more controls
+  if (got.size < ctl.length) {
+    for (let r = 1; r < ctl.length; r++) {
+      const g = chain([...ctl.slice(r), ...ctl.slice(0, r)]);
+      if (g.size > got.size) { got = g; rotated = true; }
+    }
   }
-  // the start: the departure, the last point near it before the first control's pass
+  for (const [j, k] of got) out[j] = track.t[k];
+  const from = got.size ? Math.max(...got.values()) : 0;  // the last control passed, in time
+  const fi = controls.findIndex((c) => c.kind === "finish");
+  if (fi >= 0) {                                          // the arrival: after the last control, the pass that ends the race
+    const d = dist(controls[fi]);
+    let k = finishArrival(track, d, from, tol);
+    if (k < 0) k = finishArrival(track, d, from, 1.6 * tol);
+    if (k < 0 && got.size === ctl.length) k = finishAfterAll(track, d, from, 1.6 * tol);
+    if (k >= 0) out[fi] = track.t[k];
+  }
+  // the start: the departure, the last point near it before the first control passed (in time)
   const si = controls.findIndex((c) => c.kind === "start");
   if (si >= 0) {
-    const firstPass = out.find((v, j) => j !== si && v != null);
+    const firstPass = got.size ? track.t[Math.min(...got.values())] : out[fi] ?? null;
     const d = dist(controls[si]);
     let last = -1;
     for (let k = 0; k < n && (firstPass == null || track.t[k] < firstPass); k++) if (d[k] <= tol) last = k;
     if (last >= 0) out[si] = track.t[last];
+  }
+  // loops run in another order: the legs not run as such (their two controls not one after the other in time) have no time —
+  // `cut`, the indices j of the legs j-1 -> j
+  if (rotated) {
+    const times = out.filter((v) => v != null).sort((a, b) => a - b);
+    out.cut = new Set();
+    for (let j = 1; j < out.length; j++) {
+      const a = out[j - 1], b = out[j];
+      if (a == null || b == null) continue;
+      if (b < a || times.some((v) => v > a && v < b)) out.cut.add(j);
+    }
   }
   return out;
 }

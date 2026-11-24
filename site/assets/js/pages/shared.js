@@ -644,9 +644,11 @@ async function splitsDoc({ A, id, traces }) {
       if (!tr) continue;
       const passes = coursePasses(tr, fitFromGeo(c.geo, tr), P, TOL);
       const start = si >= 0 ? passes[si] ?? tr.t[0] : tr.t[0];
-      const splits = mids.map((j) => (passes[j] != null ? Math.round(passes[j] - start) : null));
+      // loops run in another order: only the splits that follow on in time (a mispunch then, as the order is the course's)
+      let upTo = -Infinity;
+      const splits = mids.map((j) => { const v = passes[j] != null ? Math.round(passes[j] - start) : null; if (v == null || v < upTo) return null; upTo = v; return v; });
       const fin = fi >= 0 && passes[fi] != null ? Math.round(passes[fi] - start) : null;
-      const ok = fin != null && splits.every((v) => v != null);
+      const ok = fin != null && splits.every((v) => v != null) && !passes.cut;
       // a mispunched runner keeps their finish time (no place): their legs up to the finish are still shown (owner, 2026-11-11)
       runners.push({ name: rec.name, lic: rec.lic || null, club: "", status: ok ? "ok" : fin == null ? "dnf" : "mp", time_s: fin,
         splits, start_s: parisSec(tr.ms0 / 1000 + start) });
@@ -718,6 +720,110 @@ export function sureCircuit(fits) {
   return lead >= 0.15 || (lead >= 0.05 && (more >= 0.15 || explains >= 0.1)) ? a : null;
 }
 
+// ---- choosing the circuit a track runs (owner, 2026-11-24: most runners do not know their circuit's name): the circuits that may
+// fit are offered, each shown on its map with the track over it when hovered or chosen, the map moved and zoomed at will
+const TRACK_COL = "#1565c0";
+/** The circuits offered first: the one found when sure, else the best and those near it (5 at most); the others behind a button. */
+function offeredFits(fits, sure) {
+  const on = fits.filter((x) => x.crop);
+  if (sure) return { main: [sure], more: on.filter((x) => x !== sure) };
+  const top = on[0]?.score || 0;
+  const main = on.filter((x, i) => !i || (x.score >= 0.2 && x.score >= top - 0.3)).slice(0, 5);
+  return { main, more: on.filter((x) => !main.includes(x)) };
+}
+/** The list of circuits and the map, in host; pick: the fit chosen at first; onPick(fit) at each choice. */
+function circuitChooser(host, { id, via, track, fits, sure, pick, onPick }) {
+  const { main, more } = offeredFits(fits, sure);
+  let all = !main.includes(pick), chosen = pick, shown = null, token = null;
+  const images = new Map(), paths = new Map(), touch = touchScreen();
+  host.innerHTML = html`<div class="sh-cc">
+    <div class="sh-cc-side"><div class="sh-cc-list" role="radiogroup" aria-label="${t("sh.offer.course")}"></div>
+      <p class="hint sh-cc-hint">${t(touch ? "sh.cc.hint.touch" : "sh.cc.hint")}</p></div>
+    <div class="sh-cc-mapcol"><div class="sh-map sh-cc-map"><canvas></canvas>
+        <div class="an-tools"><button type="button" class="btn btn-sm" data-z="in" title="${t("sh.cc.zin")}" aria-label="${t("sh.cc.zin")}">+</button><button type="button" class="btn btn-sm" data-z="out" title="${t("sh.cc.zout")}" aria-label="${t("sh.cc.zout")}">−</button><button type="button" class="btn btn-sm" data-z="fit" title="${t("sh.cc.fitView")}" aria-label="${t("sh.cc.fitView")}">⤢</button></div>
+        <div class="empty sh-cc-wait" hidden></div></div>
+      <div class="sh-cc-cap muted"></div></div></div>`;
+  const list = $(".sh-cc-list", host), wait = $(".sh-cc-wait", host), cap = $(".sh-cc-cap", host);
+  /** The track over a circuit's map, in its pixels (the part on the map only). */
+  const pathOf = (f) => {
+    if (!paths.has(f)) {
+      const fit = fitFromGeo(f.course.geo, track), xs = [], ys = [];
+      for (let i = f.crop[0]; i <= f.crop[1]; i++) { const [x, y] = toPx(fit, track.x[i], track.y[i]); xs.push(x); ys.push(y); }
+      paths.set(f, { xs, ys });
+    }
+    return paths.get(f);
+  };
+  const mv = mapView($("canvas", host), { onDraw: (g, view, lw) => {
+    if (!shown) return;
+    // the course drawn only where the map does not print it already (as the replay: owner, 2026-11-05)
+    const c = shown.course, printed = typeof c.printed === "boolean" ? c.printed : via === "tracer";
+    if (!printed) drawCourse(g, c.controls, c.r || 20, lw, 0.9, 0, !c.score);
+    const { xs, ys } = pathOf(shown);
+    g.beginPath(); xs.forEach((x, i) => (i ? g.lineTo(x, ys[i]) : g.moveTo(x, ys[i])));
+    g.strokeStyle = "rgba(255,255,255,.85)"; g.lineWidth = lw(5); g.stroke();
+    g.strokeStyle = TRACK_COL; g.lineWidth = lw(2.6); g.stroke();
+  } });
+  host.querySelector(".an-tools").addEventListener("click", (e) => {
+    const z = e.target.closest("[data-z]")?.dataset.z;
+    if (z === "in") mv.zoomBy(1.4); else if (z === "out") mv.zoomBy(1 / 1.4); else if (z === "fit") { frame(); mv.draw(); }
+  });
+  const frame = () => {
+    if (!shown) return;
+    const { xs, ys } = pathOf(shown), P = shown.course.controls, r = shown.course.r || 20;
+    mv.fitPoints([...xs, ...P.map((p) => p.x)], [...ys, ...P.map((p) => p.y)], 16 + r, 3);
+  };
+  async function show(f) {
+    if (!f || f === shown) return;
+    const me = (token = {}), c = f.course, k = `${c.n}:${c.map?.v}`;
+    let img = images.get(k);
+    if (!img) {
+      wait.hidden = false; wait.textContent = t("sh.cc.loading");
+      try { img = await createImageBitmap(await api(`/${id}/map/${c.n}?v=${c.map?.v || 0}`, { key: keyOf(id) })); images.set(k, img); }
+      catch (e) { if (me === token) wait.textContent = errText(e); return; }
+    }
+    if (me !== token) return;
+    wait.hidden = true;
+    shown = f;
+    cap.textContent = t("sh.cc.cap", { course: c.name });
+    mv.setImage(img);
+    frame();
+    mv.draw();
+  }
+  const fitText = (f) => t("sh.cc.fit", { k: f.o, n: f.n });
+  function drawList() {
+    const items = all ? [...main, ...more] : main;
+    list.innerHTML = html`${items.map((f, i) => html`<button type="button" class="sh-cc-item" role="radio" aria-checked="${f === chosen}" tabindex="${f === chosen ? 0 : -1}" data-i="${i}">
+        <span class="sh-cc-name">${f.course.name}</span>${!sure && f === main[0] && main.length > 1 ? html` <span class="tag">${t("sh.cc.best")}</span>` : ""}
+        <span class="sh-cc-fit muted">${fitText(f)}</span></button>`)}
+      ${!all && more.length ? html`<button type="button" class="btn btn-sm sh-cc-more">${t("sh.cc.more", { n: more.length })}</button>` : ""}`;
+    const at = (el) => items[Number(el.dataset.i)];
+    $$(".sh-cc-item", list).forEach((b) => {
+      b.addEventListener("click", () => choose(at(b), true));
+      if (!touch) b.addEventListener("mouseenter", () => show(at(b)));
+      b.addEventListener("keydown", (e) => {
+        const d = e.key === "ArrowDown" || e.key === "ArrowRight" ? 1 : e.key === "ArrowUp" || e.key === "ArrowLeft" ? -1 : 0;
+        if (!d) return;
+        e.preventDefault();
+        choose(items[(items.indexOf(at(b)) + d + items.length) % items.length], true);
+      });
+    });
+    $(".sh-cc-more", list)?.addEventListener("click", () => { all = true; drawList(); $(".sh-cc-item[aria-checked=true]", list)?.focus(); });
+  }
+  function choose(f, focus) {
+    if (!f) return;
+    chosen = f;
+    drawList();
+    if (focus) $(".sh-cc-item[aria-checked=true]", list)?.focus();
+    show(f);
+    onPick?.(f);
+  }
+  // back to the circuit chosen when the mouse leaves the list
+  if (!touch) list.addEventListener("mouseleave", () => show(chosen));
+  drawList();
+  show(chosen);
+  return { get: () => chosen, destroy() { token = {}; mv.destroy(); } };
+}
+
 /** A phone: the trace's file picker at once (owner, 2026-11-06: no window with a drop zone first; the tap that asked still counts). */
 function pickTrace(onFile) {
   const i = document.createElement("input");
@@ -731,8 +837,8 @@ function pickTrace(onFile) {
 function offerTrack({ A, id, onDone, initial = null }) {
   const m = document.createElement("div");
   m.className = "tr-modal sh-offer";
-  let file = null, track = null, fits = [];
-  const close = () => { markOffered(id); m.remove(); document.removeEventListener("keydown", onKey, true); };
+  let file = null, track = null, fits = [], cc = null;
+  const close = () => { cc?.destroy(); markOffered(id); m.remove(); document.removeEventListener("keydown", onKey, true); };
   const onKey = (e) => { if (e.key === "Escape") { e.stopPropagation(); close(); } };
   const first = () => {
     // a phone (owner, 2026-11-06): nothing is dropped there, a button opens its file picker (no photos for a track), and « voir
@@ -765,25 +871,26 @@ function offerTrack({ A, id, onDone, initial = null }) {
     confirmStep(sureCircuit(fits));
   }
   function confirmStep(sure) {
-    const pick = sure || fits.find((x) => x.crop);
-    m.innerHTML = html`<div class="tr-dialog" role="dialog" aria-modal="true" aria-labelledby="sh-offer-t"><h2 id="sh-offer-t">${t("sh.offer.title")}</h2>
-      <div class="tr-form"><p>${sure ? t("sh.offer.found", { course: sure.course.name, k: sure.k, n: sure.n }) : t("sh.offer.choose")}</p>
-        <label class="field"><span>${t("sh.offer.course")}</span><select id="sh-offer-c">${fits.filter((x) => x.crop).map((x) => html`<option value="${x.course.n}" ${raw(x === pick ? "selected" : "")}>${t("sh.offer.opt", { course: x.course.name, k: x.k, n: x.n })}</option>`)}</select></label>
+    let pick = sure || fits.find((x) => x.crop);
+    // the circuits that may fit, each on its map with the track (owner, 2026-11-24: a runner rarely knows the circuit's name)
+    m.innerHTML = html`<div class="tr-dialog sh-cc-dlg" role="dialog" aria-modal="true" aria-labelledby="sh-offer-t"><h2 id="sh-offer-t">${t("sh.offer.title")}</h2>
+      <div class="tr-form"><p>${sure ? t("sh.offer.found", { course: sure.course.name, k: sure.o, n: sure.n }) : t("sh.offer.choose")}</p>
+        <div id="sh-offer-cc"></div>
         <p class="muted" id="sh-offer-span"></p>
         <label class="an-opt"><input type="checkbox" id="sh-offer-consent"> ${t("sh.trace.consent")}</label>
         ${A.visitors ? html`<label class="an-opt"><input type="checkbox" id="sh-offer-vis"> ${t("sh.visitors.mine")}</label>` : ""}
         <p class="notice" id="sh-offer-note" hidden></p>
         <div class="tr-dlg-btns"><button type="button" class="btn" data-close>${t("sh.offer.later")}</button>
           <button type="button" class="btn btn-primary" id="sh-offer-send" disabled>${t("sh.trace.send")}</button></div></div></div>`;
-    const sel = $("#sh-offer-c", m), send = $("#sh-offer-send", m);
-    const fitOf = () => fits.find((x) => String(x.course.n) === sel.value);
+    const send = $("#sh-offer-send", m);
+    const fitOf = () => pick;
     const span = () => {
       const x = fitOf(), enc = encodeTrace(track, x.crop[0], x.crop[1]), t1 = enc.t0 + enc.dt.reduce((s, v) => s + v, 0);
       $("#sh-offer-span", m).textContent = t("sh.trace.confirm", { a: hms(enc.t0), b: hms(t1), n: enc.dt.length });
       return enc;
     };
     span();
-    sel.addEventListener("change", span);
+    cc = circuitChooser($("#sh-offer-cc", m), { id, via: A.via, track, fits, sure, pick, onPick: (f) => { pick = f; span(); } });
     $("#sh-offer-consent", m).addEventListener("change", (e) => { send.disabled = !e.target.checked; });
     $("[data-close]", m).addEventListener("click", close);
     send.addEventListener("click", async () => {
@@ -1811,7 +1918,8 @@ async function replay(box, { A, id, course, race, init = {}, traces, allTraces =
   runners.forEach((r, i) => { r.colour = colours[r.uid] || COLOURS[i % COLOURS.length]; r.rank = total(r) != null ? i + 1 : null; });
 
   // ---- the clock of each mode: trace seconds of runner r at the display time T (null: not shown)
-  const legTime = (r, j) => (r.passes[j - 1] != null && r.passes[j] != null ? r.passes[j] - r.passes[j - 1] : null);
+  // a leg not run as such (the course's loops run in another order: trace/share.js `cut`) has no time
+  const legTime = (r, j) => (r.passes[j - 1] != null && r.passes[j] != null && !r.passes.cut?.has(j) ? r.passes[j] - r.passes[j - 1] : null);
   let waits = [];
   function range() {
     const shown = runners.filter((r) => r.visible), R = shown.length ? shown : runners;
@@ -2346,27 +2454,59 @@ async function replay(box, { A, id, course, race, init = {}, traces, allTraces =
     // OPA's Marcel Sol on F, the first circuit, for E)
     const fits = A.courses.length > 1 ? matchCircuits(tr, A.courses) : [];
     const sure = fits.length ? sureCircuit(fits) : null, choices = sure ? [] : fits.filter((x) => x.crop);
-    let to = sure ? sure.course : choices.length > 1 ? choices[0].course : course;
+    let to = sure ? sure.course : choices[0]?.course || course;
     const cropOf = (c) => fits.find((x) => x.course === c)?.crop || cropToMap(tr, c.geo, c.map.w, c.map.h);
     if (!cropOf(to)) { boxU.innerHTML = html`<div class="notice">${t("sh.trace.offMap")}</div>`; return; }
     const encOf = (c) => { const crop = cropOf(c); return encodeTrace(tr, crop[0], crop[1]); };
     const spanOf = (enc) => t("sh.trace.confirm", { a: hms(enc.t0), b: hms(enc.t0 + enc.dt.reduce((s, v) => s + v, 0)), n: enc.dt.length });
-    let enc = encOf(to);
-    boxU.innerHTML = html`<div class="notice sh-consent">${sure && to !== course ? html`<p><b>${t("sh.offer.other", { course: to.name, k: sure.k, n: sure.n })}</b></p>` : ""}
-      ${choices.length > 1 ? html`<p>${t("sh.offer.choose")}</p><label class="field"><span>${t("sh.offer.course")}</span><select id="sh-up-c">${choices.map((x) => html`<option value="${x.course.n}" ${raw(x.course === to ? "selected" : "")}>${t("sh.offer.opt", { course: x.course.name, k: x.k, n: x.n })}</option>`)}</select></label>` : ""}
+    const sendTo = async (c, enc, vis) => {
+      await api(`/${id}/trace/${c.n}`, { method: "PUT", body: { consent: true, trace: enc, note: myRun()?.note || "", visitors: vis }, key: keyOf(id) });
+      await ownPut(ownKey(id, c.n), file);
+      reload(c.n);
+    };
+    // a question (no circuit sure, or another than the one shown): asked in a window, the circuits that may fit each shown on its map
+    // with the track (owner, 2026-11-24: a runner rarely knows the circuit's name)
+    if (fits.length && (!sure && choices.length > 1 || to !== course)) {
+      boxU.innerHTML = "";
+      let pick = fits.find((x) => x.course === to), cc = null;
+      const m = document.createElement("div");
+      m.className = "tr-modal sh-offer";
+      const close = () => { cc?.destroy(); m.remove(); document.removeEventListener("keydown", onKey, true); };
+      const onKey = (e) => { if (e.key === "Escape") { e.stopPropagation(); close(); } };
+      m.innerHTML = html`<div class="tr-dialog sh-cc-dlg" role="dialog" aria-modal="true" aria-labelledby="sh-up-t"><h2 id="sh-up-t">${t(myRun() ? "sh.trace.replace" : "sh.trace.add")}</h2>
+        <div class="tr-form"><p>${sure ? t("sh.offer.found", { course: sure.course.name, k: sure.o, n: sure.n }) : t("sh.offer.choose")}</p>
+          <div id="sh-up-cc"></div>
+          <p class="muted" id="sh-up-span"></p>
+          <label class="an-opt"><input type="checkbox" id="sh-up-consent"> ${t("sh.trace.consent")}</label>
+          ${A.visitors ? html`<label class="an-opt"><input type="checkbox" id="sh-up-vis" ${raw(myRun()?.visitors ? "checked" : "")}> ${t("sh.visitors.mine")}</label>` : ""}
+          <p class="notice" id="sh-up-note" hidden></p>
+          <div class="tr-dlg-btns"><button type="button" class="btn" data-close>${t("sh.cancel")}</button>
+            <button type="button" class="btn btn-primary" id="sh-up-send" disabled>${t("sh.trace.send")}</button></div></div></div>`;
+      document.body.appendChild(m);
+      document.addEventListener("keydown", onKey, true);
+      const span = () => { $("#sh-up-span", m).textContent = spanOf(encOf(pick.course)); };
+      span();
+      cc = circuitChooser($("#sh-up-cc", m), { id, via: A.via, track: tr, fits, sure, pick, onPick: (f) => { pick = f; span(); } });
+      const send = $("#sh-up-send", m);
+      $("#sh-up-consent", m).addEventListener("change", (e) => { send.disabled = !e.target.checked; });
+      $("[data-close]", m).addEventListener("click", close);
+      send.addEventListener("click", async () => {
+        send.disabled = true;
+        try { await sendTo(pick.course, encOf(pick.course), !!$("#sh-up-vis", m)?.checked); close(); }
+        catch (e) { const p = $("#sh-up-note", m); p.textContent = errText(e); p.hidden = false; send.disabled = false; }
+      });
+      return;
+    }
+    const enc = encOf(to);
+    boxU.innerHTML = html`<div class="notice sh-consent">
       <p id="sh-up-span">${spanOf(enc)}</p>
       <label class="an-opt"><input type="checkbox" id="sh-consent"> ${t("sh.trace.consent")}</label>
       ${A.visitors ? html`<label class="an-opt"><input type="checkbox" id="sh-consent-vis" ${raw(myRun()?.visitors ? "checked" : "")}> ${t("sh.visitors.mine")}</label>` : ""}
       <div class="row" style="gap:6px;margin-top:6px"><button type="button" class="btn btn-sm btn-primary" id="sh-send">${t("sh.trace.send")}</button><button type="button" class="btn btn-sm" id="sh-cancel">${t("sh.cancel")}</button></div></div>`;
-    $("#sh-up-c")?.addEventListener("change", (e) => {
-      to = choices.find((x) => String(x.course.n) === e.target.value).course;
-      enc = encOf(to);
-      $("#sh-up-span").textContent = spanOf(enc);
-    });
     $("#sh-cancel").addEventListener("click", () => { boxU.innerHTML = ""; });
     $("#sh-send").addEventListener("click", async () => {
       if (!$("#sh-consent").checked) return;
-      try { await api(`/${id}/trace/${to.n}`, { method: "PUT", body: { consent: true, trace: enc, note: myRun()?.note || "", visitors: !!$("#sh-consent-vis")?.checked }, key: keyOf(id) }); await ownPut(ownKey(id, to.n), file); reload(to.n); }
+      try { await sendTo(to, enc, !!$("#sh-consent-vis")?.checked); }
       catch (e) { boxU.innerHTML = html`<div class="notice">${errText(e)}</div>`; }
     });
   }
