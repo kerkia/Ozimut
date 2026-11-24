@@ -31,6 +31,8 @@
 //   POST   /api/mymaps/from-solo                -> { moved, ids: { <old id>: <run id> }, left } — the solo analyses kept in
 //                                               /api/solo (2026-11-05 to 24) moved into the library, 20 a call: one store
 //                                               (owner, 2026-11-24); their maps once per account, « Carte privée » kept
+//                                               (every account's are also moved without it: moveAllSolo, from /api/track every
+//                                               15 minutes an isolate, and at once when an administrator lists every library)
 //   GET    /api/mymaps/runs/<id>                the run's record
 //   PUT    /api/mymaps/runs/<id>                { title?, note? } -> { run };  DELETE /api/mymaps/runs/<id>
 //                                               (note: the run's comment, migration 0022; 503 « not ready » before it)
@@ -219,6 +221,36 @@ async function fromSolo(env, uid, n = 20) {
   const left = Math.max(0, listed.objects.length - n) + (listed.truncated ? 1 : 0);
   if (!left) await dropPrefix(env, `solo/${uid}/m/`);           // the maps, now in the library
   return { moved: Object.keys(ids).length, ids, left };
+}
+/**
+ * Every account's solo analyses still in /api/solo moved, `budget` analyses at most (owner, 2026-11-24: an account that has not
+ * opened « Analyse » or « Mes cartes » since kept its analyses out of the library, and out of the administrators' view and of the
+ * libraries it shares). Accounts that no longer exist are left alone (their maps wait for the collection's hand-over).
+ */
+export async function moveAllSolo(env, budget = 10) {
+  let cursor, moved = 0;
+  do {
+    const r = await env.BUCKET.list({ prefix: "solo/", delimiter: "/", cursor, limit: 1000 });
+    for (const pre of r.delimitedPrefixes || []) {
+      const uid = Number(pre.split("/")[1]);
+      if (!Number.isInteger(uid) || uid <= 0) continue;
+      const any = await env.BUCKET.list({ prefix: `solo/${uid}/a/`, limit: 1 });
+      if (!any.objects.length) continue;
+      if (!(await env.DB.prepare("SELECT id FROM users WHERE id = ?").bind(uid).first())) continue;
+      const res = await fromSolo(env, uid, budget - moved);
+      moved += res.moved;
+      if (moved >= budget) return moved;
+    }
+    cursor = r.truncated ? r.cursor : undefined;
+  } while (cursor);
+  return moved;
+}
+let lastSweep = 0;
+/** From a signed-in page view (/api/track): the sweep above, at most every 15 minutes an isolate. */
+export function soloSweepSoon(ctx) {
+  if (!ctx.env.BUCKET || !ctx.env.DB || Date.now() - lastSweep < 15 * 60e3) return;
+  lastSweep = Date.now();
+  ctx.waitUntil(moveAllSolo(ctx.env, 10).catch((e) => console.error("solo sweep", e)));
 }
 /** The club shown beside an account's name (homonyms): its federation club, else the club typed for a country it joined. */
 async function clubOfUser(env, request, u) {

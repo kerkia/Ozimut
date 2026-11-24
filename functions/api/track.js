@@ -8,6 +8,7 @@ import { robotsSoon } from "../_lib/robots.js";
 import { entriesSoon } from "../_lib/entries.js";
 import { maplibSoon } from "../_lib/maplib.js";
 import { runsSoon } from "../_lib/ciwatch.js";
+import { soloSweepSoon } from "./mymaps/[[path]].js";
 
 // the site's pages (app.js routes; the Réseau views apart) — anything else is refused
 const PAGES = new Set(["overview", "ranking", "runner", "compare", "clubs", "club", "clubcompare", "courses", "agenda",
@@ -29,6 +30,7 @@ export const onRequestPost = withUser(async (ctx, user) => {
   robotsSoon(ctx);               // the copy of Cloudflare's figures on the AI bots, when due (admin › « Robots »)
   entriesSoon(ctx);              // the entry forms closing, their start lists published, the day before's reminders (_lib/entries.js)
   maplibSoon(ctx);               // the maps sent to Ozimut copied into the administrators' collection, a few at a time
+  soloSweepSoon(ctx);            // the solo analyses still kept apart moved into their accounts' « Mes cartes », a few at a time
   runsSoon(ctx, allow);          // a results run GitHub's schedule skipped, started through workflow_dispatch (_lib/ciwatch.js)
   const b = await readBody(request);
   const page = String(b?.page || "");

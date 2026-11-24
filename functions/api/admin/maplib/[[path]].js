@@ -1,6 +1,7 @@
 // /api/admin/maplib — the administrators' map collection and « Mes cartes »' use (owner, 2026-11-06; _lib/maplib.js says
 // what the collection holds). Administrators only.
 //
+//   GET  /api/admin/maplib                  (first moves up to 30 solo analyses still in /api/solo into their accounts' libraries)
 //   GET  /api/admin/maplib                  { collection: [{ etag, size, type, thumb, view, meta }], gone, library: [a map of an
 //                                           account's « Mes cartes » + uid, runs], people: { uid: { name, email, club } } }
 //   GET  /api/admin/maplib?usage=1          « Mes cartes »' use: { users: [{ uid, name, email, maps, runs, bytes, updated }],
@@ -12,6 +13,7 @@ import { json, withUser } from "../../../_lib/api.js";
 import { clubLabel } from "../../../_lib/club.js";
 import { keys, listAll, syncStep, PFX } from "../../../_lib/maplib.js";
 import { key as mmKey, getOrig, quota } from "../../../_lib/mymaps.js";
+import { moveAllSolo } from "../../mymaps/[[path]].js";
 
 const TYPES = ["image/jpeg", "image/png", "image/webp"];
 const MAX = { thumb: 600 * 1024, view: 6 * 1024 * 1024 };
@@ -76,6 +78,8 @@ export const onRequest = withUser(async ({ request, env, params }) => {
         collection: { count: held.length, bytes: [...held, ...extra, ...views].reduce((s, o) => s + o.size, 0), gone: gone.length } });
     }
 
+    // every account's solo analyses still kept apart moved into its library first, so that the view shows them (2026-11-24)
+    await moveAllSolo(env, 30).catch((e) => console.error("solo sweep", e));
     const [held, thumbs, views, gone] = await Promise.all([listAll(env, `${PFX}m/`), listAll(env, `${PFX}t/`, false), listAll(env, `${PFX}v/`, false), listAll(env, `${PFX}x/`, false)]);
     const T = new Set(thumbs.map((o) => tail(o.key))), V = new Set(views.map((o) => tail(o.key)));
     const collection = held.map((o) => ({ etag: tail(o.key), size: o.size, type: o.httpMetadata?.contentType || "", thumb: T.has(tail(o.key)), view: V.has(tail(o.key)), meta: o.customMetadata || {} }));
