@@ -5052,6 +5052,12 @@ Every multiple-choice game was played through to its score page at phone size, w
   a module reads beside the code (`new URL("../…", import.meta.url)`), and `index.html` is rewritten to point at it (put back as
   written once uploaded; if the tool fails the site is published as written, as before). `site/_headers` serves `/assets/v/*` and
   `/assets/vendor/*` « immutable » for a year: a returning visitor asks the server for no code until the next deploy of code.
+  **A deploy reaching Cloudflare's places takes a while** (2026-11-24: Firefox stayed on « Chargement… » for every visitor): the
+  deployment before answered two modules of the new copy with the site's page, and Cloudflare's cache kept that page a year under
+  those addresses (`immutable`). So `/assets/v/*` carries `Cloudflare-CDN-Cache-Control: no-store` (browsers still keep it), and
+  the built index.html's `<script type="module" … onerror="__ozFallback()">` loads the code as written (`assets/js/app.js`,
+  `__oz` cleared: no build, the whole catalogues) when the copy's first modules fail. A poisoned address is left behind by giving the
+  code a new name (any change under site/ or to the tool); purging needs the zone's cache-purge right, the owner's.
   **Never write an absolute `/assets/js/…` path in the code** (it would name the unversioned copy): `new URL("./x.js",
   import.meta.url)`, as `tracer/offline.js` and `mapper/field.js` do for their offline lists. A tab of the build before that asks
   for a module gone is reloaded (`app.route_`'s catch); its browser then keeps the site's page under that file's name for a

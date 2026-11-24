@@ -203,6 +203,18 @@ const head = `<script>
     // this deploy's copy of the code (tools/front_build.mjs): its texts in the reader's language and its first modules, asked
     // for at once — the language as i18n.js chooses it
     window.__oz = { v: "${BUILD}", i18n: 1 };
+    // (2026-11-24: Firefox stayed on « Chargement… » — two modules of this copy came back as the site's page, kept so by
+    // Cloudflare: a browser asked for them while the deploy was reaching it and the deployment before answered) the copy's
+    // first modules failing to load, the code as written is loaded instead (assets/js, asked again at each visit)
+    window.__ozFallback = () => {
+      if (window.__ozFell) return;
+      window.__ozFell = 1;
+      window.__oz = null;
+      const s = document.createElement("script");
+      s.type = "module";
+      s.src = "assets/js/app.js";
+      document.head.appendChild(s);
+    };
     (() => {
       const LG = ["fr", "en", "de", "es"];
       let lg = null;
@@ -220,7 +232,7 @@ const head = `<script>
     })();
   </script>
 ${[...new Set(preloads)].map((m) => `  <link rel="modulepreload" href="${base}/js/${m}">`).join("\n")}
-  <script type="module" src="${base}/js/app.js"></script>`;
+  <script type="module" src="${base}/js/app.js" onerror="__ozFallback()"></script>`;
 swap('<script type="module" src="assets/js/app.js"></script>', head);
 fs.writeFileSync(path.join(OUT, "index.html"), html);
 

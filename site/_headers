@@ -2,8 +2,12 @@
 # visit) or what the login gate sets (the data: five minutes).
 #
 # The deploy's copy of the code (tools/front_build.mjs): its folder is named by the build, so a file there never changes.
+# Kept by browsers, never by Cloudflare's cache (2026-11-24: while a deploy reaches every place, the deployment before can answer
+# a file of the new copy with the site's page; Cloudflare kept that page for a year under two module addresses, and Firefox
+# stayed on « Chargement… »). Pages serves these files fast enough without it.
 /assets/v/*
   Cache-Control: public, max-age=31536000, immutable
+  Cloudflare-CDN-Cache-Control: no-store
 
 # The third-party libraries and fonts: each in a folder named by its version (tools/vendor.py).
 /assets/vendor/*
