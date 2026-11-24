@@ -1920,6 +1920,9 @@ async function replay(box, { A, id, course, race, init = {}, traces, allTraces =
   // ---- the clock of each mode: trace seconds of runner r at the display time T (null: not shown)
   // a leg not run as such (the course's loops run in another order: trace/share.js `cut`) has no time
   const legTime = (r, j) => (r.passes[j - 1] != null && r.passes[j] != null && !r.passes.cut?.has(j) ? r.passes[j] - r.passes[j - 1] : null);
+  // such a runner cannot wait at the controls with the others: run in the printed order their race jumped back and forth and
+  // looked cut in two (owner, 2026-11-24); they run their whole race on their own clock from their start instead
+  const ownOrder = (r) => !!r.passes.cut?.size;
   let waits = [];
   function range() {
     const shown = runners.filter((r) => r.visible), R = shown.length ? shown : runners;
@@ -1931,15 +1934,16 @@ async function replay(box, { A, id, course, race, init = {}, traces, allTraces =
       return [-Math.max(0, ...S.map((r) => r.passes[fromK] - r.start)), Math.max(1, ...S.map((r) => (r.finish ?? r.tr.dur) - r.passes[fromK]))];
     }
     waits = [0];
+    const own = R.filter(ownOrder), W = R.filter((r) => !ownOrder(r));
     for (let j = 1; j <= legsN; j++) {
-      let w = waits[j - 1] + Math.max(0, ...R.map((r) => legTime(r, j) ?? 0));
+      let w = waits[j - 1] + Math.max(0, ...W.map((r) => legTime(r, j) ?? 0));
       // a runner who missed the controls before this one runs from their last control passed: the wait leaves them the time
-      for (const r of R) { const k = lastPass(r, j - 1); if (r.passes[j] != null && k != null && k < j - 1) w = Math.max(w, waits[k] + r.passes[j] - r.passes[k]); }
+      for (const r of W) { const k = lastPass(r, j - 1); if (r.passes[j] != null && k != null && k < j - 1) w = Math.max(w, waits[k] + r.passes[j] - r.passes[k]); }
       waits.push(w);
     }
     // a runner who never reached the finish runs on to their trace's end (owner, 2026-11-09: their trace vanished at the end)
-    const tails = R.map((r) => { const k = lastPass(r, legsN); return k == null || k === legsN ? 0 : waits[k] + (r.finish ?? r.tr.dur) - r.passes[k]; });
-    return [0, Math.max(1, waits[legsN], ...tails)];
+    const tails = W.map((r) => { const k = lastPass(r, legsN); return k == null || k === legsN ? 0 : waits[k] + (r.finish ?? r.tr.dur) - r.passes[k]; });
+    return [0, Math.max(1, waits[legsN], ...tails, ...own.map((r) => (r.finish ?? r.tr.dur) - r.start))];
   }
   /** The last control at or before j that runner r was seen passing (null: not even the start). */
   function lastPass(r, j) { for (let k = Math.min(j, legsN); k >= 0; k--) if (r.passes[k] != null) return k; return null; }
@@ -1947,7 +1951,7 @@ async function replay(box, { A, id, course, race, init = {}, traces, allTraces =
     let s;
     if (leg) { const a = r.passes[leg - 1], d = legTime(r, leg); if (a == null || d == null) return null; s = a + Math.min(Math.max(Td, 0), d); }
     else if (mode === "clock") s = Td - r.abs0;
-    else if (mode === "mass") s = r.start + Td;
+    else if (mode === "mass" || (mode !== "from" && ownOrder(r))) s = r.start + Td;
     else if (mode === "from") { if (r.passes[fromK] == null) return null; s = r.passes[fromK] + Td; }
     else {
       let j = 1;
@@ -2194,7 +2198,7 @@ async function replay(box, { A, id, course, race, init = {}, traces, allTraces =
     const ticks = [];
     for (let x = Math.ceil(T0 / step) * step; x <= T1; x += step) ticks.push({ f: f(x), label: fmtT(x) });
     // in the waiting mode, every control is a moment of the axis; in a leg's view, its two ends
-    const marks = !leg && (mode === "wait" || mode === "waitpause") ? waits.slice(1, -1).map((w, j) => ({ f: f(w), label: ctrlLabel(j + 1) })) : [];
+    const marks = !leg && (mode === "wait" || mode === "waitpause") && waits[legsN] > 0 ? waits.slice(1, -1).map((w, j) => ({ f: f(w), label: ctrlLabel(j + 1) })) : [];
     if (graph !== "speed") needHeights(true);
     drawPaceStrip(cv, { series: stripSeries().map(({ r, vals }) => ({ colour: r.colour, vals, bold: r === sel })), cursor: f(T), ticks, marks, by: graph, unit: isPaceGraph(graph) ? "" : graph === "ele" ? "m" : "" });
   }
@@ -2698,7 +2702,7 @@ async function replay(box, { A, id, course, race, init = {}, traces, allTraces =
     const tt = $("#sh-t"); if (tt) tt.textContent = label;
     // the leg at the map's bottom left (owner, 2026-11-07): the leg shown, with the way back to the whole course, or the leg the
     // runners wait at the end of; it was beside the time
-    const legNow = leg ? legName(leg) : mode === "wait" || mode === "waitpause" ? (() => { let j = 1; while (j < legsN && T >= waits[j]) j++; return legName(j); })() : "";
+    const legNow = leg ? legName(leg) : (mode === "wait" || mode === "waitpause") && waits[legsN] > 0 ? (() => { let j = 1; while (j < legsN && T >= waits[j]) j++; return legName(j); })() : "";
     const chip = $("#sh-legchip");
     if (chip) { $("#sh-legchip-t").textContent = legNow; chip.hidden = !legNow; $("#sh-leg-all").hidden = !leg; }
     stats();
@@ -2723,10 +2727,17 @@ async function replay(box, { A, id, course, race, init = {}, traces, allTraces =
     const end = r.finish ?? r.tr.dur, at = Math.max(r.start, Math.min(end, s)), win = Math.min(30, at - r.start);
     let j = 0;
     while (j < legsN && r.passes[j + 1] != null && at >= r.passes[j + 1]) j++;
+    // loops run in another order: the controls in the order run, from the last passed to the next
+    let legNow = j < legsN ? legName(j + 1) : t("an.finish");
+    if (ownOrder(r)) {
+      let k = 0, n = -1;
+      r.passes.forEach((v, i) => { if (v == null) return; if (v <= at && v >= r.passes[k]) k = i; if (v > at && (n < 0 || v < r.passes[n])) n = i; });
+      legNow = n < 0 ? t("an.finish") : `${ctrlLabel(k)} → ${ctrlLabel(n)}`;
+    }
     const d = cumAt(r.tr, at) - cumAt(r.tr, r.start);
     const stat = (label, v) => html`<span class="an-stat"><span class="muted">${label}</span> <b>${v}</b></span>`;
     el.innerHTML = html`<span class="sh-stats-name"><span class="sh-swatch" style="background:${r.colour}"></span>${r.test ? initials(r) : r.name}</span>
-      ${stat(t("an.time"), clock(Math.max(0, at - r.start)))}${score ? "" : stat(t("an.leg"), j < legsN ? legName(j + 1) : t("an.finish"))}
+      ${stat(t("an.time"), clock(Math.max(0, at - r.start)))}${score ? "" : stat(t("an.leg"), legNow)}
       ${stat(t("an.pace"), win >= 5 ? pace((cumAt(r.tr, at) - cumAt(r.tr, at - win)) / win) : "—")}
       ${stat(t("an.dist"), `${fmt(d >= 1000 ? d / 1000 : d, d >= 1000 ? 2 : 0)} ${d >= 1000 ? "km" : "m"}`)}
       ${html`<span class="an-stat" title="${t("an.climbSo.tip")}"><span class="muted">${t("an.climbSo")}</span> <b>${climbSo(r, at)}</b> <span class="muted">m</span></span>`}`.toString();
