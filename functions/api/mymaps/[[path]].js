@@ -35,18 +35,24 @@
 //                                               a link of the maps alone lists no runs and serves none)
 //   GET    /api/mymaps/s/<token>/maps/<id>/map | /thumb | /view,  GET /api/mymaps/s/<token>/runs/<id>
 //
-// A library shared with chosen accounts (owner, 2026-11-24; migration 0033, mymap_grants; 503 « not ready » before it): the whole
-// library, read only, its maps marked « Carte privée » left out, the personal channels never served.
-//   GET    /api/mymaps/shares                   { to: [{ uid, name, club, traces }] (whom one shares with), from: [{ uid, name, traces }] }
-//   POST   /api/mymaps/shares                   { uid, on, traces } -> { to }
-//   GET    /api/mymaps/people?q=                { people: [{ uid, name, club }] } (accounts whose name has every word typed; 3 letters
-//                                               at least, 10 answers, oneself, demo, unconfirmed and disabled accounts left out)
+// A library shared with chosen accounts (owner, 2026-11-24; migration 0033, mymap_grants and mymap_invites; 503 « not ready » before
+// it): the whole library, read only, its maps marked « Carte privée » left out, the personal channels never served. An account is
+// added only by an invitation it accepts — a link the owner hands to one person, used once, valid 7 days (owner, the same day: no
+// looking accounts up by name, which would tell who has an account); only its token's SHA-256 is kept.
+//   GET    /api/mymaps/shares                   { to: [{ uid, name, club, traces }] (whom one shares with), from: [{ uid, name, traces }],
+//                                               invites: [{ id, traces, created, expires }] (those still valid) }
+//   POST   /api/mymaps/shares                   { uid, on: false } (the owner stops sharing with uid) | { uid, on: true, traces } (changes
+//                                               what an account already holding it sees) | { owner, leave: true } (one stops seeing a
+//                                               library shared with one) -> as GET
+//   POST   /api/mymaps/invites                  { traces } -> { token, invites } (20 waiting at most)
+//   DELETE /api/mymaps/invites/<id>             -> { invites }
+//   POST   /api/mymaps/invites/accept           { token } -> { owner, name } (410 used, cancelled or expired; 400 « self »; 403 « demo »)
 //   GET    /api/mymaps/u/<owner>                as /s/<token>, for an account the owner shares with
 //   GET    /api/mymaps/u/<owner>/maps/<id>/map | /thumb | /view,  GET /api/mymaps/u/<owner>/runs/<id>
 
 import { allow, currentUser, isAdmin, json, nowIso, readBody } from "../../_lib/api.js";
 import { clubLabel } from "../../_lib/club.js";
-import { randomBytes } from "../../_lib/crypto.js";
+import { newToken, randomBytes, sha256hex } from "../../_lib/crypto.js";
 import { key, origKey, getOrig, quota, used } from "../../_lib/mymaps.js";
 
 const MAX_MAP = 80 * 1024 * 1024;                     // as the shared analyses' maps (Cloudflare takes 100 MB a request)
@@ -144,6 +150,21 @@ async function clubOfUser(env, request, u) {
   const r = await env.DB.prepare("SELECT club FROM user_countries WHERE user_id = ? AND club <> '' ORDER BY added_at LIMIT 1").bind(u.id).first().catch(() => null);
   return r?.club || "";
 }
+const INVITE_DAYS = 7, MAX_INVITES = 20;
+const TOKEN = /^[A-Za-z0-9_-]{40,60}$/;
+/** One's invitations still valid. */
+async function invitesOf(env, uid) {
+  const { results } = await env.DB.prepare("SELECT id, traces, created_at, expires_at FROM mymap_invites WHERE owner_id = ? AND expires_at > ? ORDER BY created_at")
+    .bind(uid, nowIso()).all();
+  return results.map((r) => ({ id: r.id, traces: r.traces !== 0, created: r.created_at, expires: r.expires_at }));
+}
+/** What the sharing dialog and the tabs show: whom one shares with, who shares with one, the invitations waiting. */
+async function sharesOf(env, request, uid) {
+  const { results } = await env.DB.prepare(`SELECT g.owner_id, g.traces, u.first_name, u.last_name, u.display_name FROM mymap_grants g
+    JOIN users u ON u.id = g.owner_id WHERE g.grantee_id = ? AND u.status = 'active' ORDER BY u.last_name, u.first_name`).bind(uid).all();
+  return { to: await grantsTo(env, request, uid), from: results.map((r) => ({ uid: r.owner_id, name: nameOf(r), traces: r.traces !== 0 })),
+    invites: await invitesOf(env, uid) };
+}
 /** The accounts one shares one's library with. */
 async function grantsTo(env, request, uid) {
   const { results } = await env.DB.prepare(`SELECT g.grantee_id, g.traces, u.id, u.first_name, u.last_name, u.display_name, u.licence FROM mymap_grants g
@@ -206,39 +227,59 @@ export async function onRequest(ctx) {
 
     // ---- shared with chosen accounts (migration 0033)
     if (parts[0] === "shares" && parts.length === 1) {
-      if (method === "GET") {
-        const { results } = await env.DB.prepare(`SELECT g.owner_id, g.traces, u.first_name, u.last_name, u.display_name FROM mymap_grants g
-          JOIN users u ON u.id = g.owner_id WHERE g.grantee_id = ? AND u.status = 'active' ORDER BY u.last_name, u.first_name`).bind(uid).all();
-        return json({ to: await grantsTo(env, request, uid), from: results.map((r) => ({ uid: r.owner_id, name: nameOf(r), traces: r.traces !== 0 })) });
+      if (method === "GET") return json(await sharesOf(env, request, uid));
+      if (method !== "POST") return json({ error: "method" }, 405);
+      const b = await readBody(request);
+      if (b?.leave) {                                          // one no longer wants to see a library shared with one
+        const owner = Number(b.owner);
+        if (!Number.isInteger(owner) || owner <= 0) return json({ error: "fields" }, 400);
+        await env.DB.prepare("DELETE FROM mymap_grants WHERE owner_id = ? AND grantee_id = ?").bind(owner, uid).run();
+        return json(await sharesOf(env, request, uid));
       }
-      if (method === "POST") {
-        const b = await readBody(request);
-        const to = Number(b?.uid);
-        if (!Number.isInteger(to) || to <= 0 || to === uid) return json({ error: "fields" }, 400);
-        if (!b.on) await env.DB.prepare("DELETE FROM mymap_grants WHERE owner_id = ? AND grantee_id = ?").bind(uid, to).run();
-        else {
-          if (!(await allow(env, `mmgrant:${uid}`, 200, 86400))) return json({ error: "rate" }, 429);
-          const u = await env.DB.prepare("SELECT id FROM users WHERE id = ? AND status = 'active' AND email_verified = 1 AND demo_until IS NULL").bind(to).first();
-          if (!u) return json({ error: "not found" }, 404);
-          const n = await env.DB.prepare("SELECT COUNT(*) AS n FROM mymap_grants WHERE owner_id = ?").bind(uid).first();
-          const traces = b.traces === false ? 0 : 1;
-          const old = await env.DB.prepare("SELECT 1 AS ok FROM mymap_grants WHERE owner_id = ? AND grantee_id = ?").bind(uid, to).first();
-          if (old) await env.DB.prepare("UPDATE mymap_grants SET traces = ? WHERE owner_id = ? AND grantee_id = ?").bind(traces, uid, to).run();
-          else if ((n?.n || 0) >= 200) return json({ error: "too many" }, 409);
-          else await env.DB.prepare("INSERT INTO mymap_grants (owner_id, grantee_id, traces, created_at) VALUES (?, ?, ?, ?)").bind(uid, to, traces, nowIso()).run();
-        }
-        return json({ to: await grantsTo(env, request, uid) });
+      const to = Number(b?.uid);
+      if (!Number.isInteger(to) || to <= 0 || to === uid) return json({ error: "fields" }, 400);
+      if (!b.on) await env.DB.prepare("DELETE FROM mymap_grants WHERE owner_id = ? AND grantee_id = ?").bind(uid, to).run();
+      else {                                                   // only what an account that accepted an invitation sees
+        const r = await env.DB.prepare("UPDATE mymap_grants SET traces = ? WHERE owner_id = ? AND grantee_id = ?").bind(b.traces === false ? 0 : 1, uid, to).run();
+        if (!r.meta?.changes) return json({ error: "not found" }, 404);
       }
-      return json({ error: "method" }, 405);
+      return json(await sharesOf(env, request, uid));
     }
-    if (parts[0] === "people" && parts.length === 1 && method === "GET") {
-      const words = String(new URL(request.url).searchParams.get("q") || "").replace(/[%_\\]/g, " ").trim().split(/\s+/).filter(Boolean).slice(0, 4);
-      if (words.join("").length < 3) return json({ people: [] });
-      if (!(await allow(env, `mmpeople:${uid}`, 300, 3600))) return json({ error: "rate" }, 429);
-      const { results } = await env.DB.prepare(`SELECT id, first_name, last_name, display_name, licence FROM users
-        WHERE id <> ? AND status = 'active' AND email_verified = 1 AND demo_until IS NULL AND ${words.map(() => "(first_name || ' ' || last_name) LIKE ?").join(" AND ")}
-        ORDER BY last_name, first_name LIMIT 10`).bind(uid, ...words.map((w) => `%${w}%`)).all();
-      return json({ people: await Promise.all(results.map(async (u) => ({ uid: u.id, name: nameOf(u), club: await clubOfUser(env, request, u) }))) });
+    if (parts[0] === "invites") {
+      if (parts[1] === "accept" && parts.length === 2 && method === "POST") {
+        const b = await readBody(request);
+        const token = String(b?.token || "");
+        if (!TOKEN.test(token)) return json({ error: "invite" }, 410);
+        if (!(await allow(env, `mminvacc:${uid}`, 60, 3600))) return json({ error: "rate" }, 429);
+        if (user.demo_until) return json({ error: "demo" }, 403);
+        const inv = await env.DB.prepare(`SELECT i.id, i.owner_id, i.traces, u.first_name, u.last_name, u.display_name FROM mymap_invites i
+          JOIN users u ON u.id = i.owner_id WHERE i.token_hash = ? AND i.expires_at > ? AND u.status = 'active'`).bind(await sha256hex(token), nowIso()).first();
+        if (!inv) return json({ error: "invite" }, 410);
+        if (inv.owner_id === uid) return json({ error: "self" }, 400);
+        await env.DB.batch([
+          env.DB.prepare(`INSERT INTO mymap_grants (owner_id, grantee_id, traces, created_at) VALUES (?, ?, ?, ?)
+            ON CONFLICT (owner_id, grantee_id) DO UPDATE SET traces = excluded.traces`).bind(inv.owner_id, uid, inv.traces, nowIso()),
+          env.DB.prepare("DELETE FROM mymap_invites WHERE id = ?").bind(inv.id),
+        ]);
+        return json({ owner: inv.owner_id, name: nameOf(inv) });
+      }
+      if (parts.length === 1 && method === "POST") {
+        const b = await readBody(request);
+        if (user.demo_until) return json({ error: "demo" }, 403);
+        if (!(await allow(env, `mminvite:${uid}`, 40, 86400))) return json({ error: "rate" }, 429);
+        await env.DB.prepare("DELETE FROM mymap_invites WHERE owner_id = ? AND expires_at <= ?").bind(uid, nowIso()).run();
+        const n = await env.DB.prepare("SELECT COUNT(*) AS n FROM mymap_invites WHERE owner_id = ?").bind(uid).first();
+        if ((n?.n || 0) >= MAX_INVITES) return json({ error: "too many" }, 409);
+        const token = newToken(), now = new Date();
+        await env.DB.prepare("INSERT INTO mymap_invites (id, token_hash, owner_id, traces, created_at, expires_at) VALUES (?, ?, ?, ?, ?, ?)")
+          .bind(newId(10), await sha256hex(token), uid, b?.traces === false ? 0 : 1, now.toISOString(), new Date(now.getTime() + INVITE_DAYS * 86400e3).toISOString()).run();
+        return json({ token, invites: await invitesOf(env, uid) });
+      }
+      if (parts.length === 2 && ID.test(parts[1]) && method === "DELETE") {
+        await env.DB.prepare("DELETE FROM mymap_invites WHERE id = ? AND owner_id = ?").bind(parts[1], uid).run();
+        return json({ invites: await invitesOf(env, uid) });
+      }
+      return json({ error: "not found" }, 404);
     }
     if (parts[0] === "u" && /^\d{1,12}$/.test(parts[1] || "")) {
       if (method !== "GET") return json({ error: "method" }, 405);

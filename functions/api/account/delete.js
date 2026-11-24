@@ -164,6 +164,7 @@ export const onRequestPost = withUser(async ({ request, env }, user) => {
   } catch (e) { /* no tables yet (migration 0019) */ }
   // its library shared with chosen accounts, and the libraries shared with it (migration 0033)
   try { await env.DB.prepare("DELETE FROM mymap_grants WHERE owner_id = ? OR grantee_id = ?").bind(user.id, user.id).run(); } catch (e) { /* not yet */ }
+  try { await env.DB.prepare("DELETE FROM mymap_invites WHERE owner_id = ?").bind(user.id).run(); } catch (e) { /* not yet */ }
   // its kept solo analyses go (the runs); their maps not marked private are handed over to the administrators' collection
   try {
     if (env.BUCKET) {

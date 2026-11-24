@@ -29,6 +29,7 @@ import * as MP from "../trace/mymapsplace.js";
 import * as MI from "../trace/mymapsimport.js";
 import { bar, setBar } from "../waitbar.js";
 import * as phone from "../phonelink.js";
+import { alertBox, confirmBox } from "../askbox.js";
 
 await loadArea("mymaps");
 
@@ -42,6 +43,7 @@ const pace = (dur, dist) => (dur && dist ? `${fmtTime(Math.round((dur / dist) * 
 const size = (b) => (b < 1024 * 1024 ? t("mm.kb", { n: fmt(Math.max(1, b / 1024)) }) : t("mm.mb", { n: fmt(b / 1024 / 1024, 1) }));
 /** A map's year: its date's, else one its name or place gives (« Ball-Trap S 2019 »). */
 const yearOf = (m) => (m.day || "").slice(0, 4) || MI.yearIn(m.title) || MI.yearIn(m.place);
+const inviteUrl = (token) => `${location.origin}${location.pathname}#/mes-cartes?invitation=${token}`;
 const shareUrl = (token, map) => `${location.origin}${location.pathname}#/mes-cartes?partage=${token}${map ? `&carte=${map}` : ""}`;
 const wide = () => matchMedia("(min-width: 980px)").matches;
 
@@ -63,6 +65,23 @@ const icon = (k) => raw(`<svg class="mm-ic" viewBox="0 0 24 24" aria-hidden="tru
 
 export async function render(main, { query = {} } = {}) {
   const me = auth.session();
+  // an invitation to someone's library (owner, 2026-11-24): accepted by the account that opens it, then that library's tab
+  if (query.invitation) {
+    if (!me) {
+      main.innerHTML = html`<div class="mm"><div class="card"><div class="card-body"><p>${t("mm.grant.inviteAccount")}</p></div></div></div>`;
+      return { title: t("mm.title") };
+    }
+    try {
+      const r = await MM.acceptInvite(String(query.invitation));
+      query = { de: String(r.owner) };
+      alertBox(t("mm.grant.accepted", { name: r.name }));
+    } catch (e) {
+      query = {};
+      alertBox(t(e.message === "self" ? "mm.grant.inviteSelf" : e.message === "demo" ? "mm.grant.inviteDemo" : e.status === 503 ? "mm.err.notReady"
+        : e.status === 410 ? "mm.grant.inviteGone" : "mm.err.load"));
+    }
+    history.replaceState(null, "", query.de ? `#/mes-cartes?de=${query.de}` : "#/mes-cartes");
+  }
   const link = /^[a-z2-9]{8,40}$/.test(query.partage || "") ? query.partage : null;
   // a library another account shares with this one (owner, 2026-11-24: a tab of its own beside « Ma bibliothèque »)
   const owner = !link && me && /^\d{1,12}$/.test(query.de || "") ? String(query.de) : null;
@@ -81,7 +100,7 @@ export async function render(main, { query = {} } = {}) {
     $("#mm").innerHTML = html`<div class="card"><div class="card-body"><p>${t("mm.needAccount")}</p></div></div>`;
     return { title: t("mm.title") };
   }
-  let fr, shares = { to: [], from: [] };
+  let fr, shares = { to: [], from: [], invites: [] };
   const sharesP = me && !link ? MM.shares().then((s) => { shares = s; }).catch(() => {}) : null;
   try {
     [st, fr] = await Promise.all([token ? MM.shared(token).then((s) => ({ ...s, links: { archive: null, maps: {}, sets: [] } })) : all ? adminLibrary() : MM.list(), MP.france(), sharesP]);
@@ -141,14 +160,16 @@ export async function render(main, { query = {} } = {}) {
       <p class="muted mm-drop-hint">${t("mm.add.drop")}</p></div></details>`;
 
   function drawList() {
+    if (!$("#mm")) return;                             // the page left meanwhile (a dialog closed as another page opened)
     for (const id of [...sel]) if (!byId(id)) sel.delete(id);
     const empty = !st.maps.length;
     $("#mm").innerHTML = html`${libTabs()}
       <div class="page-head"><div><h1>${token ? t("mm.shared.title", { name: st.name }) : all ? t("mm.adm.title") : t("mm.title")}</h1>
         <p class="lede">${owner ? t(st.traces ? "mm.grant.lede" : "mm.grant.ledeMap") : token ? t(st.traces ? "mm.shared.lede" : "mm.shared.ledeMap") : all ? t("mm.adm.lede", { n: fmt(st.gone || 0) }) : t("mm.lede")}</p></div>
+        ${owner ? html`<div class="mm-acts"><button type="button" class="btn btn-sm btn-ghost" id="mm-leave">${t("mm.grant.leave")}</button></div>` : ""}
         ${mine ? html`<div class="mm-acts"><button type="button" class="btn btn-sm btn-primary" data-act="new">${icon("add")} ${t("mm.new")}</button>
           <button type="button" class="btn btn-sm" data-act="folder">${icon("import")} ${t("mm.folder")}</button>
-          <button type="button" class="btn btn-sm" id="mm-share">${icon("share")} ${st.links.archive || shares.to.length ? t("mm.shareLib.on") : t("mm.shareLib")}</button></div>` : ""}</div>
+          <button type="button" class="btn btn-sm" id="mm-share">${icon("share")} ${st.links.archive || shares.to.length || shares.invites?.length ? t("mm.shareLib.on") : t("mm.shareLib")}</button></div>` : ""}</div>
       ${mine ? ways(empty) : ""}
       ${empty ? (mine ? html`<div class="card"><div class="card-body prose mm-empty"><p>${t("mm.empty")}</p></div></div>`
         : html`<div class="card"><div class="card-body prose mm-empty">${t("mm.shared.none")}</div></div>`) : html`
@@ -194,6 +215,10 @@ export async function render(main, { query = {} } = {}) {
       // a map handed over by Cartographier (« Envoyer vers Mes cartes »): the new map's dialog takes it (pwa.js inbox)
       if (query.recu) import("../pwa.js").then((m) => m.takeInbox()).then((f) => { if (f.length) newMapDialog(f); }).catch(() => {});
     }
+    $("#mm-leave")?.addEventListener("click", async () => {
+      if (!(await confirmBox(t("mm.grant.leaveAsk", { name: st.name }), { ok: t("mm.grant.leave") }))) return;
+      try { await MM.leaveShare(Number(owner)); location.hash = "#/mes-cartes"; } catch (e) { alertBox(t("mm.err.save")); }
+    });
     if (!empty) refresh();
   }
 
@@ -1068,42 +1093,43 @@ export async function render(main, { query = {} } = {}) {
   // routes run on them or the maps alone, chosen before the link is made and changed on the link kept (same address). The
   // library's dialog also lists the other links made, each to copy or delete.
   const sameSet = (a, b) => a.length === b.length && [...a].sort().join() === [...b].sort().join();
-  /** The library's dialog: the accounts it is shared with (each with or without the routes, removed), and a search to add one. */
+  /** The library's dialog: the accounts it is shared with (each with or without the routes, removed), the invitations waiting, and
+   *  a new invitation — a link for one person, used once, valid 7 days (owner, 2026-11-24: invitations, not a search of accounts). */
   function bindPeople(d) {
-    const who = $("#mm-who", d), res = $("#mm-who-res", d);
     const label = (x) => html`<span><b>${x.name}</b>${x.club ? html` <span class="muted">· ${x.club}</span>` : ""}</span>`;
-    const drawGrants = () => {
-      $("#mm-grants", d).innerHTML = shares.to.length ? html`${shares.to.map((g) => html`<li>${label(g)}<span class="row">
-          <select data-gtr="${g.uid}" aria-label="${t("mm.share.what")}"><option value="1">${t("mm.links.withTraces")}</option>
-            <option value="0" ${raw(g.traces ? "" : "selected")}>${t("mm.links.mapOnly")}</option></select>
-          <button type="button" class="btn btn-ghost btn-sm mm-danger" data-gdel="${g.uid}">${t("mm.grant.remove")}</button></span></li>`)}`
-        : html`<li class="muted">${t("mm.grant.none")}</li>`;
-      $$("[data-gtr]", d).forEach((x) => x.addEventListener("change", () => set(Number(x.dataset.gtr), true, x.value === "1")));
-      $$("[data-gdel]", d).forEach((b) => b.addEventListener("click", () => set(Number(b.dataset.gdel), false)));
+    const what = (on) => t(on ? "mm.links.withTraces" : "mm.links.mapOnly");
+    let made = null;                                   // the link just made: shown until the dialog closes
+    const draw = () => {
+      $("#mm-grants", d).innerHTML = html`${shares.to.map((g) => html`<li>${label(g)}<span class="row">
+          <select data-gtr="${g.uid}" aria-label="${t("mm.share.what")}"><option value="1">${what(true)}</option>
+            <option value="0" ${raw(g.traces ? "" : "selected")}>${what(false)}</option></select>
+          <button type="button" class="btn btn-ghost btn-sm mm-danger" data-gdel="${g.uid}">${t("mm.grant.remove")}</button></span></li>`)}
+        ${(shares.invites || []).map((v) => html`<li><span>${t("mm.grant.pending")} <span class="muted">· ${what(v.traces)} · ${t("mm.grant.until", { date: fmtDate(v.expires.slice(0, 10)) })}</span></span>
+          <button type="button" class="btn btn-ghost btn-sm mm-danger" data-gcancel="${v.id}">${t("mm.grant.cancel")}</button></li>`)}
+        ${!shares.to.length && !(shares.invites || []).length ? html`<li class="muted">${t("mm.grant.none")}</li>` : ""}`;
+      $("#mm-inv", d).innerHTML = made ? html`<div class="mm-link"><input readonly value="${inviteUrl(made)}" id="mm-inv-url" aria-label="${t("mm.grant.made")}">
+          <button type="button" class="btn btn-sm btn-primary" id="mm-inv-copy">${t("mm.copy")}</button></div><p class="muted">${t("mm.grant.made")}</p>
+          <div class="row"><button type="button" class="btn btn-sm" id="mm-inv-again">${t("mm.grant.another")}</button></div>`
+        : html`<div class="row"><select id="mm-inv-tr" aria-label="${t("mm.share.what")}"><option value="1">${what(true)}</option><option value="0">${what(false)}</option></select>
+          <button type="button" class="btn btn-sm btn-primary" id="mm-inv-make">${t("mm.grant.invite")}</button></div>`;
+      $$("[data-gtr]", d).forEach((x) => x.addEventListener("change", () => act(() => MM.setShare(Number(x.dataset.gtr), true, x.value === "1"))));
+      $$("[data-gdel]", d).forEach((b) => b.addEventListener("click", () => act(() => MM.setShare(Number(b.dataset.gdel), false))));
+      $$("[data-gcancel]", d).forEach((b) => b.addEventListener("click", () => act(() => MM.cancelInvite(b.dataset.gcancel))));
+      $("#mm-inv-make", d)?.addEventListener("click", () => act(async () => {
+        const r = await MM.invite($("#mm-inv-tr", d).value === "1");
+        made = r.token;
+        return r;
+      }));
+      $("#mm-inv-again", d)?.addEventListener("click", () => { made = null; draw(); });
+      $("#mm-inv-copy", d)?.addEventListener("click", async (e) => {
+        try { await navigator.clipboard.writeText($("#mm-inv-url", d).value); e.currentTarget.textContent = t("mm.copied"); } catch (err) { $("#mm-inv-url", d).select(); }
+      });
     };
-    const set = async (uid, on, withRoutes = true) => {
-      try { shares.to = (await MM.setShare(uid, on, withRoutes)).to; drawGrants(); find(); }
-      catch (e) { alert(t(e.status === 503 ? "mm.err.notReady" : "mm.err.save")); }
+    const act = async (fn) => {
+      try { const r = await fn(); if (r.to) shares.to = r.to; if (r.from) shares.from = r.from; if (r.invites) shares.invites = r.invites; draw(); }
+      catch (e) { alertBox(t(e.status === 503 ? "mm.err.notReady" : e.status === 409 ? "mm.grant.tooMany" : "mm.err.save")); }
     };
-    let timer = 0, asked = "";
-    const find = () => {
-      const q = who.value.trim();
-      clearTimeout(timer);
-      if (q.replace(/\s+/g, "").length < 3) { res.innerHTML = q ? html`<li class="muted">${t("mm.grant.more")}</li>` : ""; return; }
-      timer = setTimeout(async () => {
-        asked = q;
-        let r;
-        try { r = await MM.people(q); } catch (e) { if (asked === q) res.innerHTML = html`<li class="muted">${t(e.status === 503 ? "mm.err.notReady" : "mm.err.load")}</li>`; return; }
-        if (asked !== q) return;
-        const has = new Set(shares.to.map((g) => g.uid));
-        res.innerHTML = r.people.length ? html`${r.people.map((x) => html`<li>${label(x)}${has.has(x.uid) ? html`<span class="muted">${t("mm.grant.already")}</span>`
-          : html`<button type="button" class="btn btn-sm btn-primary" data-gadd="${x.uid}">${t("mm.grant.add")}</button>`}</li>`)}`
-          : html`<li class="muted">${t("mm.grant.noOne")}</li>`;
-        $$("[data-gadd]", res).forEach((b) => b.addEventListener("click", () => set(Number(b.dataset.gadd), true)));
-      }, 250);
-    };
-    who.addEventListener("input", find);
-    drawGrants();
+    draw();
   }
   function shareDialog(target) {
     const m = target.map || null, ids = target.ids || null;
@@ -1113,12 +1139,11 @@ export async function render(main, { query = {} } = {}) {
     // a QuickRoute map carries its route in the picture itself: shared alone, the route still shows
     const painted = scopeMaps.some((x) => x.runs.some((r) => r.source === "quickroute"));
     const lib = !m && !ids;
-    // the whole library with chosen accounts (owner, 2026-11-24: « a user selector »), then by a link
+    // the whole library with the accounts one invites (owner, 2026-11-24), then by a link
     const d = dialog(html`${dlgHead(t(m ? "mm.shareMap" : ids ? "mm.sel.share" : "mm.shareLib"))}${lib ? html`<div class="stack mm-form mm-people">
         <b>${t("mm.grant.title")}</b><p class="muted">${t("mm.grant.text")}</p>
         <ul class="mm-grants" id="mm-grants"></ul>
-        <div class="mm-pick"><input type="search" id="mm-who" placeholder="${t("mm.grant.search")}" aria-label="${t("mm.grant.search")}" autocomplete="off">
-          <ul class="mm-who-res" id="mm-who-res" aria-live="polite"></ul></div></div>
+        <div class="stack" id="mm-inv"></div></div>
       <div class="mm-sep"><b>${t("mm.grant.byLink")}</b></div>` : ""}<div class="stack mm-form" id="mm-sh"></div>`);
     if (lib) bindPeople(d);
     const body = () => (m ? { map: m.id } : ids ? { maps: ids } : { map: null });

@@ -128,12 +128,19 @@ export const list = () => call("");
 // a source read through: a link's token, or « u<account> » — a library shared with this account (owner, 2026-11-24)
 const via = (token) => (/^u\d+$/.test(token) ? `/u/${token.slice(1)}` : `/s/${token}`);
 export const shared = (token) => call(via(token));
-/** The libraries shared with this account and those it shares with: { to: [{ uid, name, club, traces }], from: [{ uid, name, traces }] }. */
+/** The libraries shared with this account and those it shares with: { to: [{ uid, name, club, traces }], from: [{ uid, name, traces }],
+ *  invites: [{ id, traces, created, expires }] }. */
 export const shares = () => call("/shares");
-/** The library shared with an account, or no longer (on false): { to }. */
+/** Changes what an account holding one's library sees (traces), or stops sharing with it (on false): as shares(). */
 export const setShare = (uid, on, traces = true) => call("/shares", { method: "POST", body: { uid, on, traces } });
-/** Accounts whose name has every word typed: { people: [{ uid, name, club }] }. */
-export const people = (q) => call(`/people?q=${encodeURIComponent(q)}`);
+/** Stops seeing a library shared with this account: as shares(). */
+export const leaveShare = (owner) => call("/shares", { method: "POST", body: { owner, leave: true } });
+/** A new invitation (a link for one person, used once, 7 days): { token, invites }. */
+export const invite = (traces = true) => call("/invites", { method: "POST", body: { traces } });
+/** An invitation cancelled: { invites }. */
+export const cancelInvite = (id) => call(`/invites/${id}`, { method: "DELETE" });
+/** An invitation accepted by this account: { owner, name }. */
+export const acceptInvite = (token) => call("/invites/accept", { method: "POST", body: { token } });
 export const updateMap = (id, fields) => call(`/maps/${id}`, { method: "PUT", body: fields });
 export const deleteMap = (id) => call(`/maps/${id}`, { method: "DELETE" });
 export const updateRun = (id, fields) => call(`/runs/${id}`, { method: "PUT", body: fields });
