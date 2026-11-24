@@ -7,6 +7,7 @@ import json, math
 
 import numpy as np
 import shapely
+import shapely.affinity
 from scipy.ndimage import gaussian_filter, maximum_filter
 from scipy.spatial import cKDTree
 from shapely.geometry import LineString, Point, Polygon
@@ -21,6 +22,7 @@ from .terrain import height_of
 AREA_SYM = {"open": S(401), "open_t": S(402), "slow": S(406), "walk": S(408), "fight": S(410), "paved": S(501), "paved_t": S(501, 3),
             "heavy": S(501, 4), "private": S(520), "water": S(301), "imp_veg": S(411)}       # (forest is the paper's white)
 PT_R = {417: 0.7, 418: 0.4, 526: 0.5, 531: 0.85, 311: 0.59, 524: 0.5}   # point symbols' radii, mm (legibility.json's)
+PT_MASK = {417: 0.7, 418: 0.4}                             # a tree symbol's white mask, mm from its centre
 PT_GAP = 0.15 + 0.02                                        # mm between two point symbols (0.15 mm, ISSprOM 3.3)
 MIN_522 = (2.05, 4.0)                                       # a canopy's minimum width (0.5 mm) and area (0.25 mm²), m and m²
 LINE_GAP = 0.15                                             # mm between two black lines side by side (ISSprOM 3.3)
@@ -211,20 +213,28 @@ def run(env, s, t, a, d):
     # ---- the paved area's edge (501.1) where it meets anything but a building, a wall, a fence or a hedge. No kerb line inside the
     # paving (the owner, 2026-11-22: four parallel black lines along every street); none closer to another black line than 0.15 mm
     # (ISSprOM 3.3: two lines side by side would print as one) — there that line bounds the paving ---------------------------------
-    near = [B04, frame.boundary.buffer(0.6), CLIP.boundary.buffer(0.6)] + [g.buffer(0.6) for g, _, _ in s.walls] \
+    near = [frame.boundary.buffer(0.6), CLIP.boundary.buffer(0.6)] + [g.buffer(0.6) for g, _, _ in s.walls] \
         + [G["imp_veg"].buffer(0.3)] * ("imp_veg" in G) + [m.buffer(0.8) for m in mouths]     # (the hedges as drawn)
+    near_b = [B04]                                           # (the buildings: apart, see below)
     k_ = SCALE / 1000
     for o in d.objects:
         if o["otp"] == 2 and o["sym"] in BLACK:
             near.append(LineString([(env.CX + x * k_, env.CY + y * k_) for x, y in o["rings"][0]])
                         .buffer((0.05 + BLACK[o["sym"]] / 2 + LINE_GAP) * k_, cap_style="flat"))
+    b_gap = (0.05 + 0.07 + LINE_GAP) * k_
     for g in polys(B):                                       # (a building's outline, 521.9)
-        near.append(g.exterior.buffer((0.05 + 0.07 + LINE_GAP) * k_))
-    no_line = union(near)
+        near_b.append(g.exterior.buffer(b_gap))
+    no_line_o = union(near)
+    no_line = union([no_line_o] + near_b)
+    # … but an edge that comes up to a building is drawn up to it (the owner, 2026-11-24: « il faut dessiner le bord du jaune
+    # jusqu'au bout, je ne sais pas pourquoi il s'arrête »): beside a building it is left out only where it runs along the
+    # outline, over 1.5 m or more — there the outline bounds the paving
+    outl = union([r for g in polys(B) for r in [g.exterior] + list(g.interiors)]) if not B.is_empty else None
     n = 0
-    for piece in lines(union([a.PAVED_ALL.boundary] + sport_edges).difference(no_line)):
-        if piece.length >= 2:
-            d.line(piece, S(501, 1), 2); n += 1
+    for piece in lines(merge_lines(union([a.PAVED_ALL.boundary] + sport_edges).difference(no_line_o).difference(B))):
+        for q in lines(off_building_edges(piece, outl, near=b_gap + 0.1, run=1.5, step=0.25)):
+            if q.length >= 2:
+                d.line(q, S(501, 1), 2); n += 1
     log("paved area edges", n)
     # The carriageways' edges inside the paving (the owner, 2026-11-23: without them a town centre is one flat brown, its streets
     # gone — « le bord des routes a disparu, ce qui n'est pas bon »): the outline of the carriageways put together (closed and
@@ -283,12 +293,42 @@ def run(env, s, t, a, d):
     pav = a.PAVED_ALL.buffer(0.3)
     steps = [(g, sw) for g, sw in a.stair_pieces if g.length > 0 and g.intersection(a.OLIVE_IN).length < 0.5 * g.length
              and g.intersection(pav).length >= 0.5 * g.length]
-    for g, sw in steps:
-        d.line(g.difference(B), S(532, stairs.symbol_sub(sw)), 1)
+    # a stairway that runs along an uncrossable wall or fence is drawn clear of it, 0.15 mm between the two symbols (the owner,
+    # 2026-11-24, east of the church: « pas terrible » — a stairway's boxes drawn into a fence's line and ticks)
+    imp_l = [LineString([(env.CX + x * k_, env.CY + y * k_) for x, y in o["rings"][0]]) for o in d.objects
+             if o["otp"] == 2 and o["sym"] in (S(515), S(518), S(529)) and len(o["rings"][0]) >= 2]
+    imp_t = shapely.STRtree(imp_l) if imp_l else None
+    moved = 0
+    for i, (g, sw) in enumerate(steps):
+        g2 = beside(g, sw, imp_l, imp_t, (0.2 + LINE_GAP) * k_, pav) if imp_t is not None else g
+        moved += g2 is not g
+        steps[i] = (g2, sw)
+        d.line(g2.difference(B), S(532, stairs.symbol_sub(sw)), 1)
+    # … and a fence's ticks point away from a stairway beside it (518 draws them on its right): the line is turned round
+    flipped = 0
+    for o in d.objects:
+        if o["otp"] != 2 or o["sym"] != S(518) or len(o["rings"][0]) < 2:
+            continue
+        cs = [(env.CX + x * k_, env.CY + y * k_) for x, y in o["rings"][0]]
+        L = LineString(cs)
+        side = 0.0
+        for g, sw in steps:
+            if g.length < 1 or g.distance(L) > sw / 2 + 1.0 * k_:
+                continue
+            m = g.interpolate(0.5, normalized=True)
+            at = L.project(m)
+            p0, p1 = L.interpolate(max(0.0, at - 0.5)), L.interpolate(min(L.length, at + 0.5))
+            side += g.length * (1 if (p1.x - p0.x) * (m.y - p0.y) - (p1.y - p0.y) * (m.x - p0.x) < 0 else -1)   # (+: on its right)
+        if side > 0:
+            o["rings"][0] = o["rings"][0][::-1]; flipped += 1
+    log("stairways", len(steps), "drawn clear of a wall or fence", moved, "fences turned round", flipped)
 
 
     # ---- water lines, the railway ------------------------------------------------------------------------------------------------
-    wat = G.get("water", Polygon()).buffer(0.5)
+    # (not over a bridge's deck: the deck is above the water — the owner, 2026-11-24, « a horizontal blue line » across a street's
+    # bridge between the river's two areas: OSM's waterway line runs on under the bridge, the map's water stops at its sides)
+    # Nor over any paving: a stream that passes under a street or a square is in a culvert there, whatever the sources say.
+    wat = union([G.get("water", Polygon()).buffer(0.5), s.RUN_DECK.buffer(0.3) if not s.RUN_DECK.is_empty else None, a.PAVED_ALL])
     for g in s.streams:
         d.line(g.difference(wat).difference(B), S(305), 4.05, curve=True)      # (ISSprOM's minimum lengths: 1 mm, 4.11 mm)
     for g in s.ditches:
@@ -300,6 +340,8 @@ def run(env, s, t, a, d):
     a.steps_drawn = steps
     points(env, s, t, a, d)
     helpers(env, s, d)
+    for o in d.objects:
+        o.pop("deck", None)
 
 
 GAP_M, TOUCH_M, OPEN_M, HW = 1.6, 0.08, 4.0, 0.8           # 0.4 mm between uncrossable features, 0.02 mm, 1 mm, a 0.4 mm line's half
@@ -375,8 +417,9 @@ def close_ends(env, s, a, d):
     G = a.GEOM
     areas_ = [p for g in (a.BLOCKS, a.OLIVE, G.get("water"), G.get("imp_veg")) for p in polys(g)]
     ways = union([l for l in list(s.path_lines) + list(s.small_lines) if l is not None and not l.is_empty]
-                  + [g for g, _ in a.stair_pieces] + [p[0] for p in s.passages])
-    imp = [o for o in d.objects if o["otp"] == 2 and o["sym"] in (S(515), S(518)) and len(o["rings"][0]) >= 2]
+                  + [g for g, _ in s.paved_paths] + [g for g, _ in a.stair_pieces] + [p[0] for p in s.passages])
+    # (not a bridge's sides: drawn on to the feature beside them they came out as hooks — the owner, 2026-11-24)
+    imp = [o for o in d.objects if o["otp"] == 2 and o["sym"] in (S(515), S(518)) and len(o["rings"][0]) >= 2 and not o.get("deck")]
     feats = [(None, p) for p in areas_] + [(o, LineString(to_m(o["rings"][0])).buffer(HW, cap_style="flat")) for o in imp]
     tree = shapely.STRtree([g for _, g in feats])
     n_close = n_back = 0
@@ -403,7 +446,8 @@ def close_ends(env, s, a, d):
             cs = ([(q.x, q.y)] + cs) if end == 0 else (cs + [(q.x, q.y)]); n_close += 1
         o["rings"][0] = [list(env.mm(x, y)) for x, y in cs]
     # openings under 1 mm between two walls' or fences' ends facing each other
-    ol = [o for o in d.objects if o["otp"] == 2 and o["sym"] in (S(513, 1), S(515), S(516), S(518)) and len(o["rings"][0]) >= 2]
+    ol = [o for o in d.objects if o["otp"] == 2 and o["sym"] in (S(513, 1), S(515), S(516), S(518)) and len(o["rings"][0]) >= 2
+          and not o.get("deck")]
     ends = []
     for o in ol:
         cs = to_m(o["rings"][0])
@@ -464,6 +508,34 @@ def closed_end(l, B, ways, reach=1.6):
     return LineString(cs)
 
 
+def beside(g, sw, imp_l, imp_t, gap, pav):
+    """The stairway's line moved sideways so that its symbol (sw m wide) stays `gap` m clear of the uncrossable line it runs along
+    (half its length or more within that distance); left where it is when the move would take it off the paving."""
+    need = sw / 2 + gap
+    near = [imp_l[i] for i in imp_t.query(g.buffer(need))]
+    near = [l for l in near if l.distance(g) < need]
+    if not near or g.length < 0.5:
+        return g
+    I = union(near)
+    if g.intersection(I.buffer(need)).length < 0.5 * g.length:
+        return g                                           # (it crosses or meets the wall: not alongside)
+    mid = g.interpolate(0.5, normalized=True)
+    q = nearest_points(I, mid)[0]
+    dx, dy = mid.x - q.x, mid.y - q.y
+    n = math.hypot(dx, dy)
+    if n < 0.05:                                           # (on the line itself: to the side with more paving)
+        a_, b_ = g.interpolate(0.4, normalized=True), g.interpolate(0.6, normalized=True)
+        ux, uy = b_.x - a_.x, b_.y - a_.y; m = math.hypot(ux, uy) or 1
+        c = [shapely.affinity.translate(g, -uy / m * need * sg, ux / m * need * sg) for sg in (1, -1)]
+        best = max(c, key=lambda x: x.intersection(pav).length)
+        return best if best.intersection(pav).length >= 0.5 * best.length else g
+    sh = need - n + 0.02
+    if sh <= 0:
+        return g
+    g2 = shapely.affinity.translate(g, dx / n * sh, dy / n * sh)
+    return g2 if g2.intersection(pav).length >= 0.5 * g2.length and g2.distance(I) >= need - 0.3 else g
+
+
 def at_least(l, length):
     """The line drawn on straight at both ends to a minimum length (a symbol's)."""
     if l.length >= length or len(l.coords) < 2:
@@ -504,13 +576,25 @@ def network(lines_, snap=4.0):
     u = union([l for l in lines_ if l is not None and not l.is_empty])
     if u.is_empty:
         return []
-    parts = lines(merge_lines(u))
-    out, tree = [], shapely.STRtree(parts)
+    # one line where two sources draw the same way a little apart (a path and the piece of it carried over a bridge: 2026-11-24,
+    # two 505 lines over each other, their dashes out of step): the longer kept, the other only where it runs on alone
+    kept = []
+    for l in sorted(lines(merge_lines(u)), key=lambda q: -q.length):
+        near = [k for k in kept if k.distance(l) < 0.6]
+        if near:
+            l = l.difference(union([k.buffer(0.6, cap_style="flat") for k in near]))
+        kept += [q for q in lines(l) if q.length >= 2.0]
+    parts = lines(merge_lines(union(kept))) if kept else []
+    if not parts:
+        return []
+    # (each end against the lines as they then are: two ends facing each other across a footbridge were each drawn on to the
+    # other — the bridge drawn twice, 2026-11-24)
+    out, tree = list(parts), shapely.STRtree(parts)
     for i, l in enumerate(parts):
         cs = list(l.coords)
         for end in (0, -1):
             pt = Point(cs[end])
-            near = [parts[j] for j in tree.query(pt.buffer(snap)) if j != i]
+            near = [out[j] for j in tree.query(pt.buffer(snap)) if j != i]
             if not near:
                 continue
             others = union(near); dist = others.distance(pt)
@@ -518,7 +602,7 @@ def network(lines_, snap=4.0):
                 continue
             q = nearest_points(others, pt)[0]
             cs = ([(q.x, q.y)] + cs) if end == 0 else (cs + [(q.x, q.y)])
-        out.append(LineString(cs))
+        out[i] = LineString(cs)
     return out
 
 
@@ -603,7 +687,10 @@ def levels(env, s, a, d):
     for pc in kept:
         for q in lines(pc.difference(mo)):
             if q.length >= 1.0:
+                k0 = len(d.objects)
                 d.line(at_least(q, 4.0), S(515), 1); n += 1    # (515's minimum: 1 mm)
+                for o in d.objects[k0:]:
+                    o["deck"] = True                       # (a bridge's side: straight along the deck, never drawn on to a neighbour)
     env.log("bridges: deck sides", n, "passage mouths", len(mouths), "passages", len(PASS))
     return mouths, PASS
 
@@ -641,10 +728,19 @@ def points(env, s, t, a, d):
     kept = [(p.x, p.y, 526) for p in s.monuments] + [(p.x, p.y, 311) for p in s.fountains] + [(p.x, p.y, 524) for p in s.masts]         + [(x, y, 531) for x, y in getattr(a, "goals", [])]             # (no tree over another point symbol)
     lone = 0
     n0 = len(kept)
-    no = union([a.OLIVE_IN, a.BLOCKS, a.GEOM.get("water"), a.GEOM.get("forest")])
+    # (nor in open land or paving « with scattered trees »: the area says them — the owner, 2026-11-24, « arbres à moitié cachés »)
+    no = union([a.OLIVE_IN, a.BLOCKS, a.GEOM.get("water"), a.GEOM.get("forest"), a.GEOM.get("open_t"), a.GEOM.get("paved_t")])
     shapely.prepare(no)
+    # a tree's white mask over a hedge opens it on the map (the owner, 2026-11-24: « les deux arbres qui font qu'on peut traverser
+    # la haie, c'est très problématique »): no tree symbol whose mask reaches an uncrossable hedge — the hedge is what matters
+    hedge = a.GEOM.get("imp_veg")
+    hedge = None if hedge is None or hedge.is_empty else hedge
+    if hedge is not None:
+        shapely.prepare(hedge)
     for pr, x, y, sym in cand:
         if no.contains(Point(x, y)):
+            continue
+        if hedge is not None and hedge.distance(Point(x, y)) < PT_MASK[sym] * SCALE / 1000 + 0.2:
             continue
         if any(math.dist((x, y), (k[0], k[1])) < (PT_R[sym] + PT_R[k[2]] + PT_GAP) * SCALE / 1000 for k in kept):
             continue                                       # no two symbols over each other

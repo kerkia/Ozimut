@@ -46,15 +46,16 @@ const COLORS = [
   ["green60s", "Green 60% (stripes)", screen("green", 0.6)],
   ["darkGreen", "Green 100% + Black 50%", mix(BASE.green, screen("black", 0.5))],
   ["olive", "Olive green (Yellow 100% + Green 50%)", mix(BASE.yellow, screen("green", 0.5))],
-  // the white the specifications put under the green point symbols (417-419), above every yellow and green area, and the
-  // green those symbols are drawn in, above their mask: the same ink as Green 100%, one place higher in the table
-  ["whiteMask", "White (mask under green point symbols)", [0, 0, 0, 0]],
-  ["greenPt", "Green 100% (point symbols)", BASE.green],
   ["black30", "Black 30%", screen("black", 0.3)],
   ["black35", "Black 35%", screen("black", 0.35)],
   ["brown30", "Brown 30%", screen("brown", 0.3)],
   ["brown50", "Brown 50%", screen("brown", 0.5)],
   ["whiteB", "White over brown", [0, 0, 0, 0]],
+  // the white the specifications put under the green point symbols (417-419) and the green those symbols are drawn in, above
+  // their mask: the same ink as Green 100%. Above every yellow and green area AND above the paved areas' brown (2026-11-24: they
+  // lay under it, so a tree standing on paving was not printed, one on its edge half printed); numbered as before (EARLY)
+  ["whiteMask", "White (mask under green point symbols)", [0, 0, 0, 0]],
+  ["greenPt", "Green 100% (point symbols)", BASE.green],
   ["black20", "Black 20%", screen("black", 0.2)],
   ["black50", "Black 50%", screen("black", 0.5)],
   ["black65", "Black 65%", screen("black", 0.65)],
@@ -73,7 +74,10 @@ const COLORS = [
   ["violet", "Violet 30% (helper contours)", screen("purple", 0.3)],
 ];
 const LATE = ["white5123"];                                  // colours inserted in the order after the numbering was fixed: numbered last
-const NUM = Object.fromEntries([...COLORS.filter(([k]) => !LATE.includes(k)), ...COLORS.filter(([k]) => LATE.includes(k))].map(([k], i) => [k, i + 1]));
+const EARLY = { whiteMask: "olive", greenPt: "whiteMask" };     // colours moved up in the order since: numbered where they were (after…)
+const NUMBERED = COLORS.map(([k]) => k).filter((k) => !LATE.includes(k) && !EARLY[k]);
+for (const [k, after] of Object.entries(EARLY)) NUMBERED.splice(NUMBERED.indexOf(after) + 1, 0, k);
+const NUM = Object.fromEntries([...NUMBERED, ...LATE].map((k, i) => [k, i + 1]));
 const OVERPRINT = new Set(["purple", "purple50", "violet"]);
 const c = (k) => { if (!NUM[k]) throw new Error(`colour ${k}`); return NUM[k]; };
 

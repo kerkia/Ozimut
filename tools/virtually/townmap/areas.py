@@ -31,15 +31,20 @@ from scipy.ndimage import binary_dilation, binary_opening, distance_transform_ed
 from shapely.geometry import shape
 
 from . import stairs
-from .env import BLOCKING, K, KNAME, R, RUNNABLE, area_of, lines, polys, union
+from .env import BLOCKING, K, KNAME, R, RUNNABLE, area_of, lines, merge_lines, polys, union
 from .sources import NO_ENTRY
 from .terrain import height_of
 
 GRID = 0.01                                                # every vertex on a 1 cm grid: no near-coincident edges
 # what a mapper can draw and a runner can read at 1:4000 (ISSprOM 2019-2: minimum widths and areas, 1 mm = 4 m)
 MIN_W = {"forest": 1.5, "open": 1.5, "open_t": 9.0, "slow": 1.7, "walk": 1.7, "paved": 1.5, "paved_t": 1.6, "heavy": 1.5,
-         "private": 1.05, "building": 2.1, "water": 1.3, "imp_veg": 1.62}   # (0.3-0.5 mm; olive 0.25 mm; a building 0.5 mm)
-MIN_A = {"forest": 16, "open": 8, "open_t": 100, "slow": 16, "walk": 16, "paved": 8, "paved_t": 16, "heavy": 8, "private": 4,
+         "private": 1.62, "building": 2.1, "water": 1.3, "imp_veg": 1.62}   # (0.3-0.5 mm; a building 0.5 mm; the olive 0.4 mm —
+# the specification's 0.25 mm left strips a metre wide along the paths: the owner, 2026-11-24, « trop petit »)
+# (the areas: a piece on its own must be large enough to mean something to a runner — the owner, 2026-11-24, of pieces at the
+# specification's bare minimum, 0.5 mm²: a 9 m² triangle of open land by a driveway « mal dessiné », a 260 m² patch of scattered
+# trees. Open land 1.5 mm², scattered trees 25 mm²: a few dots. The olive keeps its small pieces — a walled nook no way reaches —
+# but not its strips: see MIN_W)
+MIN_A = {"forest": 16, "open": 25, "open_t": 400, "slow": 16, "walk": 16, "paved": 8, "paved_t": 16, "heavy": 8, "private": 4,
          "imp_veg": 5, "water": 8, "building": 4}
 GAP = 1.7                                                  # two uncrossable features 0.4 mm apart at least (1.6 m)
 # a way (a corridor kept narrow) of a class that cannot be drawn narrow is drawn as the class it is a form of: open land with
@@ -132,8 +137,19 @@ def vector_layers(env, s, t, stair_pieces):
     hedge = union([h.buffer(HEDGE_HALF, cap_style="flat") for h in s.hedges]).difference(s.PRIVATE.buffer(-1.0))
     heavy = union([c for c, imp, _ in s.carr if imp <= 3])
     # paved footways and cycle paths at their width with the stairways' footprints (a stairway stands on paving)
-    pp = [g.buffer(max(1.6, fw) / 2, cap_style="flat", join_style="round") for g, fw in s.paved_paths]
+    # — the ways of one width joined end to end before they are widened, with the decks that carry them, and the notches under
+    # 0.3 mm between their bands closed (each way widened on its own left a wedge open on the outside of every bend where two ways
+    # meet, a tooth where a footway reaches its wider bridge: the owner, 2026-11-24, a paved edge « in teeth »)
+    byw = {}
+    for g, fw in s.paved_paths:
+        byw.setdefault(round(max(1.6, fw), 1), []).append(g)
+    pp = [q.buffer(w / 2, cap_style="flat", join_style="round") for w, gs in byw.items() for q in lines(merge_lines(union(gs)))]
+    if s.paved_paths:
+        along = union([g for g, _ in s.paved_paths]).buffer(0.5)
+        pp += [d["g"] for d in s.decks if d["kind"] == "path" and d["axis"].intersection(along).length >= 0.6 * d["axis"].length]
     paths_a = union(pp)
+    if not paths_a.is_empty:
+        paths_a = area_of(paths_a.buffer(0.6, quad_segs=4).buffer(-0.6, join_style="mitre", mitre_limit=2.0))
     # a stairway drawn stands on paving, also at the edge of the ground not to be entered (2026-11-22: one along a garden's edge,
     # hatched over the olive); one inside it is not drawn (draw.py) and makes no paving
     deep = s.PRIVATE.buffer(-1.0)
@@ -274,7 +290,10 @@ def generalise(env, s, t, faces, cls):
     repair after it). Returns ({class: geometry}, the olive's origins)."""
     bars = printed_bars(env, s, t)
     # the ways the map draws over the areas (paths, stairways, passages): a gap one runs through is widened, never closed
+    # (the paved footways and the streets as much as the unpaved paths: 2026-11-24, a paved footway's entrance into the ground
+    # not to be entered, between the two corners of its corridor, was taken for a gap leading nowhere and closed — the way cut)
     env.WAYS = union([l for l in list(s.path_lines) + list(s.small_lines) if l is not None and not l.is_empty]
+                     + [g for g, _ in s.paved_paths] + [g for gs in s.carr_lines.values() for g in gs]
                      + [g for g, _ in stairs.pieces(s)] + [p[0] for p in s.passages])
     faces, cls = thin_parts(env, faces=faces, cls=cls, bars=bars)
     cls, corr, _ = merge_small(env, faces, cls)
@@ -295,6 +314,7 @@ def generalise(env, s, t, faces, cls):
             break
     GEOM = simplify_edges(GEOM, EDGE_TOL)                  # (the points the faces' noding left on straight edges)
     GEOM = sheds_in_olive(GEOM)
+    GEOM = slots_in_buildings(GEOM)
     # the needles out, and a last look at the areas as they then are (what the widening, the simplification and the needles left
     # under the minimums) — twice: each can leave a little of the other's work
     n = 0
@@ -343,6 +363,22 @@ def leftovers(GEOM):
     for k, ts in give.items():
         GEOM[k] = area_of(shapely.union(GEOM.get(k, shapely.Polygon()), union(ts), grid_size=GRID))
     return {k: g for k, g in GEOM.items() if not g.is_empty}, sum(len(v) for v in take.values())
+
+
+def slots_in_buildings(GEOM):
+    """Ground not to be entered in a slot under 0.4 mm between buildings is the buildings' (the owner, 2026-11-24, of a 1 m band
+    of olive between two houses: « why not just removing the kaki band? » — nobody goes there and it cannot be read: buildings
+    that close are drawn as one, ISSprOM 521). Runnable ground in such a slot is a way or a dead end: thin_parts' business."""
+    B, O = GEOM.get("building"), GEOM.get("private")
+    if B is None or O is None or B.is_empty or O.is_empty:
+        return GEOM
+    slot = area_of(B.buffer(GAP / 2, join_style="mitre").buffer(-GAP / 2, join_style="mitre").difference(B))
+    take = [q for q in polys(area_of(shapely.intersection(slot, O, grid_size=GRID))) if q.area > 0.05]
+    if take:
+        T = union(take)
+        GEOM["private"] = area_of(shapely.difference(O, T, grid_size=GRID))
+        GEOM["building"] = area_of(shapely.union(B, T, grid_size=GRID))
+    return {k: g for k, g in GEOM.items() if not g.is_empty}
 
 
 def sheds_in_olive(GEOM, small=20.0):

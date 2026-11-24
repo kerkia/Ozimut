@@ -1127,6 +1127,161 @@ def t40(M):
     return []
 
 
+def osm_public_ways(M):
+    """OSM's footways, paths and cycleways open to all, as Lambert 93 lines (not tunnels, lower levels, areas, stairways)."""
+    d = M.src("osm.json")
+    if d is None:
+        return None
+    from l93 import transformer
+    tr = transformer(4326, 2154)
+    out = []
+    for e in d.get("elements", []):
+        t = e.get("tags") or {}; geo = e.get("geometry"); hw = t.get("highway")
+        if e.get("type") != "way" or hw not in ("footway", "path", "cycleway", "pedestrian", "bridleway") or not geo or len(geo) < 2 \
+                or t.get("tunnel") not in (None, "no") or str(t.get("layer", "0")).startswith("-") or t.get("area") == "yes" \
+                or t.get("access") in ("private", "no", "customers", "permit") or t.get("foot") in ("private", "no") \
+                or t.get("indoor") not in (None, "no") or t.get("covered") not in (None, "no") or t.get("service") == "driveway":
+            continue
+        xs, ys = tr.transform([q["lon"] for q in geo], [q["lat"] for q in geo])
+        out.append((t, LineString(list(zip(xs, ys)))))
+    return out
+
+
+@test(41, "a way open to all is not cut where it enters or leaves the ground not to be entered (pic 1 of 2026-11-24)")
+def t41(M):
+    ways = osm_public_ways(M)
+    if ways is None:
+        raise Skip("no src/osm.json")
+    olive = M.union("520")
+    if olive.is_empty:
+        return []
+    inner = olive.buffer(-0.3)
+    shapely.prepare(inner)
+    frame = M.box.buffer(-5)
+    bad = []
+    for t, L in ways:
+        L = L.intersection(frame)
+        if L.is_empty or not inner.intersects(L):
+            continue
+        for wet in getattr(L.intersection(inner), "geoms", [L.intersection(inner)]):
+            if wet.geom_type != "LineString" or not (0.3 <= wet.length <= 6):
+                continue
+            # a short stretch of olive across the way, open ground on the way at both ends of it: the way is cut
+            a_, b_ = Point(wet.coords[0]), Point(wet.coords[-1])
+            if all(0.5 < L.project(q) < L.length - 0.5 for q in (a_, b_)):
+                bad.append((wet.length, f"{t.get('highway')} cut by {wet.length:.1f} m of 520 at E {wet.centroid.x:.0f} N {wet.centroid.y:.0f}"))
+    bad.sort(reverse=True)
+    return [f"{len(bad)} ways cut"] + [m for _, m in bad[:8]] if bad else []
+
+
+@test(42, "no watercourse line over a bridge's paving (pic 2 of 2026-11-24)")
+def t42(M):
+    pave = shapely.make_valid(unary_union(M.gs("501", "501.3", "501.4", otp=3))).buffer(-0.3)
+    shapely.prepare(pave)
+    bad = []
+    for c in ("304", "305", "306"):
+        for o, g in M.objs(c):
+            if g.geom_type == "LineString" and pave.intersects(g):
+                w = g.intersection(pave)
+                if w.length > 1.5:
+                    bad.append(f"{c} {w.length:.1f} m over paving at E {w.centroid.x:.0f} N {w.centroid.y:.0f}")
+    return bad[:8]
+
+
+@test(43, "a tree symbol never opens a hedge, nor stands in an area of scattered trees (pic 4 of 2026-11-24)")
+def t43(M):
+    hedge = M.union("411")
+    scat = shapely.make_valid(unary_union(M.gs("402", "501.3", otp=3) or [Polygon()]))
+    shapely.prepare(hedge); shapely.prepare(scat)
+    bad = []
+    for c, r in (("417", 0.7), ("418", 0.4)):
+        for o, g in M.objs(c):
+            if o["otp"] != 1:
+                continue
+            if not hedge.is_empty and hedge.distance(g) < r * M.k:
+                bad.append(f"{c} over a hedge at E {g.x:.0f} N {g.y:.0f}")
+            elif scat.contains(g):
+                bad.append(f"{c} inside scattered trees at E {g.x:.0f} N {g.y:.0f}")
+    return [f"{len(bad)} trees"] + bad[:6] if bad else []
+
+
+@test(44, "no area on its own too small to mean anything: 401 under 1.5 mm², 402 under 25 mm², no strip of 520 under 0.4 mm (pics 3, 4, error 4)")
+def t44(M):
+    bad = []
+    for c, amin in (("401", 24.0), ("402", 390.0)):
+        for g in M.gs(c, otp=3):
+            for q in getattr(g, "geoms", [g]):
+                if q.geom_type == "Polygon" and 0.5 < q.area < amin and not M.at_edge(q, 2.0):
+                    bad.append((q.area, f"{c} {q.area:.0f} m² at E {q.centroid.x:.0f} N {q.centroid.y:.0f}"))
+    # the olive: no strip under 0.4 mm wide on its own (a piece whose every part is that narrow), 4 m long or more
+    for g in M.gs("520", otp=3):
+        for q in getattr(g, "geoms", [g]):
+            if q.geom_type == "Polygon" and 4.0 < q.area < 150 and q.length > 10 and q.buffer(-0.75).is_empty and not M.at_edge(q, 2.0):
+                bad.append((q.area, f"520 strip {q.area:.0f} m² at E {q.centroid.x:.0f} N {q.centroid.y:.0f}"))
+    bad.sort()
+    return [f"{len(bad)} small areas"] + [m for _, m in bad[:8]] if bad else []
+
+
+@test(45, "no path drawn twice (two lines of one symbol over each other: pic 8 of 2026-11-24)")
+def t45(M):
+    bad = []
+    for c in ("505", "506"):
+        ls = [g for g in M.gs(c, otp=2)]
+        if len(ls) < 2:
+            continue
+        tree = shapely.STRtree(ls)
+        for i, l in enumerate(ls):
+            for j in tree.query(l.buffer(0.4)):
+                if j > i:
+                    w = l.intersection(ls[j].buffer(0.4, cap_style="flat"))
+                    if w.length >= 2.0:
+                        bad.append(f"{c} twice over {w.length:.1f} m at E {w.centroid.x:.0f} N {w.centroid.y:.0f}")
+    return bad[:8]
+
+
+@test(46, "a stairway is drawn clear of the uncrossable wall or fence it runs along (pic 6 of 2026-11-24)")
+def t46(M):
+    imp = M.gs("515", "518", "529", otp=2)
+    if not imp:
+        return []
+    tree = shapely.STRtree(imp)
+    bad = []
+    for sub, w in (("532.1", 0.5), ("532.2", 0.8), ("532.3", 1.1), ("532.4", 1.4), ("532.5", 1.7), ("532.6", 2.0), ("532", 1.66)):
+        for o, g in M.objs(sub):
+            if g.geom_type != "LineString" or g.length < 2:
+                continue
+            need = (w / 2 + 0.2 + 0.1) * M.k              # (0.15 mm asked; 0.1 here: rounding)
+            near = [imp[i] for i in tree.query(g.buffer(need)) if imp[i].distance(g) < need]
+            if near and g.intersection(unary_union(near).buffer(need)).length >= 0.5 * g.length:
+                # (walled on both sides — a stairway down into an underpass, between its two walls — it has nowhere to go)
+                I = unary_union(near)
+                a_, m_, b_ = g.interpolate(0.4, normalized=True), g.interpolate(0.5, normalized=True), g.interpolate(0.6, normalized=True)
+                ux, uy = b_.x - a_.x, b_.y - a_.y; n_ = math.hypot(ux, uy) or 1
+                sides = [I.distance(Point(m_.x - uy / n_ * need * sg, m_.y + ux / n_ * need * sg)) < need for sg in (1, -1)]
+                if all(sides) or any(q.convex_hull.buffer(0.5).contains(g) for q in near):
+                    continue                               # (… or inside the U of one wall: a stairwell)
+                bad.append(f"{sub} along a wall or fence at E {g.centroid.x:.0f} N {g.centroid.y:.0f}")
+    return bad[:8]
+
+
+@test(47, "a bridge's sides are straight (no hook drawn on to a neighbour: pic 8 of 2026-11-24)")
+def t47(M):
+    d = M.src("legibility.json")
+    bad = []
+    for o, g in M.objs("515"):
+        if g.geom_type != "LineString" or not (3.0 <= g.length <= 12.0) or len(g.coords) < 3:
+            continue
+        cs = list(g.coords)
+        chord = math.dist(cs[0], cs[-1])
+        water = M.local(("301",), g, 3.0)
+        streams = [s for s in M.gs("305", "306", otp=2) if s.distance(g) < 3.0]
+        if (water.is_empty or water.distance(g) > 3.0) and not streams:
+            continue                                       # (not over water: a wall)
+        if chord < 0.8 * g.length:
+            bad.append(f"515 bent ({g.length:.1f} m for {chord:.1f} m) at E {g.centroid.x:.0f} N {g.centroid.y:.0f}")
+    return bad[:8]
+
+
 def run(M, only=None):
     res = {}
     for n in sorted(T):

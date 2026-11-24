@@ -702,6 +702,16 @@ def _private(env, s, bdtopo, g2):
             ends = [Point(pc.coords[0]), Point(pc.coords[-1])]
             if pc.length >= 1 and all(PRIVATE.boundary.distance(q) < 0.5 for q in ends):
                 corr.append(pc.buffer(1.1, cap_style="flat"))
+    # … and a way open to all that runs along the edge of that ground, in and out of it (the cadastre and OSM are a metre apart:
+    # the owner, 2026-11-24, north-west of the Bassin de Bures — a path's side cut into teeth by a parcel's edge), has its whole
+    # width there: the stretches of 4 m or more within 1.5 m of the edge
+    rim = PRIVATE.boundary.buffer(1.5)
+    for g in s.public_ways:
+        if g.distance(PRIVATE) > 1.5:
+            continue
+        for pc in lines(g.intersection(rim)):
+            if pc.length >= 4:
+                corr.append(pc.buffer(1.1, cap_style="flat"))
     s.PW_CORR = union(corr)
     s.PRIVATE = PRIVATE.difference(s.PW_CORR)
     # the public road space (the owner's mapper, 2026-11-12: « the strip at a paved area's side is a sidewalk »): what the cadastre
