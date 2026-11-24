@@ -141,6 +141,8 @@ export const invite = (traces = true) => call("/invites", { method: "POST", body
 export const cancelInvite = (id) => call(`/invites/${id}`, { method: "DELETE" });
 /** An invitation accepted by this account: { owner, name }. */
 export const acceptInvite = (token) => call("/invites/accept", { method: "POST", body: { token } });
+/** The solo analyses kept before 2026-11-24 (/api/solo) moved into the library, 20 a call: { moved, ids: { old: run }, left }. */
+export const fromSolo = () => call("/from-solo", { method: "POST" });
 export const updateMap = (id, fields) => call(`/maps/${id}`, { method: "PUT", body: fields });
 export const deleteMap = (id) => call(`/maps/${id}`, { method: "DELETE" });
 export const updateRun = (id, fields) => call(`/runs/${id}`, { method: "PUT", body: fields });
@@ -245,7 +247,8 @@ export async function getRun(id, token) {
  * Keep a map and its runs: the map once per account (the same image again goes to the map kept), its thumbnail, then each run.
  * entry: { blob (the image as it came), name, image (drawn: ImageBitmap or canvas), title, day, place, notes, geo,
  * country, region, dept (where it is), pos ([lat, lon] of a map without a georeference: a track's first point),
- * runs: [{ title, day, source, start, dur, dist, rec }] }, personal: keep the runs' channels -> { map, existed, runs }.
+ * runs: [{ title, day, source, start, dur, dist, rec, replace (the run it replaces) }] }, personal: keep the runs' channels
+ * -> { map, existed, runs } (a run of the same race on that map, its start within 2 s, is replaced: never kept twice).
  */
 export async function save(entry, { personal = false } = {}) {
   const type = typeOf(entry.blob, entry.name);
@@ -262,7 +265,7 @@ export async function save(entry, { personal = false } = {}) {
   for (const r of entry.runs || []) {
     const rec = personal ? r.rec : { ...r.rec, ch: undefined };
     runs.push((await call(`/maps/${map.id}/runs`, { method: "POST", body: { title: r.title || "", day: r.day || null, start: r.start ?? rec.t0, dur: r.dur, dist: r.dist,
-      source: r.source || "", note: r.note || "", personal: personal && !!rec.ch, rec } })).run);
+      source: r.source || "", note: r.note || "", personal: personal && !!rec.ch, rec, replace: r.replace || null } })).run);
   }
   return { map, existed, runs, placed: placed !== false };
 }

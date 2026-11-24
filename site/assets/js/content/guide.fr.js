@@ -263,7 +263,9 @@ export function build(X) {
             montre à côté les cartes qui ont la même valeur (le nom d'une carte : cette carte seule), et la carte du monde les situe ; un point de la carte
             choisit sa ligne. Chaque carte s'ouvre avec ses courses dessinées dessus, d'une couleur chacune ou selon l'allure. Il faut un compte.</p>
           ${list([
-            html`<b>Ajouter une course</b> : dans l'Analyse solo, une fois la course calée, « Enregistrer dans Mes cartes ». Sont gardés la carte telle que vous
+            html`<b>Ajouter une course</b> : l'Analyse solo y garde chaque analyse quand « Enregistrer l'analyse » est coché (par défaut) ; dans
+              l'analyse de carte d'un organisateur qui le permet, votre course y va d'elle-même (onglet « Export » pour l'arrêter sur un appareil).
+              Une analyse enregistrée de nouveau remplace la précédente. Sont gardés la carte telle que vous
               l'avez donnée et l'itinéraire tel qu'il est dessiné (positions sur la carte et heures, postes), jamais le fichier GPS. La même carte n'est gardée
               qu'une fois : une autre course dessus s'y ajoute.`,
             html`<b>Importer</b> : les JPEG que QuickRoute exporte (ceux que DOMA garde), les fichiers d'Ozimut, un par un ou dans un zip, ou déposés sur la page.

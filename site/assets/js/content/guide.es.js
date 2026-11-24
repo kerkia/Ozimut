@@ -262,7 +262,9 @@ export function build(X) {
             muestra al lado los mapas con el mismo valor (el nombre de un mapa: solo ese mapa), y el mapa del mundo los sitúa; un punto del mapa elige su fila.
             Cada mapa se abre con sus carreras dibujadas encima, de un color cada una o según el ritmo. Necesitas una cuenta.</p>
           ${list([
-            html`<b>Añadir una carrera</b>: en el Análisis individual, una vez calibrada la carrera, «Guardar en Mis mapas». Se guarda el mapa tal como lo diste
+            html`<b>Añadir una carrera</b>: el Análisis individual guarda allí cada análisis cuando «Guardar el análisis» está marcado (por defecto); en el
+              análisis de mapa de un organizador que lo permite, tu carrera va allí por sí sola (la pestaña «Exportar» lo detiene en un dispositivo). Un
+              análisis guardado de nuevo sustituye al anterior. Se guarda el mapa tal como lo diste
               y el recorrido tal como está dibujado (posiciones en el mapa y horas, controles), nunca el archivo GPS. El mismo mapa se guarda una sola vez: otra
               carrera en él se le añade.`,
             html`<b>Importar</b>: los JPEG que exporta QuickRoute (los que guarda DOMA), los archivos de Ozimut, uno a uno o en un zip, o soltados en la página.

@@ -99,9 +99,11 @@ export async function render(main, { query = {} } = {}) {
     return { title: t("mm.title") };
   }
   let fr, shares = { to: [], from: [], invites: [] };
+  // one's library, the solo analyses kept before 2026-11-24 in /api/solo moved into it first (owner: one store; trace/solokeep.js)
+  const ownList = () => import("../trace/solokeep.js").then((SK) => SK.moveOld()).catch(() => {}).then(() => MM.list());
   const sharesP = me && !link ? MM.shares().then((s) => { shares = s; }).catch(() => {}) : null;
   try {
-    [st, fr] = await Promise.all([token ? MM.shared(token).then((s) => ({ ...s, links: { archive: null, maps: {}, sets: [] } })) : all ? adminLibrary() : MM.list(), MP.france(), sharesP]);
+    [st, fr] = await Promise.all([token ? MM.shared(token).then((s) => ({ ...s, links: { archive: null, maps: {}, sets: [] } })) : all ? adminLibrary() : ownList(), MP.france(), sharesP]);
   } catch (e) {
     await sharesP;
     $("#mm").innerHTML = html`${libTabs()}<div class="card"><div class="card-body"><p>${t(owner ? "mm.grant.gone" : token ? "mm.shared.gone" : e.status === 503 ? "mm.err.notReady" : "mm.err.load")}</p></div></div>`;
@@ -142,11 +144,16 @@ export async function render(main, { query = {} } = {}) {
   // f what its heading's list filters by (else v) and fl that list's words for a value (else a map's txt), param its address key
   const coll = new Intl.Collator(lang(), { numeric: true, sensitivity: "base" });
   const yes = (b) => (b ? "1" : "0");
+  const TYPES = ["orga", "solo", "drawn", "quickroute", "ozimut", "track"];
+  const typeOf = (m) => { const k = new Set(m.runs.map((r) => r.source)); return TYPES.find((x) => k.has(x)) || (m.runs.length ? "other" : "none"); };
   const NONE = "_none";                                   // a filter on the maps without a value in that column
   const COLS = [
     { k: "title", label: t("mm.col.map"), v: (m) => m.id, txt: (m) => m.title || t("mm.untitled"), s: (m) => m.title || null, nofilter: true },
     { k: "day", label: t("mm.col.date"), param: "annee", v: (m) => m.day || "", txt: (m) => (m.day ? fmtDate(m.day) : yearOf(m) || ""), s: (m) => m.day || yearOf(m) || null,
       f: (m) => yearOf(m) || "", fl: (v) => v, down: true },
+    // where the map came from (owner, 2026-11-24): the kind of its runs — an organiser's map analysis, « Analyse solo » on one's own
+    // map, a route drawn, QuickRoute's or Ozimut's file, a GPS track imported —, else a map alone
+    ...(traces && !all ? [{ k: "type", label: t("mm.col.type"), param: "type", v: typeOf, txt: (m) => t(`mm.type.${typeOf(m)}`), s: (m) => t(`mm.type.${typeOf(m)}`) }] : []),
     { k: "place", label: t("mm.col.place"), param: "lieu", v: (m) => MP.fold(m.place || ""), txt: (m) => m.place || "", s: (m) => m.place || null },
     { k: "dept", label: t("mm.f.dept"), param: "dep", v: (m) => (m.dept ? `${m.country}|${MP.fold(m.dept)}` : ""), txt: (m) => deptOf(m) || "", s: (m) => deptOf(m) || null },
     { k: "region", label: t("mm.f.region"), param: "region", v: (m) => (m.region ? `${m.country}|${MP.fold(m.region)}` : ""), txt: (m) => m.region || "", s: (m) => m.region || null },

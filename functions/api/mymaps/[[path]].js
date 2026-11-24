@@ -23,7 +23,14 @@
 //   DELETE /api/mymaps/maps/<id>                the map, its runs, its link
 //   PUT    /api/mymaps/maps/<id>/thumb | /view  the thumbnail, the viewing copy, as the body
 //   GET    /api/mymaps/maps/<id>/map | /thumb | /view
-//   POST   /api/mymaps/maps/<id>/runs           { title, day, start, dur, dist, source, note, rec } -> { run }
+//   POST   /api/mymaps/maps/<id>/runs           { title, day, start, dur, dist, source, note, rec, replace } -> { run, replaced }
+//                                               (owner, 2026-11-24: the run replaces the one named `replace` — « Analyse solo »
+//                                               calibrated again — and any run of the same race on this map, its start within 2 s:
+//                                               an analysis saved again, or saved by itself, is never kept twice; an empty title
+//                                               keeps the replaced run's)
+//   POST   /api/mymaps/from-solo                -> { moved, ids: { <old id>: <run id> }, left } — the solo analyses kept in
+//                                               /api/solo (2026-11-05 to 24) moved into the library, 20 a call: one store
+//                                               (owner, 2026-11-24); their maps once per account, « Carte privée » kept
 //   GET    /api/mymaps/runs/<id>                the run's record
 //   PUT    /api/mymaps/runs/<id>                { title?, note? } -> { run };  DELETE /api/mymaps/runs/<id>
 //                                               (note: the run's comment, migration 0022; 503 « not ready » before it)
@@ -144,6 +151,75 @@ async function dropPrefix(env, prefix) {
     cursor = r.truncated ? r.cursor : undefined;
   } while (cursor);
 }
+/** The runs a new one replaces: the one named, and those of the same race on map `mapId` (their start within 2 s). */
+async function sameRace(env, uid, mapId, start, named) {
+  const { results } = await env.DB.prepare(`SELECT * FROM mymap_runs WHERE user_id = ? AND (id = ? OR (map_id = ? AND ? IS NOT NULL
+    AND start_ms IS NOT NULL AND ABS(start_ms - ?) < 2000))`).bind(uid, named, mapId, start, start).all();
+  return results;
+}
+/** A run kept: its record in R2, its row -> its id. */
+async function addRun(env, uid, mapId, rec, { title, day, start, dur, dist, source, note }) {
+  const body = JSON.stringify(rec), rid = newId();
+  await env.BUCKET.put(key(uid, mapId, `runs/${rid}.json`), body, { httpMetadata: { contentType: "application/json" } });
+  await env.DB.prepare(`INSERT INTO mymap_runs (id, map_id, user_id, title, day, start_ms, dur, dist, source, personal, bytes, created_at)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`).bind(rid, mapId, uid, title, day, start, dur, dist, source, rec.ch ? 1 : 0, body.length, nowIso()).run();
+  if (note) await setNote(env, rid, note);
+  return rid;
+}
+async function dropRuns(env, uid, runs) {
+  for (const o of runs) {
+    await env.BUCKET.delete(key(uid, o.map_id, `runs/${o.id}.json`));
+    await env.DB.prepare("DELETE FROM mymap_runs WHERE id = ?").bind(o.id).run();
+  }
+}
+/** The solo analyses of /api/solo moved into the library (owner, 2026-11-24: « the same store »), `n` at a time. */
+const SOLO_KINDS = ["solo", "drawn", "orga"];
+async function fromSolo(env, uid, n = 20) {
+  const listed = await env.BUCKET.list({ prefix: `solo/${uid}/a/`, limit: 1000, include: ["customMetadata"] });
+  const ids = {};
+  for (const o of listed.objects.slice(0, n)) {
+    const oldId = o.key.slice(o.key.lastIndexOf("/") + 1).replace(/\.json$/, "");
+    const obj = await env.BUCKET.get(o.key);
+    let a = null;
+    try { a = obj ? await obj.json() : null; } catch (e) { a = null; }
+    let title = a?.title || "";
+    try { title = JSON.parse(o.customMetadata?.s || "null")?.title ?? title; } catch (e) { /* the record's own */ }
+    const sha = String(a?.map?.sha || ""), rec = a?.rec;
+    if (!/^[0-9a-f]{64}$/.test(sha) || !rec || rec.v !== 1 || !Array.isArray(rec.x)) {
+      if (obj) await env.BUCKET.put(`solo/${uid}/bad/${oldId}.json`, JSON.stringify(a));        // kept aside, never lost
+      await env.BUCKET.delete(o.key);
+      continue;
+    }
+    let m = await env.DB.prepare("SELECT * FROM mymaps WHERE user_id = ? AND sha = ?").bind(uid, sha).first();
+    if (!m) {
+      const img = await env.BUCKET.get(`solo/${uid}/m/${sha}`);
+      if (!img) { await env.BUCKET.put(`solo/${uid}/bad/${oldId}.json`, JSON.stringify(a)); await env.BUCKET.delete(o.key); continue; }
+      const buf = await img.arrayBuffer(), type = img.httpMetadata?.contentType || a.map.type || "image/jpeg";
+      const geo = cleanGeo(a.geo), w = Math.round(num(a.map.w) || 0), h = Math.round(num(a.map.h) || 0), mid = newId(), now = nowIso();
+      const [lat, lon] = geo ? centre(geo, w, h) : [null, null];
+      await env.BUCKET.put(origKey(uid, mid), buf, { httpMetadata: { contentType: type } });
+      await env.DB.prepare(`INSERT INTO mymaps (id, user_id, sha, title, day, place, notes, type, bytes, w, h, geo, lat, lon, created_at, updated_at)
+        VALUES (?, ?, ?, ?, ?, '', '', ?, ?, ?, ?, ?, ?, ?, ?, ?)`).bind(mid, uid, sha, clean(title, 200), cleanDay(a.day), type, buf.byteLength, w, h,
+        geo ? JSON.stringify(geo) : null, lat, lon, now, now).run();
+      const th = await env.BUCKET.get(`solo/${uid}/m/${sha}.thumb`);
+      if (th) {
+        await env.BUCKET.put(key(uid, mid, "thumb"), await th.arrayBuffer(), { httpMetadata: { contentType: th.httpMetadata?.contentType || "image/webp" } });
+        await env.DB.prepare("UPDATE mymaps SET thumb = 1 WHERE id = ?").bind(mid).run();
+      }
+      if (a.priv) await setPrivate(env, mid, true);
+      m = await env.DB.prepare("SELECT * FROM mymaps WHERE id = ?").bind(mid).first();
+    }
+    delete rec.ch;                                             // (never kept by /api/solo)
+    const olds = await sameRace(env, uid, m.id, num(a.start), "");
+    ids[oldId] = await addRun(env, uid, m.id, rec, { title: clean(title, 200), day: cleanDay(a.day), start: num(a.start), dur: num(a.dur), dist: num(a.dist),
+      source: SOLO_KINDS.includes(a.source) ? a.source : a.orga ? "orga" : "solo", note: "" });
+    await dropRuns(env, uid, olds);
+    await env.BUCKET.delete(o.key);
+  }
+  const left = Math.max(0, listed.objects.length - n) + (listed.truncated ? 1 : 0);
+  if (!left) await dropPrefix(env, `solo/${uid}/m/`);           // the maps, now in the library
+  return { moved: Object.keys(ids).length, ids, left };
+}
 /** The club shown beside an account's name (homonyms): its federation club, else the club typed for a country it joined. */
 async function clubOfUser(env, request, u) {
   if (u.licence) { const c = await clubLabel(env, request, u.licence).catch(() => null); if (c) return c; }
@@ -224,6 +300,12 @@ export async function onRequest(ctx) {
       const u = await used(env, uid);
       return u + more > limit ? json({ error: "quota", used: u, limit }, 413) : null;
     };
+
+    if (parts[0] === "from-solo" && parts.length === 1 && method === "POST") {
+      if (user.demo_until) return json({ moved: 0, ids: {}, left: 0 });
+      if (!(await allow(env, `mmfromsolo:${uid}`, 200, 3600))) return json({ error: "rate" }, 429);
+      return json(await fromSolo(env, uid));
+    }
 
     // ---- shared with chosen accounts (migration 0033)
     if (parts[0] === "shares" && parts.length === 1) {
@@ -430,14 +512,14 @@ export async function onRequest(ctx) {
         const rec = b?.rec;
         if (!rec || rec.v !== 1 || !Array.isArray(rec.x) || rec.x.length < 2 || rec.x.length !== rec.y?.length) return json({ error: "run" }, 400);
         if (rec.ch && !b.personal) delete rec.ch;                 // kept only when the runner ticked it
-        const body = JSON.stringify(rec), rid = newId(), day = cleanDay(b.day);
-        await env.BUCKET.put(key(uid, id, `runs/${rid}.json`), body, { httpMetadata: { contentType: "application/json" } });
-        await env.DB.prepare(`INSERT INTO mymap_runs (id, map_id, user_id, title, day, start_ms, dur, dist, source, personal, bytes, created_at)
-          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`).bind(rid, id, uid, clean(b.title, 200), day, num(b.start), num(b.dur), num(b.dist),
-          clean(b.source, 20), rec.ch ? 1 : 0, body.length, nowIso()).run();
+        const day = cleanDay(b.day);
+        const olds = await sameRace(env, uid, id, num(b.start), ID.test(String(b.replace || "")) ? String(b.replace) : "");
+        const named = olds.find((o) => o.id === b.replace) || olds[0];
+        const rid = await addRun(env, uid, id, rec, { title: clean(b.title, 200) || named?.title || "", day, start: num(b.start), dur: num(b.dur), dist: num(b.dist),
+          source: clean(b.source, 20), note: cleanNote(b.note) || named?.note || "" });
+        await dropRuns(env, uid, olds);
         if (!m.day && day) await env.DB.prepare("UPDATE mymaps SET day = ? WHERE id = ?").bind(day, id).run();
-        if (cleanNote(b.note)) await setNote(env, rid, cleanNote(b.note));
-        return json({ run: runOut(await env.DB.prepare("SELECT * FROM mymap_runs WHERE id = ?").bind(rid).first()) });
+        return json({ run: runOut(await env.DB.prepare("SELECT * FROM mymap_runs WHERE id = ?").bind(rid).first()), replaced: olds.length });
       }
       return json({ error: "not found" }, 404);
     }

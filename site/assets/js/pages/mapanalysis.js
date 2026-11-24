@@ -94,7 +94,8 @@ export async function render(main, r) {
       // a visitor without an account sees every published event too (owner, 2026-11-21), those open to accounts only said so
       needs: a.access === "account" };
   });
-  // the account's kept solo analyses (owner, 2026-11-05: « Analyse solo »'s « Enregistrer l'analyse », trace/solokeep.js), seen
+  // the account's kept solo analyses (owner, 2026-11-05: « Analyse solo »'s « Enregistrer l'analyse », trace/solokeep.js — runs of
+  // « Mes cartes » since 2026-11-24), seen
   // by their owner alone, replayed or deleted here — in every country's list
   if (me && !me.demo) {
     try {
@@ -195,7 +196,7 @@ export async function render(main, r) {
   // ---- a circuit's thumbnail (the organiser's map with its course drawn), read once a visit
   const thumbs = new Map();
   const thumbOf = (e) => {
-    if (e.solo) return Promise.resolve(SK.thumbUrl(e.solo.sha));
+    if (e.solo) return Promise.resolve(SK.thumbUrl(e.solo));
     if (e.thumb == null || e.needs || ((e.locked || e.shut) && !keyOf(e.key))) return Promise.resolve(null);
     if (!thumbs.has(e.key)) thumbs.set(e.key, api(`/${e.key}/thumb/${e.thumb}`, { blob: true, key: keyOf(e.key) }).then((b) => URL.createObjectURL(b)).catch(() => null));
     return thumbs.get(e.key);

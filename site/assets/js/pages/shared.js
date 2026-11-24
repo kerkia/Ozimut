@@ -2571,6 +2571,7 @@ async function replay(box, { A, id, course, race, init = {}, traces, allTraces =
         <div id="sh-3d-opts" hidden></div>`;
     if (routesOn) rightP.pane("compute").innerHTML = html`<div id="rc-host"></div>`;
     if (!rightP.pane("export").childElementCount) exportPane();
+    setTimeout(autoKeep, 2500);                          // (after the replay's own work: one's run kept in « Mes cartes »)
     // adding one's track from the top line (addDialog); an administrator's test tracks only at the bottom of « Circuits » (owner, 2026-11-05)
     $("#sh-bar-add")?.addEventListener("click", addDialog);
     $("#sh-play").addEventListener("click", () => (playing ? stop() : play()));
@@ -2630,7 +2631,9 @@ async function replay(box, { A, id, course, race, init = {}, traces, allTraces =
         <label><span>${t("an.shot.legend")}</span><input type="checkbox" id="sh-shot-legend" ${raw(shot.legend ? "checked" : "")}></label>
         <p class="hint" style="margin:0">${t("sh.shot.hint")}</p>
         <button type="button" class="btn btn-sm btn-primary" id="sh-shot">⤓ ${t("an.shot.save")}</button><span class="muted an-shot-state" id="sh-shot-state"></span></div>
-      ${you.visitor || !mymapsOn || !me || me.demo ? "" : mine ? html`<div id="sh-mymaps"></div>`
+      ${you.visitor || !mymapsOn || !me || me.demo ? "" : mine ? html`<div class="an-opts"><b>${t("nav.myMaps")}</b>
+          <label class="an-keep" title="${t("sh.mmAuto.tip")}"><input type="checkbox" id="sh-mm-auto" ${raw(autoOn() ? "checked" : "")}> ${t("sh.mmAuto")}</label>
+          <span class="muted" id="sh-mm-auto-st"></span></div><div id="sh-mymaps"></div>`
         : html`<div class="an-opts"><b>${t("nav.myMaps")}</b><p class="hint" style="margin:0">${t("sh.mymaps.noRun")}</p></div>`}`;
     const set = () => { shot.zone = $("#sh-shot-zone").value; shot.type = $("#sh-shot-type").value; shot.legend = $("#sh-shot-legend").checked; savePrefs(); };
     ["#sh-shot-zone", "#sh-shot-type", "#sh-shot-legend"].forEach((s) => $(s).addEventListener("change", set));
@@ -2638,12 +2641,46 @@ async function replay(box, { A, id, course, race, init = {}, traces, allTraces =
     if (!exportOn) pane.querySelector(".an-shot").innerHTML = html`<b>${t("an.shot.title")}</b><p class="hint" style="margin:0">${t("sh.export.closed")}</p>`;
     // « Enregistrer dans Mes cartes » (owner, 2026-11-04: an organiser's switch): one's run on the organiser's map, as « Analyse
     // solo » saves it (trace/mymapsave.js) — the map as stored, one's route in its pixels with its times
-    if ($("#sh-mymaps")) import("../trace/mymapsave.js").then((M) => M.mount($("#sh-mymaps"), () => {
-      const r = myRun(), ext = /png/.test(mapBlob?.type) ? "png" : /webp/.test(mapBlob?.type) ? "webp" : "jpg";
-      return { file: mapBlob ? new File([mapBlob], `${course.name || "map"}.${ext}`, { type: mapBlob.type }) : null, image, track: r?.tr, pxs: r?.pxs, pys: r?.pys,
-        offset: r?.from ?? null, total: r ? r.to - r.from : null, geo: course.geo, title: [A.title, course.name].filter(Boolean).join(" · "),
-        controls: r ? ctrls.map((p, j) => ({ k: p.kind, x: p.x, y: p.y, t: r.passes[j] != null ? r.passes[j] - r.from : null })) : [] };
-    })).catch((e) => console.error(e));
+    if ($("#sh-mymaps")) import("../trace/mymapsave.js").then((M) => M.mount($("#sh-mymaps"), mmState)).catch((e) => console.error(e));
+    $("#sh-mm-auto")?.addEventListener("change", (e) => { setAutoOn(e.target.checked); if (e.target.checked) autoKeep(); });
+    autoNote();
+  }
+  /** One's run as the replay draws it on the organiser's map: what « Mes cartes » keeps (trace/mymapsave.js). */
+  function mmState() {
+    const r = myRun(), ext = /png/.test(mapBlob?.type) ? "png" : /webp/.test(mapBlob?.type) ? "webp" : "jpg";
+    return { source: "orga", file: mapBlob ? new File([mapBlob], `${course.name || "map"}.${ext}`, { type: mapBlob.type }) : null, image, track: r?.tr, pxs: r?.pxs, pys: r?.pys,
+      offset: r?.from ?? null, total: r ? r.to - r.from : null, geo: course.geo, title: [A.title, course.name].filter(Boolean).join(" · "),
+      controls: r ? ctrls.map((p, j) => ({ k: p.kind, x: p.x, y: p.y, t: r.passes[j] != null ? r.passes[j] - r.from : null })) : [] };
+  }
+  // one's run on the organiser's map kept in « Mes cartes » by itself (owner, 2026-11-24: « automatically save my map analyses …
+  // whenever the map is allowed to be saved »), where the organisers' « Mes cartes » switch allows it: once a device for that
+  // trace (the server keeps one race once on a map, whatever the devices), positions and times only; « Garder automatiquement »
+  // in « Export » turns it off for this browser
+  function autoOn() { try { return localStorage.getItem("ocn.mm.auto") !== "0"; } catch (e) { return true; } }
+  function setAutoOn(on) { try { localStorage.setItem("ocn.mm.auto", on ? "1" : "0"); } catch (e) { /* this visit */ } }
+  const autoKey = () => `ocn.sh.mmkept.${id}.${course.n}`;
+  const autoSig = () => { const r = myRun(); return r ? `${r.tr.ms0}:${r.tr.n}` : ""; };
+  let autoState = "";
+  function autoNote() {
+    const el = $("#sh-mm-auto-st");
+    if (!el) return;
+    let kept = false;
+    try { kept = !!autoSig() && localStorage.getItem(autoKey()) === autoSig(); } catch (e) { /* none */ }
+    el.textContent = autoState === "saving" ? t("sh.mmAuto.saving") : autoState === "err" ? t("sh.mmAuto.err") : kept ? t("sh.mmAuto.done") : "";
+  }
+  let autoBusy = false;
+  async function autoKeep() {
+    const r = myRun(), me = auth.session();
+    if (autoBusy || !r || !image || you.visitor || !mymapsOn || !me || me.demo || !autoOn()) return;
+    try { if (localStorage.getItem(autoKey()) === autoSig()) return; } catch (e) { return; }
+    autoBusy = true; autoState = "saving"; autoNote();
+    try {
+      const M = await import("../trace/mymapsave.js"), st = mmState();
+      await M.keep(st, { title: st.title, source: "orga" });
+      try { localStorage.setItem(autoKey(), autoSig()); } catch (e) { /* this visit */ }
+      autoState = "";
+    } catch (e) { console.warn("Mes cartes", e); autoState = "err"; }
+    finally { autoBusy = false; autoNote(); }
   }
   /** The map as the replay shows it now (the runners shown, the course, the routes…), at the map's own resolution, north up: the
    *  part in view or all of it; lines in the map's millimetres (a control circle is 6 mm across). */

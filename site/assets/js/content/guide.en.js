@@ -256,7 +256,8 @@ export function build(X) {
             value (a map's name: that map alone), and the world map places them; a dot on the map chooses its row. Each map opens with its races drawn on it,
             one colour each or by pace. You need an account.</p>
           ${list([
-            html`<b>Adding a race</b>: in Solo analysis, once the race is calibrated, “Save to My maps”. What is kept is the map as you gave it and the route as
+            html`<b>Adding a race</b>: Solo analysis keeps each analysis there when “Save the analysis” is ticked (by default); in an organiser's map
+              analysis that allows it, your race goes there by itself (the “Export” tab stops it on a device). An analysis saved again replaces the earlier one. What is kept is the map as you gave it and the route as
               it is drawn (positions on the map and times, controls), never the GPS file. The same map is kept once: another race on it is added to it.`,
             html`<b>Importing</b>: the JPEGs QuickRoute exports (the ones DOMA keeps), Ozimut's files, one by one or in a zip, or dropped on the page. Importing
               straight from a DOMA is not open yet: its button sends the Ozimut team a ready-made request to turn it on.`,

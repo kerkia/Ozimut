@@ -61,7 +61,7 @@ export async function keep(s, { personal = false, title = "", note = "", source 
 
 /**
  * el: where the box goes; state(): { file (the map's file), image, track, pxs, pys, offset, total, controls: [{ k, x, y, t (s of
- * the race) | null }], geo, title, perso }.
+ * the race) | null }], geo, title, perso, source (the run's kind: « orga » on an organiser's map; else « solo » or « drawn ») }.
  */
 export function mount(el, state) {
   const me = auth.session();
@@ -79,7 +79,7 @@ export function mount(el, state) {
     if (!s.image || !s.track || !s.pxs) { out.textContent = t("mm.solo.notReady"); return; }
     btn.disabled = true; out.textContent = t("mm.solo.saving");
     try {
-      const { map, existed } = await keep(s, { personal: !!$("#mm-s-personal", el)?.checked, title: $("#mm-s-title", el).value.trim(), note: $("#mm-s-note", el).value.trim() });
+      const { map, existed } = await keep(s, { personal: !!$("#mm-s-personal", el)?.checked, title: $("#mm-s-title", el).value.trim(), note: $("#mm-s-note", el).value.trim(), source: s.source || "" });
       out.innerHTML = html`${t(existed ? "mm.solo.addedTo" : "mm.solo.saved")} <a href="#/mes-cartes?carte=${map.id}">${t("mm.solo.open")}</a>`.toString();
     } catch (e) {
       console.error(e);

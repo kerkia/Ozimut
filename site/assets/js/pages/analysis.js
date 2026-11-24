@@ -2019,8 +2019,8 @@ export async function render(main, { query = {}, route } = {}) {
   }
   // ---- the analysis kept in the account (owner, 2026-11-05, second rule: « Voir is not saving »): « Enregistrer l'analyse », a
   // box beside « Voir la course » (ticked by default, `ocn.an.keep`; in the files card on an organiser's map, where a trace plays at
-  // once), sends the map and the run as drawn to /api/solo (trace/solokeep.js) — positions and times only —, listed in « Analyse
-  // de carte » as a solo analysis, seen by its owner alone, replayed or deleted there; not « Mes cartes » (« Export » saves there).
+  // once), keeps the map and the run as drawn in « Mes cartes » (trace/solokeep.js; owner, 2026-11-24: one store — /api/solo
+  // before) — positions and times only —, listed in « Analyse de carte » as a solo analysis, replayed, renamed or deleted there.
   // A calibration made again replaces the analysis kept for that trace; never a replay; the organiser's « Mes cartes » switch
   // decides for a copy of their map. Unticked, the top line offers « Enregistrer l'analyse » during the playback.
   function keepable() { const me = auth.session(); return !!me && !me.demo && orgaOpt("mymaps", true) && !track?.drawn?.replay; }
@@ -2045,7 +2045,7 @@ export async function render(main, { query = {}, route } = {}) {
   /** What the playback draws of this analysis: what « Mes cartes » and the analysis kept take (trace/mymapsave.js). */
   function mmState() {
     // the trace as the playback shows it: its time before the start and after the finish too when they are not certain
-    return { file: files.map?.file || null, image: map, track, pxs, pys, offset: offset == null ? null : offset - pre, total: total + pre + post, geo: fit ? geoFromFit(fit, track) : null, title: keepTitle(),
+    return { source: orgaMode ? "orga" : "", file: files.map?.file || null, image: map, track, pxs, pys, offset: offset == null ? null : offset - pre, total: total + pre + post, geo: fit ? geoFromFit(fit, track) : null, title: keepTitle(),
       controls: targets.filter((g) => g.pos).map((g) => { const tt = timeOf(g); return { k: g.kind, x: g.pos[0], y: g.pos[1], t: tt == null ? null : tt + pre }; }) };
   }
   function keepTitle() {

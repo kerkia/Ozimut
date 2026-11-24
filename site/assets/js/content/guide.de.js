@@ -266,7 +266,9 @@ export function build(X) {
             zeigt daneben die Karten mit demselben Wert (der Name einer Karte: nur diese Karte), und die Weltkarte zeigt, wo sie liegen; ein Punkt der Karte wählt
             seine Zeile. Jede Karte öffnet sich mit ihren eingezeichneten Läufen, jeder in einer Farbe oder nach Tempo. Du brauchst ein Konto.</p>
           ${list([
-            html`<b>Einen Lauf hinzufügen</b>: in der Einzelanalyse, sobald der Lauf kalibriert ist, „In Meine Karten speichern“. Aufbewahrt werden die Karte so,
+            html`<b>Einen Lauf hinzufügen</b>: Die Einzelanalyse bewahrt dort jede Analyse auf, wenn „Analyse speichern“ angekreuzt ist (standardmäßig); in der
+              Kartenanalyse eines Veranstalters, der es erlaubt, kommt dein Lauf von selbst dorthin (der Reiter „Export“ stellt das auf einem Gerät ab). Eine
+              erneut gespeicherte Analyse ersetzt die vorherige. Aufbewahrt werden die Karte so,
               wie du sie gegeben hast, und die Route so, wie sie gezeichnet ist (Positionen auf der Karte und Zeiten, Posten), nie die GPS-Datei. Dieselbe Karte
               wird nur einmal aufbewahrt: Ein weiterer Lauf darauf kommt hinzu.`,
             html`<b>Importieren</b>: die JPEGs, die QuickRoute exportiert (die DOMA aufbewahrt), die Dateien von Ozimut, einzeln oder in einer ZIP-Datei oder auf
