@@ -7,10 +7,11 @@
 // and boundaries, kept over a new reading), tour (the costs from each control to its nearest ones), path (one leg's best route).
 
 import { classify, cells, cellSize, costs, context, legSearch, lineRoute, matchRoute, picture, decisionPicture, releaseAround, DEFAULTS,
-  freeCells, cellOf, costsFrom, bestPath, forbidCells, courseInk, sprintObjects, sprintLayers, controlSides, SPRINT_SCALE } from "./routechoice.js";
+  freeCells, cellOf, costsFrom, bestPath, forbidCells, courseInk, sprintObjects, sprintLayers, controlSides, resample, condition, SPRINT_SCALE } from "./routechoice.js";
 import { heightAt } from "./terrain.js";
 
 let G = null, h = null, em = null, mpc = 1, cs = 1, W = 0, H = 0, settings = { ...DEFAULTS }, X = null;
+let source = null;                                    // the page's pixels as sent ({ rgba, w, h }): the image is made from them
 let image = null, mppRead = 1, kindRead = "forest", facts = null, ctrlPts = [], ctrlR = 0;
 let sprintRead = null;                               // a sprint photo's reading and its objects (sprintObjects): its layers made
                                                      // again when the course's controls come (its lines are no walls)
@@ -34,6 +35,37 @@ function start(w, hh, J, kind = "forest") {
   mpc = Math.min(Math.hypot(...em[0]), Math.hypot(...em[1]));
   h = null;
   return mpp;
+}
+/**
+ * The heights smoothed over a runner's scale — the mean within r cells, twice (about ± 3 m): a step's slope is the ground's over
+ * a few strides, not the model's grain from one cell to the next. Cells of a metre on a model with nodes every 2 m or more, its
+ * levels set by the map's contours, jitter by a few decimetres: ± 0.3 m a cell read as slopes of 30 % up and down all along a
+ * terraced lane, which cost it 150 s of « climb » for 4 m climbed and kept it out of the routes (owner, 2026-11-24: the
+ * stairway way to 6 never offered).
+ */
+function smoothHeights(z, nx, ny, r) {
+  if (!(r >= 1)) return;
+  const t = new Float32Array(z.length);
+  const pass = (src, dst, n, stride, lines, lstride) => {
+    for (let l = 0; l < lines; l++) {
+      const o = l * lstride;
+      let sum = 0, cnt = 0;
+      for (let k = 0; k <= Math.min(r, n - 1); k++) { sum += src[o + k * stride]; cnt++; }
+      for (let k = 0; k < n; k++) {
+        dst[o + k * stride] = sum / cnt;
+        const add = k + r + 1, sub = k - r;
+        if (add < n) { sum += src[o + add * stride]; cnt++; }
+        if (sub >= 0) { sum -= src[o + sub * stride]; cnt--; }
+      }
+    }
+  };
+  for (let rep = 0; rep < 2; rep++) { pass(z, t, nx, 1, ny, nx); pass(t, z, ny, nx, nx, 1); }
+}
+/** The image the reading takes, W × H, from the page's pixels: a sharp sprint image (a scan: an impassable line 4 px wide or
+ *  more) softened by the fixed filter its rules were set on (condition), any other brought to size (resample). */
+function sized() {
+  const sharp = kindRead === "sprint" && 1.6 / mppRead >= 4;
+  return sharp ? condition(source.rgba, source.w, source.h, W, H) : resample(source.rgba, source.w, source.h, W, H);
 }
 function finish(px) {
   const hOld = h;
@@ -66,16 +98,17 @@ function read(id) {
 const sprintPx = () => sprintLayers(sprintRead.O, sprintRead.P, ctrlPts, ctrlR);
 
 const ops = {
-  init({ id, rgba, w, h: hh, J, map }) {
+  init({ id, rgba, sw, sh, w, h: hh, J, map }) {
     kindRead = map === "sprint" ? "sprint" : "forest";
     mppRead = start(w, hh, J, kindRead);
-    image = new Uint8ClampedArray(rgba);
+    source = { rgba: new Uint8ClampedArray(rgba), w: sw || w, h: sh || hh };
+    image = sized();
     return read(id);
   },
   /** A vector map's layers, drawn on the page (trace/vectorroutes.js): no colours to read. */
   layers({ area, path, blue, block, hand, cross, slow, speed, pspeed, w, h: hh, J }) {
     start(w, hh, J);
-    image = null;
+    image = null; source = null;
     const t0 = Date.now();
     return { ...finish({ area: new Uint8Array(area), path: new Uint8Array(path), blue: new Uint8Array(blue), block: new Uint8Array(block), hand: new Uint8Array(hand), cross: new Uint8Array(cross), slow: new Uint8Array(slow),
       ...(speed ? { speed: new Uint8Array(speed) } : {}), ...(pspeed ? { pspeed: new Uint8Array(pspeed) } : {}), lw: 0, ms: 0 }), ms: Date.now() - t0, vector: true };
@@ -84,13 +117,14 @@ const ops = {
     if (!G) return {};
     h = new Float32Array(G.nx * G.ny);
     for (let j = 0; j < G.ny; j++) for (let i = 0; i < G.nx; i++) h[j * G.nx + i] = heightAt(grid, W, H, (i + 0.5) * cs, (j + 0.5) * cs);
+    smoothHeights(h, G.nx, G.ny, Math.round(3 / mpc));
     rebuild();
     return {};
   },
   settings({ id, s }) {
     settings = { ...DEFAULTS, ...s, speeds: { ...DEFAULTS.speeds, ...(s.speeds || {}) } };
     const kind = settings.map === "sprint" ? "sprint" : "forest";
-    if (image && kind !== kindRead) { kindRead = kind; start(W, H, Jlast, kind); return { reread: true, facts: read(id) }; }
+    if (image && kind !== kindRead) { kindRead = kind; start(W, H, Jlast, kind); if (source) image = sized(); return { reread: true, facts: read(id) }; }
     rebuild();
     return {};
   },
@@ -109,6 +143,8 @@ const ops = {
     return { rgba: decisionPicture(dec, settings.extra ?? DEFAULTS.extra), i0: dec.i0, j0: dec.j0, rw: dec.rw, rh: dec.rh, cs };
   },
   line({ pts }) { return { route: X ? lineRoute(X, pts) : null }; },
+  /** The heights the model has at points (map px), for support: null without relief. */
+  profile({ pts }) { return { z: X && h ? pts.map((p) => h[cellOf(X, p)]) : null, f: X ? pts.map((p) => { const v = X.C.f[cellOf(X, p)]; return v < Infinity ? Math.round(v * 100) / 100 : G.block?.[cellOf(X, p)] ? -2 : -1; }) : null }; },
   match({ a, b, pts, tol, routes }) { return { route: X ? matchRoute(X, a, b, pts, tol, routes) : null }; },
   picture() { return { rgba: picture(X), nx: G.nx, ny: G.ny, cs }; },
   /** The setter's out-of-bounds areas and boundaries (map px), closed on the cells now and after any new reading. */

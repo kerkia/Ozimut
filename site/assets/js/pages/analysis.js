@@ -1359,7 +1359,7 @@ export async function render(main, { query = {}, route } = {}) {
 
   /** The geometry and the clock from the targets as they stand: the split times when published, else the trace. */
   function recompute({ geometry = null, vo = null } = {}) {
-    window.anDebug = () => ({ fit, offset, geoFit, targets, course, auto, view, mode, legs, total, place: placeClick, manual: () => { mode = "manual"; cur = nextTarget(0); if (cur < 0) cur = 0; side(); draw(); } });   // for support, in the console
+    window.anDebug = () => ({ image: map, fit, offset, geoFit, targets, course, auto, view, mode, legs, total, place: placeClick, manual: () => { mode = "manual"; cur = nextTarget(0); if (cur < 0) cur = 0; side(); draw(); } });   // for support, in the console
     const located = targets.filter((g) => g.pos && !g.missed);
     const taus = officialTaus();
     fit = null; offset = null; rmsM = null;
@@ -2892,7 +2892,7 @@ export async function render(main, { query = {}, route } = {}) {
       rcTable(); draw();
     } catch (e) { console.error(e); if (my === rcs.token) { rcBusy(false); rcStatus(e?.updated ? e.message : t("rc.st.failed")); } }
   }
-  window.anDebugRoutes = () => ({ on: rcs.on, info: rcs.info, dem: rcs.dem, routes: rcs.routes, mine: rcs.mine, auto: rcs.auto, settings: rcs.s, calib: rcs.calib });
+  window.anDebugRoutes = () => ({ plan: rcs.plan, on: rcs.on, info: rcs.info, dem: rcs.dem, routes: rcs.routes, mine: rcs.mine, auto: rcs.auto, settings: rcs.s, calib: rcs.calib });
   async function rcPicture() {
     if (!rcs.plan) return;
     try { rcs.pic = await rcs.plan.picture(); } catch (e) { rcs.pic = null; }

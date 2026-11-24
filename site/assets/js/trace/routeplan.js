@@ -11,6 +11,7 @@ import { layers, resampleLayers, LAYER_KEYS, OPTIONAL_KEYS, VECTOR_ACCEPT } from
 
 const PREFS = "ocn.rc.prefs";                        // the settings, kept on the device (the map's kind apart: the race's)
 const MAX_PX = 9e6;                                  // a larger map is read at a reduced size (memory, time)
+const SRC_PX = 30e6;                                 // the pixels handed to the worker at most (120 MB)
 export const ROUTE_COLOURS = ["#00a651", "#f7941d", "#0072bc", "#e0218a"];
 export const LETTERS = ["A", "B", "C", "D"];
 const SPEED_KEYS = ["track", "path", "small", "open", "rough", "g1", "g2", "g3", "marsh", "paved", "grey", "shallow"];
@@ -41,8 +42,10 @@ export const isSprint = (race) => /sprint/i.test(`${race?.terrain || ""} ${race?
  * tour through many controls forbid(areas, lines), tour(pts, k), path(a, b) }; points in the map's own pixels.
  */
 export function planner(image, toM, vector = null, opts = {}) {
-  const W0 = image.width, H0 = image.height, sc = W0 * H0 > MAX_PX ? Math.sqrt(MAX_PX / (W0 * H0)) : 1;
-  const W = Math.round(W0 * sc), H = Math.round(H0 * sc);
+  // (a scanned PDF's page: the scan's own pixels, mapfile.js `native` — the points stay the map's as shown)
+  const W0 = image.width, H0 = image.height, src = image.native || image, ws = src.width, hs = src.height;
+  const ks = ws * hs > MAX_PX ? Math.sqrt(MAX_PX / (ws * hs)) : 1;
+  const W = Math.round(ws * ks), H = Math.round(hs * ks), sc = W / W0;
   const o = toM(0, 0), ex = toM(1, 0), ey = toM(0, 1);
   // metres of one pixel of the image read, in x and y: columns of J
   const J = [[(ex[0] - o[0]) / sc, (ey[0] - o[0]) / sc], [(ex[1] - o[1]) / sc, (ey[1] - o[1]) / sc]];
@@ -75,11 +78,15 @@ export function planner(image, toM, vector = null, opts = {}) {
     ready = ask("layers", { ...planes, w: W, h: H, J }, Object.values(planes))
       .then((r) => ({ ...r, vector: { counts: L.counts, ms: L.ms, name: vector.name || vector.v.name } }));
   } else {
-    const c = typeof OffscreenCanvas !== "undefined" ? new OffscreenCanvas(W, H) : Object.assign(document.createElement("canvas"), { width: W, height: H });
+    // the image's own pixels go to the worker, which brings them to W × H itself (routechoice.js resample, condition): a
+    // canvas's drawImage shrinks each browser's way, and the reading of a scan followed it (2026-11-24); beyond SRC_PX the
+    // canvas makes a first reduction
+    const k0 = ws * hs > SRC_PX ? Math.sqrt(SRC_PX / (ws * hs)) : 1, w0 = Math.max(W, Math.round(ws * k0)), h0 = Math.max(H, Math.round(hs * k0));
+    const c = typeof OffscreenCanvas !== "undefined" ? new OffscreenCanvas(w0, h0) : Object.assign(document.createElement("canvas"), { width: w0, height: h0 });
     const g = c.getContext("2d", { willReadFrequently: true });
-    g.drawImage(image, 0, 0, W, H);
-    const rgba = g.getImageData(0, 0, W, H).data.buffer;
-    ready = ask("init", { rgba, w: W, h: H, J, map: opts.map }, [rgba], opts.onProgress);
+    g.drawImage(src, 0, 0, w0, h0);
+    const rgba = g.getImageData(0, 0, w0, h0).data.buffer;
+    ready = ask("init", { rgba, sw: w0, sh: h0, w: W, h: H, J, map: opts.map }, [rgba], opts.onProgress);
   }
   const cache = new Map(), decs = new Map();
   let skey = "", ckey = "";
@@ -127,6 +134,8 @@ export function planner(image, toM, vector = null, opts = {}) {
     },
     /** A route drawn by a runner measured on the same model. */
     async line(pts) { await ready; return (await ask("line", { pts: pts.map(S) })).route; },
+    /** The model's heights at points (map px), for support. */
+    async profile(pts) { await ready; const r = await ask("profile", { pts: pts.map(S) }); return { z: r.z, f: r.f }; },
     /** A runner's route on the leg a → b as the model runs it, within tol metres of their trace, and its share along each of
      *  the leg's routes (trace/routechoice.js matchRoute). */
     async match(a, b, pts, tol, routes) {

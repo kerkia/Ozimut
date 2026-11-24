@@ -22,6 +22,23 @@ export async function readMap(file) {
       const c = document.createElement("canvas");
       c.width = Math.round(vp.width); c.height = Math.round(vp.height);
       await page.render({ canvasContext: c.getContext("2d"), viewport: vp }).promise;
+      // a scanned page — one image filling it, nothing else drawn — also at the scan's own pixels (`native`, a canvas): drawn
+      // at another size the browser enlarges the scan without smoothing, blocks of pixels, and the routes' reading of its
+      // metre-wide lanes and thin walls suffered (owner, 2026-11-24); the map shown, read for its course and kept stays `c`
+      try {
+        const ops = await page.getOperatorList(), O = pdfjs.OPS;
+        const drawn = new Set([O.paintImageXObject, O.paintInlineImageXObject, O.paintImageMaskXObject, O.paintImageXObjectRepeat, O.constructPath, O.showText, O.showSpacedText, O.shadingFill, O.paintFormXObjectBegin].filter((v) => v != null));
+        const marks = ops.fnArray.map((f, i) => [f, ops.argsArray[i]]).filter(([f]) => drawn.has(f));
+        if (marks.length === 1 && marks[0][0] === O.paintImageXObject) {
+          const iw = Number(marks[0][1]?.[1]), ih = Number(marks[0][1]?.[2]), s = iw / v1.width;
+          if (iw > 0 && ih > 0 && Math.abs(ih / (v1.height * s) - 1) < 0.005 && s >= 1 && s <= 12 && iw * ih <= 40e6 && Math.abs(s - scale) > 0.01) {
+            const vn = page.getViewport({ scale: s }), n = document.createElement("canvas");
+            n.width = Math.round(vn.width); n.height = Math.round(vn.height);
+            await page.render({ canvasContext: n.getContext("2d"), viewport: vn }).promise;
+            c.native = n;
+          }
+        }
+      } catch (e) { /* the page as drawn serves */ }
       return c;
     } catch (e) { throw new Error("pdf"); }
   }

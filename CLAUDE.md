@@ -4394,6 +4394,32 @@ Every multiple-choice game was played through to its score page at phone size, w
   road, under the bridge, that loop and back over the bridge (371 m); 15 stands in a walled nook against the deck's side and is
   punched from the road, 3 m across its wall. Check: `GC=… node scans/stairtest.mjs 2 1530 2075 1575 2040` (« top->bottom » the
   cost from the lower road to the deck: hundreds, never tens).
+  **The page's own pixels, 2026-11-24** (owner: map 2's stairway to 6 not offered, routes over a fence, a pink area, a thick
+  wall; « Inter-postes » missing). The bench had not been reading what the page reads: `scans/page<n>.rgba` was the scan
+  smoothed twice, while the browser's pdf.js enlarges a scanned page without smoothing and the canvas then shrinks it — on
+  those pixels the engine laid 48 of 59 tracks where the bench said 57, with twice the lines crossed. Since then: (1) **a
+  scanned PDF is also kept at the scan's own pixels** (`mapfile.js`: a page whose only drawing is one image gets a second
+  canvas, `canvas.native`, at the image's size; the display map unchanged), the planner sends those (`routeplan.js`, up to
+  9 Mpx) and the worker makes its image itself (`routeworker.js sized`: `routechoice.resample`, a triangle filter, and for a
+  sharp sprint image `condition` — enlarged 1.2 times and back: one fixed softening, the reading's rules being set on
+  softened pixels), so every browser reads the same pixels; (2) **the gate reads them too** (`scans/browsernat<n>.rgba`,
+  taken in the page by `tools-2026-11-23/pgpix.mjs`, then `RC.condition`; `--sim` the old input, baseline of before
+  `baseline_2026-11-24_sim.json`); `pgdump.mjs` writes the page's own routes, `pgb.mjs <n> [legs]` runs the engine on the
+  page's targets (env GRID, PIX: the cells and pixels of a window), `pgb.py` draws them; (3) **slope by two steps**: the
+  heights smoothed over 3 m, a step's grade taken with the step before (`grade`, `stepCost(…, prev, next)`), a measured
+  route's heights interpolated over 2 m — a way aslant on a hillside is a staircase of cells, each step up or down, and cost
+  far more than the same way straight; (4) **solid black as thick as an impassable line** (`thickBlack`: 3 px across, 4 m
+  long) is closed as ground — a cell by its share of it —, carried on under ink printed over it and across a tree symbol's
+  white mask (a line there), no narrow way's middle on the black itself, a stairway's own axis apart (`stairs`); (5) **a
+  large pale pink area is out of bounds**, a small or outlined one a canopy (300 m², 1 500 m² with an outline); (6)
+  `oliveModel` tells olive from yellow by hue as well as brightness (map 1's gardens had read as yellow); (7) a stairway's
+  treads up to 2.5 m wide, a hidden tread skipped (map 2's stair foot); (8) `analysis.js`: a calibration kept before the
+  course's order was read on the map gets that order checked when it opens (the start apart), so « Inter-postes » shows.
+  Gate on the true pixels (accepted): scans laid 54 of 59 (48 before), lines crossed on every route 35 (82), olive 58 m, no
+  leg without a route; photos and forest maps unchanged or slightly better. **An analysis kept before has no native pixels**
+  (its stored render is read, conditioned): made again from the PDF it reads better. Still open: map 2's second route to 16
+  along the bridge's wall, map 3's passage to 16 between the building and the forbidden area, map 1's route to 11 clipping
+  an olive tip and a route to 10 along a contour through a building's corner.
 - **Languages: French, English, German and Spanish** (owner, 2026-10-17 French and English, open to everyone since 2026-10-18,
   `i18n.OPEN` true; **German and Spanish since 2026-11-01**: `i18n.LANGS`, catalogues `i18n/de.js`, `es.js`, `tracer.de.js`,
   `tracer.es.js`, long texts `content/<name>.de.js` / `.es.js`, e-mails in `_lib/templates.js`, `manifest.de|es.webmanifest`;
