@@ -1188,7 +1188,7 @@ def t42(M):
     return bad[:8]
 
 
-@test(43, "a tree symbol never opens a hedge, nor stands in an area of scattered trees (pic 4 of 2026-11-24)")
+@test(43, "a tree symbol never opens a hedge (pic 4 of 2026-11-24; a tree may stand in 402: ISSprOM, « 417 and 418 may be added »)")
 def t43(M):
     hedge = M.union("411")
     scat = shapely.make_valid(unary_union(M.gs("402", "501.3", otp=3) or [Polygon()]))
@@ -1200,15 +1200,13 @@ def t43(M):
                 continue
             if not hedge.is_empty and hedge.distance(g) < r * M.k:
                 bad.append(f"{c} over a hedge at E {g.x:.0f} N {g.y:.0f}")
-            elif scat.contains(g):
-                bad.append(f"{c} inside scattered trees at E {g.x:.0f} N {g.y:.0f}")
     return [f"{len(bad)} trees"] + bad[:6] if bad else []
 
 
-@test(44, "no area on its own too small to mean anything: 401 under 1.5 mm², 402 under 25 mm², no strip of 520 under 0.4 mm (pics 3, 4, error 4)")
+@test(44, "no area on its own too small: 401 under 1.5 mm², 402 under ISSprOM's 6.25 mm², no strip of 520 under 0.4 mm (pics 3, 4, error 4)")
 def t44(M):
     bad = []
-    for c, amin in (("401", 24.0), ("402", 390.0)):
+    for c, amin in (("401", 24.0), ("402", 99.0)):
         for g in M.gs(c, otp=3):
             for q in getattr(g, "geoms", [g]):
                 if q.geom_type == "Polygon" and 0.5 < q.area < amin and not M.at_edge(q, 2.0):
@@ -1332,6 +1330,71 @@ def main():
     if "--json" in a:
         Path(a[a.index("--json") + 1]).write_text(json.dumps(res, ensure_ascii=False, indent=1), encoding="utf-8")
     sys.exit(1 if nf else 0)
+
+
+BLACK_EDGE = ("520.9", "515", "518", "529", "513.1", "513.2", "516", "521.9", "522.9", "501.1", "301.9", "512.1", "512.2", "532.1",
+              "532.2", "532.3", "532.4", "532.5", "532.6", "509.1")
+
+
+@test(48, "the ground not to be entered is outlined everywhere (ISSprOM 520: « shall always be delineated by a boundary line »)")
+def t48(M):
+    ol = shapely.make_valid(unary_union(M.gs("520", otp=3) or [Polygon()]))
+    if ol.is_empty:
+        return []
+    black = unary_union([g.buffer(1.0) for g in M.gs(*BLACK_EDGE) if g.geom_type in ("LineString", "MultiLineString")]
+                        + [g.buffer(1.0) for g in M.gs("521", "301", "411", otp=3)] or [Polygon()])
+    bare, bad = ol.boundary.difference(black), []
+    for q in getattr(bare, "geoms", [bare]):
+        if q.geom_type == "LineString" and q.length >= 3.0 and not M.at_edge(q, 3.0):
+            m = q.interpolate(0.5, normalized=True)
+            bad.append((-q.length, f"{q.length:.0f} m of 520 without a line at E {m.x:.0f} N {m.y:.0f}"))
+    bad.sort()
+    return [f"{len(bad)} stretches"] + [m for _, m in bad[:6]] if bad else []
+
+
+@test(49, "an unpaved path through the ground not to be entered runs on white, not on paving (ISSprOM 520; IOF best practices n° 7)")
+def t49(M):
+    ol = shapely.make_valid(unary_union(M.gs("520", otp=3) or [Polygon()]))
+    pav = shapely.make_valid(unary_union(M.gs("501", "501.3", "501.4", otp=3) or [Polygon()]))
+    shapely.prepare(ol); shapely.prepare(pav)
+    bad = []
+    for o, g in M.objs("505", "506"):
+        if o["otp"] != 2 or g.length < 6:
+            continue
+        run = 0.0
+        for i in range(int(g.length // 1.0) + 1):
+            p = g.interpolate(i * 1.0)
+            a_, b_ = g.interpolate(max(0, i - 0.5)), g.interpolate(min(g.length, i + 0.5))
+            dx, dy = b_.x - a_.x, b_.y - a_.y
+            n = math.hypot(dx, dy) or 1.0
+            sides = [Point(p.x - dy / n * 2.6 * s, p.y + dx / n * 2.6 * s) for s in (1, -1)]
+            if all(ol.contains(q) for q in sides) and (pav.contains(p) or ol.contains(p)):
+                run += 1.0
+                if run >= 4.0:
+                    bad.append(f"{'paving' if pav.contains(p) else 'olive'} under a path at E {p.x:.0f} N {p.y:.0f}")
+                    break
+            else:
+                run = 0.0
+    return [f"{len(bad)} paths"] + bad[:6] if bad else []
+
+
+@test(50, "a black point symbol never touches an uncrossable black line (pic 7 of 2026-11-24; ISSprOM 3.3, 0.15 mm; IOF best practices)")
+def t50(M):
+    hard = [(g, w) for c, w in (("515", 0.4), ("518", 0.4), ("529", 0.4), ("521.9", 0.14)) for g in M.gs(c)
+            if g.geom_type in ("LineString", "MultiLineString")]
+    tree = shapely.STRtree([g for g, _ in hard]) if hard else None
+    bad = []
+    for c, r in (("526", 0.5), ("524", 0.5)):
+        for o, g in M.objs(c):
+            if o["otp"] != 1 or tree is None:
+                continue
+            for i in tree.query(g.buffer((r + 1.0) * M.k)):
+                h, w = hard[i]
+                need = (r + 0.15 + w / 2) * M.k
+                if h.distance(g) < need - 0.1:
+                    bad.append(f"{c} {h.distance(g) / M.k:.2f} mm from a line ({need / M.k:.2f} needed) at E {g.x:.0f} N {g.y:.0f}")
+                    break
+    return [f"{len(bad)} symbols"] + bad[:6] if bad else []
 
 
 if __name__ == "__main__":

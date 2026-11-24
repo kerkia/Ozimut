@@ -42,9 +42,10 @@ MIN_W = {"forest": 1.5, "open": 1.5, "open_t": 9.0, "slow": 1.7, "walk": 1.7, "p
 # the specification's 0.25 mm left strips a metre wide along the paths: the owner, 2026-11-24, « trop petit »)
 # (the areas: a piece on its own must be large enough to mean something to a runner — the owner, 2026-11-24, of pieces at the
 # specification's bare minimum, 0.5 mm²: a 9 m² triangle of open land by a driveway « mal dessiné », a 260 m² patch of scattered
-# trees. Open land 1.5 mm², scattered trees 25 mm²: a few dots. The olive keeps its small pieces — a walled nook no way reaches —
+# trees. Open land 1.5 mm²; scattered trees ISSprOM's own minimum, 6.25 mm² and 2.2 mm wide (402: « smaller areas must be left
+# out, exaggerated or shown using the symbol Open land »). The olive keeps its small pieces — a walled nook no way reaches —
 # but not its strips: see MIN_W)
-MIN_A = {"forest": 16, "open": 25, "open_t": 400, "slow": 16, "walk": 16, "paved": 8, "paved_t": 16, "heavy": 8, "private": 4,
+MIN_A = {"forest": 16, "open": 25, "open_t": 100, "slow": 16, "walk": 16, "paved": 8, "paved_t": 16, "heavy": 8, "private": 4,
          "imp_veg": 5, "water": 8, "building": 4}
 GAP = 1.7                                                  # two uncrossable features 0.4 mm apart at least (1.6 m)
 # a way (a corridor kept narrow) of a class that cannot be drawn narrow is drawn as the class it is a form of: open land with
@@ -156,7 +157,9 @@ def vector_layers(env, s, t, stair_pieces):
     stairs_a = union([g.buffer(sw / 2 + 0.2, cap_style="flat", join_style="mitre") for g, sw in stair_pieces
                       if g.length > 0 and g.intersection(deep).length < 0.5 * g.length])
     soft = union(s.paved_soft)
-    return [("building", "building", B), ("water", "water", s.water), ("hedge", "imp_veg", hedge),
+    white = getattr(s, "PW_WHITE", None)
+    white = shapely.Polygon() if white is None else white
+    return [("building", "building", B), ("water", "water", s.water), ("hedge", "imp_veg", hedge), ("pathgap", "forest", white),
             ("bpass", "paved", bpass), ("heavy", "heavy", heavy), ("carriageway", "paved", s.CARR), ("stairs", "paved", stairs_a),
             ("private", "private", s.PRIVATE),
             ("paths", "paved", paths_a), ("pitch", "open", s.SP_OPEN), ("court", "paved", s.SP_PAVED), ("lawn", "open", s.GRASS),

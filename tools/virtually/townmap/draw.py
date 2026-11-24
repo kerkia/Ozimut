@@ -206,6 +206,16 @@ def run(env, s, t, a, d):
                 wall_out.append({"pts": [[round(x - env.X0, 2), round(env.Y1 - y, 2)] for x, y in q.coords], "kind": "wall",
                                  "h": round(lb.height(q), 2), "imp": sym == S(515), "ret": False})
     log("boundaries to confirm", n, "walls and fences the LiDAR sees on them", nw, round(lw), "m")
+    # The ground not to be entered is always outlined (ISSprOM 520: « The area shall always be delineated by a boundary line (at
+    # least 0.1 mm in width) »; IOF Best practices 2025, n° 15: « mandatory even if the border in real is hard to identify »):
+    # 520.9 wherever no wall, fence, building's outline or paved edge already draws its edge — along a hedge too.
+    drawn = union([g.buffer(0.6) for g, _, _ in s.walls] + [B.buffer(0.4), frame.boundary.buffer(1.0), CLIP.boundary.buffer(1.0),
+                                                           a.PAVED_ALL.boundary.buffer(0.3)])
+    n = 0
+    for piece in lines(merge_lines(a.OLIVE.boundary.difference(drawn))):
+        if piece.length >= 1.0:
+            d.line(piece.simplify(0.2), S(520, 9), 1); n += 1
+    log("520 boundary lines", n)
     json.dump({"walls": wall_out, "origin": [env.X0, env.Y1], "res": R}, open(env.SRC / "walls.json", "w"))
 
     close_ends(env, s, a, d)
@@ -728,8 +738,8 @@ def points(env, s, t, a, d):
     kept = [(p.x, p.y, 526) for p in s.monuments] + [(p.x, p.y, 311) for p in s.fountains] + [(p.x, p.y, 524) for p in s.masts]         + [(x, y, 531) for x, y in getattr(a, "goals", [])]             # (no tree over another point symbol)
     lone = 0
     n0 = len(kept)
-    # (nor in open land or paving « with scattered trees »: the area says them — the owner, 2026-11-24, « arbres à moitié cachés »)
-    no = union([a.OLIVE_IN, a.BLOCKS, a.GEOM.get("water"), a.GEOM.get("forest"), a.GEOM.get("open_t"), a.GEOM.get("paved_t")])
+    # (in open land or paving « with scattered trees » a prominent tree may stand: ISSprOM 402, « Symbols 417 and 418 may be added »)
+    no = union([a.OLIVE_IN, a.BLOCKS, a.GEOM.get("water"), a.GEOM.get("forest")])
     shapely.prepare(no)
     # a tree's white mask over a hedge opens it on the map (the owner, 2026-11-24: « les deux arbres qui font qu'on peut traverser
     # la haie, c'est très problématique »): no tree symbol whose mask reaches an uncrossable hedge — the hedge is what matters
@@ -745,13 +755,81 @@ def points(env, s, t, a, d):
         if any(math.dist((x, y), (k[0], k[1])) < (PT_R[sym] + PT_R[k[2]] + PT_GAP) * SCALE / 1000 for k in kept):
             continue                                       # no two symbols over each other
         kept.append((x, y, sym)); d.point(x, y, S(sym)); lone += pr == 2
-    for p in s.monuments:
-        d.point(p.x, p.y, S(526))
     for p in s.fountains:
         d.point(p.x, p.y, S(311))
-    for p in s.masts:
-        d.point(p.x, p.y, S(524))
+    clear_points(env, a, d, [(p.x, p.y, 526) for p in s.monuments] + [(p.x, p.y, 524) for p in s.masts])
     env.log("trees", len(kept) - n0, "of which LiDAR crowns standing alone", lone, "of", len(xy), "crowns")
+
+
+UNCROSS = {S(515): 0.4, S(518): 0.4, S(529): 0.4, S(521, 9): 0.14}   # black lines one may not open: the point symbol moves
+THIN = {S(501, 1): 0.1, S(513, 1): 0.21, S(513, 2): 0.21, S(516): 0.21, S(522, 9): 0.1, S(520, 9): 0.1}   # those that give way
+
+
+def clear_points(env, a, d, pts):
+    """Black point symbols never overlap nor touch another black symbol (IOF, Best practices for sprint mapping 2025: « shifting -
+    so that the symbols do not overlap, do not touch and have sufficiently large gaps between them »; ISSprOM 3.3: « When a
+    feature is enlarged, neighbouring features must be displaced so that the correct relative positions are maintained », and
+    0.15 mm between symbols of one colour). A point symbol on or by an uncrossable wall, fence or building is moved off it, to
+    0.15 mm, on the side open to the runner (the barrier is never shortened: that would open it on the map); a thin passable
+    line — a paved edge, a passable wall — is cut back 0.15 mm round the symbol instead. The goals' crosses (531, placed
+    earlier) get the same clearance from the thin lines."""
+    k = SCALE / 1000
+    to_m = lambda r: [(env.CX + x * k, env.CY + y * k) for x, y in r]
+    hard = [(LineString(to_m(o["rings"][0])), UNCROSS[o["sym"]]) for o in d.objects
+            if o["otp"] == 2 and o["sym"] in UNCROSS and len(o["rings"][0]) >= 2]
+    ht = shapely.STRtree([g for g, _ in hard]) if hard else None
+    closed = union([a.BLOCKS, a.OLIVE, a.GEOM.get("water"), a.GEOM.get("imp_veg")])
+    moved, placed = 0, []
+    for x, y, sym in pts:
+        r = PT_R[sym]
+        for _ in range(4):
+            p = Point(x, y)
+            worst = None
+            for i in (ht.query(p.buffer((r + 1.0) * k)) if ht is not None else []):
+                g, w = hard[i]
+                need = (r + LINE_GAP + w / 2) * k
+                dd = g.distance(p)
+                if dd < need - 0.02 and (worst is None or need - dd > worst[0]):
+                    worst = (need - dd, g, need)
+            if worst is None:
+                break
+            _, g, need = worst
+            q = nearest_points(g, p)[0]
+            dx, dy = x - q.x, y - q.y
+            n = math.hypot(dx, dy)
+            cands = []
+            if n > 0.05:
+                cands.append((q.x + dx / n * need, q.y + dy / n * need))
+            at = g.project(p)
+            u0, u1 = g.interpolate(max(0.0, at - 0.5)), g.interpolate(min(g.length, at + 0.5))
+            ux, uy = u1.x - u0.x, u1.y - u0.y
+            m = math.hypot(ux, uy) or 1.0
+            cands += [(q.x - uy / m * need * sg, q.y + ux / m * need * sg) for sg in (1, -1)]
+            ok = [c for c in cands if not closed.contains(Point(c))] or cands
+            x, y = ok[0]
+            moved += 1
+        placed.append((x, y, sym))
+        d.point(x, y, S(sym))
+    # the thin lines give way round every black point symbol
+    marks = placed + [(g_[0], g_[1], 531) for g_ in getattr(a, "goals", [])]
+    if marks:
+        tree = cKDTree([(env.mm(x, y)) for x, y, _ in marks])
+        out, cut = [], 0
+        for o in d.objects:
+            if o["otp"] != 2 or o["sym"] not in THIN or len(o["rings"][0]) < 2:
+                out.append(o); continue
+            g = LineString(o["rings"][0])
+            hits = tree.query_ball_point(g.interpolate(0.5, normalized=True).coords[0], g.length / 2 + 2.0)
+            discs = [Point(env.mm(*marks[i][:2])).buffer(PT_R[marks[i][2]] + LINE_GAP + THIN[o["sym"]] / 2) for i in hits]
+            discs = [c for c in discs if c.intersects(g)]
+            if not discs:
+                out.append(o); continue
+            cut += 1
+            for q in lines(g.difference(union(discs))):
+                if q.length >= 0.5:                        # (mm: a shorter stub says nothing)
+                    out.append({**o, "rings": [[list(c) for c in q.coords]]})
+        d.objects[:] = out
+        env.log("black point symbols moved off a barrier", moved, "thin lines cut back round them", cut)
 
 
 def helpers(env, s, d):

@@ -696,12 +696,24 @@ def _private(env, s, bdtopo, g2):
     PRIVATE = PRIVATE.difference(s.PAVED.buffer(0.3)).difference(s.RUN_DECK)
     # a way open to all that crosses the ground not to be entered keeps a corridor of its own (a right of way: the olive is what
     # is wrong) — only where it leads through: a way that ends inside (a path to a house's door) is the garden's
-    corr = []
+    # An unpaved path's corridor is white, not paving (ISSprOM 520: « The area shall be discontinued where a path goes through and
+    # white colour is used as background with overlap 0.15 mm on both sides »; IOF, Best practices for sprint mapping 2025, n° 7):
+    # the path's symbol (0.6 mm with its edges) and 0.15 mm each side.
+    corr, white = [], []
+    unp = union([l for l in list(s.path_lines) + list(s.small_lines) if l is not None and not l.is_empty]).buffer(0.3)
+    WHITE_HALF = (0.6 / 2 + 0.15) * 4.0
+
+    def strip(pc):
+        if not unp.is_empty and pc.intersection(unp).length >= 0.8 * pc.length:
+            white.append(pc.buffer(WHITE_HALF, cap_style="flat"))
+        else:
+            corr.append(pc.buffer(1.1, cap_style="flat"))
+
     for g in s.public_ways:
         for pc in lines(g.intersection(PRIVATE)):
             ends = [Point(pc.coords[0]), Point(pc.coords[-1])]
             if pc.length >= 1 and all(PRIVATE.boundary.distance(q) < 0.5 for q in ends):
-                corr.append(pc.buffer(1.1, cap_style="flat"))
+                strip(pc)
     # … and a way open to all that runs along the edge of that ground, in and out of it (the cadastre and OSM are a metre apart:
     # the owner, 2026-11-24, north-west of the Bassin de Bures — a path's side cut into teeth by a parcel's edge), has its whole
     # width there: the stretches of 4 m or more within 1.5 m of the edge
@@ -711,9 +723,10 @@ def _private(env, s, bdtopo, g2):
             continue
         for pc in lines(g.intersection(rim)):
             if pc.length >= 4:
-                corr.append(pc.buffer(1.1, cap_style="flat"))
+                strip(pc)
     s.PW_CORR = union(corr)
-    s.PRIVATE = PRIVATE.difference(s.PW_CORR)
+    s.PW_WHITE = union(white).difference(s.PW_CORR).difference(s.PAVED) if white else shapely.Polygon()
+    s.PRIVATE = PRIVATE.difference(s.PW_CORR).difference(s.PW_WHITE)
     # the public road space (the owner's mapper, 2026-11-12: « the strip at a paved area's side is a sidewalk »): what the cadastre
     # leaves between its parcels, within their reach, by a street or a square
     s.PARCELS = union(s.parcels)

@@ -618,7 +618,11 @@ def _check(doc, frame, log, decks):
         # (a paved boundary bounded by a line: within the distance under which a second line beside it would be too close to it —
         # its half width, 0.15 mm and the edge's half width; 2026-11-16, edges drawn again beside an edge 0.9 m off)
         _eb = lambda c: RULES["blackLines"].get(c, 0.1) * k / 2 + RULES["lineGapMm"] * k + 0.2
+        # (… and the edge gives way round a black point symbol, 0.15 mm clear of it: IOF, Best practices for sprint mapping 2025,
+        # « symbols do not overlap, do not touch »)
         EL = unary_union([f["g"].buffer(_eb(c)) for c in RULES["edgeLines"] for f in by.get(c, []) if f["otp"] == 2]
+                         + [f["g"].buffer((RULES["points"][c] + RULES["lineGapMm"] + 0.1) * k + 0.6)
+                            for c in ("526", "531", "524") if c in RULES["points"] for f in by.get(c, []) if f["otp"] == 1]
                          or [Polygon()])
         shapely.prepare(EL)
         for pc in RULES["paving"]:
