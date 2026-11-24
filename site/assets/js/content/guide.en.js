@@ -251,8 +251,10 @@ export function build(X) {
           ])}`)}`,
       cartes: () => html`
         ${slide("Coach", "My maps", html`
-          <p>${P("#/mes-cartes", "My maps")} keeps your maps and the routes you ran on them, like a DOMA of your own: a gallery to search by title, place or
-            year, and each map with its races drawn on it, one colour each or by pace. You need an account.</p>
+          <p>${P("#/mes-cartes", "My maps")} keeps your maps and the routes you ran on them, like a DOMA of your own: a table of all your maps (date, place,
+            department, region, country, tracks), sorted by any column and filtered by each column's list. A cell chosen shows beside it the maps with the same
+            value (a map's name: that map alone), and the world map places them; a dot on the map chooses its row. Each map opens with its races drawn on it,
+            one colour each or by pace. You need an account.</p>
           ${list([
             html`<b>Adding a race</b>: in Solo analysis, once the race is calibrated, “Save to My maps”. What is kept is the map as you gave it and the route as
               it is drawn (positions on the map and times, controls), never the GPS file. The same map is kept once: another race on it is added to it.`,
@@ -262,7 +264,8 @@ export function build(X) {
               reads it back as it was. Several maps ticked are exported together in a zip, shared by one link or deleted at once.`,
             html`<b>Personal data</b>: heart rate, altitude and cadence are kept only if you tick the box (unticked by default).`,
             html`<b>Sharing</b>: your maps are private. A link to all your maps, or to one, shows them to whoever gets it, even without an account, without the
-              personal data; deleting the link ends the sharing.`,
+              personal data; deleting the link ends the sharing. The whole library can also be shared with the people you invite: an invitation link,
+              valid once and for 7 days, gives it a tab with your name in their “My maps”.`,
           ])}`)}`,
       definitions: () => html`
         ${slide("Coach", "Control descriptions", html`

@@ -6,11 +6,13 @@
 // or all in a zip, and comes back the same. DOMA: no import yet — its button asks the Ozimut team to turn it on for the
 // account, a message ready to send. No quota for now (owner).
 //
-// The library (owner, 2026-11-06): its figures (maps, share with a track, countries, regions) for the whole library and for
-// each folder; filters by country, region and département; a map of where the maps are (agendamap.js, the Agenda's: the
-// mouse over a dot names its maps, a click opens one); the maps grouped in folders by place (country › region ›
-// département › place) or by date (year › month), each folder unfolded in place or entered, a breadcrumb leading back;
-// on each card, under the mouse, the icons of « Rejouer », « Renommer », « Commenter » and « Supprimer » — the same icons
+// The library (owner, 2026-11-06; a table since 2026-11-24): its figures (maps, share with a track, countries, regions) for the
+// maps the filters keep; every map a row of a table — map, date, place, département, region, country, runs, georeferenced
+// (the administrators' view: origin, account, club) —, sorted by any column (Shift + click: a further key) and filtered by
+// each column's list in its heading; a cell chosen shows beside the table, under the map of where the maps are (agendamap.js,
+// the Agenda's), the cards of the maps sharing that cell's value (a map's name: that map alone); the map and the table follow
+// each other (a row under the mouse lights its dot, a dot under the mouse its row, a dot clicked chooses its map). The folders
+// of 2026-11-06 are gone (owner: too many clicks to find a map). On each card, under the mouse, the icons of « Rejouer », « Renommer », « Commenter » and « Supprimer » — the same icons
 // before the same actions on the map's own page. « Nouvelle carte »: a map in any format, a GPS track if one wishes, the
 // name, date and place asked when the files do not give them. « Importer un dossier »: a folder of maps sorted by
 // country / region / département / place (trace/mymapsimport.js), its format shown, each file that does not follow it named
@@ -90,11 +92,7 @@ export async function render(main, { query = {} } = {}) {
   const srcHash = link ? `partage=${link}` : owner ? `de=${owner}` : "";
   const all = !token && !!me?.admin && query.vue === "toutes";          // the administrators' view of every map
   let st = { maps: [], links: { archive: null, maps: {}, sets: [] }, name: "", archive: false };
-  let q = query.q || "", year = query.annee || "";
-  const flt = { country: query.pays || "", region: query.region || "", dept: query.dep || "", src: query.src || "", uid: query.qui || "", club: query.club || "" };
-  const GROUPS = all ? ["lieu", "date", "compte", "club", "aucun"] : ["lieu", "date", "aucun"];
-  let group = GROUPS.includes(query.groupe) ? query.groupe : GROUPS.includes(prefs.libGroup) ? prefs.libGroup : "lieu";
-  let path = query.dossier ? String(query.dossier).split("~").filter(Boolean) : [];
+  let q = query.q || "";
   main.innerHTML = html`<div class="mm" id="mm"><div class="empty">${t("mm.loading")}</div></div>`;
   if (!token && !me) {
     $("#mm").innerHTML = html`<div class="card"><div class="card-body"><p>${t("mm.needAccount")}</p></div></div>`;
@@ -139,9 +137,34 @@ export async function render(main, { query = {} } = {}) {
     if (id && byId(id)) return openMap(byId(id));
     drawList();
   }
-  const address = () => replaceQuery({ partage: link, de: owner, vue: all ? "toutes" : null, q: q || null, annee: year || null, pays: flt.country || null, region: flt.region || null,
-    dep: flt.dept || null, src: flt.src || null, qui: flt.uid || null, club: flt.club || null,
-    groupe: group === (prefs.libGroup || "lieu") ? null : group, dossier: group !== "aucun" && path.length ? path.join("~") : null });
+  // ---- the table's columns (owner, 2026-11-24: « a table of all maps, … all sortable and filterable ») -------------------------
+  // each column: v the value a cell is chosen by (the maps sharing it are shown), txt what the cell says, s what it sorts by,
+  // f what its heading's list filters by (else v) and fl that list's words for a value (else a map's txt), param its address key
+  const coll = new Intl.Collator(lang(), { numeric: true, sensitivity: "base" });
+  const yes = (b) => (b ? "1" : "0");
+  const NONE = "_none";                                   // a filter on the maps without a value in that column
+  const COLS = [
+    { k: "title", label: t("mm.col.map"), v: (m) => m.id, txt: (m) => m.title || t("mm.untitled"), s: (m) => m.title || null, nofilter: true },
+    { k: "day", label: t("mm.col.date"), param: "annee", v: (m) => m.day || "", txt: (m) => (m.day ? fmtDate(m.day) : yearOf(m) || ""), s: (m) => m.day || yearOf(m) || null,
+      f: (m) => yearOf(m) || "", fl: (v) => v, down: true },
+    { k: "place", label: t("mm.col.place"), param: "lieu", v: (m) => MP.fold(m.place || ""), txt: (m) => m.place || "", s: (m) => m.place || null },
+    { k: "dept", label: t("mm.f.dept"), param: "dep", v: (m) => (m.dept ? `${m.country}|${MP.fold(m.dept)}` : ""), txt: (m) => deptOf(m) || "", s: (m) => deptOf(m) || null },
+    { k: "region", label: t("mm.f.region"), param: "region", v: (m) => (m.region ? `${m.country}|${MP.fold(m.region)}` : ""), txt: (m) => m.region || "", s: (m) => m.region || null },
+    { k: "country", label: t("mm.f.country"), param: "pays", v: (m) => m.country || "", txt: (m) => MP.countryName(m.country) || "", s: (m) => MP.countryName(m.country) || null },
+    ...(traces ? [{ k: "runs", label: t("mm.col.runs"), param: "traces", v: (m) => String(nRuns(m)), txt: (m) => (nRuns(m) ? fmt(nRuns(m)) : ""), s: (m) => nRuns(m), num: true,
+      f: (m) => yes(nRuns(m)), fl: (v) => t(v === "1" ? "mm.f.withRuns" : "mm.f.noRuns"), fixed: ["1", "0"] }] : []),
+    ...(!all ? [{ k: "geo", label: t("mm.col.geo"), param: "geo", v: (m) => yes(m.geo), txt: (m) => (m.geo ? "✓" : ""), s: (m) => (m.geo ? 1 : 0), num: true,
+      f: (m) => yes(m.geo), fl: (v) => t(v === "1" ? "mm.f.geoYes" : "mm.f.geoNo"), fixed: ["1", "0"] }] : []),
+    ...(all ? [{ k: "src", label: t("mm.adm.f.src"), param: "src", v: (m) => m.src || "", txt: (m) => (m.src ? t(`mm.adm.src.${m.src}`) : ""), s: (m) => m.src || null },
+      { k: "user", label: t("mm.adm.f.user"), param: "qui", v: (m) => m.uid || "", txt: (m) => m.user || (m.uid ? `#${m.uid}` : ""), s: (m) => m.user || null },
+      { k: "club", label: t("mm.adm.f.club"), param: "club", v: (m) => m.club || "", txt: (m) => m.club || "", s: (m) => m.club || null }] : []),
+  ];
+  const colOf = (k) => COLS.find((c) => c.k === k);
+  const fkey = (c, m) => (c.f ? c.f(m) : c.v(m)) || NONE;
+  const cf = {};                                          // the headings' filters: column → value (of f)
+  for (const c of COLS) if (c.param && query[c.param]) cf[c.k] = String(query[c.param]);
+  const address = () => replaceQuery({ partage: link, de: owner, vue: all ? "toutes" : null, q: q || null,
+    ...Object.fromEntries(COLS.filter((c) => c.param).map((c) => [c.param, cf[c.k] || null])) });
 
   // ---- the library -----------------------------------------------------------------------------------------------------
   // (owner, 2026-11-01) the ways of adding a map, one a line; (2026-11-06) « Nouvelle carte » and « Importer un dossier » in the
@@ -176,32 +199,25 @@ export async function render(main, { query = {} } = {}) {
         <div class="mm-stats" id="mm-stats"></div>
         <div class="filters mm-filters">
           <input type="search" id="mm-q" placeholder="${t("mm.search")}" value="${q}" aria-label="${t("mm.search")}">
-          <span class="mm-fsel" id="mm-fsel"></span>${all ? html`<span class="muted" id="mm-sync"></span>` : ""}
-          <span class="mm-group"><span class="muted">${t("mm.group")}</span><span class="seg" role="group" aria-label="${t("mm.group")}">
-            ${GROUPS.map((g) => html`<button type="button" data-mmgroup="${g}" aria-pressed="${group === g}">${t(`mm.group.${g}`)}</button>`)}</span></span>
-          ${mine ? html`<button type="button" class="btn btn-ghost btn-sm" id="mm-selall">${t("mm.sel.all")}</button>` : ""}</div>
+          <button type="button" class="btn btn-ghost btn-sm" id="mm-clear" hidden>${t("mm.f.clear")}</button>
+          ${all ? html`<span class="muted" id="mm-sync"></span>` : ""}<span class="muted mm-thint">${t("mm.table.hint")}</span></div>
         ${mine ? html`<div class="mm-selbar" id="mm-selbar" role="toolbar" aria-label="${t("mm.sel.bar")}" hidden><b id="mm-sel-n"></b>
           <button type="button" class="btn btn-sm btn-primary" id="mm-sel-export">${icon("export")} ${t("mm.sel.export")}</button>
           <button type="button" class="btn btn-sm" id="mm-sel-share">${icon("share")} ${t("mm.sel.share")}</button>
           <button type="button" class="btn btn-sm mm-danger" id="mm-sel-del">${icon("delete")} ${t("mm.sel.delete")}</button>
           <button type="button" class="btn btn-ghost btn-sm" id="mm-sel-none">${t("mm.sel.none")}</button></div>` : ""}
         <div class="mm-lib" id="mm-lib"><div class="mm-lib-main" id="mm-main"></div>
-          <aside class="mm-lib-side"><div id="mm-libmap" class="mm-libmap"></div></aside></div>`}`;
+          <aside class="mm-lib-side"><div id="mm-libmap" class="mm-libmap"></div><div class="mm-cards" id="mm-cards" aria-live="polite"></div></aside></div>`}`;
     mapCtl?.destroy?.(); mapCtl = null; mapEl = null;
     const page = $("#mm");                       // (the site's header has its own [data-group] menu items: every query here stays in the page)
     $$("[data-act=new]", page).forEach((b) => b.addEventListener("click", () => newMapDialog()));
     $$("[data-act=folder]", page).forEach((b) => b.addEventListener("click", () => folderDialog()));
     $("#mm-q")?.addEventListener("input", (e) => { q = e.target.value; refresh(); });
-    $$("[data-mmgroup]", page).forEach((b) => b.addEventListener("click", () => {
-      group = prefs.libGroup = b.dataset.mmgroup; keepPrefs(); path = [];
-      $$("[data-mmgroup]", page).forEach((x) => x.setAttribute("aria-pressed", String(x === b)));
-      refresh();
-    }));
+    $("#mm-clear")?.addEventListener("click", () => { q = ""; $("#mm-q").value = ""; for (const k of Object.keys(cf)) delete cf[k]; refresh(); });
     const lib = $("#mm-lib");
     if (lib) bindLib(lib);
     if (all && !empty) syncCollection();
     if (mine) {
-      $("#mm-selall")?.addEventListener("click", () => { const all = scope().every((m) => sel.has(m.id)); scope().forEach((m) => (all ? sel.delete(m.id) : sel.add(m.id))); marks(); });
       $("#mm-sel-none")?.addEventListener("click", () => { sel.clear(); marks(); });
       $("#mm-sel-export")?.addEventListener("click", () => exportDialog(st.maps.filter((m) => sel.has(m.id))));
       $("#mm-sel-share")?.addEventListener("click", () => shareDialog(sel.size === 1 ? { map: byId([...sel][0]) } : { ids: [...sel] }));
@@ -222,66 +238,39 @@ export async function render(main, { query = {} } = {}) {
     if (!empty) refresh();
   }
 
-  // the maps the filters keep, then those of the folder shown
-  const filtered = () => {
+  // the maps the search and the filters keep (`except`: that column's filter left out — its own list's choices)
+  const passes = (m, except) => {
+    for (const c of COLS) if (c.k !== except && cf[c.k] && fkey(c, m) !== cf[c.k]) return false;
     const words = q.trim().toLowerCase().split(/\s+/).filter(Boolean);
-    return st.maps.filter((m) => (!year || yearOf(m) === year)
-      && (!flt.src || m.src === flt.src) && (!flt.uid || m.uid === flt.uid) && (!flt.club || m.club === flt.club)
-      && (!flt.country || m.country === flt.country) && (!flt.region || MP.fold(m.region) === MP.fold(flt.region)) && (!flt.dept || MP.fold(m.dept) === MP.fold(flt.dept))
-      && words.every((w) => [m.title, m.place, m.notes, m.region, deptOf(m), MP.countryName(m.country), m.user, m.club, ...m.runs.map((r) => r.title)].join(" ").toLowerCase().includes(w)));
+    return !words.length || words.every((w) => [m.title, m.place, m.notes, m.region, deptOf(m), MP.countryName(m.country), m.user, m.club, ...m.runs.map((r) => r.title)].join(" ").toLowerCase().includes(w));
   };
-  let tree = null, node = null;
-  const scope = () => (node ? node.maps : filtered());
+  const filtered = () => st.maps.filter((m) => passes(m));
+  const scope = () => filtered();
 
-  // ---- folders ----------------------------------------------------------------------------------------------------------
-  const coll = new Intl.Collator(lang(), { numeric: true, sensitivity: "base" });
-  const monthLabel = (day) => { const s = fmtDate(`${day.slice(0, 7)}-01`, "month"); return s.charAt(0).toUpperCase() + s.slice(1); };
-  const LEVELS = {
-    lieu: [(m) => (m.country ? { k: m.country, label: MP.countryName(m.country) } : null),
-      (m) => (m.region ? { k: MP.fold(m.region), label: m.region } : null),
-      (m) => (m.dept ? { k: MP.fold(m.dept), label: deptOf(m) } : null),
-      (m) => (m.place ? { k: MP.fold(m.place), label: m.place } : null)],
-    date: [(m) => { const y = yearOf(m); return y ? { k: y, label: y } : null; },
-      (m) => (m.day ? { k: m.day.slice(0, 7), label: monthLabel(m.day) } : null)],
-    compte: [(m) => (m.uid ? { k: m.uid, label: m.user || `#${m.uid}` } : null)],
-    club: [(m) => (m.club ? { k: m.club, label: m.club } : null)],
-  };
-  // the folder of maps without a place / date / club / account: its key must never hold "~", which joins a folder's path
-  const NONE = "_none";
-  /** The folders of maps: { key, label, maps (all below), kids: [node], direct: [map], depth }. */
-  function build(maps) {
-    const L = LEVELS[group];
-    const grow = (n, d) => {
-      n.kids = []; n.direct = [];
-      if (!L || d >= L.length || n.key === NONE) { n.direct = n.maps; return; }
-      const kids = new Map();
-      for (const m of n.maps) {
-        let g = L[d](m);
-        if (!g && d === 0) g = { k: NONE, label: t(group === "date" ? "mm.lib.noDate" : group === "lieu" ? "mm.lib.noPlace" : group === "club" ? "mm.adm.noClub" : "mm.adm.noUser") };
-        if (!g) { n.direct.push(m); continue; }
-        if (!kids.has(g.k)) kids.set(g.k, { key: g.k, label: g.label, maps: [], depth: d + 1 });
-        kids.get(g.k).maps.push(m);
+  // ---- sorting: as the Agenda's (a click on a heading sorts by it, again the other way; Shift + click a further key) ----------
+  const SORT_KEY = "ocn.mm.sort";
+  const firstDir = (k) => (k === "day" || k === "runs" ? -1 : 1);       // the latest maps first, the most runs first
+  let sortBy = (() => { try { const v = JSON.parse(sessionStorage.getItem(SORT_KEY) || "null"); return Array.isArray(v) && v.length && v.every((o) => colOf(o.key)) ? v : null; } catch (e) { return null; } })()
+    || [{ key: "day", dir: -1 }];
+  function sorted(list) {
+    return [...list].sort((a, b) => {
+      for (const { key, dir } of sortBy) {
+        const c = colOf(key), x = c.s(a), y = c.s(b);
+        if (x == null && y == null) continue;
+        if (x == null) return 1;                                         // the empty ones last, whichever way
+        if (y == null) return -1;
+        const d = c.num ? x - y : key === "day" ? (x < y ? -1 : x > y ? 1 : 0) : coll.compare(x, y);
+        if (d) return d * dir;
       }
-      n.kids = [...kids.values()].sort((a, b) => (a.key === NONE) - (b.key === NONE) || (group === "date" ? b.key.localeCompare(a.key) : coll.compare(a.label, b.label)));
-      for (const k of n.kids) grow(k, d + 1);
-    };
-    const root = { key: "", label: token ? t("mm.shared.title", { name: st.name }) : t("mm.lib.root"), maps, depth: 0 };
-    // the levels a filter fixes are not folders (France chosen: its regions at the top)
-    grow(root, group === "lieu" ? (flt.dept ? 3 : flt.region ? 2 : flt.country ? 1 : 0) : 0);
-    return root;
+      return coll.compare(a.title || "", b.title || "");
+    });
   }
-  const at = (root, p) => { let n = root; const trail = [root]; for (const k of p) { const c = n.kids.find((x) => x.key === k); if (!c) break; n = c; trail.push(c); } return trail; };
 
   // a set of maps in figures: maps, share with a track, countries, regions (owner, 2026-11-06)
   const figures = (maps) => {
     const n = maps.length, withRuns = maps.filter((m) => nRuns(m)).length;
     return { n, pct: n ? Math.round((100 * withRuns) / n) : 0, countries: new Set(maps.map((m) => m.country).filter(Boolean)).size,
       regions: new Set(maps.filter((m) => m.region).map((m) => `${m.country}|${MP.fold(m.region)}`)).size };
-  };
-  const figLine = (maps, depth) => {
-    const f = figures(maps), loc = group === "lieu";
-    return [tn("mm.count.maps", f.n), traces ? t("mm.fig.pctLine", { n: f.pct }) : "",
-      !(loc && depth >= 1) && f.countries ? tn("mm.fig.countries", f.countries) : "", !(loc && depth >= 2) && f.regions ? tn("mm.fig.regions", f.regions) : ""].filter(Boolean).join(" · ");
   };
   function drawStats(maps, label) {
     const f = figures(maps), runs = maps.reduce((s, m) => s + nRuns(m), 0), bytes = maps.reduce((n, m) => n + m.bytes + m.runs.reduce((k, r) => k + (r.bytes || 0), 0), 0);
@@ -296,92 +285,151 @@ export async function render(main, { query = {} } = {}) {
         ${raw(bar(Math.min(1, st.quota.used / st.quota.limit), st.quota.used > 0.9 * st.quota.limit ? "mm-quota-high" : ""))}</div>` : ""}`;
   }
 
-  // the filters: country, then its regions, then their départements (each list from the maps kept)
-  function drawFilters() {
-    const opts = (vals, cur, label, allKey, name) => html`<select data-f="${name}" aria-label="${label}"><option value="">${t(allKey)}</option>
-      ${vals.map(([v, l]) => html`<option value="${v}" ${raw(MP.fold(v) === MP.fold(cur) ? "selected" : "")}>${l}</option>`)}</select>`;
-    const countries = [...new Set(st.maps.map((m) => m.country).filter(Boolean))].map((c) => [c, MP.countryName(c)]).sort((a, b) => coll.compare(a[1], b[1]));
-    const inC = st.maps.filter((m) => !flt.country || m.country === flt.country);
-    const regions = [...new Map(inC.filter((m) => m.region).map((m) => [MP.fold(m.region), [m.region, m.region]])).values()].sort((a, b) => coll.compare(a[1], b[1]));
-    const inR = inC.filter((m) => !flt.region || MP.fold(m.region) === MP.fold(flt.region));
-    const depts = [...new Map(inR.filter((m) => m.dept).map((m) => [MP.fold(m.dept), [m.dept, deptOf(m)]])).values()].sort((a, b) => coll.compare(a[1], b[1]));
-    const years = [...new Set(st.maps.map(yearOf).filter(Boolean))].sort().reverse();
-    const pairs = (k, l) => [...new Map(st.maps.filter((m) => m[k]).map((m) => [m[k], [m[k], l(m)]])).values()].sort((a, b) => coll.compare(a[1], b[1]));
-    $("#mm-fsel").innerHTML = html`${all ? html`${opts(["mymaps", "solo", "analysis", "tracer"].filter((x) => st.maps.some((m) => m.src === x)).map((x) => [x, t(`mm.adm.src.${x}`)]),
-        flt.src, t("mm.adm.f.src"), "mm.adm.allSrc", "src")}
-      ${opts(pairs("uid", (m) => m.user || `#${m.uid}`), flt.uid, t("mm.adm.f.user"), "mm.adm.allUsers", "uid")}
-      ${opts(pairs("club", (m) => m.club), flt.club, t("mm.adm.f.club"), "mm.adm.allClubs", "club")}` : ""}
-      ${countries.length ? opts(countries, flt.country, t("mm.f.country"), "mm.allCountries", "country") : ""}
-      ${regions.length ? opts(regions, flt.region, t("mm.f.region"), "mm.allRegions", "region") : ""}
-      ${depts.length ? opts(depts, flt.dept, t("mm.f.dept"), "mm.allDepts", "dept") : ""}
-      ${years.length ? opts(years.map((y) => [y, y]), year, t("mm.year"), "mm.allYears", "year") : ""}`;
-    $$("[data-f]", $("#mm-fsel")).forEach((s) => s.addEventListener("change", () => {
-      const k = s.dataset.f;
-      if (k === "year") year = s.value;
-      else { flt[k] = s.value; if (k === "country") { flt.region = ""; flt.dept = ""; } if (k === "region") flt.dept = ""; }
-      path = [];
-      refresh();
-    }));
+  // ---- the table ----------------------------------------------------------------------------------------------------------
+  let pick = null;                                        // the cell chosen: { c: column, v: value } — its maps' cards beside
+  const pickedMaps = () => {
+    if (!pick) return [];
+    const c = colOf(pick.c);
+    return c ? filtered().filter((m) => c.v(m) === pick.v) : [];
+  };
+  // a heading: its name (a click sorts) and, under it, its list of values (from the maps the other filters keep)
+  function heading(c) {
+    const i = sortBy.findIndex((o) => o.key === c.k);
+    const mark = i < 0 ? "" : html`<span class="arrow">${sortBy[i].dir > 0 ? "▲" : "▼"}${sortBy.length > 1 ? html`<sup>${i + 1}</sup>` : ""}</span>`;
+    let list = "";
+    if (!c.nofilter) {
+      const here = st.maps.filter((m) => passes(m, c.k));
+      const vals = new Map();
+      for (const m of here) { const k = fkey(c, m); if (!vals.has(k)) vals.set(k, k === NONE ? t("mm.f.empty") : c.fl ? c.fl(k) : c.txt(m)); }
+      if (cf[c.k] && !vals.has(cf[c.k])) vals.set(cf[c.k], cf[c.k] === NONE ? t("mm.f.empty") : c.fl ? c.fl(cf[c.k]) : cf[c.k]);
+      const keys = c.fixed ? c.fixed.filter((k) => vals.has(k)) : [...vals.keys()].sort((x, y) => (x === NONE) - (y === NONE)
+        || (c.down ? y.localeCompare(x) : coll.compare(vals.get(x), vals.get(y))));
+      if (vals.has(NONE) && c.fixed) keys.push(NONE);
+      list = html`<select data-cf="${c.k}" class="${cf[c.k] ? "on" : ""}" aria-label="${t("mm.f.col", { col: c.label })}"><option value="">${t("mm.f.all")}</option>
+        ${keys.map((k) => html`<option value="${k}" ${raw(cf[c.k] === k ? "selected" : "")}>${vals.get(k)}</option>`)}</select>`;
+    }
+    return html`<th scope="col" data-c="${c.k}" aria-sort="${i === 0 ? (sortBy[0].dir > 0 ? "ascending" : "descending") : "none"}">
+      <button type="button" class="mm-sort" data-sort="${c.k}" title="${t("agd.sortHint")}">${c.label}${mark}</button>${list}</th>`;
+  }
+  const titleCell = (m) => html`<td data-c="title" data-v="${m.id}"><button type="button" class="linklike mm-tt">${m.title || t("mm.untitled")}</button>
+    ${mine && m.private ? html` <span title="${t("mm.f.privateTip")}">🔒</span>` : ""}${mine && st.links.maps[m.id] ? html` <span title="${t("mm.shared.on")}">🔗</span>` : ""}${m.notes ? html` <span class="mm-has-note-s" title="${m.notes}">${icon("note")}</span>` : ""}</td>`;
+  function drawTable(list) {
+    const fz = mine ? 2 : 1;
+    $("#mm-main").innerHTML = html`<div class="table-wrap mm-twrap" id="mm-twrap"><table class="data mm-table" data-freeze="${fz}" data-freeze-phone="${fz}">
+      <thead><tr>${mine ? html`<th scope="col" class="mm-tick"><input type="checkbox" id="mm-tickall" aria-label="${t("mm.sel.all")}" title="${t("mm.sel.all")}"></th>` : ""}${COLS.map(heading)}</tr></thead>
+      <tbody>${list.map((m) => html`<tr data-id="${m.id}">${mine ? html`<td class="mm-tick"><input type="checkbox" data-id="${m.id}" aria-label="${t("mm.sel.one")}"></td>` : ""}
+        ${COLS.map((c) => (c.k === "title" ? titleCell(m) : html`<td data-c="${c.k}" data-v="${c.v(m)}" class="${c.num ? "num" : ""}">${c.txt(m)}</td>`))}</tr>`)}</tbody></table></div>
+      ${list.length ? "" : html`<div class="empty">${t("mm.none.filter")}</div>`}`;
   }
 
   function refresh() {
     if (!st.maps.length) return drawList();
     if (!$("#mm-main")) return;
-    drawFilters();
-    tree = build(filtered());
-    const trail = group === "aucun" ? [tree] : at(tree, path);
-    node = trail.at(-1);
-    path = trail.slice(1).map((n) => n.key);
+    const list = sorted(filtered());
     address();
-    drawStats(node.maps, node === tree ? (filtered().length === st.maps.length ? t("mm.fig.all") : t("mm.fig.filtered")) : t("mm.fig.folder", { name: node.label }));
-    const crumbs = html`<nav class="mm-crumbs" aria-label="${t("mm.lib.crumbs")}">${trail.map((n, i) => (i === trail.length - 1
-      ? html`<b>${i ? icon("folder") : ""}${n.label}</b>` : html`<a href="#" data-to="${i}">${i ? icon("folder") : ""}${n.label}</a><span class="sep">›</span>`))}</nav>`;
-    $("#mm-main").innerHTML = html`${trail.length > 1 ? crumbs : ""}${content(node, path)}${node.maps.length ? "" : html`<div class="empty">${t("mm.none.filter")}</div>`}`;
+    const any = !!q.trim() || Object.values(cf).some(Boolean);
+    $("#mm-clear").hidden = !any;
+    drawStats(list, any ? t("mm.fig.filtered") : t("mm.fig.all"));
+    drawTable(list);
+    if (pick && !pickedMaps().length) pick = null;
     marks();
-    drawMap(node.maps);
+    drawCards();
+    drawMap(list);
   }
-  const folderRow = (n, p) => html`<details class="mm-folder" data-path="${p.join("~")}"><summary>
-      <span class="mm-fold-ic">${icon("folder")}</span><b class="mm-fold-name">${n.label}</b><span class="muted mm-fold-st">${figLine(n.maps, n.depth)}</span>
-      <a href="#" class="btn btn-ghost btn-sm mm-enter" data-enter="${p.join("~")}" title="${t("mm.lib.enter.tip")}">${t("mm.lib.enter")} ›</a></summary><div class="mm-fold-body"></div></details>`;
-  const content = (n, p) => html`${n.kids.length ? html`<div class="mm-folders">${n.kids.map((k) => folderRow(k, [...p, k.key]))}</div>` : ""}
-    ${n.direct.length ? html`<div class="mm-grid">${n.direct.map(card)}</div>` : ""}`;
-  const nodeAt = (p) => at(tree, p).at(-1);
 
-  // one listener for the whole library: cards, their icons, ticks, folders unfolded or entered, the breadcrumb
+  // the cell chosen: its column's cells of the same value marked, their maps' cards beside the table, their dots on the map
+  function setPick(p, { scroll = false } = {}) {
+    pick = p;
+    drawCards();
+    showPick();
+    if (scroll && p) {
+      const row = $(`#mm-twrap tr[data-id="${CSS.escape(p.c === "title" ? p.v : pickedMaps()[0]?.id || "")}"]`), wrap = $("#mm-twrap");
+      if (row && wrap) {
+        const r = row.getBoundingClientRect(), w = wrap.getBoundingClientRect(), head = $("thead", wrap)?.offsetHeight || 0;
+        if (r.top < w.top + head || r.bottom > w.bottom) wrap.scrollTop += r.top - w.top - head - (w.height - head) / 2 + r.height / 2;
+      }
+    }
+    if (p && !wide()) $("#mm-cards")?.scrollIntoView({ block: "start", behavior: "smooth" });
+  }
+  function showPick() {
+    const ids = new Set(pickedMaps().map((m) => m.id));
+    $$("#mm-twrap tbody tr").forEach((tr) => {
+      tr.classList.toggle("mm-on", ids.has(tr.dataset.id));
+      for (const td of tr.children) td.classList.toggle("mm-cell-on", !!pick && td.dataset.c === pick.c && td.dataset.v === pick.v);
+    });
+    if (!mapCtl) return;
+    if (ids.size === 1) { mapCtl.mark?.(null); mapCtl.select([...ids][0]); }
+    else { mapCtl.select(null); mapCtl.mark?.([...ids]); }
+  }
+  const CARDS_MAX = 40;
+  let cardsAll = false;
+  function drawCards() {
+    const box = $("#mm-cards");
+    if (!box) return;
+    const maps = pickedMaps();
+    box.closest(".mm-lib-side")?.classList.toggle("has-cards", !!maps.length);         // (the map smaller while cards show)
+    if (!maps.length) { box.innerHTML = html`<p class="muted mm-cards-hint">${t("mm.cards.hint")}</p>`; cardsAll = false; return; }
+    const c = colOf(pick.c), one = pick.c === "title";
+    const label = one ? "" : (pick.v === "" ? t("mm.f.empty") : c.txt(maps[0]));
+    const shown = cardsAll ? maps : maps.slice(0, CARDS_MAX);
+    box.innerHTML = html`<div class="mm-cards-h">${one ? "" : html`<span><span class="muted">${t("ui.colon", { a: c.label })}</span> <b>${label}</b> <span class="muted">· ${tn("mm.count.maps", maps.length)}</span></span>`}
+        <span class="mm-cards-acts">${!one && !c.f && !cf[c.k] ? html`<button type="button" class="btn btn-ghost btn-sm" id="mm-cards-flt">${t("mm.cards.filter")}</button>` : ""}
+        <button type="button" class="btn btn-ghost btn-sm" id="mm-cards-x" title="${t("mm.cards.close")}" aria-label="${t("mm.cards.close")}">✕</button></span></div>
+      <div class="mm-grid">${shown.map(card)}</div>
+      ${shown.length < maps.length ? html`<button type="button" class="btn btn-sm" id="mm-cards-more">${t("mm.cards.more", { n: fmt(maps.length - shown.length) })}</button>` : ""}`;
+    $("#mm-cards-x").addEventListener("click", () => setPick(null));
+    $("#mm-cards-flt")?.addEventListener("click", () => { cf[c.k] = pick.v || NONE; refresh(); });
+    $("#mm-cards-more")?.addEventListener("click", () => { cardsAll = true; drawCards(); marks(); });
+    marks();
+  }
+
+  // one listener for the whole library: the table (headings, cells, ticks) and the cards (their icons, ticks)
   function bindLib(lib) {
-    lib.addEventListener("toggle", (e) => {
-      const d = e.target.closest?.(".mm-folder");
-      if (!d || !d.open || d.dataset.filled) return;
-      const p = d.dataset.path.split("~"), body = $(".mm-fold-body", d);
-      body.innerHTML = String(content(nodeAt(p), p));
-      d.dataset.filled = "1";
-      marks();
-    }, true);
     lib.addEventListener("click", (e) => {
-      const to = e.target.closest("[data-to]");
-      if (to) { e.preventDefault(); path = path.slice(0, Number(to.dataset.to)); refresh(); window.scrollTo({ top: Math.min(window.scrollY, $("#mm-stats").offsetTop - 80) }); return; }
-      const en = e.target.closest("[data-enter]");
-      if (en) { e.preventDefault(); e.stopPropagation(); path = en.dataset.enter.split("~"); refresh(); return; }
+      const so = e.target.closest("[data-sort]");
+      if (so) {
+        const key = so.dataset.sort, i = sortBy.findIndex((o) => o.key === key);
+        if (!e.shiftKey) sortBy = [{ key, dir: i === 0 && sortBy.length === 1 ? -sortBy[0].dir : i === 0 ? sortBy[0].dir : firstDir(key) }];
+        else if (i < 0) sortBy = [...sortBy, { key, dir: firstDir(key) }];
+        else if (sortBy[i].dir === firstDir(key) || sortBy.length === 1) sortBy = sortBy.map((o, j) => (j === i ? { ...o, dir: -o.dir } : o));
+        else sortBy = sortBy.filter((_, j) => j !== i);
+        try { sessionStorage.setItem(SORT_KEY, JSON.stringify(sortBy)); } catch (err) { /* this page only */ }
+        const top = $("#mm-twrap")?.scrollTop || 0;
+        refresh();
+        if ($("#mm-twrap")) $("#mm-twrap").scrollTop = top;
+        return;
+      }
       const qa = e.target.closest("[data-q]");
       if (qa) { e.preventDefault(); e.stopPropagation(); quick(qa.dataset.q, byId(qa.closest(".mm-card").dataset.id), qa); return; }
-      if (e.target.closest(".mm-pick")) return;
+      if (e.target.closest(".mm-pick, .mm-tick, select")) return;
       const c = e.target.closest(".mm-card");
-      if (c) { e.preventDefault(); go(c.dataset.id); }
+      if (c) { e.preventDefault(); go(c.dataset.id); return; }
+      const td = e.target.closest("#mm-twrap td[data-c]");
+      if (td) setPick(pick && pick.c === td.dataset.c && pick.v === td.dataset.v ? null : { c: td.dataset.c, v: td.dataset.v });
     });
+    // a map's row opened by a double click, or Enter on its name
+    lib.addEventListener("dblclick", (e) => { const tr = e.target.closest("#mm-twrap tbody tr"); if (tr && !e.target.closest(".mm-tick")) go(tr.dataset.id); });
     lib.addEventListener("change", (e) => {
-      const c = e.target.closest(".mm-pick input");
+      const f = e.target.closest("select[data-cf]");
+      if (f) { if (f.value) cf[f.dataset.cf] = f.value; else delete cf[f.dataset.cf]; refresh(); return; }
+      if (e.target.id === "mm-tickall") { const on = e.target.checked; scope().forEach((m) => (on ? sel.add(m.id) : sel.delete(m.id))); marks(); return; }
+      const c = e.target.closest(".mm-pick input, .mm-tick input[data-id]");
       if (!c) return;
       if (c.checked) sel.add(c.dataset.id); else sel.delete(c.dataset.id);
       marks();
     });
-    // the card under the mouse marked on the map, and the map's dot under the mouse marks its card
-    lib.addEventListener("mouseover", (e) => { const c = e.target.closest(".mm-card"); if (c) mapCtl?.hover(c.dataset.id); });
-    lib.addEventListener("mouseout", (e) => { const c = e.target.closest(".mm-card"); if (c && !c.contains(e.relatedTarget)) mapCtl?.hover(null); });
+    // the row or card under the mouse marked on the map, and the map's dot under the mouse marks its row and card
+    const hot = (id) => { mapCtl?.hover(id); };
+    lib.addEventListener("mouseover", (e) => { const r = e.target.closest(".mm-card, #mm-twrap tbody tr"); if (r) hot(r.dataset.id); });
+    lib.addEventListener("mouseout", (e) => { const r = e.target.closest(".mm-card, #mm-twrap tbody tr"); if (r && !r.contains(e.relatedTarget)) hot(null); });
   }
-  // a tick changes the marks and the selection's bar only: the cards (and their pictures) stay
+  // a tick changes the marks and the selection's bar only: the rows and the cards (and their pictures) stay
   function marks() {
     if (!mine) return;
     $$(".mm-card").forEach((c) => { const on = sel.has(c.dataset.id); c.classList.toggle("picked", on); const i = $(".mm-pick input", c); if (i) i.checked = on; });
+    $$("#mm-twrap tbody tr").forEach((tr) => { const on = sel.has(tr.dataset.id); tr.classList.toggle("mm-ticked", on); const i = $(".mm-tick input", tr); if (i) i.checked = on; });
+    const all2 = $("#mm-tickall"), sc = scope();
+    if (all2) { const n = sc.filter((m) => sel.has(m.id)).length; all2.checked = !!n && n === sc.length; all2.indeterminate = n > 0 && n < sc.length; }
     $("#mm-lib")?.classList.toggle("picking", sel.size > 0);
     const b = $("#mm-selbar");
     if (b) { b.hidden = !sel.size; $("#mm-sel-n").textContent = tn("mm.sel.count", sel.size); }
@@ -403,7 +451,10 @@ export async function render(main, { query = {} } = {}) {
     if (!mapCtl || mapEl !== el || mapCc !== cc) {
       mapCtl?.destroy?.();
       const AM = await import("../agendamap.js");
-      const opts = { onPick: (k) => go(k), onHover: (k) => $$(".mm-card").forEach((c) => c.classList.toggle("hot", c.dataset.id === k)), area: "mm.map.approx", missing: "mm.map.missing" };
+      // a dot clicked chooses its map in the table (its card beside); its row and card lit while the mouse is over it
+      const opts = { onPick: (k) => setPick({ c: "title", v: k }, { scroll: true }),
+        onHover: (k) => { $$(".mm-card").forEach((c) => c.classList.toggle("hot", c.dataset.id === k)); $$("#mm-twrap tbody tr").forEach((r) => r.classList.toggle("hot", r.dataset.id === k)); },
+        area: "mm.map.approx", missing: "mm.map.missing" };
       mapCtl = await AM.mount(el, cc, opts);
       mapWorld = cc === "xw" || !mapCtl;
       if (!mapCtl && cc !== "xw") mapCtl = await AM.mount(el, "xw", opts);      // (a country without an outline: the world's)
@@ -412,6 +463,7 @@ export async function render(main, { query = {} } = {}) {
     }
     mapCtl?.show(evs, null);
     if (mapWorld) mapCtl?.fitDots();
+    showPick();
   }
 
   // ---- the cards and their actions --------------------------------------------------------------------------------------

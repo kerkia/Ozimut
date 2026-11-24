@@ -149,7 +149,7 @@ export async function mount(el, cc, { onPick, onHover, levels = {}, area = "agd.
         + (label ? `<text x="${lx}" y="${ly}" style="font-size:${12.5 * u}px;stroke-width:${3.5 * u}px">${esc(label)}</text>` : "");
     };
     // several competitions under the mouse (a day of the calendar): each one's place, without names
-    const many = (cur.many || []).map((k) => byKey.get(k)).filter((x) => x && x !== s && x !== sel);
+    const many = (cur.many || cur.marked || []).map((k) => byKey.get(k)).filter((x) => x && x !== s && x !== sel);
     const dots = [...new Set(many)].slice(0, 200).map((spot) => `<circle class="agm-hi-halo" cx="${spot.x}" cy="${spot.y}" r="${8 * u}"/>`
       + `<circle class="agm-hi-dot${spot.approx ? " approx" : ""}" cx="${spot.x}" cy="${spot.y}" r="${4 * u}" style="stroke-width:${1.4 * u}"/>`).join("");
     hiG.innerHTML = dots + (sel && sel !== s ? mark(sel, false) : "") + (s ? mark(s, true) : "");
@@ -211,5 +211,10 @@ export async function mount(el, cc, { onPick, onHover, levels = {}, area = "agd.
   const ro = new ResizeObserver(() => resize());
   ro.observe(svg);
   function destroy() { ro.disconnect(); window.removeEventListener("pointermove", onMove); window.removeEventListener("pointerup", onUp); }
-  return { show, hover, select, destroy, fitDots, has: (key) => byKey.has(key) };
+  /** Several events marked until changed (« Mes cartes »: the maps of the cell chosen in its table), drawn as a day's are. */
+  function mark(keys) {
+    cur.marked = keys && keys.length > 1 ? keys : null;
+    highlight();
+  }
+  return { show, hover, select, mark, destroy, fitDots, has: (key) => byKey.has(key) };
 }

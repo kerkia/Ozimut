@@ -261,8 +261,10 @@ export function build(X) {
           ])}`)}`,
       cartes: () => html`
         ${slide("Coach", "Meine Karten", html`
-          <p>${P("#/mes-cartes", "Meine Karten")} bewahrt deine Karten und die Routen, die du darauf gelaufen bist, auf, wie ein eigenes DOMA: eine Galerie, die
-            du nach Titel, Ort oder Jahr durchsuchst, und jede Karte mit ihren eingezeichneten Läufen, jeder in einer Farbe oder nach Tempo. Du brauchst ein Konto.</p>
+          <p>${P("#/mes-cartes", "Meine Karten")} bewahrt deine Karten und die Routen, die du darauf gelaufen bist, auf, wie ein eigenes DOMA: eine Tabelle aller deiner
+            Karten (Datum, Ort, Departement, Region, Land, Tracks), nach jeder Spalte sortierbar und über die Liste jeder Spalte filterbar. Eine gewählte Zelle
+            zeigt daneben die Karten mit demselben Wert (der Name einer Karte: nur diese Karte), und die Weltkarte zeigt, wo sie liegen; ein Punkt der Karte wählt
+            seine Zeile. Jede Karte öffnet sich mit ihren eingezeichneten Läufen, jeder in einer Farbe oder nach Tempo. Du brauchst ein Konto.</p>
           ${list([
             html`<b>Einen Lauf hinzufügen</b>: in der Einzelanalyse, sobald der Lauf kalibriert ist, „In Meine Karten speichern“. Aufbewahrt werden die Karte so,
               wie du sie gegeben hast, und die Route so, wie sie gezeichnet ist (Positionen auf der Karte und Zeiten, Posten), nie die GPS-Datei. Dieselbe Karte
@@ -274,7 +276,8 @@ export function build(X) {
               enthält; Ozimut liest es unverändert wieder ein. Mehrere angekreuzte Karten werden zusammen in einer ZIP-Datei exportiert, über einen Link geteilt oder auf einmal gelöscht.`,
             html`<b>Persönliche Daten</b>: Herzfrequenz, Höhe und Schrittfrequenz werden nur aufbewahrt, wenn du das Kästchen ankreuzt (standardmäßig nicht).`,
             html`<b>Teilen</b>: Deine Karten sind privat. Ein Link zu allen deinen Karten oder zu einer zeigt sie jedem, der ihn bekommt, auch ohne Konto, ohne
-              die persönlichen Daten; das Löschen des Links beendet das Teilen.`,
+              die persönlichen Daten; das Löschen des Links beendet das Teilen. Die ganze Bibliothek lässt sich auch mit den Personen teilen, die du einlädst:
+              Ein Einladungslink, einmal und 7 Tage gültig, gibt ihr einen Reiter mit deinem Namen in deren „Meine Karten“.`,
           ])}`)}`,
       definitions: () => html`
         ${slide("Coach", "Postenbeschreibungen", html`

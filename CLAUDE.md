@@ -1904,13 +1904,19 @@ Every multiple-choice game was played through to its score page at phone size, w
   `trace/mymapsplace.js` names countries by the browser's `Intl.DisplayNames` in ten languages (folder names « Suede »,
   « Sweden », « SE »; FX, IC… left out: FX took « France ») and France's units from `geo/regions.json` / `departements.json`
   (a département gives its région; a point its département: maps georeferenced in France before 0024 are placed in memory). The
-  page: figures (maps, % with a track, countries, regions) for the scope shown and each folder; filters country › region ›
-  département › year (`?pays=&region=&dep=&annee=`); folders by place (country › region › département › place) or by date
-  (year › month, a year read from the name when no date: « Ball-Trap S 2019 ») or none (`?groupe=`, kept in `ocn.mm.prefs`
-  `libGroup`), unfolded in place or entered (`?dossier=` keys joined by « ~ »), a breadcrumb, a filter's level not repeated as a
-  folder; beside them on a computer the Agenda's map (`agendamap.mount` with `area`/`missing` keys of its own, `fitDots` on the
-  world's map), a map's own position (georeference, else a track's first point) or its département's / région's / country's
-  centre (hollow), a click opening the map. Each card has, under the mouse, ▶ Rejouer (the latest run), ✎ Renommer, 💬
+  page: figures (maps, % with a track, countries, regions) for the maps the filters keep; **a table of every map** (owner,
+  2026-11-24: the folders of 2026-11-06 took too many clicks to find a map) — map, date, place, département, région, country,
+  tracks, georeferenced (the administrators' view: origin, account, club; `COLS` in `pages/mymaps.js`) —, sorted by any column as
+  the Agenda (a heading clicked, Shift + click a further key; `sessionStorage ocn.mm.sort`, the latest maps first by default) and
+  filtered by each heading's list of the values the other filters leave (« (non renseigné) » too; the date's by year, tracks and
+  georeferenced yes / no; `?annee=&lieu=&dep=&region=&pays=&traces=&geo=&src=&qui=&club=`, « Effacer les filtres »), a search above;
+  **a cell chosen** shows beside the table, under the map, the cards of the maps sharing its value (a map's name: that map alone;
+  40 cards, then « Afficher les … autres »; « Filtrer le tableau sur cette valeur »), its column's cells of that value framed,
+  their rows tinted, their dots marked on the map (`agendamap` `mark(keys)`, one map `select`); a double click on a row, or a click on a card,
+  opens the map. Beside the table on a computer the Agenda's map (`agendamap.mount` with `area`/`missing` keys of its own,
+  `fitDots` on the world's map), a map's own position (georeference, else a track's first point) or its département's / région's /
+  country's centre (hollow); a row under the mouse lights its dot, a dot its row and card, a dot clicked chooses its map in the
+  table (scrolled to it). Under 980 px no map, the cards under the table. Each card has, under the mouse, ▶ Rejouer (the latest run), ✎ Renommer, 💬
   Commenter (the map's notes), 🗑 Supprimer — the same SVG icons before the same buttons on the map's page (`icon()`).
   « Nouvelle carte »: any map file (images incl. GIF/BMP/TIFF, PDF, KMZ, OCAD/Mapper rendered, QuickRoute/Ozimut JPEGs, a world
   file + .prj beside it) and a GPS track; the name from the file, the date from the name or the track, the place from the
@@ -1956,7 +1962,6 @@ Every multiple-choice game was played through to its score page at phone size, w
   of any position (`mymapsplace.countryAt`, on `geo/index.json` — each country file's box, written by `tools/countrymaps.py` —
   and the country's outline, a coast within 25 km accepted), France's down to the département; a collection map copied before
   its source was georeferenced gets its `pos` from the source later (`maplib.placeLater`, once a day a map, `admin-maps/placed.json`).
-  The folder of maps without a place has the key `_none`: `~` joins a folder's path (`?dossier=`).
   **A library shared with chosen accounts** (owner, 2026-11-24; **migration 0033**, `mymap_grants` owner → grantee, `traces`, and
   `mymap_invites`): « Partager ma bibliothèque » opens with « Avec des personnes que vous invitez » — **by invitation links, never a
   search of accounts** (owner, the same day: a search by name told who has an account; as the Tracer's teams) — « Créer un lien

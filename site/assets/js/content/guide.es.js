@@ -257,8 +257,10 @@ export function build(X) {
           ])}`)}`,
       cartes: () => html`
         ${slide("Coach", "Mis mapas", html`
-          <p>${P("#/mes-cartes", "Mis mapas")} guarda tus mapas y los recorridos que hiciste en ellos, como un DOMA propio: una galería para buscar por título,
-            lugar o año, y cada mapa con sus carreras dibujadas encima, de un color cada una o según el ritmo. Necesitas una cuenta.</p>
+          <p>${P("#/mes-cartes", "Mis mapas")} guarda tus mapas y los recorridos que hiciste en ellos, como un DOMA propio: una tabla de todos tus mapas
+            (fecha, lugar, departamento, región, país, trazas), que se ordena por cualquier columna y se filtra con la lista de cada columna. Una celda elegida
+            muestra al lado los mapas con el mismo valor (el nombre de un mapa: solo ese mapa), y el mapa del mundo los sitúa; un punto del mapa elige su fila.
+            Cada mapa se abre con sus carreras dibujadas encima, de un color cada una o según el ritmo. Necesitas una cuenta.</p>
           ${list([
             html`<b>Añadir una carrera</b>: en el Análisis individual, una vez calibrada la carrera, «Guardar en Mis mapas». Se guarda el mapa tal como lo diste
               y el recorrido tal como está dibujado (posiciones en el mapa y horas, controles), nunca el archivo GPS. El mismo mapa se guarda una sola vez: otra
@@ -269,7 +271,8 @@ export function build(X) {
               y las carreras; Ozimut lo vuelve a leer tal cual. Varios mapas marcados se exportan juntos en un zip, se comparten con un mismo enlace o se eliminan de una vez.`,
             html`<b>Datos personales</b>: la frecuencia cardiaca, la altitud y la cadencia solo se guardan si marcas la casilla (sin marcar por defecto).`,
             html`<b>Compartir</b>: tus mapas son privados. Un enlace a todos tus mapas, o a uno, los muestra a quien lo reciba, incluso sin cuenta, sin los datos
-              personales; eliminar el enlace pone fin al uso compartido.`,
+              personales; eliminar el enlace pone fin al uso compartido. Toda la biblioteca se comparte también con las personas que invites: un enlace de
+              invitación, válido una vez y durante 7 días, le abre una pestaña con tu nombre en su «Mis mapas».`,
           ])}`)}`,
       definitions: () => html`
         ${slide("Coach", "Descripciones de control", html`

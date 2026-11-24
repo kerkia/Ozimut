@@ -258,8 +258,10 @@ export function build(X) {
           ])}`)}`,
       cartes: () => html`
         ${slide("Coach", "Mes cartes", html`
-          <p>${P("#/mes-cartes", "Mes cartes")} garde vos cartes et les itinéraires que vous y avez courus, comme un DOMA à vous : une galerie à chercher par
-            titre, lieu ou année, et chaque carte avec ses courses dessinées dessus, d'une couleur chacune ou selon l'allure. Il faut un compte.</p>
+          <p>${P("#/mes-cartes", "Mes cartes")} garde vos cartes et les itinéraires que vous y avez courus, comme un DOMA à vous : un tableau de toutes vos cartes
+            (date, lieu, département, région, pays, traces), à trier par n'importe quelle colonne et à filtrer par la liste de chaque colonne. Une cellule choisie
+            montre à côté les cartes qui ont la même valeur (le nom d'une carte : cette carte seule), et la carte du monde les situe ; un point de la carte
+            choisit sa ligne. Chaque carte s'ouvre avec ses courses dessinées dessus, d'une couleur chacune ou selon l'allure. Il faut un compte.</p>
           ${list([
             html`<b>Ajouter une course</b> : dans l'Analyse solo, une fois la course calée, « Enregistrer dans Mes cartes ». Sont gardés la carte telle que vous
               l'avez donnée et l'itinéraire tel qu'il est dessiné (positions sur la carte et heures, postes), jamais le fichier GPS. La même carte n'est gardée
@@ -270,7 +272,8 @@ export function build(X) {
               d'origine et les courses ; Ozimut le relit tel quel. Plusieurs cartes cochées s'exportent ensemble dans un zip, se partagent par un même lien ou se suppriment d'un coup.`,
             html`<b>Données personnelles</b> : la fréquence cardiaque, l'altitude et la cadence ne sont gardées que si vous cochez la case (décochée par défaut).`,
             html`<b>Partager</b> : vos cartes sont privées. Un lien vers toutes vos cartes, ou vers une seule, les montre à qui le reçoit, même sans compte, sans
-              les données personnelles ; supprimer le lien arrête le partage.`,
+              les données personnelles ; supprimer le lien arrête le partage. Toute la bibliothèque se partage aussi avec les personnes que vous invitez :
+              un lien d'invitation, valable une fois et 7 jours, lui ouvre un onglet à votre nom dans leur « Mes cartes ».`,
           ])}`)}`,
       definitions: () => html`
         ${slide("Coach", "Définitions de postes", html`
