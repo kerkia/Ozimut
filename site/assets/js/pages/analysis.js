@@ -1097,6 +1097,19 @@ export async function render(main, { query = {}, route } = {}) {
       olderReading = (kept.reader || 0) < READER && !files.iof;
       if (olderReading) notes.push(t("an.st.newReader"));
       recompute({ geometry });
+      // kept by a reading that did not give the map's order (the start not found then): when today's reading of the printed
+      // legs gives the very order kept, the sequence is known — « Inter-postes » was missing beside « Itinéraires », which
+      // listed every leg (owner, 2026-11-24)
+      if (!mapOrdered && !taus && !files.iof && course && fit) {
+        const n0 = notes.length, placed = targets.filter((g) => g.pos);
+        let seq = null;
+        try { seq = courseOrder(fit, placed.map((g) => ({ kind: g.kind, code: g.code, pos: g.pos }))); } catch (e) { seq = null; }
+        // (the start apart: placed where the trace waits when no printed leg leads to it, it is not in the map's chain)
+        const body = (l) => l.filter((p) => p.kind !== "start");
+        const a = seq ? body(seq) : [], b = body(placed);
+        const same = a.length >= 3 && a.length === b.length && a.every((p, i) => p.kind === b[i].kind && Math.hypot(p.pos[0] - b[i].pos[0], p.pos[1] - b[i].pos[1]) < 2);
+        if (same) { mapOrdered = true; recompute({ geometry: fit }); } else notes.length = n0;
+      }
       cur = nextTarget(0);
       side(); draw();
       // ready, not played: the page opens on the files and the calibration (« Voir la course » plays it), so that new
