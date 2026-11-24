@@ -63,7 +63,12 @@ const icon = (k) => raw(`<svg class="mm-ic" viewBox="0 0 24 24" aria-hidden="tru
 
 export async function render(main, { query = {} } = {}) {
   const me = auth.session();
-  const token = /^[a-z2-9]{8,40}$/.test(query.partage || "") ? query.partage : null;
+  const link = /^[a-z2-9]{8,40}$/.test(query.partage || "") ? query.partage : null;
+  // a library another account shares with this one (owner, 2026-11-24: a tab of its own beside « Ma bibliothèque »)
+  const owner = !link && me && /^\d{1,12}$/.test(query.de || "") ? String(query.de) : null;
+  const token = link || (owner ? `u${owner}` : null);                    // what the maps are read through (trace/mymaps.js via)
+  const srcQ = link ? { partage: link } : owner ? { de: owner } : {};
+  const srcHash = link ? `partage=${link}` : owner ? `de=${owner}` : "";
   const all = !token && !!me?.admin && query.vue === "toutes";          // the administrators' view of every map
   let st = { maps: [], links: { archive: null, maps: {}, sets: [] }, name: "", archive: false };
   let q = query.q || "", year = query.annee || "";
@@ -76,11 +81,13 @@ export async function render(main, { query = {} } = {}) {
     $("#mm").innerHTML = html`<div class="card"><div class="card-body"><p>${t("mm.needAccount")}</p></div></div>`;
     return { title: t("mm.title") };
   }
-  let fr;
+  let fr, shares = { to: [], from: [] };
+  const sharesP = me && !link ? MM.shares().then((s) => { shares = s; }).catch(() => {}) : null;
   try {
-    [st, fr] = await Promise.all([token ? MM.shared(token).then((s) => ({ ...s, links: { archive: null, maps: {}, sets: [] } })) : all ? adminLibrary() : MM.list(), MP.france()]);
+    [st, fr] = await Promise.all([token ? MM.shared(token).then((s) => ({ ...s, links: { archive: null, maps: {}, sets: [] } })) : all ? adminLibrary() : MM.list(), MP.france(), sharesP]);
   } catch (e) {
-    $("#mm").innerHTML = html`${all ? viewSwitch() : ""}<div class="card"><div class="card-body"><p>${t(token ? "mm.shared.gone" : e.status === 503 ? "mm.err.notReady" : "mm.err.load")}</p></div></div>`;
+    await sharesP;
+    $("#mm").innerHTML = html`${libTabs()}<div class="card"><div class="card-body"><p>${t(owner ? "mm.grant.gone" : token ? "mm.shared.gone" : e.status === 503 ? "mm.err.notReady" : "mm.err.load")}</p></div></div>`;
     return { title: t("mm.title") };
   }
   // a georeferenced map without a place (kept before its place was asked, 2026-11-06, or a map of the administrators'
@@ -113,7 +120,7 @@ export async function render(main, { query = {} } = {}) {
     if (id && byId(id)) return openMap(byId(id));
     drawList();
   }
-  const address = () => replaceQuery({ partage: token, vue: all ? "toutes" : null, q: q || null, annee: year || null, pays: flt.country || null, region: flt.region || null,
+  const address = () => replaceQuery({ partage: link, de: owner, vue: all ? "toutes" : null, q: q || null, annee: year || null, pays: flt.country || null, region: flt.region || null,
     dep: flt.dept || null, src: flt.src || null, qui: flt.uid || null, club: flt.club || null,
     groupe: group === (prefs.libGroup || "lieu") ? null : group, dossier: group !== "aucun" && path.length ? path.join("~") : null });
 
@@ -136,12 +143,12 @@ export async function render(main, { query = {} } = {}) {
   function drawList() {
     for (const id of [...sel]) if (!byId(id)) sel.delete(id);
     const empty = !st.maps.length;
-    $("#mm").innerHTML = html`${!token && me?.admin ? viewSwitch() : ""}
+    $("#mm").innerHTML = html`${libTabs()}
       <div class="page-head"><div><h1>${token ? t("mm.shared.title", { name: st.name }) : all ? t("mm.adm.title") : t("mm.title")}</h1>
-        <p class="lede">${token ? t(st.traces ? "mm.shared.lede" : "mm.shared.ledeMap") : all ? t("mm.adm.lede", { n: fmt(st.gone || 0) }) : t("mm.lede")}</p></div>
+        <p class="lede">${owner ? t(st.traces ? "mm.grant.lede" : "mm.grant.ledeMap") : token ? t(st.traces ? "mm.shared.lede" : "mm.shared.ledeMap") : all ? t("mm.adm.lede", { n: fmt(st.gone || 0) }) : t("mm.lede")}</p></div>
         ${mine ? html`<div class="mm-acts"><button type="button" class="btn btn-sm btn-primary" data-act="new">${icon("add")} ${t("mm.new")}</button>
           <button type="button" class="btn btn-sm" data-act="folder">${icon("import")} ${t("mm.folder")}</button>
-          <button type="button" class="btn btn-sm" id="mm-share">${icon("share")} ${st.links.archive ? t("mm.shareLib.on") : t("mm.shareLib")}</button></div>` : ""}</div>
+          <button type="button" class="btn btn-sm" id="mm-share">${icon("share")} ${st.links.archive || shares.to.length ? t("mm.shareLib.on") : t("mm.shareLib")}</button></div>` : ""}</div>
       ${mine ? ways(empty) : ""}
       ${empty ? (mine ? html`<div class="card"><div class="card-body prose mm-empty"><p>${t("mm.empty")}</p></div></div>`
         : html`<div class="card"><div class="card-body prose mm-empty">${t("mm.shared.none")}</div></div>`) : html`
@@ -397,7 +404,7 @@ export async function render(main, { query = {} } = {}) {
         <span class="mm-from">${t(m.src === "mymaps" ? "mm.adm.libraryOf" : "mm.adm.sentBy", { name: m.user || `#${m.uid || "?"}` })}${m.club ? html` <span class="muted">· ${m.club}</span>` : ""}</span>
         ${nRuns(m) ? html`<span class="muted">${tn("mm.count.runs", nRuns(m))}</span>` : ""}</a>`;
     }
-    return html`<a class="mm-card" href="#/mes-cartes?${raw(token ? `partage=${token}&` : "")}carte=${m.id}" data-id="${m.id}">
+    return html`<a class="mm-card" href="#/mes-cartes?${raw(srcHash ? `${srcHash}&` : "")}carte=${m.id}" data-id="${m.id}">
       <span class="mm-thumb"><img src="${thumb(m)}" alt="" loading="lazy">${mine && (st.links.maps[m.id] || m.private)
         ? html`<span class="mm-tag">${m.private ? html`<span title="${t("mm.f.privateTip")}">🔒</span>` : ""}${st.links.maps[m.id] ? html`<span title="${t("mm.shared.on")}">🔗</span>` : ""}</span>` : ""}
         ${mine ? html`<label class="mm-pick" title="${t("mm.sel.one")}"><input type="checkbox" data-id="${m.id}" aria-label="${t("mm.sel.one")}"></label>` : ""}
@@ -453,7 +460,7 @@ export async function render(main, { query = {} } = {}) {
   }
   function go(id) {
     query = { ...query, carte: id };
-    replaceQuery({ partage: token, vue: all ? "toutes" : null, carte: id });
+    replaceQuery({ ...srcQ, vue: all ? "toutes" : null, carte: id });
     draw();
     window.scrollTo(0, 0);
   }
@@ -468,7 +475,7 @@ export async function render(main, { query = {} } = {}) {
     const hidden = new Set();
     let colourBy = prefs.colour === "pace" ? "pace" : "run";
     $("#mm").innerHTML = html`
-      ${!token || st.archive ? html`<p class="mm-back"><a href="#/mes-cartes${raw(token ? `?partage=${token}` : all ? "?vue=toutes" : "")}" id="mm-back">‹ ${token ? t("mm.shared.back", { name: st.name }) : all ? t("mm.adm.title") : t("mm.title")}</a></p>` : ""}
+      ${!token || st.archive ? html`<p class="mm-back"><a href="#/mes-cartes${raw(srcHash ? `?${srcHash}` : all ? "?vue=toutes" : "")}" id="mm-back">‹ ${token ? t("mm.shared.back", { name: st.name }) : all ? t("mm.adm.title") : t("mm.title")}</a></p>` : ""}
       <div class="page-head"><div><h1>${m.title || t("mm.untitled")}</h1>
         <p class="lede meta">${[m.day ? fmtDate(m.day) : "", ...whereOf(m), m.w ? `${fmt(m.w)} × ${fmt(m.h)} px` : "", token ? t("mm.shared.by", { name: st.name }) : "",
           mine && m.private ? `🔒 ${t("mm.f.private")}` : "",
@@ -673,9 +680,13 @@ export async function render(main, { query = {} } = {}) {
   }
 
   // ---- the administrators' view ---------------------------------------------------------------------------------------------
-  function viewSwitch() {
+  // the libraries' tabs (owner, 2026-11-24): one's own, then each library shared with this account, then the administrators' view
+  function libTabs() {
+    if (link || !me || (!me.admin && !shares.from.length)) return "";
     return html`<div class="seg mm-viewswitch" role="group" aria-label="${t("mm.adm.switch")}">
-      <a href="#/mes-cartes" role="button" aria-pressed="${!all}">${t("mm.adm.mine")}</a><a href="#/mes-cartes?vue=toutes" role="button" aria-pressed="${all}">${t("mm.adm.all")}</a></div>`;
+      <a href="#/mes-cartes" role="button" aria-pressed="${!all && !owner}">${t("mm.adm.mine")}</a>
+      ${shares.from.map((x) => html`<a href="#/mes-cartes?de=${x.uid}" role="button" aria-pressed="${owner === String(x.uid)}" title="${t("mm.grant.tab.tip", { name: x.name })}">${x.name}</a>`)}
+      ${me.admin ? html`<a href="#/mes-cartes?vue=toutes" role="button" aria-pressed="${all}">${t("mm.adm.all")}</a>` : ""}</div>`;
   }
   /** Every map sent to Ozimut, in the library's shape: the collection's (c-<etag>) and the accounts' libraries' (u-<id>). */
   async function adminLibrary() {
@@ -1057,6 +1068,43 @@ export async function render(main, { query = {} } = {}) {
   // routes run on them or the maps alone, chosen before the link is made and changed on the link kept (same address). The
   // library's dialog also lists the other links made, each to copy or delete.
   const sameSet = (a, b) => a.length === b.length && [...a].sort().join() === [...b].sort().join();
+  /** The library's dialog: the accounts it is shared with (each with or without the routes, removed), and a search to add one. */
+  function bindPeople(d) {
+    const who = $("#mm-who", d), res = $("#mm-who-res", d);
+    const label = (x) => html`<span><b>${x.name}</b>${x.club ? html` <span class="muted">· ${x.club}</span>` : ""}</span>`;
+    const drawGrants = () => {
+      $("#mm-grants", d).innerHTML = shares.to.length ? html`${shares.to.map((g) => html`<li>${label(g)}<span class="row">
+          <select data-gtr="${g.uid}" aria-label="${t("mm.share.what")}"><option value="1">${t("mm.links.withTraces")}</option>
+            <option value="0" ${raw(g.traces ? "" : "selected")}>${t("mm.links.mapOnly")}</option></select>
+          <button type="button" class="btn btn-ghost btn-sm mm-danger" data-gdel="${g.uid}">${t("mm.grant.remove")}</button></span></li>`)}`
+        : html`<li class="muted">${t("mm.grant.none")}</li>`;
+      $$("[data-gtr]", d).forEach((x) => x.addEventListener("change", () => set(Number(x.dataset.gtr), true, x.value === "1")));
+      $$("[data-gdel]", d).forEach((b) => b.addEventListener("click", () => set(Number(b.dataset.gdel), false)));
+    };
+    const set = async (uid, on, withRoutes = true) => {
+      try { shares.to = (await MM.setShare(uid, on, withRoutes)).to; drawGrants(); find(); }
+      catch (e) { alert(t(e.status === 503 ? "mm.err.notReady" : "mm.err.save")); }
+    };
+    let timer = 0, asked = "";
+    const find = () => {
+      const q = who.value.trim();
+      clearTimeout(timer);
+      if (q.replace(/\s+/g, "").length < 3) { res.innerHTML = q ? html`<li class="muted">${t("mm.grant.more")}</li>` : ""; return; }
+      timer = setTimeout(async () => {
+        asked = q;
+        let r;
+        try { r = await MM.people(q); } catch (e) { if (asked === q) res.innerHTML = html`<li class="muted">${t(e.status === 503 ? "mm.err.notReady" : "mm.err.load")}</li>`; return; }
+        if (asked !== q) return;
+        const has = new Set(shares.to.map((g) => g.uid));
+        res.innerHTML = r.people.length ? html`${r.people.map((x) => html`<li>${label(x)}${has.has(x.uid) ? html`<span class="muted">${t("mm.grant.already")}</span>`
+          : html`<button type="button" class="btn btn-sm btn-primary" data-gadd="${x.uid}">${t("mm.grant.add")}</button>`}</li>`)}`
+          : html`<li class="muted">${t("mm.grant.noOne")}</li>`;
+        $$("[data-gadd]", res).forEach((b) => b.addEventListener("click", () => set(Number(b.dataset.gadd), true)));
+      }, 250);
+    };
+    who.addEventListener("input", find);
+    drawGrants();
+  }
   function shareDialog(target) {
     const m = target.map || null, ids = target.ids || null;
     const cur = () => (m ? st.links.maps[m.id] : ids ? st.links.sets.find((x) => sameSet(x.maps, ids)) : st.links.archive);
@@ -1064,7 +1112,15 @@ export async function render(main, { query = {} } = {}) {
     const scopeMaps = m ? [m] : ids ? ids.map(byId).filter(Boolean) : st.maps;
     // a QuickRoute map carries its route in the picture itself: shared alone, the route still shows
     const painted = scopeMaps.some((x) => x.runs.some((r) => r.source === "quickroute"));
-    const d = dialog(html`${dlgHead(t(m ? "mm.shareMap" : ids ? "mm.sel.share" : "mm.shareLib"))}<div class="stack mm-form" id="mm-sh"></div>`);
+    const lib = !m && !ids;
+    // the whole library with chosen accounts (owner, 2026-11-24: « a user selector »), then by a link
+    const d = dialog(html`${dlgHead(t(m ? "mm.shareMap" : ids ? "mm.sel.share" : "mm.shareLib"))}${lib ? html`<div class="stack mm-form mm-people">
+        <b>${t("mm.grant.title")}</b><p class="muted">${t("mm.grant.text")}</p>
+        <ul class="mm-grants" id="mm-grants"></ul>
+        <div class="mm-pick"><input type="search" id="mm-who" placeholder="${t("mm.grant.search")}" aria-label="${t("mm.grant.search")}" autocomplete="off">
+          <ul class="mm-who-res" id="mm-who-res" aria-live="polite"></ul></div></div>
+      <div class="mm-sep"><b>${t("mm.grant.byLink")}</b></div>` : ""}<div class="stack mm-form" id="mm-sh"></div>`);
+    if (lib) bindPeople(d);
     const body = () => (m ? { map: m.id } : ids ? { maps: ids } : { map: null });
     const keep = (r) => {
       const v = r.token ? { token: r.token, traces: r.traces } : null;

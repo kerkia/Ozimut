@@ -120,7 +120,7 @@ export const body = (SITE, { world = false, later = "" } = {}) => `
         case prévue (décochée par défaut)  ce sont des données de santé, conservées sur votre consentement, que vous retirez en
         supprimant la course. Ces cartes ne sont visibles que de vous. Si vous créez un lien de partage (vers toutes vos cartes ou
         vers une seule), toute personne qui a ce lien les voit avec votre nom, même sans compte, mais jamais la fréquence cardiaque
-        ni les autres données personnelles  supprimer le lien arrête ce partage. Vous supprimez une course ou une carte à tout
+        ni les autres données personnelles  supprimer le lien arrête ce partage. Vous pouvez aussi partager toute votre bibliothèque avec des comptes Ozimut que vous choisissez : ils la voient dans « Mes cartes », sans vos cartes privées ni vos données personnelles, jusqu'à ce que vous retiriez ce partage. Pour choisir ces comptes, un compte peut chercher les autres par leur nom : il voit leur nom et leur club, rien d'autre. Vous supprimez une course ou une carte à tout
         moment  tout est effacé avec votre compte. Une demande d'import depuis DOMA est un message envoyé à l'équipe Ozimut, comme
         ceux de « Nous écrire ».</p>
       <p>Si vous cochez « Enregistrer l'analyse » à côté de « Voir la course » dans « Analyse solo » (coché par défaut), la carte et votre course — positions et heures seulement, rien d'autre de la montre — sont gardées dans votre compte, à part de « Mes cartes » : vous seul les voyez, dans « Analyse », où vous rejouez ou supprimez l'analyse. Une carte n'y est gardée qu'une fois et part avec la dernière analyse qui la montre.</p>
@@ -322,5 +322,5 @@ export const body = (SITE, { world = false, later = "" } = {}) => `
       <p><b>Crédits :</b> les symboles et les textes des définitions de postes (Coach › Définitions de postes, le tracé des circuits)
         viennent de Purple Pen, de Peter Golde (<a href="https://github.com/petergolde/PurplePen" target="_blank" rel="noopener">github.com/petergolde/PurplePen</a>),
         sous <a href="assets/tracer/LICENSE-PurplePen.txt" target="_blank" rel="noopener">licence BSD</a>.</p>
-      <p class="muted">Dernière mise à jour : 23 novembre 2026.</p>
+      <p class="muted">Dernière mise à jour : 24 novembre 2026.</p>
 `;

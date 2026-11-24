@@ -4177,6 +4177,14 @@ body.nut-ed-open .page { padding-bottom: 10px; }      /* the page's 96 px under 
 .mm-selbar b { margin-right: 4px; }
 .mm-others ul { list-style: none; margin: 6px 0 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
 .mm-others li { display: flex; justify-content: space-between; align-items: center; gap: 8px; font-size: 13px; }
+/* « Mes cartes »: the library shared with chosen accounts (owner, 2026-11-24) */
+.mm-grants, .mm-who-res { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.mm-grants li, .mm-who-res li { display: flex; justify-content: space-between; align-items: center; gap: 8px; font-size: 13px; flex-wrap: wrap; }
+.mm-grants select { font-size: 13px; }
+.mm-pick input { width: 100%; }
+.mm-who-res { margin-top: 6px; }
+.mm-sep { border-top: 1px solid var(--line); padding-top: 10px; margin-top: 4px; }
+.mm-viewswitch { flex-wrap: wrap; }
 @media (max-width: 640px) { .mm-way { flex-direction: column; align-items: stretch; } }
 .mm-selbar[hidden] { display: none; }
 /* « Mes cartes »: the library (owner, 2026-11-06) — figures, filters, folders, the map beside, the cards' icons, the dialogs */

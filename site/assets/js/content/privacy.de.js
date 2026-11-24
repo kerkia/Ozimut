@@ -123,7 +123,7 @@ export const body = (SITE, { world = false, later = "" } = {}) => `
         vorgesehene Kästchen ankreuzt (standardmäßig nicht angekreuzt): Es sind Gesundheitsdaten, die mit deiner Einwilligung aufbewahrt
         werden; du widerrufst sie, indem du den Lauf löschst. Diese Karten siehst nur du. Erstellst du einen Link zum Teilen (zu allen
         deinen Karten oder zu einer), sieht sie jeder, der den Link hat, mit deinem Namen, auch ohne Konto, aber nie die Herzfrequenz
-        oder andere persönliche Daten; das Löschen des Links beendet das Teilen. Du kannst einen Lauf oder eine Karte jederzeit löschen;
+        oder andere persönliche Daten; das Löschen des Links beendet das Teilen. Du kannst deine ganze Bibliothek auch mit Ozimut-Konten teilen, die du auswählst: Sie sehen sie in „Meine Karten“, ohne deine privaten Karten und deine persönlichen Daten, bis du dieses Teilen entfernst. Um diese Konten auszuwählen, kann ein Konto andere nach ihrem Namen suchen: Es sieht ihren Namen und ihren Verein, sonst nichts. Du kannst einen Lauf oder eine Karte jederzeit löschen;
         alles wird mit deinem Konto gelöscht. Eine Anfrage zum Import aus DOMA ist eine Nachricht an das Ozimut-Team, wie die über
         „Kontakt“.</p>
       <p>Wenn du in der „Einzelanalyse“ neben „Lauf ansehen“ das Häkchen bei „Analyse speichern“ setzt (standardmäßig gesetzt), werden die Karte und dein Lauf — nur Positionen und Zeiten, sonst nichts von der Uhr — in deinem Konto behalten, getrennt von „Meine Karten“: nur du siehst sie, in der „Analyse“, wo du die Analyse erneut abspielst oder löschst. Eine Karte wird dort nur einmal behalten und geht mit der letzten Analyse, die sie zeigt.</p>
@@ -328,5 +328,5 @@ export const body = (SITE, { world = false, later = "" } = {}) => `
       <p><b>Danksagung:</b> Die Symbole und Texte der Postenbeschreibungen (Coach › Postenbeschreibungen, die Bahnlegung)
         stammen aus Purple Pen von Peter Golde (<a href="https://github.com/petergolde/PurplePen" target="_blank" rel="noopener">github.com/petergolde/PurplePen</a>),
         unter der <a href="assets/tracer/LICENSE-PurplePen.txt" target="_blank" rel="noopener">BSD-Lizenz</a>.</p>
-      <p class="muted">Letzte Aktualisierung: 23. November 2026.</p>
+      <p class="muted">Letzte Aktualisierung: 24. November 2026.</p>
 `;

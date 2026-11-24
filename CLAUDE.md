@@ -1957,6 +1957,12 @@ Every multiple-choice game was played through to its score page at phone size, w
   and the country's outline, a coast within 25 km accepted), France's down to the département; a collection map copied before
   its source was georeferenced gets its `pos` from the source later (`maplib.placeLater`, once a day a map, `admin-maps/placed.json`).
   The folder of maps without a place has the key `_none`: `~` joins a folder's path (`?dossier=`).
+  **A library shared with chosen accounts** (owner, 2026-11-24; **migration 0033**, `mymap_grants` owner → grantee, `traces`): « Partager
+  ma bibliothèque » opens with « Avec des comptes Ozimut » — a search of accounts by name (`GET /api/mymaps/people?q=`, 3 letters, 10
+  answers with their club, demo / unconfirmed / disabled accounts and oneself left out), each account shared with listed with « avec les
+  itinéraires | cartes seules » and « Retirer » (`/shares`) —, then the link as before. The grantee gets a tab at the owner's name beside
+  « Ma bibliothèque » (`?de=<owner>`, the page's `token` « u<owner> », which `trace/mymaps.js via` reads through `/api/mymaps/u/<owner>`),
+  read only as a link's view; « Carte privée » maps are left out of it, the personal channels never served. Account deletion drops both ways.
   Shown in « Mes cartes » `?vue=toutes` (administrators: « Ma bibliothèque | Toutes les cartes »), with every account's library
   (read in place, not copied), each card tagged by origin and account, filters origin / account / club, folders by account or club;
   read only, « Fichier d'origine » to download. Admin page tab « Mes cartes » (`?onglet=cartes`): accounts, maps, runs, size against

@@ -34,8 +34,18 @@
 //                                               selection's: those still kept;
 //                                               a link of the maps alone lists no runs and serves none)
 //   GET    /api/mymaps/s/<token>/maps/<id>/map | /thumb | /view,  GET /api/mymaps/s/<token>/runs/<id>
+//
+// A library shared with chosen accounts (owner, 2026-11-24; migration 0033, mymap_grants; 503 « not ready » before it): the whole
+// library, read only, its maps marked « Carte privée » left out, the personal channels never served.
+//   GET    /api/mymaps/shares                   { to: [{ uid, name, club, traces }] (whom one shares with), from: [{ uid, name, traces }] }
+//   POST   /api/mymaps/shares                   { uid, on, traces } -> { to }
+//   GET    /api/mymaps/people?q=                { people: [{ uid, name, club }] } (accounts whose name has every word typed; 3 letters
+//                                               at least, 10 answers, oneself, demo, unconfirmed and disabled accounts left out)
+//   GET    /api/mymaps/u/<owner>                as /s/<token>, for an account the owner shares with
+//   GET    /api/mymaps/u/<owner>/maps/<id>/map | /thumb | /view,  GET /api/mymaps/u/<owner>/runs/<id>
 
 import { allow, currentUser, isAdmin, json, nowIso, readBody } from "../../_lib/api.js";
+import { clubLabel } from "../../_lib/club.js";
 import { randomBytes } from "../../_lib/crypto.js";
 import { key, origKey, getOrig, quota, used } from "../../_lib/mymaps.js";
 
@@ -128,6 +138,18 @@ async function dropPrefix(env, prefix) {
     cursor = r.truncated ? r.cursor : undefined;
   } while (cursor);
 }
+/** The club shown beside an account's name (homonyms): its federation club, else the club typed for a country it joined. */
+async function clubOfUser(env, request, u) {
+  if (u.licence) { const c = await clubLabel(env, request, u.licence).catch(() => null); if (c) return c; }
+  const r = await env.DB.prepare("SELECT club FROM user_countries WHERE user_id = ? AND club <> '' ORDER BY added_at LIMIT 1").bind(u.id).first().catch(() => null);
+  return r?.club || "";
+}
+/** The accounts one shares one's library with. */
+async function grantsTo(env, request, uid) {
+  const { results } = await env.DB.prepare(`SELECT g.grantee_id, g.traces, u.id, u.first_name, u.last_name, u.display_name, u.licence FROM mymap_grants g
+    JOIN users u ON u.id = g.grantee_id WHERE g.owner_id = ? ORDER BY u.last_name, u.first_name`).bind(uid).all();
+  return Promise.all(results.map(async (r) => ({ uid: r.id, name: nameOf(r), club: await clubOfUser(env, request, r), traces: r.traces !== 0 })));
+}
 /** The body, up to `max` bytes (null beyond). */
 async function bodyBytes(request, max) {
   const len = Number(request.headers.get("Content-Length") || 0);
@@ -181,6 +203,66 @@ export async function onRequest(ctx) {
       const u = await used(env, uid);
       return u + more > limit ? json({ error: "quota", used: u, limit }, 413) : null;
     };
+
+    // ---- shared with chosen accounts (migration 0033)
+    if (parts[0] === "shares" && parts.length === 1) {
+      if (method === "GET") {
+        const { results } = await env.DB.prepare(`SELECT g.owner_id, g.traces, u.first_name, u.last_name, u.display_name FROM mymap_grants g
+          JOIN users u ON u.id = g.owner_id WHERE g.grantee_id = ? AND u.status = 'active' ORDER BY u.last_name, u.first_name`).bind(uid).all();
+        return json({ to: await grantsTo(env, request, uid), from: results.map((r) => ({ uid: r.owner_id, name: nameOf(r), traces: r.traces !== 0 })) });
+      }
+      if (method === "POST") {
+        const b = await readBody(request);
+        const to = Number(b?.uid);
+        if (!Number.isInteger(to) || to <= 0 || to === uid) return json({ error: "fields" }, 400);
+        if (!b.on) await env.DB.prepare("DELETE FROM mymap_grants WHERE owner_id = ? AND grantee_id = ?").bind(uid, to).run();
+        else {
+          if (!(await allow(env, `mmgrant:${uid}`, 200, 86400))) return json({ error: "rate" }, 429);
+          const u = await env.DB.prepare("SELECT id FROM users WHERE id = ? AND status = 'active' AND email_verified = 1 AND demo_until IS NULL").bind(to).first();
+          if (!u) return json({ error: "not found" }, 404);
+          const n = await env.DB.prepare("SELECT COUNT(*) AS n FROM mymap_grants WHERE owner_id = ?").bind(uid).first();
+          const traces = b.traces === false ? 0 : 1;
+          const old = await env.DB.prepare("SELECT 1 AS ok FROM mymap_grants WHERE owner_id = ? AND grantee_id = ?").bind(uid, to).first();
+          if (old) await env.DB.prepare("UPDATE mymap_grants SET traces = ? WHERE owner_id = ? AND grantee_id = ?").bind(traces, uid, to).run();
+          else if ((n?.n || 0) >= 200) return json({ error: "too many" }, 409);
+          else await env.DB.prepare("INSERT INTO mymap_grants (owner_id, grantee_id, traces, created_at) VALUES (?, ?, ?, ?)").bind(uid, to, traces, nowIso()).run();
+        }
+        return json({ to: await grantsTo(env, request, uid) });
+      }
+      return json({ error: "method" }, 405);
+    }
+    if (parts[0] === "people" && parts.length === 1 && method === "GET") {
+      const words = String(new URL(request.url).searchParams.get("q") || "").replace(/[%_\\]/g, " ").trim().split(/\s+/).filter(Boolean).slice(0, 4);
+      if (words.join("").length < 3) return json({ people: [] });
+      if (!(await allow(env, `mmpeople:${uid}`, 300, 3600))) return json({ error: "rate" }, 429);
+      const { results } = await env.DB.prepare(`SELECT id, first_name, last_name, display_name, licence FROM users
+        WHERE id <> ? AND status = 'active' AND email_verified = 1 AND demo_until IS NULL AND ${words.map(() => "(first_name || ' ' || last_name) LIKE ?").join(" AND ")}
+        ORDER BY last_name, first_name LIMIT 10`).bind(uid, ...words.map((w) => `%${w}%`)).all();
+      return json({ people: await Promise.all(results.map(async (u) => ({ uid: u.id, name: nameOf(u), club: await clubOfUser(env, request, u) }))) });
+    }
+    if (parts[0] === "u" && /^\d{1,12}$/.test(parts[1] || "")) {
+      if (method !== "GET") return json({ error: "method" }, 405);
+      const owner = Number(parts[1]);
+      const g = await env.DB.prepare(`SELECT g.traces, u.first_name, u.last_name, u.display_name FROM mymap_grants g JOIN users u ON u.id = g.owner_id
+        WHERE g.owner_id = ? AND g.grantee_id = ? AND u.status = 'active'`).bind(owner, uid).first();
+      if (!g) return json({ error: "not found" }, 404);
+      const traces = g.traces !== 0;
+      const shown = async (id) => { const m = await env.DB.prepare("SELECT * FROM mymaps WHERE id = ? AND user_id = ?").bind(id, owner).first(); return m && !m.private ? m : null; };
+      if (parts.length === 2) {
+        const { maps, runs } = await mapsOf(env, owner);
+        return json({ name: nameOf(g), archive: true, traces, maps: listed(maps.filter((m) => !m.private), traces ? runs : [], true) });
+      }
+      if (parts[2] === "maps" && ID.test(parts[3] || "") && PARTS.includes(parts[4]) && parts.length === 5) {
+        const m = await shown(parts[3]);
+        return m ? servePart(env, owner, m.id, parts[4]) : json({ error: "not found" }, 404);
+      }
+      if (parts[2] === "runs" && ID.test(parts[3] || "") && parts.length === 4) {
+        const r = await env.DB.prepare("SELECT * FROM mymap_runs WHERE id = ? AND user_id = ?").bind(parts[3], owner).first();
+        if (!r || !traces || !(await shown(r.map_id))) return json({ error: "not found" }, 404);
+        return serve(env, key(owner, r.map_id, `runs/${r.id}.json`), { strip: true });
+      }
+      return json({ error: "not found" }, 404);
+    }
 
     if (!parts.length) {
       if (method !== "GET") return json({ error: "method" }, 405);

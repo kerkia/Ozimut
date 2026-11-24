@@ -125,7 +125,15 @@ async function call(path, { method = "GET", body, headers = {} } = {}) {
   return d;
 }
 export const list = () => call("");
-export const shared = (token) => call(`/s/${token}`);
+// a source read through: a link's token, or « u<account> » — a library shared with this account (owner, 2026-11-24)
+const via = (token) => (/^u\d+$/.test(token) ? `/u/${token.slice(1)}` : `/s/${token}`);
+export const shared = (token) => call(via(token));
+/** The libraries shared with this account and those it shares with: { to: [{ uid, name, club, traces }], from: [{ uid, name, traces }] }. */
+export const shares = () => call("/shares");
+/** The library shared with an account, or no longer (on false): { to }. */
+export const setShare = (uid, on, traces = true) => call("/shares", { method: "POST", body: { uid, on, traces } });
+/** Accounts whose name has every word typed: { people: [{ uid, name, club }] }. */
+export const people = (q) => call(`/people?q=${encodeURIComponent(q)}`);
 export const updateMap = (id, fields) => call(`/maps/${id}`, { method: "PUT", body: fields });
 export const deleteMap = (id) => call(`/maps/${id}`, { method: "DELETE" });
 export const updateRun = (id, fields) => call(`/runs/${id}`, { method: "PUT", body: fields });
@@ -133,8 +141,8 @@ export const deleteRun = (id) => call(`/runs/${id}`, { method: "DELETE" });
 /** A link made, changed or deleted: { map | maps | token, on, traces } -> { token | null, traces }. */
 export const setLink = (body) => call("/link", { method: "POST", body });
 /** Where a map's image, a thumbnail or a run is read: one's own, or through a link. */
-export const mapUrl = (id, part, token) => (token ? `${API}/s/${token}/maps/${id}/${part}` : `${API}/maps/${id}/${part}`);
-export const runUrl = (id, token) => (token ? `${API}/s/${token}/runs/${id}` : `${API}/runs/${id}`);
+export const mapUrl = (id, part, token) => (token ? `${API}${via(token)}/maps/${id}/${part}` : `${API}/maps/${id}/${part}`);
+export const runUrl = (id, token) => (token ? `${API}${via(token)}/runs/${id}` : `${API}/runs/${id}`);
 // ---- a run replayed in « Analyse solo » (owner, 2026-11-04) -------------------------------------------------------------
 /**
  * The GPX of a run kept here, as « Analyse solo » replays it: the run's points in degrees by the map's georeference, with their

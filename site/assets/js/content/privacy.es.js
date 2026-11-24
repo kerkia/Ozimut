@@ -118,7 +118,7 @@ export const body = (SITE, { world = false, later = "" } = {}) => `
         GPS en sí. La frecuencia cardiaca, la altitud y la cadencia solo se guardan si marcas la casilla prevista (sin marcar por
         defecto): son datos de salud, guardados con tu consentimiento, que retiras eliminando la carrera. Solo tú ves estos mapas. Si
         creas un enlace para compartir (a todos tus mapas o a uno), cualquiera que tenga el enlace los ve con tu nombre, incluso sin
-        cuenta, pero nunca la frecuencia cardiaca ni los demás datos personales; eliminar el enlace pone fin al uso compartido. Puedes
+        cuenta, pero nunca la frecuencia cardiaca ni los demás datos personales; eliminar el enlace pone fin al uso compartido. También puedes compartir toda tu biblioteca con cuentas de Ozimut que elijas: la ven en «Mis mapas», sin tus mapas privados ni tus datos personales, hasta que retires ese uso compartido. Para elegir esas cuentas, una cuenta puede buscar otras por su nombre: ve su nombre y su club, nada más. Puedes
         eliminar una carrera o un mapa en cualquier momento; todo se borra con tu cuenta. Una solicitud de importación desde DOMA es un
         mensaje enviado al equipo de Ozimut, como los de «Contacto».</p>
       <p>Si marcas «Guardar el análisis» junto a «Ver la carrera» en «Análisis individual» (marcado por defecto), el mapa y tu carrera — solo posiciones y horas, nada más del reloj — se guardan en tu cuenta, aparte de «Mis mapas»: solo tú los ves, en «Análisis», donde vuelves a reproducir o borras el análisis. Un mapa se guarda allí una sola vez y se va con el último análisis que lo muestra.</p>
@@ -319,5 +319,5 @@ export const body = (SITE, { world = false, later = "" } = {}) => `
       <p><b>Créditos:</b> los símbolos y los textos de las descripciones de control (Coach › Descripciones de control, el trazado de recorridos)
         proceden de Purple Pen, de Peter Golde (<a href="https://github.com/petergolde/PurplePen" target="_blank" rel="noopener">github.com/petergolde/PurplePen</a>),
         bajo <a href="assets/tracer/LICENSE-PurplePen.txt" target="_blank" rel="noopener">licencia BSD</a>.</p>
-      <p class="muted">Última actualización: 23 de noviembre de 2026.</p>
+      <p class="muted">Última actualización: 24 de noviembre de 2026.</p>
 `;
