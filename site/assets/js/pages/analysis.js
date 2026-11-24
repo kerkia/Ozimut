@@ -316,7 +316,7 @@ export async function render(main, { query = {}, route } = {}) {
   // the controls' order is known: published splits, an IOF course, the organiser's, a drawing, or the course's legs followed on
   // the map (course.js `order`, since 2026-11-01; owner 2026-11-04: « Inter-postes » for the trainings read on their map too)
   const sequenceKnown = () => !!officialTaus() || !!(files.iof?.data?.courses[iofIndex]) || !!files.orga || drawnHere() || mapOrdered;
-  let legs = [], total = 0, raf = 0, last = 0, pxs = null, pys = null, fullPath = null, scrubbing = false;
+  let legs = [], total = 0, pre = 0, post = 0, raf = 0, last = 0, pxs = null, pys = null, fullPath = null, scrubbing = false;
   // a leg opened from « Inter-postes » (owner, 2026-11-07: as « Analyse de carte »): the time line and the playback on it alone,
   // ⏮ ⏭ from leg to leg, the way back to the whole course beside the leg's name on the map; -1 = the whole course
   let legSel = -1;
@@ -1421,7 +1421,7 @@ export async function render(main, { query = {}, route } = {}) {
         if (i) fullPath.lineTo(px, py); else fullPath.moveTo(px, py);
       }
       computeLegs();
-    } else { pxs = pys = fullPath = null; legs = []; total = 0; legSel = -1; }
+    } else { pxs = pys = fullPath = null; legs = []; total = 0; pre = post = 0; legSel = -1; }
     cutEnds();
     rcWarm();
   }
@@ -1435,6 +1435,13 @@ export async function render(main, { query = {}, route } = {}) {
     // no published time), the trace's end — never the last control found, which cut the race short (owner, 2026-10-14)
     const finT = targets[targets.length - 1]?.kind === "finish" ? times[times.length - 1] : null;
     total = tot ?? finT ?? Math.max(lastT ?? 0, track.dur - (offset || 0));
+    // the trace's time before the start and after the finish stays in the playback, unless both were found without doubt: the
+    // start at the race's time 0, the finish its end, every control timed in order (owner, 2026-11-24: « tracks should not be cut
+    // or modified in any way »)
+    const sure = drawnHere() || (targets.length >= 2 && targets[0].kind === "start" && targets[targets.length - 1].kind === "finish"
+      && times.every((v, i) => v != null && (!i || v >= times[i - 1])) && Math.abs(times[0]) < 1 && Math.abs(times[times.length - 1] - total) < 1);
+    pre = sure || offset == null ? 0 : Math.max(0, offset - track.t[0]);
+    post = sure || offset == null ? 0 : Math.max(0, track.dur - offset - total);
     const n = targets.length - 1;
     const taus = officialTaus();
     let best = [], ref = [], all = [], mine = [];
@@ -1866,7 +1873,7 @@ export async function render(main, { query = {}, route } = {}) {
           <button type="button" class="btn btn-sm btn-primary" id="an-play" title="${t("an.play")}">▶</button>
           <button type="button" class="btn btn-sm" id="an-next" title="${t("an.nextLeg")}">⏭</button>
           <select id="an-speed" aria-label="${t("an.speed")}" title="${t("an.speed")}">${SPEEDS.map((v) => html`<option value="${v}" ${raw(v === speed ? "selected" : "")}>×${v}</option>`)}</select></span>
-        <input type="range" class="an-bar-time" id="an-time" min="0" max="${Math.ceil(total)}" step="0.5" value="0" aria-label="${t("an.time")}">
+        <input type="range" class="an-bar-time" id="an-time" min="${Math.floor(-pre)}" max="${Math.ceil(total + post)}" step="0.5" value="0" aria-label="${t("an.time")}">
         <span class="sh-clock"><b id="an-t"></b> <span class="muted" id="an-t-sub"></span></span></div>`;
     // what the trace says now: in the pace's bar under the map (owner, 2026-11-05)
     $("#an-stats").innerHTML = html`
@@ -1919,7 +1926,7 @@ export async function render(main, { query = {}, route } = {}) {
     // a click or a drag on the pace seeks, as on « Analyse de carte »
     const ps = $("#an-ps");
     let psDrag = false;
-    const psSeek = (e) => { stop(); moved(); seek(stripFraction(ps, e.offsetX) * total); };
+    const psSeek = (e) => { stop(); moved(); seek(-pre + stripFraction(ps, e.offsetX) * (total + pre + post)); };
     ps.onpointerdown = (e) => { psDrag = true; try { ps.setPointerCapture(e.pointerId); } catch (err) { /* synthetic */ } psSeek(e); };
     ps.onpointermove = (e) => { if (psDrag) psSeek(e); };
     ps.onpointerup = ps.onpointercancel = () => { psDrag = false; };
@@ -2037,8 +2044,9 @@ export async function render(main, { query = {}, route } = {}) {
   };
   /** What the playback draws of this analysis: what « Mes cartes » and the analysis kept take (trace/mymapsave.js). */
   function mmState() {
-    return { file: files.map?.file || null, image: map, track, pxs, pys, offset, total, geo: fit ? geoFromFit(fit, track) : null, title: keepTitle(),
-      controls: targets.filter((g) => g.pos).map((g) => ({ k: g.kind, x: g.pos[0], y: g.pos[1], t: timeOf(g) })) };
+    // the trace as the playback shows it: its time before the start and after the finish too when they are not certain
+    return { file: files.map?.file || null, image: map, track, pxs, pys, offset: offset == null ? null : offset - pre, total: total + pre + post, geo: fit ? geoFromFit(fit, track) : null, title: keepTitle(),
+      controls: targets.filter((g) => g.pos).map((g) => { const tt = timeOf(g); return { k: g.kind, x: g.pos[0], y: g.pos[1], t: tt == null ? null : tt + pre }; }) };
   }
   function keepTitle() {
     if (openedKept) return openedKept.title || "";
@@ -2103,13 +2111,14 @@ export async function render(main, { query = {}, route } = {}) {
   function paceStrip() {
     const cv = $("#an-ps");
     if (!cv || cv.hidden || !cv.clientWidth || !track || !(total > 0)) return;
-    const by = graphBy(), K = stripSamples(cv), sig = `${K}|${offset}|${total}|${track.n}|${by}`;
+    const by = graphBy(), K = stripSamples(cv), sig = `${K}|${offset}|${total}|${pre}|${post}|${track.n}|${by}`;
+    const L = total + pre + post, a0 = offset - pre, a1 = offset + total + post;
     if (psCache?.sig !== sig) {
       // the pace from the distance run, any other measure its mean over the window (cadence and power when moving only)
       const half = Math.max(3, Math.min(15, total / 80)), vals = new Array(K).fill(null), arr = by === "speed" ? null : seriesOf(track, by);
       const moving = by === "cad" || by === "pw";
       for (let k = 0; k < K; k++) {
-        const s = offset + (k / (K - 1)) * total, a = Math.max(offset, s - half), b = Math.min(offset + total, s + half);
+        const s = a0 + (k / (K - 1)) * L, a = Math.max(a0, s - half), b = Math.min(a1, s + half);
         if (b - a < 2) continue;
         if (!arr) { vals[k] = (cumAt(track, b) - cumAt(track, a)) / (b - a); continue; }
         let sum = 0, n = 0;
@@ -2118,11 +2127,11 @@ export async function render(main, { query = {}, route } = {}) {
       }
       psCache = { sig, vals };
     }
-    const step = [30, 60, 120, 300, 600, 900, 1800, 3600].find((s) => total / s <= Math.max(2, cv.clientWidth / 90)) || 3600;
+    const step = [30, 60, 120, 300, 600, 900, 1800, 3600].find((s) => L / s <= Math.max(2, cv.clientWidth / 90)) || 3600;
     const ticks = [];
-    for (let x = 0; x <= total; x += step) ticks.push({ f: x / total, label: clock(x) });
-    const marks = sequenceKnown() ? legs.slice(0, -1).filter((l) => l.t1 != null).map((l) => ({ f: l.t1 / total, label: l.label || String(l.n) })) : [];
-    drawPaceStrip(cv, { series: [{ colour: colourBy() ? "#1c5fd6" : traceColour, vals: psCache.vals, bold: true }], cursor: tNow / total, ticks, marks, by, unit: isPaceGraph(by) ? "" : unitOf(by) });
+    for (let x = Math.ceil(-pre / step) * step; x <= total + post; x += step) ticks.push({ f: (x + pre) / L, label: x < 0 ? `−${clock(-x)}` : clock(x) });
+    const marks = sequenceKnown() ? legs.slice(0, -1).filter((l) => l.t1 != null).map((l) => ({ f: (l.t1 + pre) / L, label: l.label || String(l.n) })) : [];
+    drawPaceStrip(cv, { series: [{ colour: colourBy() ? "#1c5fd6" : traceColour, vals: psCache.vals, bold: true }], cursor: (tNow + pre) / L, ticks, marks, by, unit: isPaceGraph(by) ? "" : unitOf(by) });
   }
   /** The map's turn: the leg being run up (its controls from one to the other), else north up; kept between legs it cannot read. */
   let lastTurn = 0;
@@ -2158,7 +2167,7 @@ export async function render(main, { query = {}, route } = {}) {
   /** The race's time span shown: the leg opened, else the whole race. */
   function span() {
     const l = legs[legSel];
-    if (!l || l.t0 == null) return [0, total];
+    if (!l || l.t0 == null) return [-pre, total + post];
     return [l.t0, Math.max(l.t0 + 1, l.t1 ?? legs[legSel + 1]?.t0 ?? total)];
   }
   function sliderSpan() {
@@ -2215,7 +2224,7 @@ export async function render(main, { query = {}, route } = {}) {
   function play() {
     moved();
     const [a, b] = span();
-    if (tNow >= b - 0.01 || tNow < a) tNow = a;
+    if (tNow >= b - 0.01 || tNow < a) tNow = a < 0 && b > 0 ? 0 : a;   // again from the start, the time before it to the left
     playing = true; last = performance.now();
     $("#an-play").textContent = "⏸";
     if (raf) clearInterval(raf);
@@ -2241,7 +2250,7 @@ export async function render(main, { query = {}, route } = {}) {
     const s = offset + tNow, j = legAt(tNow), leg = legs[j];
     const slider = $("#an-time"); if (slider && !scrubbing) slider.value = String(tNow);
     const set = (id, v) => { const el = $(id); if (el) el.textContent = v; };
-    set("#an-t", clock(tNow)); set("#an-t-sub", total ? `${t("an.of")} ${clock(total)}` : "");
+    set("#an-t", tNow < 0 ? `−${clock(-tNow)}` : clock(tNow)); set("#an-t-sub", total ? `${t("an.of")} ${clock(total)}` : "");
     set("#an-leg", leg ? `${leg.n}${leg.code ? ` (${leg.code})` : ""}` : "—");
     // the leg the runner is on, at the map's bottom left (owner, 2026-11-07)
     const chip = $("#an-legchip"), cj = legSel >= 0 ? legSel : j, cl = legs[cj];
@@ -2249,7 +2258,7 @@ export async function render(main, { query = {}, route } = {}) {
     set("#an-leg-sub", leg ? `${leg.time != null ? `${leg.estimated ? "~" : ""}${clock(leg.time)}` : ""}${leg.dist != null ? ` · ${fmt(leg.dist)} m` : ""}${leg.rank ? ` · ${t("an.rankShort")} ${leg.rank}` : ""}`.replace(/^ · /, "") : "");
     const win = Math.min(30, tNow);
     set("#an-pace", win >= 5 ? pace((cumAt(track, s) - cumAt(track, s - win)) / win) : "—");
-    const d = cumAt(track, s) - cumAt(track, offset);
+    const d = Math.max(0, cumAt(track, s) - cumAt(track, offset));
     set("#an-dist", `${fmt(d >= 1000 ? d / 1000 : d, d >= 1000 ? 2 : 0)} ${d >= 1000 ? "km" : "m"}`);
     const len = klass()?.length_m;
     set("#an-dist-sub", len ? `${t("an.course.len")} ${fmt(len / 1000, 1)} km` : "");
@@ -2438,7 +2447,7 @@ export async function render(main, { query = {}, route } = {}) {
   /** The measure the graph under the map draws: the one chosen when the file has it, else the pace. */
   const graphBy = () => (track && colourModes(track).includes(graph) ? graph : "speed");
   /** The race's points, for the colours' range: from the start to the finish when the race is known. */
-  const raceSpan = () => (offset == null ? [0, track.n - 1] : [Math.max(0, indexAt(track, offset)), indexAt(track, offset + total)]);
+  const raceSpan = () => (offset == null ? [0, track.n - 1] : [Math.max(0, indexAt(track, offset - pre)), indexAt(track, offset + total + post)]);
   function paceScale() { vSet = true; [vLo, vHi] = rangeOf(track, colourBy() || "speed", ...raceSpan()); }
   /** The legend of the trace coloured by pace (owner, 2026-10-15: the colours said nothing without it): the colours
    *  from the fastest to the slowest, each with the pace it starts at, in the map's bottom right corner. */
@@ -2583,7 +2592,7 @@ export async function render(main, { query = {}, route } = {}) {
       // a leg opened: its route drawn whole at once, the runner's dot moving along it, nothing else of the race (owner,
       // 2026-11-08: « the full trace shown right away »); the tail and the trace to come apply again on the whole course
       const legOn = calibrated && legSel >= 0, ls = legOn ? span() : null;
-      const s = offset + (calibrated ? tNow : total), iNow = indexAt(track, s), i0 = Math.max(0, indexAt(track, offset + (legOn ? ls[0] : 0)));
+      const s = offset + (calibrated ? tNow : total + post), iNow = indexAt(track, s), i0 = Math.max(0, indexAt(track, offset + (legOn ? ls[0] : -pre)));
       const iDraw = legOn ? indexAt(track, offset + ls[1]) : iNow;
       // the whole trace, faint; the part run so far, full; the tail, thicker
       const bySpeed = calibrated && !!colourBy(), series = bySpeed ? seriesOf(track, colourBy()) : null;
@@ -2593,7 +2602,7 @@ export async function render(main, { query = {}, route } = {}) {
         const iTail = tail && !legOn ? Math.max(i0, indexAt(track, s - tail)) : i0;
         if (bySpeed) {                                   // the whole race coloured by pace (or a measure), the part to come faint
           if (!vSet) paceScale();
-          const iEnd = legOn ? iDraw : future === "faint" ? indexAt(track, offset + total) : iNow;
+          const iEnd = legOn ? iDraw : future === "faint" ? indexAt(track, offset + total + post) : iNow;
           for (let i = i0 + 1; i <= iEnd; i++) {
             ctx.globalAlpha = (i <= iNow || legOn ? 1 : 0.45) * ta;
             ctx.strokeStyle = pointColour(i, series); ctx.lineWidth = lw((i > iTail && i <= iNow ? 5 : 3) * width);
@@ -2921,7 +2930,7 @@ export async function render(main, { query = {}, route } = {}) {
 
   // ---- the 3D view (a prototype, 2026-10-24): the map over the ground's heights, on the playback's own clock --------------
   /** The trace's time now: between two ticks of the playback's timer the 3D view moves on smoothly. */
-  const clockNow = () => offset + (playing ? Math.min(total, tNow + ((performance.now() - last) / 1000) * speed) : tNow);
+  const clockNow = () => offset + (playing ? Math.min(total + post, tNow + ((performance.now() - last) / 1000) * speed) : tNow);
   /** A map pixel's [lat, lon], through the calibration (the trace's metres): only the map's area is asked of the services. */
   const pxLatLon = (px, py) => { const [mx, my] = toM(fit, px, py); return [track.lat0 - my / track.ky, track.lon0 + mx / track.kx]; };
   /** The heights under the map (trace/terrain.js), kept for the visit and in IndexedDB. */
@@ -2954,7 +2963,7 @@ export async function render(main, { query = {}, route } = {}) {
       const { open3d } = await import("../trace/view3d.js");
       if (my !== v3token) return;
       const v = await open3d($("#an-3d-host"), { image: map, W: map.width, H: map.height, grid: g, toM: (x, y) => toM(fit, x, y), toPx: (x, y) => toPx(fit, x, y),
-        track, i0: indexAt(track, offset), i1: indexAt(track, offset + total), now: clockNow, onUserMove: () => setFollow(false) });
+        track, i0: indexAt(track, offset - pre), i1: indexAt(track, offset + total + post), now: clockNow, onUserMove: () => setFollow(false) });
       if (my !== v3token) { v.dispose(); return; }
       v3 = v; v3info = g;
       v3.setExaggeration(v3ex); exCtl?.show(true);
@@ -3040,11 +3049,11 @@ export async function render(main, { query = {}, route } = {}) {
     if (!calibrated || !total) return;
     if (!vSet) paceScale();
     const known = sequenceKnown();
-    drawCurves(strip, { track, t0: offset, total, rows: stripRows(), cursor: tNow, units: { cad: unitOf("cad") },
-      marks: targets.map((g, i) => { const tt = timeOf(g); return tt == null || !i ? null : { t: tt, label: known ? g.label : "" }; }).filter(Boolean),
-      shade: known ? legs.filter((l) => l.mistake && l.t1 != null).map((l) => ({ t0: l.t0, t1: l.t1 })) : [] });
+    drawCurves(strip, { track, t0: offset - pre, total: total + pre + post, zero: pre, rows: stripRows(), cursor: tNow + pre, units: { cad: unitOf("cad") },
+      marks: targets.map((g, i) => { const tt = timeOf(g); return tt == null || !i ? null : { t: tt + pre, label: known ? g.label : "" }; }).filter(Boolean),
+      shade: known ? legs.filter((l) => l.mistake && l.t1 != null).map((l) => ({ t0: l.t0 + pre, t1: l.t1 + pre })) : [] });
   }
-  const scrub = (e) => { if (!calibrated) return; stop(); seek(curveTimeAt(strip, e.offsetX, total)); };
+  const scrub = (e) => { if (!calibrated) return; stop(); seek(curveTimeAt(strip, e.offsetX, total + pre + post) - pre); };
   strip.addEventListener("pointerdown", (e) => { scrub(e); strip.setPointerCapture(e.pointerId); strip.dataset.down = "1"; });
   strip.addEventListener("pointermove", (e) => { if (strip.dataset.down) scrub(e); });
   const stripUp = () => { delete strip.dataset.down; };

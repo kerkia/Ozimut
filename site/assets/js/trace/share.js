@@ -173,6 +173,9 @@ export function inOrderAnyStart(visits) {
  * When the course's loops were run in another order (the course taken from one of its controls on, then from the start up to it,
  * passes more controls), that order is used: the start's departure is before the first control passed in time, the finish's
  * arrival after the last, and the legs not run as such are listed in the result's `cut`.
+ * `sure`: the start's departure and the finish's arrival found within tol and every control passed in the printed order — the
+ * only case where a replay may leave out the trace's time before the start and after the finish (owner, 2026-11-24: « tracks
+ * should not be cut or modified in any way »).
  */
 export function coursePasses(track, fit, controls, tol = 25) {
   const n = track.n, out = new Array(controls.length).fill(null);
@@ -212,9 +215,11 @@ export function coursePasses(track, fit, controls, tol = 25) {
   for (const [j, k] of got) out[j] = track.t[k];
   const from = got.size ? Math.max(...got.values()) : 0;  // the last control passed, in time
   const fi = controls.findIndex((c) => c.kind === "finish");
+  let finSure = false;
   if (fi >= 0) {                                          // the arrival: after the last control, the pass that ends the race
     const d = dist(controls[fi]);
     let k = finishArrival(track, d, from, tol);
+    finSure = k >= 0;
     if (k < 0) k = finishArrival(track, d, from, 1.6 * tol);
     if (k < 0 && got.size === ctl.length) k = finishAfterAll(track, d, from, 1.6 * tol);
     if (k >= 0) out[fi] = track.t[k];
@@ -228,6 +233,7 @@ export function coursePasses(track, fit, controls, tol = 25) {
     for (let k = 0; k < n && (firstPass == null || track.t[k] < firstPass); k++) if (d[k] <= tol) last = k;
     if (last >= 0) out[si] = track.t[last];
   }
+  out.sure = si >= 0 && out[si] != null && finSure && !rotated && got.size === ctl.length;
   // loops run in another order: the legs not run as such (their two controls not one after the other in time) have no time —
   // `cut`, the indices j of the legs j-1 -> j
   if (rotated) {

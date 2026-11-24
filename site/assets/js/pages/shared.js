@@ -1893,7 +1893,11 @@ async function replay(box, { A, id, course, race, init = {}, traces, allTraces =
     // a circuit without its start or its finish: the race from the trace's start, to the trace's end
     const si = ctrls.findIndex((p) => p.kind === "start"), fi = ctrls.findIndex((p) => p.kind === "finish");
     const start = si >= 0 ? passes[si] ?? tr.t[0] : tr.t[0], finish = fi >= 0 ? passes[fi] : null;
-    return { uid: rec.uid, name: rec.name, lic: rec.lic, test: !!rec.test, tr, fit, pxs, pys, passes, start, finish, mine: rec.uid === you.uid, visible: true, official: off, abs0: tr.ms0 / 1000,
+    // what the replay shows: the whole trace, its time before the start and after the finish too, unless both were found without
+    // doubt — the published times, or the trace's own (`sure`) (owner, 2026-11-24: « tracks should not be cut or modified in any way »)
+    const sure = pub ? pub.passes[si] != null && pub.passes[fi] != null : !!guess.sure;
+    const from = sure ? start : tr.t[0], to = sure && finish != null ? finish : tr.dur;
+    return { uid: rec.uid, name: rec.name, lic: rec.lic, test: !!rec.test, tr, fit, pxs, pys, passes, start, finish, from, to, mine: rec.uid === you.uid, visible: true, official: off, abs0: tr.ms0 / 1000,
       published: !!pub, pubFrom: pub?.from || null, klass: off?.klass || null, note: rec.note || "", visitors: !!rec.visitors };
   }).filter(Boolean);
   const total = (r) => (r.finish != null ? r.finish - r.start : null);
@@ -1927,11 +1931,12 @@ async function replay(box, { A, id, course, race, init = {}, traces, allTraces =
   function range() {
     const shown = runners.filter((r) => r.visible), R = shown.length ? shown : runners;
     if (leg) return [0, Math.max(1, ...R.map((r) => legTime(r, leg) ?? 0))];
-    if (mode === "clock") return [Math.min(...R.map((r) => r.abs0 + r.start)) - 30, Math.max(...R.map((r) => r.abs0 + (r.finish ?? r.tr.dur))) + 30];
-    if (mode === "mass") return [0, Math.max(1, ...R.map((r) => (r.finish ?? r.tr.dur) - r.start))];
+    const pre = -Math.max(0, ...R.map((r) => r.start - r.from));         // the time before the start a trace keeps
+    if (mode === "clock") return [Math.min(...R.map((r) => r.abs0 + r.from)) - 30, Math.max(...R.map((r) => r.abs0 + r.to)) + 30];
+    if (mode === "mass") return [pre, Math.max(1, ...R.map((r) => r.to - r.start))];
     if (mode === "from") {
       const S = R.filter((r) => r.passes[fromK] != null);
-      return [-Math.max(0, ...S.map((r) => r.passes[fromK] - r.start)), Math.max(1, ...S.map((r) => (r.finish ?? r.tr.dur) - r.passes[fromK]))];
+      return [-Math.max(0, ...S.map((r) => r.passes[fromK] - r.from)), Math.max(1, ...S.map((r) => r.to - r.passes[fromK]))];
     }
     waits = [0];
     const own = R.filter(ownOrder), W = R.filter((r) => !ownOrder(r));
@@ -1942,8 +1947,9 @@ async function replay(box, { A, id, course, race, init = {}, traces, allTraces =
       waits.push(w);
     }
     // a runner who never reached the finish runs on to their trace's end (owner, 2026-11-09: their trace vanished at the end)
-    const tails = W.map((r) => { const k = lastPass(r, legsN); return k == null || k === legsN ? 0 : waits[k] + (r.finish ?? r.tr.dur) - r.passes[k]; });
-    return [0, Math.max(1, waits[legsN], ...tails, ...own.map((r) => (r.finish ?? r.tr.dur) - r.start))];
+    // and one whose finish is not certain keeps the time after it
+    const tails = W.map((r) => { const k = lastPass(r, legsN); return k == null ? 0 : waits[k] + r.to - r.passes[k]; });
+    return [pre, Math.max(1, waits[legsN], ...tails, ...own.map((r) => r.to - r.start))];
   }
   /** The last control at or before j that runner r was seen passing (null: not even the start). */
   function lastPass(r, j) { for (let k = Math.min(j, legsN); k >= 0; k--) if (r.passes[k] != null) return k; return null; }
@@ -1953,6 +1959,8 @@ async function replay(box, { A, id, course, race, init = {}, traces, allTraces =
     else if (mode === "clock") s = Td - r.abs0;
     else if (mode === "mass" || (mode !== "from" && ownOrder(r))) s = r.start + Td;
     else if (mode === "from") { if (r.passes[fromK] == null) return null; s = r.passes[fromK] + Td; }
+    else if (Td < 0) s = r.start + Td;
+    else if (Td > waits[legsN] && r.passes[legsN] != null) s = r.passes[legsN] + Td - waits[legsN];
     else {
       let j = 1;
       while (j < legsN && Td >= waits[j]) j++;
@@ -1965,21 +1973,23 @@ async function replay(box, { A, id, course, race, init = {}, traces, allTraces =
         const k = lastPass(r, j - 1);
         if (k == null) return null;
         let m = j; while (m <= legsN && r.passes[m] == null) m++;
-        const end = m <= legsN ? r.passes[m] : r.finish ?? r.tr.dur;
+        const end = m <= legsN ? r.passes[m] : r.to;
         s = r.passes[k] + Math.min(Math.max(Td - waits[k], 0), Math.max(0, end - r.passes[k]));
       }
     }
-    return Math.max(r.tr.t[0], Math.min(r.tr.dur, s));
+    return Math.max(r.from, Math.min(r.to, s));
   }
   let [T0, T1] = range();
-  T = init.t != null && Number.isFinite(Number(init.t)) ? Math.min(T1, Math.max(T0, Number(init.t))) : T0;
+  // a replay opens at the start, the time before it kept to the left of the axis
+  const Tstart = () => (mode !== "clock" && mode !== "from" && !leg && T0 < 0 && T1 > 0 ? 0 : T0);
+  T = init.t != null && Number.isFinite(Number(init.t)) ? Math.min(T1, Math.max(T0, Number(init.t))) : Tstart();
 
   // ---- drawing
   // the pace colours: one scale for every runner shown (their races' 10-90 % of speeds), so that colours compare
   let vLo = 0, vHi = 1;
   function paceScale() {
     const shown = runners.filter((r) => r.visible);
-    [vLo, vHi] = paceRange(...shown.map((r) => r.tr.v.subarray(indexAt(r.tr, r.start), indexAt(r.tr, r.finish ?? r.tr.dur) + 1)));
+    [vLo, vHi] = paceRange(...shown.map((r) => r.tr.v.subarray(indexAt(r.tr, r.from), indexAt(r.tr, r.to) + 1)));
     heightScale();
   }
   // the heights under the routes: the terrain model's grid (the 3D view's and the computed routes'), loaded when a colouring asks
@@ -2001,8 +2011,8 @@ async function replay(box, { A, id, course, race, init = {}, traces, allTraces =
     if (!HEIGHT_BY.includes(m) || !hts?.z) return;
     const vs = [];
     for (const r of runners.filter((x) => x.visible)) {
-      const s = hseries(r, m), i1 = indexAt(r.tr, r.finish ?? r.tr.dur);
-      if (s) for (let i = indexAt(r.tr, r.start); i <= i1; i++) if (Number.isFinite(s[i])) vs.push(s[i]);
+      const s = hseries(r, m), i1 = indexAt(r.tr, r.to);
+      if (s) for (let i = indexAt(r.tr, r.from); i <= i1; i++) if (Number.isFinite(s[i])) vs.push(s[i]);
     }
     if (!vs.length) return;
     if (m === "gap") { [hLo, hHi] = paceRange(Float32Array.from(vs)); return; }
@@ -2090,13 +2100,13 @@ async function replay(box, { A, id, course, race, init = {}, traces, allTraces =
       // full trace of the selected runners shown right away »; before, only when coloured by variant or leg time) — the display's
       // own settings (tail, the trace to come) apply again on the whole course
       const whole = leg && r.passes[leg] != null;
-      const lo = leg ? r.passes[leg - 1] : Math.max(r.start, tail && !leg ? s - tail : r.start), from = indexAt(r.tr, lo), to = indexAt(r.tr, whole ? Math.max(s, r.passes[leg]) : s);
+      const lo = leg ? r.passes[leg - 1] : Math.max(r.from, tail && !leg ? s - tail : r.from), from = indexAt(r.tr, lo), to = indexAt(r.tr, whole ? Math.max(s, r.passes[leg]) : s);
       // the route still to run, faint, to its finish (or the leg's end) — hidden by default
       if (future === "faint" && !whole) {
-        const a = indexAt(r.tr, leg ? r.passes[leg - 1] : r.start), b = indexAt(r.tr, leg ? r.passes[leg] ?? r.tr.dur : r.finish ?? r.tr.dur);
+        const a = indexAt(r.tr, leg ? r.passes[leg - 1] : r.from), b = indexAt(r.tr, leg ? r.passes[leg] ?? r.tr.dur : r.to);
         stroke(g, r, a, b, lw(2 * width), 0.3 * ta);
       }
-      if (mode === "clock" && !leg && s < r.start - 1) continue;           // not started yet
+      if (mode === "clock" && !leg && s < r.from - 1) continue;            // not started yet
       const [mx, my] = posAt(r.tr, s), [x, y] = toPx(r.fit, mx, my);
       // the route joined to the dot only when drawn up to it: a leg drawn whole ends at its control, and the join made a straight
       // line from there back to the runner (owner, 2026-11-08)
@@ -2172,12 +2182,12 @@ async function replay(box, { A, id, course, race, init = {}, traces, allTraces =
     const half = Math.max(3, Math.min(15, (T1 - T0) / 80));
     // the pace from the distance run; the terrain's measures their mean over the window (none until the heights are loaded)
     const series = shown.map((r) => {
-      const vals = new Array(K).fill(null), end = r.finish ?? r.tr.dur, arr = graph === "speed" ? null : hseries(r, graph);
+      const vals = new Array(K).fill(null), end = r.to, arr = graph === "speed" ? null : hseries(r, graph);
       if (graph !== "speed" && !arr) return { r, vals };
       for (let k = 0; k < K; k++) {
         const s = sAt(r, T0 + (k / (K - 1)) * (T1 - T0));
-        if (s == null || s < r.start - 1 || s > end + 1) continue;
-        const a = Math.max(r.start, s - half), b = Math.min(end, s + half);
+        if (s == null || s < r.from - 1 || s > end + 1) continue;
+        const a = Math.max(r.from, s - half), b = Math.min(end, s + half);
         if (b - a < 2) continue;
         if (!arr) { vals[k] = (cumAt(r.tr, b) - cumAt(r.tr, a)) / (b - a); continue; }
         let sum = 0, n = 0;
@@ -2624,8 +2634,8 @@ async function replay(box, { A, id, course, race, init = {}, traces, allTraces =
     if ($("#sh-mymaps")) import("../trace/mymapsave.js").then((M) => M.mount($("#sh-mymaps"), () => {
       const r = myRun(), ext = /png/.test(mapBlob?.type) ? "png" : /webp/.test(mapBlob?.type) ? "webp" : "jpg";
       return { file: mapBlob ? new File([mapBlob], `${course.name || "map"}.${ext}`, { type: mapBlob.type }) : null, image, track: r?.tr, pxs: r?.pxs, pys: r?.pys,
-        offset: r?.start ?? null, total: r && r.finish != null ? r.finish - r.start : null, geo: course.geo, title: [A.title, course.name].filter(Boolean).join(" · "),
-        controls: r ? ctrls.map((p, j) => ({ k: p.kind, x: p.x, y: p.y, t: r.passes[j] != null ? r.passes[j] - r.start : null })) : [] };
+        offset: r?.from ?? null, total: r ? r.to - r.from : null, geo: course.geo, title: [A.title, course.name].filter(Boolean).join(" · "),
+        controls: r ? ctrls.map((p, j) => ({ k: p.kind, x: p.x, y: p.y, t: r.passes[j] != null ? r.passes[j] - r.from : null })) : [] };
     })).catch((e) => console.error(e));
   }
   /** The map as the replay shows it now (the runners shown, the course, the routes…), at the map's own resolution, north up: the
@@ -2642,7 +2652,7 @@ async function replay(box, { A, id, course, race, init = {}, traces, allTraces =
     } else if (shot.zone === "race") {                  // the routes of the runners shown and the course, with a margin
       let a = Infinity, b = Infinity, c = -Infinity, d = -Infinity;
       const add = (x, y) => { a = Math.min(a, x); b = Math.min(b, y); c = Math.max(c, x); d = Math.max(d, y); };
-      for (const r of runners.filter((x) => x.visible)) { const i1 = indexAt(r.tr, r.finish ?? r.tr.dur); for (let i = indexAt(r.tr, r.start); i <= i1; i++) add(r.pxs[i], r.pys[i]); }
+      for (const r of runners.filter((x) => x.visible)) { const i1 = indexAt(r.tr, r.to); for (let i = indexAt(r.tr, r.from); i <= i1; i++) add(r.pxs[i], r.pys[i]); }
       for (const p of ctrls) add(p.x, p.y);
       const m = Math.max(40, 0.06 * Math.max(c - a, d - b));
       const bx = [Math.max(0, Math.floor(a - m)), Math.max(0, Math.floor(b - m)), Math.min(W, Math.ceil(c + m)), Math.min(H, Math.ceil(d + m))];
@@ -2724,7 +2734,7 @@ async function replay(box, { A, id, course, race, init = {}, traces, allTraces =
     const shown = runners.filter((x) => x.visible);
     const r = follow === "sel" && sel?.visible ? sel : shown.length === 1 ? shown[0] : null, s = r ? sAt(r, T) : null;
     if (!r || s == null) { if (el.textContent) el.innerHTML = ""; return; }
-    const end = r.finish ?? r.tr.dur, at = Math.max(r.start, Math.min(end, s)), win = Math.min(30, at - r.start);
+    const end = r.to, at = Math.max(r.from, Math.min(end, s)), win = Math.min(30, at - r.from);
     let j = 0;
     while (j < legsN && r.passes[j + 1] != null && at >= r.passes[j + 1]) j++;
     // loops run in another order: the controls in the order run, from the last passed to the next
@@ -2732,17 +2742,17 @@ async function replay(box, { A, id, course, race, init = {}, traces, allTraces =
     if (ownOrder(r)) {
       let k = 0, n = -1;
       r.passes.forEach((v, i) => { if (v == null) return; if (v <= at && v >= r.passes[k]) k = i; if (v > at && (n < 0 || v < r.passes[n])) n = i; });
-      legNow = n < 0 ? t("an.finish") : `${ctrlLabel(k)} → ${ctrlLabel(n)}`;
+      legNow = n < 0 ? t("an.finish") : n === k ? ctrlLabel(k) : `${ctrlLabel(k)} → ${ctrlLabel(n)}`;
     }
-    const d = cumAt(r.tr, at) - cumAt(r.tr, r.start);
+    const d = Math.max(0, cumAt(r.tr, at) - cumAt(r.tr, r.start));
     const stat = (label, v) => html`<span class="an-stat"><span class="muted">${label}</span> <b>${v}</b></span>`;
     el.innerHTML = html`<span class="sh-stats-name"><span class="sh-swatch" style="background:${r.colour}"></span>${r.test ? initials(r) : r.name}</span>
-      ${stat(t("an.time"), clock(Math.max(0, at - r.start)))}${score ? "" : stat(t("an.leg"), legNow)}
+      ${stat(t("an.time"), at < r.start ? `−${clock(r.start - at)}` : clock(at - r.start))}${score ? "" : stat(t("an.leg"), legNow)}
       ${stat(t("an.pace"), win >= 5 ? pace((cumAt(r.tr, at) - cumAt(r.tr, at - win)) / win) : "—")}
       ${stat(t("an.dist"), `${fmt(d >= 1000 ? d / 1000 : d, d >= 1000 ? 2 : 0)} ${d >= 1000 ? "km" : "m"}`)}
       ${html`<span class="an-stat" title="${t("an.climbSo.tip")}"><span class="muted">${t("an.climbSo")}</span> <b>${climbSo(r, at)}</b> <span class="muted">m</span></span>`}`.toString();
   }
-  function reset() { stop(); [T0, T1] = range(); T = T0; right(); frame(); }
+  function reset() { stop(); [T0, T1] = range(); T = Tstart(); right(); frame(); }
   // the whole course as it was left when a leg was opened — its view, time and whether it was still —, found again on the way back
   // (owner, 2026-11-08: « when back to the whole parcours, settings go back »); a change of start mode starts afresh
   let wholeWas = null;
@@ -2780,7 +2790,7 @@ async function replay(box, { A, id, course, race, init = {}, traces, allTraces =
   }
   function play() {
     still = false;
-    if (T >= T1 - 0.5) T = T0;
+    if (T >= T1 - 0.5) T = Tstart();
     playing = true; last = performance.now();
     clearInterval(timer);
     timer = setInterval(() => {
@@ -3185,7 +3195,7 @@ async function replay(box, { A, id, course, race, init = {}, traces, allTraces =
     return r.tr3;
   }
   /** Each runner's part drawn: a leg's view its leg, else their race. */
-  const range3d = (r) => (leg ? [r.passes[leg - 1], r.passes[leg]] : [r.start, r.finish ?? r.tr.dur]);
+  const range3d = (r) => (leg ? [r.passes[leg - 1], r.passes[leg]] : [r.from, r.to]);
   function sync3d() {
     if (!v3) return;
     const list = runners.filter((r) => r.visible && range3d(r).every((v) => v != null));
@@ -3207,7 +3217,7 @@ async function replay(box, { A, id, course, race, init = {}, traces, allTraces =
   /** Each runner's trace time now, null when not drawn (not shown, or not started yet at the clock's time). */
   const now3d = () => v3list.map((r) => {
     const s = sAt(r, playing ? Math.min(T1, T + ((performance.now() - last) / 1000) * speed) : T);
-    return s == null || (mode === "clock" && !leg && s < r.start - 1) ? null : s;
+    return s == null || (mode === "clock" && !leg && s < r.from - 1) ? null : s;
   });
   async function toggle3d() {
     if (v3on) { close3d(); return; }

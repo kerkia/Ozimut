@@ -38,7 +38,7 @@ export const CURVE_MARGIN = { top: 14, left: 40, bottom: 18 };    // the control
  * the race's time now (s) or null; units: { cad } the cadence's unit when it was converted; marks: [{ t, label }] lines
  * at race times (the controls' passes; a label drawn at the top); shade: [{ t0, t1 }] stretches shaded (mistakes).
  */
-export function drawCurves(canvas, { track, t0, total, rows, cursor = null, units = {}, marks = [], shade = [] }) {
+export function drawCurves(canvas, { track, t0, total, rows, cursor = null, units = {}, marks = [], shade = [], zero = 0 }) {
   const g = canvas.getContext("2d");
   const dpr = window.devicePixelRatio || 1, w = canvas.clientWidth, h = canvas.clientHeight;
   if (canvas.width !== Math.round(w * dpr) || canvas.height !== Math.round(h * dpr)) { canvas.width = Math.round(w * dpr); canvas.height = Math.round(h * dpr); }
@@ -115,10 +115,10 @@ export function drawCurves(canvas, { track, t0, total, rows, cursor = null, unit
     label(`${t(c === "pace" ? "an.ch.pace" : CHANNEL_LABEL[c])} (${unit})`, LEFT, TOP + r * ROW + 11, "left", colr, true);
     label(now, LEFT + plotW, TOP + r * ROW + 11, "right", colr, true);
   });
-  // the time axis: race time, a round step
+  // the time axis: race time, a round step; `zero`: the race's start on it (the trace's time before it kept, negative)
   const ts = niceStep(total, Math.max(2, Math.floor(plotW / 60)), [60, 120, 300, 600, 900, 1200, 1800, 3600]);
   g.strokeStyle = grid; g.lineWidth = 1; g.beginPath(); g.moveTo(LEFT, bottomAxis); g.lineTo(LEFT + plotW, bottomAxis); g.stroke();
-  for (let s = 0; s <= total; s += ts) { const x = X(s); g.beginPath(); g.moveTo(x, bottomAxis); g.lineTo(x, bottomAxis + 3); g.stroke(); label(clock(s), x, bottomAxis + 12, s ? "center" : "left", ink, false); }
+  for (let v = Math.ceil(-zero / ts) * ts; v + zero <= total; v += ts) { const s = v + zero, x = X(s); g.beginPath(); g.moveTo(x, bottomAxis); g.lineTo(x, bottomAxis + 3); g.stroke(); label(v < 0 ? `−${clock(-v)}` : clock(v), x, bottomAxis + 12, s ? "center" : "left", ink, false); }
   // the controls' passes (numbered when given a label)
   g.font = "10px system-ui, sans-serif"; g.textAlign = "center"; g.fillStyle = ink; g.strokeStyle = ink; g.lineWidth = 1;
   for (const m of marks) { if (m.t == null) continue; const x = X(m.t); g.globalAlpha = 0.45; g.beginPath(); g.moveTo(x, TOP); g.lineTo(x, bottomAxis); g.stroke(); g.globalAlpha = 1; if (m.label) g.fillText(m.label, x, 9); }
