@@ -196,7 +196,10 @@ async function push(ctx) {
   if (seq > r.last_seq + 1) return json({ ack: r.last_seq, next: 0, stop: stopped }); // a gap: resend from last_seq + 1
   if (r.state === "end" && !stopped) return json({ error: "closed" }, 409);
   const startedMs = Date.parse(r.started_at);
-  const overCap = Date.now() - startedMs > (s.cap + 1800) * 1000;
+  // Ozitrac's long pace (docs/track/ozitrac.md « Pace »): kept 7 days whatever the account's cap, its own batch interval
+  const pace = longPace(b.pace);
+  const cap = pace ? LONG_CAP : s.cap;
+  const overCap = Date.now() - startedMs > (cap + 1800) * 1000;
   // the batch kept as received, normalised
   if (f.t.length) {
     await env.BUCKET.put(T.batchKey(uid, r.id, seq), JSON.stringify({ t: f.t, la: f.la, lo: f.lo, ac: f.ac, ...(f.al ? { al: f.al } : {}) }),
@@ -217,12 +220,23 @@ async function push(ctx) {
     try {
       const res = await lt.fetch("https://live/push", { method: "POST", body: JSON.stringify({
         uid, run: r.id, name: nameOf(d.user), seq, t: f.t, la: f.la, lo: f.lo, ac: f.ac, state: ends ? "end" : state,
-        bat, lp: !!b.lp, startedAt: startedMs, batch: s.batch, cap: s.cap, area: s.area, at: Date.now() }) });
+        bat, lp: !!b.lp, startedAt: startedMs, batch: pace ? pace.send : s.batch, cap, long: !!pace, area: s.area, at: Date.now() }) });
       watched = (await res.json()).watchers || 0;
     } catch (e) { /* the relay unavailable: the run is kept all the same */ }
   }
   if (ends) ctx.waitUntil(T.sealRun(env, uid, r.id).catch(() => {}));
-  return json({ ack: seq, next: watched || state === "help" ? s.batch : T.IDLE_NEXT, stop: stopped || overCap });
+  const next = state === "help" ? s.batch
+    : pace ? (pace.boost * 1000 > Date.now() ? 15 : pace.send)
+    : watched ? s.batch : T.IDLE_NEXT;
+  return json({ ack: seq, next, stop: stopped || overCap });
+}
+
+const LONG_CAP = 7 * 86400;
+/** A batch's Ozitrac pace when it is the long one: { send, boost } (seconds, Unix second), else null. */
+function longPace(p) {
+  if (!p || typeof p !== "object" || p.mode !== "long") return null;
+  const send = Math.round(Number(p.send));
+  return { send: Number.isFinite(send) ? Math.max(15, Math.min(3600, send)) : 600, boost: Math.max(0, Number(p.boost) || 0) };
 }
 
 const parseJson = (s) => { try { return s ? JSON.parse(s) : null; } catch (e) { return null; } };

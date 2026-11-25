@@ -15,6 +15,8 @@ import android.os.Looper
 import android.view.View
 import android.widget.CheckBox
 import android.widget.LinearLayout
+import android.widget.RadioButton
+import android.widget.RadioGroup
 import android.widget.TextView
 import android.widget.Toast
 import androidx.activity.ComponentActivity
@@ -24,8 +26,9 @@ import androidx.activity.result.contract.ActivityResultContracts
 import kotlin.math.roundToInt
 
 /**
- * The run's screens: Start, Running (hold to stop, help) and Ended. A run is kept on this phone; it goes to the people who
- * follow it (Ozitrac's relay) and to the Ozimut account the phone is linked to, when there are any.
+ * The run's screens: Start (with the pace, Direct or « Course longue »: docs/track/ozitrac.md « Pace »), Running (hold to
+ * stop, help) and Ended. A run is kept on this phone; it goes to the people who follow it (Ozitrac's relay) and to the Ozimut
+ * account the phone is linked to, when there are any.
  */
 class TrackerActivity : ComponentActivity() {
     companion object {
@@ -55,7 +58,11 @@ class TrackerActivity : ComponentActivity() {
     private var pendText: TextView? = null
     private var sentText: TextView? = null
     private var accText: TextView? = null
+    private var paceText: TextView? = null
     private var helpBox: LinearLayout? = null
+    /** The watcher whose request for Direct is shown, and the name this phone holds for them (read once per request). */
+    private var askerW = ""
+    private var askerName: String? = null
 
     // Ended screen
     private var endStatus: TextView? = null
@@ -196,16 +203,92 @@ class TrackerActivity : ComponentActivity() {
             setOnCheckedChangeListener { _, on -> prefs.edit().putBoolean("share", on).apply() }
         }
         add(share)
+        val pace = paceChooser(prefs)
         add(Ui.gap(this, 8))
         startBtn = Ui.button(this, getString(R.string.tr_start), style = 1, big = true) {
             if (!goodFix()) return@button
-            Tracker.start(this, if (share.isChecked) "watchers" else "private")
+            val choice = pace()
+            Tracker.start(this, if (share.isChecked) "watchers" else "private", choice)
+            // a watcher's request for Direct wakes the phone through its push token
+            if (choice.long && choice.remote) OwnPush.sync(this)
             render()
         }.also { add(it) }
         waitText = Ui.text(this, getString(R.string.tr_wait_gps), 14f, color = Ui.GREY).also { add(it) }
         add(Ui.gap(this, 16))
         add(Ui.button(this, getString(R.string.tr_selftest)) { startActivity(Intent(this, SelfTestActivity::class.java)) })
         if (hasLocation()) startPreview()
+    }
+
+    /**
+     * The pace: « Direct » (the default) or « Course longue » with its two intervals and whether watchers may ask for Direct;
+     * the last choices kept. -> what is chosen when Start is pressed.
+     */
+    private fun paceChooser(prefs: android.content.SharedPreferences): () -> PaceChoice {
+        add(Ui.gap(this, 4))
+        add(Ui.text(this, getString(R.string.tr_pace_title), 18f, bold = true))
+        val modes = RadioGroup(this).apply { orientation = RadioGroup.VERTICAL }
+        val live = radio(getString(R.string.tr_pace_live))
+        val long = radio(getString(R.string.tr_pace_long))
+        modes.addView(live)
+        modes.addView(long)
+        add(modes)
+        val box = Ui.column(this, 0)
+        add(box)
+        box.addView(Ui.full(Ui.text(this, getString(R.string.tr_pace_long_text), 14f, color = Ui.GREY)))
+        box.addView(Ui.full(Ui.text(this, getString(R.string.tr_pace_fix))))
+        val fixes = row(PaceChoice.FIXES.map { getString(R.string.unit_s, it) })
+        box.addView(Ui.full(fixes.first))
+        box.addView(Ui.full(Ui.text(this, getString(R.string.tr_pace_send))))
+        val sends = row(PaceChoice.SENDS.map { getString(R.string.unit_min, it / 60) })
+        box.addView(Ui.full(sends.first))
+        val remote = CheckBox(this).apply {
+            text = getString(R.string.tr_pace_remote)
+            textSize = 16f
+            isChecked = prefs.getBoolean("pace_remote", true)
+        }
+        box.addView(Ui.full(remote))
+
+        val fixAt = PaceChoice.FIXES.indexOf(prefs.getInt("pace_fix", PaceChoice.FIX_DEFAULT)).takeIf { it >= 0 } ?: 1
+        val sendAt = PaceChoice.SENDS.indexOf(prefs.getInt("pace_send", PaceChoice.SEND_DEFAULT)).takeIf { it >= 0 } ?: 1
+        fixes.second[fixAt].isChecked = true
+        sends.second[sendAt].isChecked = true
+        val isLong = prefs.getBoolean("pace_long", false)
+        (if (isLong) long else live).isChecked = true
+        box.visibility = if (isLong) View.VISIBLE else View.GONE
+
+        fun chosen(): PaceChoice {
+            if (!long.isChecked) return PaceChoice.LIVE
+            val f = PaceChoice.FIXES[fixes.second.indexOfFirst { it.isChecked }.coerceAtLeast(0)]
+            val s = PaceChoice.SENDS[sends.second.indexOfFirst { it.isChecked }.coerceAtLeast(0)]
+            return PaceChoice.long(f, s, remote.isChecked)
+        }
+        fun keep() {
+            val c = chosen()
+            prefs.edit().putBoolean("pace_long", c.long).putBoolean("pace_remote", remote.isChecked).apply()
+            if (c.long) prefs.edit().putInt("pace_fix", c.fix).putInt("pace_send", c.send).apply()
+        }
+        modes.setOnCheckedChangeListener { _, _ ->
+            box.visibility = if (long.isChecked) View.VISIBLE else View.GONE
+            keep()
+        }
+        fixes.second.forEach { b -> b.setOnCheckedChangeListener { _, on -> if (on) keep() } }
+        sends.second.forEach { b -> b.setOnCheckedChangeListener { _, on -> if (on) keep() } }
+        remote.setOnCheckedChangeListener { _, _ -> keep() }
+        return { chosen() }
+    }
+
+    private fun radio(label: String) = RadioButton(this).apply {
+        id = View.generateViewId()
+        text = label
+        textSize = 16f
+    }
+
+    /** A row of choices, one checked at a time. */
+    private fun row(labels: List<String>): Pair<RadioGroup, List<RadioButton>> {
+        val g = RadioGroup(this).apply { orientation = RadioGroup.HORIZONTAL }
+        val buttons = labels.map { radio(it) }
+        buttons.forEach { g.addView(it, RadioGroup.LayoutParams(0, RadioGroup.LayoutParams.WRAP_CONTENT, 1f)) }
+        return g to buttons
     }
 
     /** Who follows this phone: Ozitrac's watchers by name, and those of the Ozimut account it is linked to. */
@@ -275,6 +358,7 @@ class TrackerActivity : ComponentActivity() {
         clockText = Ui.text(this, "0:00:00", 56f, bold = true).also { add(it) }
         distText = Ui.text(this, "", 22f).also { add(it) }
         accText = Ui.text(this, "", 15f, color = Ui.GREY).also { add(it) }
+        paceText = Ui.text(this, "", 15f, color = Ui.INK).also { add(it) }
         pendText = Ui.text(this, "", 15f, color = Ui.GREY).also { add(it) }
         sentText = Ui.text(this, "", 15f, color = Ui.GREY).also { add(it) }
         add(Ui.gap(this, 12))
@@ -295,8 +379,18 @@ class TrackerActivity : ComponentActivity() {
         val s = RunState.get(this)
         clockText?.text = Ui.clock(System.currentTimeMillis() - s.started)
         distText?.text = getString(R.string.tr_distance, Ui.km(s.distance))
-        accText?.text = if (s.lastAcc >= 0 && System.currentTimeMillis() - s.lastFixAt < 15_000)
+        val pace = PaceState.now(this, System.currentTimeMillis() / 1000, 0)
+        // a long run's fixes come every 15-60 s, delivered together: its GPS line says the last accuracy without waiting
+        val fresh = if (pace.long) 2 * pace.send * 1000L else 15_000L
+        accText?.text = if (s.lastAcc >= 0 && System.currentTimeMillis() - s.lastFixAt < fresh)
             getString(R.string.tr_gps_acc, s.lastAcc) else getString(R.string.tr_gps_searching)
+        if (pace.boosted(System.currentTimeMillis() / 1000) && pace.by != askerW) {
+            askerW = pace.by
+            askerName = Channel.watchers(this).firstOrNull { it.w == pace.by }?.name?.takeIf { it.isNotBlank() }
+        }
+        val pt = Notifs.paceText(this, pace, askerName)
+        paceText?.text = pt ?: ""
+        paceText?.visibility = if (pt == null) View.GONE else View.VISIBLE
         if (local()) {
             pendText?.text = getString(R.string.tr_local)
             sentText?.text = ""

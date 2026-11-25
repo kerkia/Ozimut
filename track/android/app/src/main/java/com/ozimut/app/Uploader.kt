@@ -92,7 +92,9 @@ class Uploader(private val ctx: Context, private val store: FixStore, private va
             heartbeat = false
             if (b.state == States.HELP && help) RunState.helpSent(ctx, RunState.OZ, rs.helpAt)
             val left = (store.count(rs.run) - b.fixes.size).coerceAtLeast(0)
-            val body = BatchEncoder.encode(b, rs.share, Phone.battery(ctx), Phone.lowPower(ctx), left, System.currentTimeMillis() / 1000)
+            val nowSec = System.currentTimeMillis() / 1000
+            val pace = PaceState.now(ctx, nowSec, nextSec.toInt())
+            val body = BatchEncoder.encode(b, rs.share, Phone.battery(ctx), Phone.lowPower(ctx), left, nowSec, pace)
             val res = try {
                 Http.post("/api/track/push", body, key, gzip = true)
             } catch (e: Exception) {
@@ -141,7 +143,11 @@ class Uploader(private val ctx: Context, private val store: FixStore, private va
         }
         val rs = RunState.get(ctx)
         if (!rs.active) return
-        if (rs.state == RunState.ENDING || RunState.helpPending(ctx, RunState.OZ)) kickIn(1_000) else kickIn(nextSec.coerceIn(5, 600) * 1000)
+        if (rs.state == RunState.ENDING || RunState.helpPending(ctx, RunState.OZ)) kickIn(1_000)
+        else {
+            val now = System.currentTimeMillis() / 1000
+            kickIn(PaceRules.nextSend(PaceState.now(ctx, now, nextSec.toInt()), now, nextSec).coerceIn(5, 900) * 1000)
+        }
     }
 
     companion object {

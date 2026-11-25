@@ -11,8 +11,10 @@
 //   POST   <c>/invite             a code (Bearer cs)
 //   POST   <c>/join               a watcher joins with a code
 //   POST   <c>/push               a batch (Bearer cs)
+//   PUT    <c>/token              the watchee's own push token (Bearer cs): a watcher's request for Direct wakes it
 //   GET    <c>/w/<w>              a watcher's read (Bearer ws)
 //   PUT    <c>/w/<w>/push         a watcher's push token (Bearer ws)
+//   POST   <c>/w/<w>/pace         a watcher asks for Direct for a while, or the long pace again (Bearer ws)
 //   DELETE <c>/w/<w>              a watcher goes (Bearer cs or ws)
 
 import { allow, clientIp, json } from "../../_lib/api.js";
@@ -22,8 +24,8 @@ import { maps } from "../../_lib/ozitracmaps.js";
 const A32 = "abcdefghijklmnopqrstuvwxyz234567";
 const MAX_BODY = 512 * 1024;
 const FORWARD = [
-  ["GET", /^$/], ["DELETE", /^$/], ["POST", /^invite$/], ["POST", /^join$/], ["POST", /^push$/],
-  ["GET", /^w\/[a-z2-7]{8}$/], ["PUT", /^w\/[a-z2-7]{8}\/push$/], ["DELETE", /^w\/[a-z2-7]{8}$/],
+  ["GET", /^$/], ["DELETE", /^$/], ["POST", /^invite$/], ["POST", /^join$/], ["POST", /^push$/], ["PUT", /^token$/],
+  ["GET", /^w\/[a-z2-7]{8}$/], ["PUT", /^w\/[a-z2-7]{8}\/push$/], ["POST", /^w\/[a-z2-7]{8}\/pace$/], ["DELETE", /^w\/[a-z2-7]{8}$/],
 ];
 
 function rand32(n) {
@@ -43,7 +45,7 @@ const stub = (env, c) => env.OZITRAC.get(env.OZITRAC.idFromName(c));
 async function notify(env, c, list) {
   const gone = [];
   for (const n of list || []) {
-    const r = await sendData(env, n.push, n.data, { urgent: !!n.urgent, ttl: n.urgent ? 3600 : 1800 });
+    const r = await sendData(env, n.push, n.data, { urgent: !!n.urgent, ttl: n.quiet ? 600 : n.urgent ? 3600 : 1800, quiet: !!n.quiet });
     if (r === "gone") gone.push(n.w);
   }
   if (gone.length) await stub(env, c).fetch("https://ozitrac/_gone", { method: "POST", body: JSON.stringify({ w: gone }) });

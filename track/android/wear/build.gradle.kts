@@ -17,11 +17,12 @@ val keystorePath: String? = System.getenv("ANDROID_KEYSTORE_PATH")?.takeIf { it.
 
 /**
  * The phone app's files the watch compiles as they are: the queue, the batches, the pairing's storage, the sending to
- * Ozimut, the service, Ozitrac's sealing and codes, the relay (channel, watchers, alerts, sender) and the run's file.
+ * Ozimut, the service, Ozitrac's sealing and codes, the relay (channel, watchers, alerts, sender), the run's file and the
+ * pace (the watch's runs are always Direct; the long run's batched fixes are the phone app's own, LongRun.kt, not shared).
  */
 val SHARED = listOf(
     "Batch.kt", "FixDb.kt", "Device.kt", "Http.kt", "Uploader.kt", "Tracker.kt", "Phone.kt", "TrackerService.kt",
-    "TrackForm.kt", "Relay.kt", "RunLog.kt",
+    "TrackForm.kt", "Relay.kt", "RunLog.kt", "Pace.kt",
 )
 
 abstract class SharedSources : DefaultTask() {

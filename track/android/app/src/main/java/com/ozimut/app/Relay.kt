@@ -161,6 +161,26 @@ object Channel {
 
     fun refreshedAt(c: Context): Long = p(c).getLong("refreshed", 0)
 
+    /**
+     * Gives the relay this phone's push token (`PUT /<c>/token`), or drops it with `{}` when [token] is null: how a watcher's
+     * request for Direct wakes the phone during a long run (docs/track/ozitrac.md « Pace »). Sent again only when it changed
+     * (blocking). -> false without network.
+     */
+    @Synchronized fun setToken(c: Context, token: String?): Boolean {
+        val ch = id(c) ?: return true
+        val cs = secret(c) ?: return true
+        val sent = p(c).getString("token", null)
+        if (token == null && sent.isNullOrEmpty()) return true
+        if (token != null && token == sent) return true
+        val body = if (token == null) "{}" else
+            JSONObject().put("kind", "fcm").put("token", token).put("env", if (BuildConfig.DEBUG) "dev" else "prod").toString()
+        val r = try { Http.put("${RelayConfig.PATH}/$ch/token", body, cs) } catch (e: Exception) { return false }
+        if (r.code == 401 || r.code == 404) { forget(c); return true }
+        if (r.code != 200) return false
+        p(c).edit().putString("token", token ?: "").apply()
+        return true
+    }
+
     /** Removes a watcher (blocking). */
     fun remove(c: Context, w: String): Boolean {
         val ch = id(c) ?: return false
@@ -262,24 +282,17 @@ object Zone {
     }
 }
 
-/** Standing still and leaving the zone, from the fixes (each said once until it is no longer so). */
+/**
+ * Standing still and leaving the zone, from the fixes (each said once until it is no longer so). Still is « under 15 m in
+ * 5 minutes », 30 in a long run (docs/track/ozitrac.md rule 5), whatever a watcher's request for Direct does meanwhile.
+ */
 class AlertWatch(private val ctx: Context, private val onAlert: () -> Unit) {
-    private val recent = ArrayDeque<Fix>()
-    private var stillAt: Fix? = null
+    private val still = PaceState.choice(ctx).let { StillDetector(PaceRules.stillWindow(it), PaceRules.stillSlack(it)) }
     private var out = false
 
     fun onFix(f: Fix, runStartedSec: Long) {
         if (f.ac > 30) return
-        recent.addLast(f)
-        while (recent.isNotEmpty() && f.t - recent.first().t > STILL_S) recent.removeFirst()
-        // still: a run of five minutes at least, every fix of the last five within 15 m of the latest
-        val anchor = stillAt
-        if (anchor != null) {
-            if (Geo.metres(anchor.la, anchor.lo, f.la, f.lo) > STILL_M) stillAt = null
-        } else if (f.t - runStartedSec >= STILL_S && recent.first().t <= f.t - STILL_S + 10 &&
-            recent.all { Geo.metres(it.la, it.lo, f.la, f.lo) <= STILL_M }
-        ) {
-            stillAt = f
+        if (still.onFix(f, runStartedSec)) {
             Alerts.add(ctx, Alerts.STILL)
             onAlert()
         }
@@ -295,19 +308,20 @@ class AlertWatch(private val ctx: Context, private val onAlert: () -> Unit) {
             out = false
         }
     }
-
-    companion object {
-        const val STILL_S = 300
-        const val STILL_M = 15.0
-    }
 }
 
 /**
  * Ozitrac's destination: sends the run to the relay (POST /api/ozitrac/<c>/push), each batch sealed for each watcher whose key
  * this phone holds, from the queue « z: » + run that TrackerService fills beside Ozimut's. Without a watcher it waits (the
- * fixes kept, sent once one joins); at the end with still none the queue is dropped.
+ * fixes kept, sent once one joins); at the end with still none the queue is dropped. Each batch says the pace kept; the
+ * answer's `boost` (a watcher's request for Direct) goes to [onBoost].
  */
-class RelaySender(private val ctx: Context, private val store: FixStore, private val events: Uploader.Events) {
+class RelaySender(
+    private val ctx: Context,
+    private val store: FixStore,
+    private val events: Uploader.Events,
+    private val onBoost: (Boost) -> Unit = {},
+) {
     private val thread = HandlerThread("ozitrac-relay").apply { start() }
     private val h = Handler(thread.looper)
     private val batcher = Batcher(store)
@@ -373,9 +387,11 @@ class RelaySender(private val ctx: Context, private val store: FixStore, private
             val plain = TrackForm.encode(b.fixes).toByteArray(Charsets.UTF_8)
             val sealed = JSONObject()
             for (wt in watchers) sealed.put(wt.w, Seal.seal(wt.k!!, Seal.batchAad(ch, wt.w, rs.run, b.seq), plain))
+            val pace = PaceState.now(ctx, System.currentTimeMillis() / 1000, nextSec.toInt())
             val body = JSONObject()
                 .put("v", 1).put("run", rs.run).put("seq", b.seq).put("state", b.state)
                 .put("sealed", sealed).put("alerts", JSONArray(alerts)).put("lp", Phone.lowPower(ctx))
+                .put("pace", PaceRules.json(pace))
             Phone.battery(ctx)?.let { body.put("bat", it) }
             val res = try {
                 Http.post("${RelayConfig.PATH}/$ch/push", body.toString(), cs, gzip = true)
@@ -393,6 +409,7 @@ class RelaySender(private val ctx: Context, private val store: FixStore, private
                     Alerts.sent(ctx, alerts)
                     if (b.state == States.HELP && help) RunState.helpSent(ctx, RunState.RELAY, rs.helpAt)
                     if (j != null && j.has("next")) nextSec = j.optLong("next", nextSec)
+                    PaceRules.parseBoost(j?.optJSONObject("boost"))?.let { onBoost(it) }
                     Tracker.changed()
                     if (b.state == States.END && ack >= b.seq) {
                         events.onFinished("sent")
@@ -426,7 +443,10 @@ class RelaySender(private val ctx: Context, private val store: FixStore, private
         val rs = RunState.get(ctx)
         if (!rs.active) return
         if (rs.state == RunState.ENDING || RunState.helpPending(ctx, RunState.RELAY) || Alerts.pending(ctx).isNotEmpty()) kickIn(1_000)
-        else kickIn(nextSec.coerceIn(5, 600) * 1000)
+        else {
+            val now = System.currentTimeMillis() / 1000
+            kickIn(PaceRules.nextSend(PaceState.now(ctx, now, nextSec.toInt()), now, nextSec).coerceIn(5, 900) * 1000)
+        }
     }
 
     companion object {

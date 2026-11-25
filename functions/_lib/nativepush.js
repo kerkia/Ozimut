@@ -83,8 +83,9 @@ export async function sendNative(env, d, msg, { ttl = 4 * 86400, topic } = {}) {
 }
 
 /** An Ozitrac alert (docs/track/ozitrac.md « Notifications »): data only, the app writes the words with the name it holds.
- *  `p` = { kind: "fcm" | "apns", token, env }. -> "ok" | "gone" | "failed" | "off" */
-export async function sendData(env, p, data, { urgent = false, ttl = 3600 } = {}) {
+ *  `quiet`: a message to the app itself, never shown (the runner's phone told to change its pace, « Pace »): on the iPhone a
+ *  background notification. `p` = { kind: "fcm" | "apns", token, env }. -> "ok" | "gone" | "failed" | "off" */
+export async function sendData(env, p, data, { urgent = false, ttl = 3600, quiet = false } = {}) {
   const strings = Object.fromEntries(Object.entries(data).map(([k, v]) => [k, String(v ?? "")]));
   try {
     if (p.kind === "fcm" && fcmReady(env)) {
@@ -98,11 +99,16 @@ export async function sendData(env, p, data, { urgent = false, ttl = 3600 } = {}
     if (p.kind === "apns" && apnsReady(env)) {
       // the iPhone app (to come) localises the words from the key and fills the name in its notification extension
       const host = p.env === "dev" ? "api.sandbox.push.apple.com" : "api.push.apple.com";
+      const exp = String(Math.floor(Date.now() / 1000) + ttl);
       const res = await fetch(`https://${host}/3/device/${p.token}`, { method: "POST",
-        headers: { authorization: `bearer ${await apnsToken(env)}`, "apns-topic": env.OZITRAC_APNS_TOPIC || "com.ozimut.ozitrac",
-          "apns-push-type": "alert", "apns-priority": "10", "apns-expiration": String(Math.floor(Date.now() / 1000) + ttl) },
-        body: JSON.stringify({ aps: { alert: { "loc-key": `OZ_ALERT_${strings.kind.toUpperCase()}` }, sound: "default", "mutable-content": 1,
-          ...(urgent ? { "interruption-level": "time-sensitive" } : {}) }, ...strings }) });
+        headers: quiet
+          ? { authorization: `bearer ${await apnsToken(env)}`, "apns-topic": env.OZITRAC_APNS_TOPIC || "com.ozimut.ozitrac",
+            "apns-push-type": "background", "apns-priority": "5", "apns-expiration": exp }
+          : { authorization: `bearer ${await apnsToken(env)}`, "apns-topic": env.OZITRAC_APNS_TOPIC || "com.ozimut.ozitrac",
+            "apns-push-type": "alert", "apns-priority": "10", "apns-expiration": exp },
+        body: JSON.stringify(quiet ? { aps: { "content-available": 1 }, ...strings }
+          : { aps: { alert: { "loc-key": `OZ_ALERT_${strings.kind.toUpperCase()}` }, sound: "default", "mutable-content": 1,
+            ...(urgent ? { "interruption-level": "time-sensitive" } : {}) }, ...strings }) });
       if (res.status === 410) return "gone";
       if (res.status === 400) return /BadDeviceToken|DeviceTokenNotForTopic/.test(await res.text()) ? "gone" : "failed";
       return res.ok ? "ok" : "failed";

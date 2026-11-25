@@ -76,10 +76,11 @@ object RunState {
         )
     }
 
-    @Synchronized fun begin(c: Context, run: String, share: String, cap: Int, dests: Set<String>) {
-        p(c).edit().clear()
+    @Synchronized fun begin(c: Context, run: String, share: String, cap: Int, dests: Set<String>, pace: PaceChoice = PaceChoice.LIVE) {
+        val e = p(c).edit().clear()
             .putString("run", run).putString("state", RUNNING).putLong("started", System.currentTimeMillis())
-            .putString("share", share).putInt("cap", cap).putString("dests", dests.joinToString(",")).commit()
+            .putString("share", share).putInt("cap", cap).putString("dests", dests.joinToString(","))
+        PaceState.write(e, pace).commit()
     }
 
     @Synchronized fun setDests(c: Context, dests: Set<String>) {
@@ -155,20 +156,28 @@ object Tracker {
         return "r_" + f.format(now) + "_" + tail
     }
 
-    /** Called from the visible Start screen only. Without Ozimut the cap is six hours. */
-    fun start(c: Context, share: String) {
+    /**
+     * Called from the visible Start screen only. Direct's cap is six hours without Ozimut, the account's with it; a long run
+     * (docs/track/ozitrac.md « Pace ») lasts seven days at most. The watch only ever starts Direct.
+     */
+    fun start(c: Context, share: String, pace: PaceChoice = PaceChoice.LIVE) {
         FixDb.get(c).dropAllBut(null)
         Alerts.clear(c)
         val dests = mutableSetOf<String>()
         if (Device.paired(c)) dests += RunState.OZ
         if (share == "watchers" && Channel.exists(c)) dests += RunState.RELAY
-        val cap = if (Device.paired(c)) Device.settings(c).cap else 6 * 3600
-        RunState.begin(c, newRunId(), share, cap, dests)
+        val cap = PaceRules.cap(pace, Device.paired(c), if (Device.paired(c)) Device.settings(c).cap else 0)
+        RunState.begin(c, newRunId(), share, cap, dests, pace)
         c.startForegroundService(Intent(c, TrackerService::class.java).setAction(TrackerService.ACTION_START))
         changed()
     }
 
     fun stop(c: Context) = send(c, TrackerService.ACTION_STOP)
+
+    /** A watcher's request for Direct was heard (a push, or a batch's answer): the running service settles it. */
+    fun pace(c: Context) {
+        if (RunState.get(c).state == RunState.RUNNING) send(c, TrackerService.ACTION_PACE)
+    }
 
     fun help(c: Context) {
         RunState.setHelp(c, true)

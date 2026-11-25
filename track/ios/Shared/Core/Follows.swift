@@ -34,6 +34,10 @@ struct FollowRun: Equatable {
     var since: Int
     var fixes: [TrackFix]
     var readAt: Double
+    /// The pace the phone says it keeps (nil: an app without paces, Direct).
+    var pace: RemotePace? = nil
+    /// The relay's last request for Direct in this run (any watcher's).
+    var request: Boost? = nil
 }
 
 final class FollowStore {
@@ -54,6 +58,8 @@ final class FollowStore {
         var alerts: [FollowRun.Alert]
         var since: Int
         var readAt: Double
+        var pace: RemotePace?
+        var request: Boost?
     }
 
     private let lock = NSLock()
@@ -93,6 +99,16 @@ final class FollowStore {
     static func shareNames(_ l: [Follow]) {
         let names = Dictionary(l.map { ($0.c, $0.name) }, uniquingKeysWith: { a, _ in a })
         UserDefaults(suiteName: AppConfig.group)?.set(names, forKey: "names")
+    }
+
+    /// The seconds between batches of a person's long run (nil: Direct), for the notification extension's wording of
+    /// standing still and silence.
+    static func shareLong(_ c: String, send: Int?) {
+        guard let d = UserDefaults(suiteName: AppConfig.group) else { return }
+        var all = (d.dictionary(forKey: "long") as? [String: Int]) ?? [:]
+        if all[c] == send { return }
+        all[c] = send
+        d.set(all, forKey: "long")
     }
 
     static func sharedName(_ c: String) -> String? {
@@ -141,7 +157,27 @@ final class FollowStore {
         return true
     }
 
+    /// Asks the person's phone for Direct for `minutes` (1-60), or for its long pace again (0) (docs/track/ozitrac.md
+    /// « Pace »). -> the relay's request kept, or an error: "pace" (no long run allowing it under way), "slow" (asked under
+    /// 15 s ago), "gone", "network".
+    func askPace(_ f: Follow, minutes: Int) async -> (Boost?, String?) {
+        let m = Swift.min(Swift.max(minutes, 0), 60)
+        guard let a = await RelayHTTP.shared.call("POST", f.c + "/w/" + f.w + "/pace", json: ["min": m], bearer: f.ws) else {
+            return (nil, "network")
+        }
+        switch a.status {
+        case 200: return (Boost(json: a.json?["boost"]), nil)
+        case 409: return (nil, "pace")
+        case 429: return (nil, "slow")
+        case 401, 404:
+            forget(f.c)
+            return (nil, "gone")
+        default: return (nil, "network")
+        }
+    }
+
     func forget(_ c: String) {
+        FollowStore.shareLong(c, send: nil)
         save(list.filter { $0.c != c })
         try? FileManager.default.removeItem(at: runFile(c))
         UserDefaults.standard.removeObject(forKey: "oz.follow." + c)
@@ -164,7 +200,7 @@ final class FollowStore {
         guard let data = UserDefaults.standard.data(forKey: "oz.follow." + c),
               let h = try? JSONDecoder().decode(Head.self, from: data) else { return nil }
         return FollowRun(run: h.run, state: h.state, started: h.started, last: h.last, bat: h.bat, alerts: h.alerts,
-                         since: h.since, fixes: RunLog.read(runFile(c)), readAt: h.readAt)
+                         since: h.since, fixes: RunLog.read(runFile(c)), readAt: h.readAt, pace: h.pace, request: h.request)
     }
 
     /// Reads what is new of a person's run: the blobs after the last one held, opened with the code's key; a new run
@@ -197,10 +233,12 @@ final class FollowStore {
         let alerts: [FollowRun.Alert] = ((j["alerts"] as? [[String: Any]]) ?? []).map {
             FollowRun.Alert(kind: ($0["kind"] as? String) ?? "", t: FollowStore.seconds($0["t"]))
         }
+        let pace = RemotePace(json: j["pace"])
         let head = Head(run: run, state: (j["state"] as? String) ?? "", started: FollowStore.seconds(j["started"]),
                         last: FollowStore.seconds(j["last"]), bat: JSON.int(j["bat"]), alerts: alerts, since: since,
-                        readAt: Date().timeIntervalSince1970)
+                        readAt: Date().timeIntervalSince1970, pace: pace, request: Boost(json: j["boost"]))
         UserDefaults.standard.set(try? JSONEncoder().encode(head), forKey: "oz.follow." + f.c)
+        FollowStore.shareLong(f.c, send: pace?.long == true ? pace?.send : nil)
         return Poll(run: cached(f.c), next: next, error: nil)
     }
 

@@ -9,6 +9,12 @@ import { DurableObject } from "cloudflare:workers";
 const TICK_MS = 30000;
 const SILENT_S = 180, STILL_S = 300, STILL_M = 15, LOW_BAT = 15, BACK_AWAY_S = 600, BACK_M = 50, AWAY_M = 200;
 const RECENT_S = 360;                  // the positions kept for the « still » test
+// Ozitrac's long pace (docs/track/ozitrac.md « Pace »): silent after 3 batches and 2 minutes, still over 30 minutes, a
+// slower alarm (a long run lasts days)
+const LONG_STILL_S = 1800, LONG_RECENT_S = 1900, LONG_TICK_MS = 120000;
+const silentS = (m) => (m.long ? 3 * (m.batch || 600) + 120 : SILENT_S);
+const stillS = (m) => (m.long ? LONG_STILL_S : STILL_S);
+const tick = (m) => (m.long ? LONG_TICK_MS : TICK_MS);
 const MAX_KEEP = 7 * 3600;             // a run's fixes kept here at most (seconds)
 
 function metres(la1, lo1, la2, lo2) {
@@ -84,12 +90,12 @@ export class LiveTrack extends DurableObject {
       m.startPos ||= [b.la[0], b.lo[0]];
       m.last = [b.la[n - 1], b.lo[n - 1], b.t[n - 1]];
       for (let i = 0; i < n; i++) m.recent.push([b.t[i], b.la[i], b.lo[i]]);
-      const cut = b.t[n - 1] - RECENT_S;
+      const cut = b.t[n - 1] - (b.long ? LONG_RECENT_S : RECENT_S);
       m.recent = m.recent.filter((p) => p[0] >= cut);
       // over 200 m from the start once: the « back » alert can come later
       if (metres(m.startPos[0], m.startPos[1], m.last[0], m.last[1]) > AWAY_M) m.away = true;
     }
-    m.name = b.name || m.name; m.uid = b.uid; m.batch = b.batch || 30; m.cap = b.cap; m.area = b.area || null;
+    m.name = b.name || m.name; m.uid = b.uid; m.batch = b.batch || 30; m.cap = b.cap; m.area = b.area || null; m.long = !!b.long;
     if (b.bat != null) m.bat = b.bat;
     m.lp = !!b.lp; m.lastAt = now;
     if (b.state === "help" && m.state !== "help") alerts.push({ kind: "help", pos: m.last });
@@ -108,7 +114,7 @@ export class LiveTrack extends DurableObject {
     if (n) this.broadcast({ t: "fixes", run: m.run, seq: b.seq, ...encode(b.t.map((t, i) => [t, b.la[i], b.lo[i], b.ac[i]])), bat: m.bat ?? null, lp: m.lp, at: now });
     if (b.state === "help" || b.state === "end") this.broadcast({ t: "state", run: m.run, state: m.state, at: now });
     for (const a of alerts) { this.broadcast({ t: "alert", ...a, at: now }); await this.alert(a); }
-    if (m.state !== "end") await this.ctx.storage.setAlarm(now + TICK_MS);
+    if (m.state !== "end") await this.ctx.storage.setAlarm(now + tick(m));
     return Response.json({ watchers: this.ctx.getWebSockets().length });
   }
 
@@ -127,22 +133,22 @@ export class LiveTrack extends DurableObject {
     const now = Date.now();
     // a run silent beyond its cap and half an hour: given up (Ozimut lists it as interrupted)
     if (m.cap && now - m.startedAt > (m.cap + 1800) * 1000 && now - m.lastAt > 1800e3) { m.state = "end"; await this.ctx.storage.put("head", m); return; }
-    if (now - m.lastAt > SILENT_S * 1000 && !m.sent.silent) {
+    if (now - m.lastAt > silentS(m) * 1000 && !m.sent.silent) {
       m.sent.silent = true;
       this.broadcast({ t: "alert", kind: "silent", at: now });
       await this.alert({ kind: "silent", pos: m.last });
     }
-    // within 15 m for the last 5 minutes (a fall, a child lost and waiting): once, until the runner moves again
+    // within 15 m for the last 5 minutes (30 in a long run) (a fall, a child lost and waiting): once, until the runner moves again
     const r = m.recent || [];
-    if (m.last && r.length && m.last[2] - r[0][0] >= STILL_S - 30) {
-      const since = m.last[2] - STILL_S;
+    if (m.last && r.length && m.last[2] - r[0][0] >= stillS(m) - 30) {
+      const since = m.last[2] - stillS(m);
       const win = r.filter((p) => p[0] >= since);
-      const still = win.length >= 10 && win.every((p) => metres(p[1], p[2], m.last[0], m.last[1]) < STILL_M);
+      const still = win.length >= (m.long ? 5 : 10) && win.every((p) => metres(p[1], p[2], m.last[0], m.last[1]) < STILL_M);
       if (still && !m.sent.still) { m.sent.still = true; this.broadcast({ t: "alert", kind: "still", at: now }); await this.alert({ kind: "still", pos: m.last }); }
       if (!still) m.sent.still = false;
     }
     await this.ctx.storage.put("head", m);
-    await this.ctx.storage.setAlarm(now + TICK_MS);
+    await this.ctx.storage.setAlarm(now + tick(m));
   }
 
   async alert(a) {

@@ -13,10 +13,14 @@ import java.io.File
 
 class Follow(val c: String, val w: String, val ws: String, val k: ByteArray, val name: String, val joined: Long)
 
-/** The state of a person's run as last read, and its fixes. */
+/**
+ * The state of a person's run as last read, and its fixes. [pace]: the pace their phone keeps (null: Direct, docs/track/
+ * ozitrac.md « Pace »); [boost]: the relay's last request for Direct, whether their phone applied it yet or not.
+ */
 class FollowRun(
     val run: String, val state: String, val started: Long, val last: Long, val bat: Int?,
     val alerts: List<Pair<String, Long>>, val since: Int, val fixes: List<Fix>, val readAt: Long,
+    val pace: PaceNow? = null, val boost: Boost? = null,
 )
 
 object Follows {
@@ -103,7 +107,8 @@ object Follows {
         return FollowRun(
             o.optString("run"), o.optString("state"), o.optLong("started"), o.optLong("last"),
             if (o.has("bat") && !o.isNull("bat")) o.optInt("bat") else null, alerts, o.optInt("since"),
-            RunLog.read(runFile(c, ch)), o.optLong("readAt")
+            RunLog.read(runFile(c, ch)), o.optLong("readAt"),
+            PaceRules.parse(o.optJSONObject("pace")), PaceRules.parseBoost(o.optJSONObject("boost"))
         )
     }
 
@@ -151,8 +156,29 @@ object Follows {
         val head = JSONObject().put("run", run).put("state", j.optString("state", "")).put("started", seconds(j.opt("started")))
             .put("last", seconds(j.opt("last"))).put("bat", if (j.has("bat") && !j.isNull("bat")) j.optInt("bat") else JSONObject.NULL)
             .put("alerts", alerts).put("since", since).put("readAt", System.currentTimeMillis())
+            .put("pace", PaceRules.parse(j.optJSONObject("pace"))?.let { PaceRules.json(it) } ?: JSONObject.NULL)
+            .put("boost", PaceRules.parseBoost(j.optJSONObject("boost"))?.let {
+                JSONObject().put("until", it.until).put("at", it.at).put("by", it.by)
+            } ?: JSONObject.NULL)
         p(c).edit().putString("run_${f.c}", head.toString()).apply()
         return Poll(cached(c, f.c), next, null)
+    }
+
+    /**
+     * Asks the person's phone for Direct for [min] minutes, or (0) for its long pace again (`POST /<c>/w/<w>/pace`, blocking).
+     * -> null when the relay took it; else "pace" (no long run allowing it), "many" (asked within the last 15 s), "gone",
+     * "network".
+     */
+    fun askPace(c: Context, f: Follow, min: Int): String? {
+        val body = JSONObject().put("min", min.coerceIn(0, 60)).toString()
+        val r = try { Http.post("${RelayConfig.PATH}/${f.c}/w/${f.w}/pace", body, f.ws) } catch (e: Exception) { return "network" }
+        return when (r.code) {
+            200 -> null
+            409 -> "pace"
+            429 -> "many"
+            401, 404 -> { forget(c, f.c); "gone" }
+            else -> "network"
+        }
     }
 
     /** A time the relay gives as Unix seconds, milliseconds or an ISO text -> Unix seconds (0 unknown). */

@@ -5,6 +5,8 @@
 // 24 h after the run's end or when the next run starts. Ozimut's Function functions/api/ozitrac/[[path]].js hands it every
 // request (the secrets as they came: the object hashes and compares them) and sends the notifications it asks for; the
 // object's alarm notices a silent run and posts that alert to Ozimut (POST <SITE_URL>/api/ozitrac/alert, X-Relay).
+// A run's pace (Direct or long, « Pace », 2026-11-25) comes with each batch; a watcher's request for Direct is kept as the
+// run's `boost`, given back in every batch's answer and sent to the runner's phone through its own push token.
 
 import { DurableObject } from "cloudflare:workers";
 
@@ -12,9 +14,10 @@ const WATCHED = 15, IDLE = 120;            // the next batch, in seconds, with /
 const LOOKING_S = 45;
 const SILENT_S = 180;                      // no batch for that long during a run: « silent »
 const ABANDON_S = 6 * 3600;                // a run without a batch for that long is over
+const LONG_ABANDON_S = 36 * 3600;          // the same for a long run (« Pace »: mountains without a network for hours)
 const KEEP_S = 24 * 3600;                  // a run's batches kept after its end
 const IDLE_CHANNEL_S = 180 * 86400;        // a channel nobody used for that long goes
-const TICK_MS = 60000;
+const PACE_GAP_S = 15, MAX_BOOST_MIN = 60; // a watcher's requests for Direct: one each 15 s, an hour at most
 const MAX_WATCHERS = 20, MAX_INVITES = 10, CODE_S = 24 * 3600;
 const DEVICE_ALERTS = new Set(["battery", "still", "zone"]);
 const A32 = "abcdefghijklmnopqrstuvwxyz234567";
@@ -81,10 +84,12 @@ export class TracChannel extends DurableObject {
     }
   }
 
+  /** The alarm only when something can happen: the run's silence, then its abandon (a long run is quiet for 10 minutes at a
+   *  time; waking every minute for days would be wasted requests). */
   async plan() {
     const m = this.m, t = now();
     let at;
-    if (m.run && m.run.state !== "end") at = (t + TICK_MS / 1000);
+    if (m.run && m.run.state !== "end") at = Math.max(t + 5, m.run.last + (m.run.silent ? abandonS(m.run) : silentS(m.run)) + 1);
     else if (m.run) at = m.run.ended + KEEP_S + 5;
     else at = (m.touched || t) + IDLE_CHANNEL_S + 5;
     await this.ctx.storage.setAlarm(at * 1000);
@@ -160,14 +165,26 @@ export class TracChannel extends DurableObject {
       return this.push(body, t);
     }
 
-    // internal (Ozimut's Function, never forwarded from outside): tokens the push services call gone
-    if (path === "_gone" && method === "POST") {
-      for (const w of Array.isArray(body?.w) ? body.w : []) if (m.watchers[w]) m.watchers[w].push = null;
+    // the watchee's own push token: how a watcher's request for Direct wakes its phone
+    if (path === "token" && method === "PUT") {
+      if (!(await this.isWatchee(request))) return err("secret", 401);
+      m.token = cleanPush(body);
+      m.touched = t;
       await this.save();
       return Response.json({ ok: true });
     }
 
-    const wm = path.match(/^w\/([a-z2-7]{8})(\/push)?$/);
+    // internal (Ozimut's Function, never forwarded from outside): tokens the push services call gone ("@": the watchee's)
+    if (path === "_gone" && method === "POST") {
+      for (const w of Array.isArray(body?.w) ? body.w : []) {
+        if (w === "@") m.token = null;
+        else if (m.watchers[w]) m.watchers[w].push = null;
+      }
+      await this.save();
+      return Response.json({ ok: true });
+    }
+
+    const wm = path.match(/^w\/([a-z2-7]{8})(\/push|\/pace)?$/);
     if (wm) {
       const w = wm[1];
       if (method === "DELETE") {
@@ -182,11 +199,12 @@ export class TracChannel extends DurableObject {
       }
       const x = await this.watcherOf(request, w);
       if (!x) return err("secret", 401);
-      if (wm[2] && method === "PUT") {
+      if (wm[2] === "/push" && method === "PUT") {
         x.push = cleanPush(body);
         await this.save();
         return Response.json({ ok: true });
       }
+      if (wm[2] === "/pace" && method === "POST") return this.pace(w, x, body, t);
       if (!wm[2] && method === "GET") return this.read(w, x, url, t);
     }
     return err("bad request", 400);
@@ -200,11 +218,16 @@ export class TracChannel extends DurableObject {
     const alerts = [];
     if (!m.run || m.run.id !== b.run) {
       if (m.run) await this.dropBlobs();
-      m.run = { id: b.run, started: t, last: t, state: "run", seq: 0, alerts: [], silent: false, ended: null, sent: {} };
+      m.run = { id: b.run, started: t, last: t, state: "run", seq: 0, alerts: [], silent: false, ended: null, sent: {},
+        pace: { mode: "live" }, boost: null };
       alerts.push({ kind: "start", t });
     }
     const run = m.run;
-    if (b.seq <= run.seq) return Response.json({ ack: run.seq, next: this.next(t), watched: this.looking(t) });
+    run.pace = cleanPace(b.pace);
+    if (b.seq <= run.seq) {
+      await this.save();
+      return Response.json({ ack: run.seq, next: this.next(t), watched: this.looking(t), boost: run.boost || null });
+    }
     const puts = {};
     for (const [w, sealed] of Object.entries(b.sealed || {})) {
       if (!m.watchers[w] || typeof sealed !== "string" || !/^[A-Za-z0-9_-]{24,}$/.test(sealed)) continue;
@@ -232,11 +255,34 @@ export class TracChannel extends DurableObject {
     m.touched = t;
     await this.save();
     await this.plan();
-    return Response.json({ ack: b.seq, next: this.next(t), watched: this.looking(t), notify: this.notifications(alerts) });
+    return Response.json({ ack: b.seq, next: this.next(t), watched: this.looking(t), boost: run.boost || null,
+      notify: this.notifications(alerts) });
   }
 
   looking(t) { return Object.values(this.m.watchers).filter((x) => x.seen && t - x.seen < LOOKING_S).length; }
-  next(t) { return this.looking(t) ? WATCHED : IDLE; }
+  /** Seconds to the next batch: Direct as before; a long run its own `send`, or Direct's while a request for it holds. */
+  next(t) {
+    const run = this.m.run;
+    if (run?.pace?.mode === "long") return run.boost && run.boost.until > t ? WATCHED : run.pace.send;
+    return this.looking(t) ? WATCHED : IDLE;
+  }
+
+  /** A watcher asks the runner's phone for Direct for `min` minutes (0: the long pace again; « Pace »). */
+  async pace(w, x, body, t) {
+    const run = this.m.run;
+    if (!run || run.state === "end" || run.pace?.mode !== "long" || !run.pace.remote) return err("pace", 409);
+    const min = Math.round(Number(body?.min));
+    if (!Number.isFinite(min) || min < 0 || min > MAX_BOOST_MIN) return err("bad request", 400);
+    if (x.paceAt && t - x.paceAt < PACE_GAP_S) return err("too many", 429);
+    const at = Math.max(t, (run.boost?.at || 0) + 1);            // each request its own `at`: the phone applies each once
+    run.boost = { until: min ? t + min * 60 : t, at, by: w };
+    x.paceAt = t;
+    x.seen = t;
+    await this.save();
+    const notify = this.m.token ? [{ w: "@", push: this.m.token, urgent: true, quiet: true,
+      data: { app: "ozitrac", c: this.m.c, kind: "pace", until: String(run.boost.until), at: String(at), by: w } }] : [];
+    return Response.json({ boost: run.boost, notify });
+  }
 
   /** A watcher's read: the run under way and its sealed batches for this watcher. */
   async read(w, x, url, t) {
@@ -249,7 +295,7 @@ export class TracChannel extends DurableObject {
     const list = await this.ctx.storage.list({ prefix: `b:${w}:`, start: `b:${w}:${pad(since + 1)}` });
     for (const [k, v] of list) blobs.push([Number(k.slice(k.lastIndexOf(":") + 1)), v]);
     return Response.json({ run: run.id, state: run.state, started: iso(run.started), last: iso(run.last), bat: run.bat ?? null,
-      alerts: run.alerts, blobs, next: WATCHED });
+      pace: run.pace || { mode: "live" }, boost: run.boost || null, alerts: run.alerts, blobs, next: WATCHED });
   }
 
   async alarm() {
@@ -257,14 +303,14 @@ export class TracChannel extends DurableObject {
     if (!m) return;
     const t = now();
     if (m.run && m.run.state !== "end") {
-      if (!m.run.silent && t - m.run.last >= SILENT_S) {
+      if (!m.run.silent && t - m.run.last >= silentS(m.run)) {
         m.run.silent = true;
         const a = { kind: "silent", t };
         m.run.alerts.push(a);
         await this.save();
         await this.tell(this.notifications([a]));
       }
-      if (t - m.run.last >= ABANDON_S) { m.run.state = "end"; m.run.ended = t; await this.save(); }
+      if (t - m.run.last >= abandonS(m.run)) { m.run.state = "end"; m.run.ended = t; await this.save(); }
     } else if (m.run && t - m.run.ended >= KEEP_S) {
       await this.dropBlobs();
       m.run = null;
@@ -285,6 +331,17 @@ export class TracChannel extends DurableObject {
     } catch (e) { /* the next silence will try again */ }
   }
 }
+
+/** The pace a batch reports (« Pace »); a batch without one is Direct. */
+function cleanPace(p) {
+  if (!p || typeof p !== "object" || p.mode !== "long") return { mode: "live" };
+  const n = (v, lo, hi, d) => { const x = Math.round(Number(v)); return Number.isFinite(x) ? Math.max(lo, Math.min(hi, x)) : d; };
+  return { mode: "long", fix: n(p.fix, 1, 600, 30), send: n(p.send, 15, 3600, 600), remote: p.remote === true,
+    boost: n(p.boost, 0, 4e9, 0), by: /^[a-z2-7]{8}$/.test(String(p.by || "")) ? String(p.by) : "" };
+}
+/** A run's silence: 3 min in Direct, 3 batches and 2 minutes in a long run. */
+const silentS = (run) => (run.pace?.mode === "long" ? 3 * run.pace.send + 120 : SILENT_S);
+const abandonS = (run) => (run.pace?.mode === "long" ? LONG_ABANDON_S : ABANDON_S);
 
 function cleanPush(p) {
   if (!p || typeof p !== "object") return null;

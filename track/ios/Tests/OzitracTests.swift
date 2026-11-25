@@ -336,3 +336,240 @@ private extension CIImage {
         return composited(over: white)
     }
 }
+
+/// The pace of a run (docs/track/ozitrac.md « Pace »): Direct or a long run, a watcher's request for Direct applied once,
+/// refused when not allowed or on a low battery, over by itself; the batch's `pace`; the watcher's reading of it.
+final class PaceTests: XCTestCase {
+    private let long = PaceChoice(long: true, fix: 30, send: 600, remote: true)
+
+    func testThePaceOfABatch() {
+        let direct = PaceState(choice: .direct).json(now: 1000, liveSend: 15)
+        XCTAssertEqual(direct["mode"] as? String, "live")
+        XCTAssertEqual(direct["fix"] as? Int, 1)
+        XCTAssertEqual(direct["send"] as? Int, 15)
+        XCTAssertEqual(direct["remote"] as? Bool, false)
+        XCTAssertEqual(JSON.int64(direct["boost"]), 0)
+        XCTAssertEqual(direct["by"] as? String, "")
+
+        var p = PaceState(choice: long)
+        var j = p.json(now: 1000, liveSend: 15)
+        XCTAssertEqual(j["mode"] as? String, "long")
+        XCTAssertEqual(j["fix"] as? Int, 30)
+        XCTAssertEqual(j["send"] as? Int, 600)
+        XCTAssertEqual(j["remote"] as? Bool, true)
+        XCTAssertEqual(JSON.int64(j["boost"]), 0)
+
+        XCTAssertEqual(p.apply(Boost(until: 1900, at: 1000, by: "w2345678"), battery: 80, now: 1000), .applied)
+        j = p.json(now: 1100, liveSend: 15)
+        XCTAssertEqual(j["mode"] as? String, "long")
+        XCTAssertEqual(j["fix"] as? Int, 30)
+        XCTAssertEqual(JSON.int64(j["boost"]), 1900)
+        XCTAssertEqual(j["by"] as? String, "w2345678")
+        // once over, the batch says so even before the coordinator's tick
+        XCTAssertEqual(JSON.int64(p.json(now: 1900, liveSend: 15)["boost"]), 0)
+        XCTAssertEqual(p.json(now: 1900, liveSend: 15)["by"] as? String, "")
+        // as JSON, the relay reads plain numbers
+        let text = String(decoding: try! JSONSerialization.data(withJSONObject: p.json(now: 1100, liveSend: 15), options: [.sortedKeys]),
+                          as: UTF8.self)
+        XCTAssertEqual(text, "{\"boost\":1900,\"by\":\"w2345678\",\"fix\":30,\"mode\":\"long\",\"remote\":true,\"send\":600}")
+    }
+
+    func testFixesAndBatchesByPace() {
+        let d = PaceState(choice: .direct)
+        XCTAssertEqual(d.fixEvery(now: 0), 1)
+        XCTAssertNil(d.sendEvery(now: 0))
+        XCTAssertEqual(d.stillSeconds, 300)
+        var p = PaceState(choice: long)
+        XCTAssertEqual(p.fixEvery(now: 0), 30)
+        XCTAssertEqual(p.sendEvery(now: 0), 600)
+        XCTAssertEqual(p.stillSeconds, 1800)
+        XCTAssertFalse(p.live(now: 0))
+        _ = p.apply(Boost(until: 600, at: 0, by: "w"), battery: nil, now: 0)
+        XCTAssertTrue(p.live(now: 599))
+        XCTAssertEqual(p.fixEvery(now: 599), 1)
+        XCTAssertEqual(p.sendEvery(now: 599), 15)
+        XCTAssertEqual(p.fixEvery(now: 600), 30)
+        XCTAssertEqual(p.sendEvery(now: 600), 600)
+    }
+
+    func testARequestIsLookedAtOnce() {
+        var p = PaceState(choice: long)
+        let b = Boost(until: 1300, at: 1000, by: "w1")
+        XCTAssertEqual(p.apply(b, battery: 50, now: 1000), .applied)
+        // every answer carries the relay's last request: the same one is not applied again
+        XCTAssertEqual(p.apply(b, battery: 50, now: 1010), .seen)
+        XCTAssertEqual(p.apply(Boost(until: 2000, at: 990, by: "w2"), battery: 50, now: 1010), .seen)
+        XCTAssertTrue(p.boosted(now: 1100))
+        // back to the long pace (`min` 0: until = at)
+        XCTAssertEqual(p.apply(Boost(until: 1100, at: 1100, by: "w1"), battery: 50, now: 1100), .back)
+        XCTAssertFalse(p.boosted(now: 1101))
+        // a later request again
+        XCTAssertEqual(p.apply(Boost(until: 1500, at: 1200, by: "w2"), battery: nil, now: 1200), .applied)
+        XCTAssertEqual(p.boost?.by, "w2")
+        // a Direct run has nothing to change
+        var d = PaceState(choice: .direct)
+        XCTAssertEqual(d.apply(b, battery: 50, now: 1000), .notLong)
+    }
+
+    func testARequestIsRefusedWhenNotAllowedOrOnALowBattery() {
+        var p = PaceState(choice: long)
+        XCTAssertEqual(p.apply(Boost(until: 1300, at: 1000, by: "w1"), battery: 19, now: 1000), .refused)
+        XCTAssertTrue(p.refused)
+        XCTAssertFalse(p.boosted(now: 1100))
+        XCTAssertEqual(JSON.int64(p.json(now: 1100, liveSend: 15)["boost"]), 0)
+        XCTAssertEqual(p.apply(Boost(until: 1400, at: 1100, by: "w1"), battery: 20, now: 1100), .applied)
+        XCTAssertFalse(p.refused)
+        var q = PaceState(choice: PaceChoice(long: true, fix: 60, send: 900, remote: false))
+        XCTAssertEqual(q.apply(Boost(until: 1300, at: 1000, by: "w1"), battery: 90, now: 1000), .refused)
+        XCTAssertFalse(q.live(now: 1001))
+    }
+
+    func testARequestEndsByItself() {
+        var p = PaceState(choice: long)
+        _ = p.apply(Boost(until: 1300, at: 1000, by: "w1"), battery: 50, now: 1000)
+        XCTAssertFalse(p.expire(now: 1299, battery: 50))
+        XCTAssertTrue(p.expire(now: 1300, battery: 50))
+        XCTAssertNil(p.boost)
+        XCTAssertFalse(p.expire(now: 1301, battery: 50))
+        // the battery always comes first
+        _ = p.apply(Boost(until: 2000, at: 1400, by: "w1"), battery: 50, now: 1400)
+        XCTAssertTrue(p.expire(now: 1500, battery: 12))
+        XCTAssertFalse(p.boosted(now: 1500))
+    }
+
+    func testTheChoiceIsKeptWithAllowedFigures() throws {
+        let suite = "oz.pace.test." + UUID().uuidString
+        let d = try XCTUnwrap(UserDefaults(suiteName: suite))
+        defer { d.removePersistentDomain(forName: suite) }
+        XCTAssertEqual(PaceChoice.load(d), .direct)
+        PaceChoice(long: true, fix: 45, send: 1000, remote: false).save(d)
+        let back = PaceChoice.load(d)
+        XCTAssertTrue(back.long)
+        XCTAssertFalse(back.remote)
+        XCTAssertTrue(PaceChoice.fixes.contains(back.fix))
+        XCTAssertEqual(back.send, 900)
+        XCTAssertEqual(PaceChoice(long: true, fix: 1, send: 1, remote: true).clamped,
+                       PaceChoice(long: true, fix: 15, send: 300, remote: true))
+    }
+
+    func testTheRelaysObjects() {
+        XCTAssertEqual(Boost(json: ["until": 1900, "at": 1000, "by": "w2345678"]), Boost(until: 1900, at: 1000, by: "w2345678"))
+        XCTAssertEqual(Boost(json: ["until": "1900", "at": "1000"]), Boost(until: 1900, at: 1000, by: ""))
+        XCTAssertNil(Boost(json: NSNull()))
+        XCTAssertNil(Boost(json: nil))
+        XCTAssertNil(Boost(json: ["until": 1900]))
+
+        let r = RemotePace(json: ["mode": "long", "fix": 30, "send": 600, "remote": true, "boost": 2000, "by": "w1"])
+        XCTAssertEqual(r, RemotePace(long: true, fix: 30, send: 600, remote: true, boost: 2000, by: "w1"))
+        XCTAssertEqual(r?.boosted(now: 1999), true)
+        XCTAssertEqual(r?.boosted(now: 2000), false)
+        XCTAssertNil(RemotePace(json: nil))
+        let live = RemotePace(json: ["mode": "live", "fix": 1, "send": 15, "remote": false, "boost": 0, "by": ""])
+        XCTAssertEqual(live?.long, false)
+
+        // « Passer en direct » only in a long run allowing it, under way; « Revenir au rythme lent » while asked or kept
+        XCTAssertTrue(RemotePace.canAsk(r, state: "run"))
+        XCTAssertFalse(RemotePace.canAsk(r, state: "end"))
+        XCTAssertFalse(RemotePace.canAsk(live, state: "run"))
+        XCTAssertFalse(RemotePace.canAsk(RemotePace(long: true, fix: 30, send: 600, remote: false, boost: 0, by: ""), state: "run"))
+        let slow = RemotePace(long: true, fix: 30, send: 600, remote: true, boost: 0, by: "")
+        XCTAssertFalse(RemotePace.canStop(slow, state: "run", request: nil, now: 1000))
+        XCTAssertTrue(RemotePace.canStop(slow, state: "run", request: Boost(until: 1300, at: 1000, by: "w1"), now: 1100))
+        XCTAssertFalse(RemotePace.canStop(slow, state: "run", request: Boost(until: 1100, at: 1100, by: "w1"), now: 1100))
+        XCTAssertTrue(RemotePace.canStop(r, state: "run", request: nil, now: 1500))
+    }
+
+    func testBatchesCarryThePace() throws {
+        let b = TrackBatch(run: "r_20261125T101500_ab12", seq: 2, state: .run, share: "watchers",
+                           fixes: [TrackFix(t: 1_795_253_712, la: 48_000_000, lo: 2_000_000, ac: 8)])
+        let pace = PaceState(choice: long).json(now: 1_795_253_712, liveSend: 15)
+        let relay = try XCTUnwrap(JSON.object(RelayBody.make(c: "abcdefghijklmnop", batch: b,
+                                                              watchers: [(w: "w2345678", k: Data(count: 32))], alerts: [],
+                                                              battery: 60, lowPower: false, pace: pace)))
+        XCTAssertEqual((relay["pace"] as? [String: Any])?["mode"] as? String, "long")
+        XCTAssertEqual((relay["pace"] as? [String: Any])?["send"] as? Int, 600)
+        let ozimut = try XCTUnwrap(JSON.object(BatchEncoder.encode(b, battery: 60, lowPower: false, left: 0, pace: pace)))
+        XCTAssertEqual((ozimut["pace"] as? [String: Any])?["fix"] as? Int, 30)
+        // without a pace (a batch of before), none is written
+        XCTAssertNil(JSON.object(try BatchEncoder.encode(b, battery: 60, lowPower: false, left: 0))?["pace"])
+    }
+
+    func testStandingStillInALongRun() {
+        let p = PaceState(choice: long)
+        let w = AlertWatch(zone: { Zone(on: false, la: 0, lo: 0, r: 500) }, window: p.stillSeconds, slack: p.stillSlack)
+        var said: [String] = []
+        var at: Int64 = 0
+        // a fix every 30 s or so on the same spot: said once, after 30 minutes, not after 5
+        for i in 0...70 {
+            let t = 10_000 + Int64(i) * 30 + Int64(i % 3)
+            let now = w.onFix(TrackFix(t: t, la: 48_000_000, lo: 2_000_000, ac: 10), runStarted: 10_000)
+            if !now.isEmpty && at == 0 { at = t }
+            said += now
+        }
+        XCTAssertEqual(said, [Alerts.still])
+        XCTAssertGreaterThanOrEqual(at - 10_000, 1800)
+        XCTAssertLessThan(at - 10_000, 1900)
+    }
+}
+
+/// A long run through the coordinator: its cap, one fix kept every `fix` seconds, a watcher's request applied once.
+final class LongRunTests: XCTestCase {
+    private final class Nowhere: TrackDestination {
+        func send(_ batch: TrackBatch, battery: Int?, lowPower: Bool, left: Int, done: @escaping (PushResult) -> Void) {
+            done(.noRecipient)
+        }
+    }
+
+    private func coordinator(_ suite: String) -> RunCoordinator {
+        let dir = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString, isDirectory: true)
+        return RunCoordinator(directory: dir, ozimut: Nowhere(), relay: Nowhere(), monitorNetwork: false,
+                              defaults: UserDefaults(suiteName: suite)!)
+    }
+
+    func testALongRunsCapFixesAndRequests() throws {
+        let suite = "oz.longrun.test." + UUID().uuidString
+        defer { UserDefaults().removePersistentDomain(forName: suite) }
+        let c = coordinator(suite)
+        var level: Int? = 80
+        c.battery = { level }
+        var saving: [Bool] = []
+        c.setLocationSaving = { saving.append($0) }
+        let start = Date()
+        let t0 = Int64(floor(start.timeIntervalSince1970))
+        let run = try XCTUnwrap(c.start(share: false, linked: false, cap: 3600,
+                                        pace: PaceChoice(long: true, fix: 30, send: 600, remote: true), now: start))
+        defer { RunLog.delete(run) }
+        XCTAssertEqual(c.cap, PaceChoice.longCap)
+        XCTAssertEqual(saving, [true])
+        // one fix a second from the system: one kept every 30 s
+        for i in 0...90 { c.add(TrackFix(t: t0 + Int64(i), la: 48_000_000, lo: 2_000_000 + Int64(i), ac: 5)) }
+        XCTAssertEqual(RunLog.read(RunLog.url(run)).map(\.t), [t0, t0 + 30, t0 + 60, t0 + 90])
+
+        // a watcher asks for Direct: every fix kept until its end, the location at its best
+        let b = Boost(until: t0 + 300, at: t0, by: "w2345678")
+        XCTAssertEqual(c.applyBoost(b, now: start), .applied)
+        XCTAssertEqual(saving.last, false)
+        XCTAssertEqual(c.status.pace?.boosted(now: t0 + 100), true)
+        for i in 91...95 { c.add(TrackFix(t: t0 + Int64(i), la: 48_000_000, lo: 2_000_000 + Int64(i), ac: 5)) }
+        XCTAssertEqual(RunLog.read(RunLog.url(run)).count, 9)
+        XCTAssertEqual(c.applyBoost(b, now: start), .seen)
+
+        // a request on a low battery is refused
+        level = 10
+        XCTAssertEqual(c.applyBoost(Boost(until: t0 + 900, at: t0 + 1, by: "w3456789"), now: start), .refused)
+        XCTAssertEqual(c.status.pace?.refused, true)
+        XCTAssertEqual(c.status.pace?.boosted(now: t0 + 100), false)
+        XCTAssertEqual(saving.last, true)
+        c.stop()
+
+        // Direct: the caller's cap, every fix kept, no request to apply
+        let d = coordinator(suite)
+        let run2 = try XCTUnwrap(d.start(share: false, linked: false, cap: nil, now: start))
+        defer { RunLog.delete(run2) }
+        XCTAssertEqual(d.cap, RunCoordinator.defaultCap)
+        for i in 0..<5 { d.add(TrackFix(t: t0 + Int64(i), la: 48_000_000, lo: 2_000_000, ac: 5)) }
+        XCTAssertEqual(RunLog.read(RunLog.url(run2)).count, 5)
+        XCTAssertEqual(d.applyBoost(Boost(until: t0 + 300, at: t0, by: "w1"), now: start), .notLong)
+        d.stop()
+    }
+}

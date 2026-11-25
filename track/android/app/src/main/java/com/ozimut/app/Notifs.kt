@@ -38,12 +38,18 @@ object Notifs {
         return PendingIntent.getActivity(c, req, i, PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT)
     }
 
-    /** The persistent notification of a run: the elapsed time, and « Stop… » that only opens the screen (hold to stop). */
-    fun run(c: Context, startedAt: Long): Notification =
-        Notification.Builder(c, CH_RUN)
+    /**
+     * The persistent notification of a run: the elapsed time, the pace of a long run (docs/track/ozitrac.md « Pace ») — in
+     * Direct for a watcher, until when and who asked ([askedBy], the name this phone holds for them) —, and « Stop… » that
+     * only opens the screen (hold to stop). Updated in place when the pace changes: a watcher's request shows nowhere else.
+     */
+    fun run(c: Context, startedAt: Long, pace: PaceNow? = null, askedBy: String? = null): Notification {
+        val text = paceText(c, pace, askedBy) ?: c.getString(R.string.notif_run_text)
+        return Notification.Builder(c, CH_RUN)
             .setSmallIcon(R.drawable.ic_stat)
             .setContentTitle(c.getString(R.string.notif_run_title))
-            .setContentText(c.getString(R.string.notif_run_text))
+            .setContentText(text)
+            .setStyle(Notification.BigTextStyle().bigText(text))
             .setWhen(startedAt)
             .setUsesChronometer(true)
             .setShowWhen(true)
@@ -53,6 +59,25 @@ object Notifs {
             .setContentIntent(trackerIntent(c, false, 1))
             .addAction(Notification.Action.Builder(null, c.getString(R.string.notif_stop), trackerIntent(c, true, 2)).build())
             .build()
+    }
+
+    /**
+     * A long run's pace in words: « Course longue : une position toutes les 30 s, envoi toutes les 10 min », or « En direct
+     * jusqu'à 14:35 (demandé par Tom) ». Null for a Direct run.
+     */
+    fun paceText(c: Context, pace: PaceNow?, askedBy: String?): String? {
+        if (pace == null || !pace.long) return null
+        val now = System.currentTimeMillis() / 1000
+        if (pace.boosted(now)) {
+            val until = time(c, pace.boost)
+            return if (askedBy.isNullOrBlank()) c.getString(R.string.pace_boost, until)
+            else c.getString(R.string.pace_boost_by, until, askedBy)
+        }
+        return c.getString(R.string.pace_long, pace.fix, pace.send / 60)
+    }
+
+    /** A time of day as the phone writes it (24 h or not). */
+    fun time(c: Context, sec: Long): String = android.text.format.DateFormat.getTimeFormat(c).format(java.util.Date(sec * 1000))
 
     fun sending(c: Context): Notification =
         Notification.Builder(c, CH_RUN)
@@ -103,7 +128,7 @@ object Notifs {
         val n = Notification.Builder(c, if (urgent) CH_HELP else CH_ALERTS)
             .setSmallIcon(R.drawable.ic_stat)
             .setContentTitle(f.name.ifBlank { c.getString(R.string.app_name) })
-            .setContentText(alertText(c, f.name, kind))
+            .setContentText(alertText(c, f.name, kind, Follows.cached(c, ch)?.pace?.long == true))
             .setAutoCancel(true)
             .setCategory(if (urgent) Notification.CATEGORY_ALARM else Notification.CATEGORY_STATUS)
             .setContentIntent(PendingIntent.getActivity(c, id, i, PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT))
@@ -127,17 +152,17 @@ object Notifs {
         try { nm.notify(id, n) } catch (e: SecurityException) { /* notifications refused */ }
     }
 
-    /** An alert's sentence, the person's name in it. */
-    fun alertText(c: Context, name: String, kind: String): String {
+    /** An alert's sentence, the person's name in it; silence and standing still last longer in a [long] run. */
+    fun alertText(c: Context, name: String, kind: String, long: Boolean = false): String {
         val n = name.ifBlank { "?" }
         return c.getString(
             when (kind) {
                 "start" -> R.string.alert_start
                 "end" -> R.string.alert_end
                 "help" -> R.string.alert_help
-                "silent" -> R.string.alert_silent
+                "silent" -> if (long) R.string.alert_silent_long else R.string.alert_silent
                 "battery" -> R.string.alert_battery
-                "still" -> R.string.alert_still
+                "still" -> if (long) R.string.alert_still_long else R.string.alert_still
                 "zone" -> R.string.alert_zone
                 else -> R.string.alert_other
             },

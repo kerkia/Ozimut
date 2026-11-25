@@ -33,6 +33,22 @@ final class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCent
 
     func application(_ application: UIApplication, didFailToRegisterForRemoteNotificationsWithError error: Error) {}
 
+    /// A background notification (`content-available`): a watcher's request for Direct for this iPhone's run
+    /// (docs/track/ozitrac.md « Pace »). The batch reporting the pace goes within a few seconds: the app is left that time.
+    func application(_ application: UIApplication, didReceiveRemoteNotification userInfo: [AnyHashable: Any],
+                     fetchCompletionHandler completionHandler: @escaping (UIBackgroundFetchResult) -> Void) {
+        let r = AppModel.shared.handlePace(userInfo)
+        guard r.pace else {
+            completionHandler(.noData)
+            return
+        }
+        if r.applied {
+            DispatchQueue.main.asyncAfter(deadline: .now() + 20) { completionHandler(.newData) }
+        } else {
+            completionHandler(.noData)
+        }
+    }
+
     func userNotificationCenter(_ center: UNUserNotificationCenter, willPresent notification: UNNotification,
                                 withCompletionHandler completionHandler: @escaping (UNNotificationPresentationOptions) -> Void) {
         completionHandler([.banner, .list, .sound])

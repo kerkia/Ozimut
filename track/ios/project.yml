@@ -57,7 +57,8 @@ targets:
           - UIInterfaceOrientationPortrait
           - UIInterfaceOrientationLandscapeLeft
           - UIInterfaceOrientationLandscapeRight
-        UIBackgroundModes: [location]
+        # location: a run with the screen off; remote-notification: a watcher's request for Direct wakes a long run
+        UIBackgroundModes: [location, remote-notification]
         NSSupportsLiveActivities: true
         OZBaseURL: $(OZ_BASE_URL)
         OZApsEnvironment: $(OZ_APS_ENV)

@@ -38,7 +38,9 @@ object Notifs {
             .setCategory(Notification.CATEGORY_WORKOUT)
             .setContentIntent(open(c, 1))
 
-    fun run(c: Context, startedAt: Long): Notification =
+    /** The run's notification. The watch is never in long mode (docs/track/ozitrac.md « The apps »): [pace] and [askedBy] say nothing here. */
+    @Suppress("UNUSED_PARAMETER")
+    fun run(c: Context, startedAt: Long, pace: PaceNow? = null, askedBy: String? = null): Notification =
         base(c, R.string.notif_run_title, R.string.notif_run_text).setWhen(startedAt).setUsesChronometer(true).setShowWhen(true).build()
 
     fun sending(c: Context): Notification = base(c, R.string.notif_sending_title, R.string.notif_sending_text).build()

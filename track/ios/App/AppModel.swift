@@ -59,6 +59,10 @@ final class AppModel: ObservableObject, RunCoordinatorDelegate {
     @Published var pairing = false
     @Published var pairError: String?
     @Published var share = true
+    /// The pace chosen at the start (« Direct » or « Course longue »), remembered for the next run.
+    @Published var pace = PaceChoice.load() {
+        didSet { pace.save() }
+    }
     @Published var probe: CLLocation?
     @Published var battery: Int?
     @Published var locationChanged = 0
@@ -92,6 +96,7 @@ final class AppModel: ObservableObject, RunCoordinatorDelegate {
         runs.battery = { [weak self] in self?.battery }
         runs.startLocation = { [weak self] in self?.location.start() }
         runs.stopLocation = { [weak self] in self?.location.stop() }
+        runs.setLocationSaving = { [weak self] on in self?.location.setSaving(on) }
         location.onFix = { [weak self] fix in
             guard let self else { return }
             if self.testing {
@@ -102,7 +107,10 @@ final class AppModel: ObservableObject, RunCoordinatorDelegate {
         }
         location.onProbe = { [weak self] loc in self?.probe = loc }
         location.onAuthorization = { [weak self] in self?.locationChanged += 1 }
-        channel.onChange = { [weak self] in self?.watchers = self?.channel.watchers ?? [] }
+        channel.onChange = { [weak self] in
+            self?.watchers = self?.channel.watchers ?? []
+            self?.sendRelayToken(force: false)
+        }
         follows.onChange = { [weak self] in self?.followed = self?.follows.list ?? [] }
         watch.onRun = { [weak self] in
             self?.runsChanged += 1
@@ -129,6 +137,12 @@ final class AppModel: ObservableObject, RunCoordinatorDelegate {
             self.runs.sendNow()
             self.refreshInBackground()
         }
+        NotificationCenter.default.addObserver(forName: UIApplication.didBecomeActiveNotification, object: nil, queue: .main) { [weak self] _ in
+            // a long run outlives its Live Activity (about 8 hours): show a new one
+            guard let self, self.status.phase == .running, let st = self.status.started else { return }
+            self.live.start(name: Me.name, started: st)
+            self.live.update(self.status, pace: runnerPaceLine(self.status.pace, watchers: self.watchers))
+        }
         runs.update(ozimut: settings)
         if runs.resume() {
             // A run was still open when the system ended the app: take it up again.
@@ -136,7 +150,12 @@ final class AppModel: ObservableObject, RunCoordinatorDelegate {
             page = .tracker
         }
         refreshInBackground()
-        if !followed.isEmpty { registerForPushIfAllowed() }
+        if !followed.isEmpty {
+            registerForPushIfAllowed()
+        } else if channel.exists {
+            // a watcher's request for Direct comes as a background notification, which needs no permission
+            UIApplication.shared.registerForRemoteNotifications()
+        }
     }
 
     private func readBattery() {
@@ -226,8 +245,14 @@ final class AppModel: ObservableObject, RunCoordinatorDelegate {
         testing = false
         runs.update(ozimut: settings)
         let cap = linked ? settings.cap : nil
-        guard runs.start(share: share, linked: linked, cap: cap) != nil else { return }
+        let p = pace.clamped
+        guard runs.start(share: share, linked: linked, cap: cap, pace: p) != nil else { return }
         live.start(name: Me.name, started: Date())
+        if p.long && p.remote && share {
+            // the watchers' requests for Direct wake this iPhone through the relay (docs/track/ozitrac.md « Pace »)
+            UIApplication.shared.registerForRemoteNotifications()
+            sendRelayToken(force: true)
+        }
     }
 
     func stopRun() {
@@ -244,7 +269,7 @@ final class AppModel: ObservableObject, RunCoordinatorDelegate {
 
     func runChanged(_ s: TrackStatus) {
         status = s
-        live.update(s)
+        live.update(s, pace: runnerPaceLine(s.pace, watchers: watchers))
     }
 
     func runEnded(_ s: TrackStatus, reason: EndReason) {
@@ -381,6 +406,35 @@ final class AppModel: ObservableObject, RunCoordinatorDelegate {
         let env = Self.apsEnv
         Task { await self.follows.registerPushAll(token: t, env: env) }
         if changed { sendOzimutPushToken() }
+        sendRelayToken(force: false)
+    }
+
+    /// This iPhone's token to the relay for its own channel (`PUT /<c>/token`): how a watcher's request for Direct wakes
+    /// it. Sent once per channel, token and environment, and again at each long run's start (`force`).
+    private func sendRelayToken(force: Bool) {
+        guard let token = pushToken, let c = channel.id else { return }
+        let env = Self.apsEnv
+        let sig = c + "|" + token + "|" + env
+        let key = "oz.relayToken"
+        if !force && UserDefaults.standard.string(forKey: key) == sig { return }
+        Task {
+            let ok = await self.channel.setToken(kind: "apns", token: token, env: env)
+            if ok { await MainActor.run { UserDefaults.standard.set(sig, forKey: key) } }
+        }
+    }
+
+    /// A background notification for this iPhone's own run: a watcher's request for Direct (docs/track/ozitrac.md
+    /// « Pace »), applied once. -> whether it was one (`applied`: it changed the run's pace).
+    func handlePace(_ info: [AnyHashable: Any]) -> (pace: Bool, applied: Bool) {
+        guard (info["app"] as? String) == "ozitrac", (info["kind"] as? String) == "pace" else { return (false, false) }
+        guard let c = info["c"] as? String, c == channel.id else { return (true, false) }
+        var d: [String: Any] = [:]
+        for k in ["until", "at", "by"] {
+            if let v = info[k] { d[k] = v }
+        }
+        guard let b = Boost(json: d) else { return (true, false) }
+        let out = runs.applyBoost(b)
+        return (true, out != .seen && out != .notLong)
     }
 
     private func sendOzimutPushToken() {

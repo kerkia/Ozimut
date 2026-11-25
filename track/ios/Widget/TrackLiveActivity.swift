@@ -10,7 +10,7 @@ struct OzitracWidgetBundle: WidgetBundle {
 }
 
 /// The run on the lock screen and in the Dynamic Island: the clock (counted by the system from the start), the
-/// distance, the fixes waiting to be sent.
+/// distance, the fixes waiting to be sent, and a long run's pace.
 struct TrackLiveActivity: Widget {
     var body: some WidgetConfiguration {
         ActivityConfiguration(for: TrackActivityAttributes.self) { context in
@@ -32,8 +32,10 @@ struct TrackLiveActivity: Widget {
                     Text(km(context.state.distance)).monospacedDigit()
                 }
                 DynamicIslandExpandedRegion(.bottom) {
-                    Text(context.state.help ? NSLocalizedString("live.help", comment: "") : context.attributes.name)
+                    Text(context.state.help ? NSLocalizedString("live.help", comment: "")
+                         : context.state.pace ?? context.attributes.name)
                         .font(.caption)
+                        .lineLimit(2)
                         .foregroundColor(context.state.help ? .red : .secondary)
                 }
             } compactLeading: {
@@ -57,6 +59,19 @@ struct LockScreenView: View {
     let context: ActivityViewContext<TrackActivityAttributes>
 
     var body: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            row
+            if let pace = context.state.pace {
+                Text(pace)
+                    .font(.caption)
+                    .lineLimit(2)
+                    .foregroundColor(.white.opacity(0.85))
+            }
+        }
+        .padding()
+    }
+
+    private var row: some View {
         HStack(alignment: .center, spacing: 16) {
             Image(systemName: context.state.help ? "exclamationmark.triangle.fill" : "location.fill")
                 .font(.title2)
@@ -83,6 +98,5 @@ struct LockScreenView: View {
                 }
             }
         }
-        .padding()
     }
 }

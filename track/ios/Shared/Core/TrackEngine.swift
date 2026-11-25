@@ -32,6 +32,8 @@ struct TrackStatus: Equatable {
     var online = true
     /// Where the run goes (RunCoordinator): "oz" (the Ozimut account), "z" (Ozitrac's relay, the people who follow).
     var dests: [String] = []
+    /// The run's pace (RunCoordinator; nil from an engine alone).
+    var pace: PaceState?
 }
 
 protocol TrackEngineDelegate: AnyObject {
@@ -45,6 +47,17 @@ protocol TrackEngineDelegate: AnyObject {
 /// (`RelayDestination`, docs/track/ozitrac.md). `done` may be called on any thread.
 protocol TrackDestination: AnyObject {
     func send(_ batch: TrackBatch, battery: Int?, lowPower: Bool, left: Int, done: @escaping (PushResult) -> Void)
+    /// The same with the run's pace (Ozitrac's `pace` of a batch, docs/track/ozitrac.md « Pace »).
+    func send(_ batch: TrackBatch, battery: Int?, lowPower: Bool, left: Int, pace: [String: Any]?,
+              done: @escaping (PushResult) -> Void)
+}
+
+extension TrackDestination {
+    /// A destination that knows no pace sends the batch without it.
+    func send(_ batch: TrackBatch, battery: Int?, lowPower: Bool, left: Int, pace: [String: Any]?,
+              done: @escaping (PushResult) -> Void) {
+        send(batch, battery: battery, lowPower: lowPower, left: left, done: done)
+    }
 }
 
 /// Ozimut's own device protocol (design.md « Sending »), with the device's key.
@@ -58,11 +71,16 @@ final class OzimutDestination: TrackDestination {
     }
 
     func send(_ batch: TrackBatch, battery: Int?, lowPower: Bool, left: Int, done: @escaping (PushResult) -> Void) {
+        send(batch, battery: battery, lowPower: lowPower, left: left, pace: nil, done: done)
+    }
+
+    func send(_ batch: TrackBatch, battery: Int?, lowPower: Bool, left: Int, pace: [String: Any]?,
+              done: @escaping (PushResult) -> Void) {
         guard let key = key() else {
             done(.notReady("device"))
             return
         }
-        guard let body = try? BatchEncoder.encode(batch, battery: battery, lowPower: lowPower, left: left) else {
+        guard let body = try? BatchEncoder.encode(batch, battery: battery, lowPower: lowPower, left: left, pace: pace) else {
             done(.failed("encode"))
             return
         }
@@ -79,6 +97,8 @@ final class TrackEngine {
     private let store: FixQueue?
     private let destination: TrackDestination
     weak var delegate: TrackEngineDelegate?
+    /// The run's pace for a batch sent every so many seconds (`pace`, Ozitrac); set once, before the first run.
+    var paceJson: ((Int) -> [String: Any]?)?
 
     private var settings = TrackSettings()
     private var current: QueuedRun?
@@ -87,6 +107,11 @@ final class TrackEngine {
     private var inFlight = false
     private var backoff: TimeInterval = 5
     private var interval: TimeInterval = 30
+    /// The bounds of the server's `next` (docs/track/ozitrac.md « Pace »): a long run keeping its own pace sends every `send`
+    /// seconds (a request for Direct it refused never makes it send faster), one a watcher asked to see live every 15 s at
+    /// most (a batch answered before the request was known never makes it wait), else 5 s to 15 min.
+    private var minInterval: TimeInterval = 5
+    private var maxInterval: TimeInterval = 900
     private var battery: Int?
     private var lowPower = false
     private var online = true
@@ -124,6 +149,29 @@ final class TrackEngine {
             self.battery = level
             self.lowPower = lp
         }
+    }
+
+    /// The pace changed during a run (a long run, a watcher's request for Direct): batches every `interval` seconds from
+    /// now on (until the server's `next` says otherwise, within `minimum`...`maximum`); `soon`: the next batch within that
+    /// many seconds.
+    func repace(interval s: Int, minimum lo: Int = 5, maximum hi: Int = 900, soon: TimeInterval? = nil) {
+        q.async {
+            self.settings.batch = s
+            self.interval = TimeInterval(s)
+            self.setBoundsNow(lo, hi)
+            guard let soon, self.current != nil, !self.inFlight else { return }
+            self.schedule(after: soon)
+        }
+    }
+
+    /// The bounds of the server's `next` (see `minInterval`).
+    func setBounds(minimum lo: Int, maximum hi: Int) {
+        q.async { self.setBoundsNow(lo, hi) }
+    }
+
+    private func setBoundsNow(_ lo: Int, _ hi: Int) {
+        minInterval = TimeInterval(max(5, lo))
+        maxInterval = TimeInterval(max(max(5, lo), min(hi, 900)))
     }
 
     /// Opens a run; the first batch goes within a few seconds so that the run opens on the server.
@@ -277,7 +325,7 @@ final class TrackEngine {
         inFlight = true
         timer?.cancel()
         timer = nil
-        destination.send(batch, battery: battery, lowPower: lowPower, left: left) { [weak self] result in
+        destination.send(batch, battery: battery, lowPower: lowPower, left: left, pace: paceJson?(Int(interval))) { [weak self] result in
             self?.q.async { self?.handle(result, batch: batch) }
         }
     }
@@ -287,7 +335,8 @@ final class TrackEngine {
         guard let store, let r = current, r.run == batch.run else { return }
         switch result {
         case let .ok(ack, next, stop):
-            if let next { interval = TimeInterval(min(max(next, 5), 600)) }
+            // a long run's batches go every 15 minutes at most (docs/track/ozitrac.md « Pace »)
+            if let next { interval = min(maxInterval, max(minInterval, TimeInterval(next))) }
             if ack < batch.seq && ack <= r.acked {
                 // The server did not take it (a gap): try again a little later.
                 lastError = "ack"
@@ -345,9 +394,9 @@ final class TrackEngine {
                 endReason = .nobody
                 finish()
             } else {
-                // Kept until someone follows (they get the run from its start).
+                // Kept until someone follows (they get the run from its start); a long run asks at its own pace.
                 lastError = nil
-                schedule(after: 60)
+                schedule(after: max(60, interval))
             }
         case let .failed(msg):
             lastError = msg

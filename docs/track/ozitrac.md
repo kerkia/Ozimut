@@ -25,11 +25,17 @@ Mes traces) stays true for Ozimut's accounts; Ozitrac's link to Ozimut is that f
    Every run is kept as a file on the watchee's phone, exported as GPX when the runner wants.
 4. **The watchee chooses who follows.** A code serves once and lasts 24 h; the watchee's phone lists its watchers (their names,
    sealed with their own key, so the relay cannot read them either) and removes any of them.
-5. **Alerts** reach the watchers' phones by notification: start, end and silence (no batch for 3 minutes during a run) seen by
-   the relay; help, low battery (< 15 %), standing still (under 15 m in 5 minutes) and out of the zone seen by the watchee's phone,
-   which sends their kind in clear.
-6. **One fix a second, always** (as Ozimut's tracking). Batches go every 15 s while a watcher looks at the person, every 120 s
-   otherwise (the relay says which), at once for help, at the end, and when a network returns.
+5. **Alerts** reach the watchers' phones by notification: start, end and silence (no batch for 3 minutes during a run, longer
+   in long mode: « Pace ») seen by the relay; help, low battery (< 15 %), standing still (under 15 m in 5 minutes, 30 in long
+   mode) and out of the zone seen by the watchee's phone, which sends their kind in clear.
+6. **Two paces, chosen at the start** (owner, 2026-11-25: ultra-trails and raids last up to a few days). **Direct** (the default):
+   one fix a second, as Ozimut's tracking; batches every 15 s while a watcher looks at the person, every 120 s otherwise (the
+   relay says which). **Course longue**: one fix every 15, 30 or 60 s, batches every 5, 10 or 15 minutes, the phone saving its
+   battery (below « Pace »). Either way batches go at once for help, at the end, and when a network returns.
+6b. **A watcher may ask for Direct for a while** (owner, the same day: « the tracker remotely controlled by the watcher »): in a
+   long run whose runner allowed it, any watcher asks for Direct for 5 to 60 minutes, or for the long pace again; the runner's
+   phone obeys within seconds when it can be woken, else at its next batch, and refuses when its battery is low. The runner
+   sees who asked; the runner's choice at the start and the battery always come first.
 7. **Ozimut is optional and permanent.** « Relier à Ozimut » takes a pair code made on ozimut.com (Suivi GPS › Famille et
    appareils › the person › « Associer un téléphone »): from then on the phone also sends every run to that account, with
    Ozimut's protocol, until the account removes the device. Ozimut's own watchers (accounts) then follow on the site.
@@ -64,9 +70,11 @@ Every body is JSON. A secret goes as `Authorization: Bearer <secret>`. Errors: 4
 | `GET /<c>` | watchee (`cs`) | → `{ watchers: [{ w, name, since, seen }], run }`; `name` sealed (below), `since`/`seen` ISO times |
 | `POST /<c>/invite` | watchee | `{ i }` → `{ exp }` (10 codes open at most) |
 | `POST /<c>/join` | anyone holding a code (40 an hour an address) | `{ i, name, push? }` → `{ w, ws }`; `name` sealed with `k`; 20 watchers at most |
-| `POST /<c>/push` | watchee | a batch (below) → `{ ack, next, watched }` |
-| `GET /<c>/w/<w>?run=&since=` | that watcher (`ws`) | → `{ run, state, started, last, bat, alerts, blobs: [[seq, sealed]], next }`; the blobs after `since` of run `run`, else every blob of the run under way |
+| `POST /<c>/push` | watchee | a batch (below) → `{ ack, next, watched, boost }` |
+| `PUT /<c>/token` | watchee | its own push token, `{ kind: "fcm" \| "apns", token, env? }`, or `{}` to drop it: how a watcher's request for Direct wakes it (« Pace ») |
+| `GET /<c>/w/<w>?run=&since=` | that watcher (`ws`) | → `{ run, state, started, last, bat, pace, boost, alerts, blobs: [[seq, sealed]], next }`; the blobs after `since` of run `run`, else every blob of the run under way |
 | `PUT /<c>/w/<w>/push` | that watcher | `{ kind: "fcm" \| "apns", token, env? }`, or `{}` to drop it |
+| `POST /<c>/w/<w>/pace` | that watcher | `{ min }` (1-60: Direct for that many minutes; 0: the long pace again) → `{ boost }`; 409 `pace` when no long run allowing it is under way, 429 within 15 s of this watcher's last request |
 | `DELETE /<c>/w/<w>` | the watchee, or that watcher | → `{ ok }` (the watcher and its blobs go) |
 | `DELETE /<c>` | watchee | → `{ ok }` (everything goes) |
 
@@ -74,7 +82,32 @@ Every body is JSON. A secret goes as `Authorization: Bearer <secret>`. Errors: 4
 bat, lp }` — `run` the phone's run id (`r_YYYYMMDDTHHMMSS_xxxx`, as Ozimut's), `seq` from 1, a number already held answered `ack`
 without storing; a new `run` starts the run (the former's blobs dropped, alert « start »); `help` and `end` alert; `bat` the
 battery %, `lp` low-power mode. 512 KB at most. `next`: `watched` seconds (15) when a watcher asked for the person in the last
-45 s, else `idle` (120).
+45 s, else `idle` (120); in a long run its `send`, or 15 while a watcher's request for Direct holds.
+`pace` (since 2026-11-25; a batch without it is Direct): the pace the phone is keeping, `{ mode: "live" | "long", fix, send,
+remote, boost, by }` — `fix` seconds between fixes, `send` seconds between batches (the long pace's, Direct's figures being 1
+and 15/120), `remote` true when watchers may ask for Direct, `boost` the Unix second the Direct asked for ends (0: none), `by`
+the watcher who asked (`w`, or ""). The relay keeps the latest; the answer's `boost` is the relay's last request,
+`{ until, at, by }` or null (below).
+
+## Pace
+
+**Direct** is rule 6's one fix a second. **Course longue** (a long run): chosen at the start with `fix` 15, 30 or 60 s (30 by
+default) and `send` 300, 600 or 900 s (600), and whether watchers may ask for Direct (yes by default). The phone saves its
+battery: no fix in between (the location system asked for that interval, its fixes batched by the system where it can, the
+processor left asleep between batches), a lower accuracy request where the platform allows (10 m), batches every `send`
+seconds, at once for help, the end and a network back. A long run lasts 7 days at most (Direct: 6 hours without Ozimut, the
+account's cap with it). Standing still is « under 15 m in 30 minutes ». The relay calls a long run silent after
+3 × `send` + 120 s without a batch (32 min at 10 min) and gives it up after 36 h (Direct: 3 min and 6 h).
+
+**A watcher's request** (`POST /<c>/w/<w>/pace { min }`): accepted while a long run with `remote` is under way; the relay keeps
+`boost = { until: now + min × 60, at: now, by: w }` (`min` 0: `until` = now, the request to go back) and asks Ozimut's Function
+to wake the runner's phone with a data notification to its token (`PUT /<c>/token`): `{ app: "ozitrac", c, kind: "pace",
+until, at, by }` (FCM high priority; APNs a background notification, `content-available`, priority 5 — it may come late; the
+next batch's answer carries it anyway). The phone applies a request whose `at` it has not applied yet: Direct (one fix a
+second, batches every 15 s) until `until`, then the long pace again; it refuses (keeps the long pace, its `pace.boost` 0)
+when `remote` is off or its battery is under 20 %, and shows in its running notification who asked and until when (the name
+it holds for `by`). Its next batch, sent within 15 s when it applied a request, reports the pace kept, which every watcher
+reads (`pace`, `boost` in a watcher's read). A run's `boost` goes with the run.
 
 **Sealed** = base64url( 12-byte random IV ‖ AES-256-GCM ciphertext and its 16-byte tag ), the key `k`, the additional data the
 UTF-8 bytes of `<c>|<w>|<run>|<seq>`; a watcher's name, sealed before the relay gives it its `w`, with `<c>|name`. The plaintext of a batch is Ozimut's batch
@@ -87,18 +120,23 @@ millionths of a degree, `dt`, `la`, `lo`, `al` the first value absolute then dif
 **Notifications** (Firebase Cloud Messaging to Android, data only, high priority for `help`, `silent`, `zone`; APNs to the iPhone):
 `{ app: "ozitrac", c, kind, t, run }`. The watcher's app shows them with the name it holds for `c` (« Tom a besoin d'aide »).
 Sent by the site's Function when a batch brings them, by the relay's alarm (`POST <SITE_URL>/api/ozitrac/alert`, header
-`X-Relay: <TRACK_RELAY_SECRET>`) for `silent`. A token Firebase or APNs calls gone is dropped. To the iPhone the same data
+`X-Relay: <TRACK_RELAY_SECRET>`) for `silent`. A token Firebase or APNs calls gone is dropped. The runner's own phone gets
+one kind only, `pace` (« Pace »), never shown as a notification of its own. To the iPhone the same data
 goes beside an alert whose `loc-key` is `OZ_ALERT_<KIND>` (the sentence without a name, in the app's languages) and
 `mutable-content: 1`; the app's notification extension then writes the name it holds for `c`, which the app shares with it
 through its App Group (`group.com.ozimut.ozitrac`, the names alone). The relay knows no name, so it can send none.
 
 ## The apps
 
-**One app, two roles on the same phone.** « Ma course » (being followed): Start, Help and Stop held two seconds, the two-minute
+**One app, two roles on the same phone.** « Ma course » (being followed): Start — « Direct » or « Course longue » with its two
+intervals and « Mes suiveurs peuvent passer en direct » —, Help and Stop held two seconds, the two-minute
 test, « Qui me suit » (the watchers by name, add with a code, remove), « Mes courses » (each run: GPX shared or saved,
 deleted), the zone (a centre and a radius, set on this phone), « Relier à Ozimut ». « Je suis » (following): the people
-followed, each with their state (running, last position's age, battery) and their live map — the trail, the current position
-and its accuracy, follow on or off —, their alerts, « Enregistrer en GPX » of what was received, « Ne plus suivre ».
+followed, each with their state (running, last position's age, battery, the pace — « Course longue : une position toutes les
+30 s, envoi toutes les 10 min », « En direct jusqu'à 14:35 ») and their live map — the trail, the current position and its
+accuracy, follow on or off —, in a long run allowing it « Passer en direct » (5, 15, 30 or 60 minutes) and « Revenir au rythme
+lent », their alerts, « Enregistrer en GPX » of what was received, « Ne plus suivre ». **The watch is never in long mode**
+(its battery lasts hours).
 
 **The map** is drawn by the app itself from raster tiles (Web Mercator, 256 px), never an orienteering map. Each phone fetches
 its own tiles from the providers, never through Ozimut (owner, 2026-11-23: Ozimut must not see where the people followed are, and

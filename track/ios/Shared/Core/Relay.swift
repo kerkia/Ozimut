@@ -252,6 +252,19 @@ final class ChannelStore {
         return true
     }
 
+    /// Gives the relay this phone's notification token (`PUT /<c>/token`), so that a watcher's request for Direct can
+    /// wake it (« Pace »); nil drops it. -> whether the relay took it.
+    @discardableResult
+    func setToken(kind: String, token: String?, env: String) async -> Bool {
+        guard let c = id, let cs = secret else { return false }
+        var body: [String: Any] = [:]
+        if let token {
+            body = ["kind": kind, "token": token, "env": env]
+        }
+        guard let a = await RelayHTTP.shared.call("PUT", c + "/token", json: body, bearer: cs) else { return false }
+        return (200..<300).contains(a.status)
+    }
+
     /// Removes a watcher.
     func remove(_ w: String) async -> Bool {
         guard let c = id, let cs = secret else { return false }
@@ -350,6 +363,7 @@ struct Zone: Equatable {
 
 /// Standing still and leaving the zone, from the fixes (each said once until it is no longer so).
 final class AlertWatch {
+    /// Direct's window; a long run's is 30 minutes (PaceState.stillSeconds).
     static let stillSeconds: Int64 = 300
     static let stillMetres = 15.0
 
@@ -357,9 +371,15 @@ final class AlertWatch {
     private var stillAt: TrackFix?
     private var out = false
     private let zone: () -> Zone
+    private let window: Int64
+    private let slack: Int64
 
-    init(zone: @escaping () -> Zone = { Zone.current }) {
+    /// `window`: standing still is under 15 m for that many seconds; `slack`: how long after the window's start its oldest
+    /// fix may come (a long run keeps one fix every 15-60 s).
+    init(zone: @escaping () -> Zone = { Zone.current }, window: Int64 = AlertWatch.stillSeconds, slack: Int64 = 10) {
         self.zone = zone
+        self.window = window
+        self.slack = slack
     }
 
     /// The alerts this fix raises.
@@ -367,12 +387,13 @@ final class AlertWatch {
         guard f.ac <= 30 else { return [] }
         var raised: [String] = []
         recent.append(f)
-        while let first = recent.first, f.t - first.t > AlertWatch.stillSeconds { recent.removeFirst() }
-        // still: a run of five minutes at least, every fix of the last five within 15 m of the latest
+        while let first = recent.first, f.t - first.t > window { recent.removeFirst() }
+        // still: a run of the window at least (5 minutes, 30 in a long run), every fix of its last window within 15 m of
+        // the latest
         if let anchor = stillAt {
             if Geo.distance(anchor, f) > AlertWatch.stillMetres { stillAt = nil }
-        } else if f.t - runStarted >= AlertWatch.stillSeconds, let first = recent.first,
-                  first.t <= f.t - AlertWatch.stillSeconds + 10,
+        } else if f.t - runStarted >= window, let first = recent.first,
+                  first.t <= f.t - window + slack,
                   recent.allSatisfy({ Geo.distance($0, f) <= AlertWatch.stillMetres }) {
             stillAt = f
             raised.append(Alerts.still)
@@ -394,10 +415,10 @@ final class AlertWatch {
     }
 }
 
-/// A batch for the relay: `{ v, run, seq, state, sealed: { <w>: <sealed> }, alerts, bat?, lp }`.
+/// A batch for the relay: `{ v, run, seq, state, sealed: { <w>: <sealed> }, alerts, bat?, lp, pace? }`.
 enum RelayBody {
     static func make(c: String, batch: TrackBatch, watchers: [(w: String, k: Data)], alerts: [String], battery: Int?,
-                     lowPower: Bool, iv: Data? = nil) -> Data? {
+                     lowPower: Bool, pace: [String: Any]? = nil, iv: Data? = nil) -> Data? {
         let plain = Data(TrackForm.encode(batch.fixes).utf8)
         var sealed: [String: String] = [:]
         for wt in watchers {
@@ -410,6 +431,7 @@ enum RelayBody {
             "sealed": sealed, "alerts": alerts, "lp": lowPower,
         ]
         if let battery { d["bat"] = battery }
+        if let pace { d["pace"] = pace }
         return try? JSONSerialization.data(withJSONObject: d, options: [.sortedKeys])
     }
 }
@@ -423,13 +445,22 @@ final class RelayDestination: TrackDestination {
     static let minRefresh: TimeInterval = 60
 
     private let channel: ChannelStore
+    /// A watcher's request for Direct an answer carried (`boost`, « Pace »), told on any thread; the same request comes
+    /// with every answer until another one.
+    var onBoost: ((Boost) -> Void)?
 
     init(channel: ChannelStore = .shared) {
         self.channel = channel
     }
 
     func send(_ batch: TrackBatch, battery: Int?, lowPower: Bool, left: Int, done: @escaping (PushResult) -> Void) {
+        send(batch, battery: battery, lowPower: lowPower, left: left, pace: nil, done: done)
+    }
+
+    func send(_ batch: TrackBatch, battery: Int?, lowPower: Bool, left: Int, pace: [String: Any]?,
+              done: @escaping (PushResult) -> Void) {
         let channel = self.channel
+        let onBoost = self.onBoost
         Task {
             guard channel.exists else {
                 done(.unauthorized)
@@ -450,7 +481,7 @@ final class RelayDestination: TrackDestination {
             }
             let alerts = Alerts.pending
             guard let body = RelayBody.make(c: c, batch: batch, watchers: watchers, alerts: alerts, battery: battery,
-                                            lowPower: lowPower) else {
+                                            lowPower: lowPower, pace: pace) else {
                 done(.failed("seal"))
                 return
             }
@@ -461,6 +492,7 @@ final class RelayDestination: TrackDestination {
             switch a.status {
             case 200:
                 Alerts.sent(alerts)
+                if let b = Boost(json: a.json?["boost"]) { onBoost?(b) }
                 done(.ok(ack: JSON.int(a.json?["ack"]) ?? batch.seq, next: JSON.int(a.json?["next"]), stop: false))
             case 401, 404:
                 channel.forget()

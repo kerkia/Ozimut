@@ -66,7 +66,8 @@ object BatchEncoder {
     /** Accuracies are plain values, each its own fix's (docs/track/design.md, settled 2026-11-21 as the iPhone and Garmin send them). */
     var accuracyAsDeltas = false
 
-    fun encode(b: Batch, share: String, battery: Int?, lowPower: Boolean, left: Int, nowSec: Long): String {
+    /** [pace]: the pace kept (docs/track/ozitrac.md « Pace »; design.md « Sending »), left out when null (Direct). */
+    fun encode(b: Batch, share: String, battery: Int?, lowPower: Boolean, left: Int, nowSec: Long, pace: PaceNow? = null): String {
         val f = b.fixes
         val sb = StringBuilder(64 + f.size * 24)
         sb.append("{\"v\":1")
@@ -87,12 +88,27 @@ object BatchEncoder {
         if (battery != null) num(sb, "bat", battery.toLong())
         sb.append(",\"lp\":").append(if (lowPower) "true" else "false")
         num(sb, "left", left.toLong())
+        if (pace != null) {
+            sb.append(",\"pace\":{\"mode\":")
+            quoted(sb, pace.mode)
+            num(sb, "fix", pace.fix.toLong())
+            num(sb, "send", pace.send.toLong())
+            sb.append(",\"remote\":").append(if (pace.remote) "true" else "false")
+            num(sb, "boost", pace.boost)
+            str(sb, "by", pace.by)
+            sb.append('}')
+        }
         sb.append('}')
         return sb.toString()
     }
 
     private fun str(sb: StringBuilder, k: String, v: String) {
-        sb.append(",\"").append(k).append("\":\"")
+        sb.append(",\"").append(k).append("\":")
+        quoted(sb, v)
+    }
+
+    private fun quoted(sb: StringBuilder, v: String) {
+        sb.append('"')
         for (c in v) {
             when {
                 c == '"' -> sb.append("\\\"")

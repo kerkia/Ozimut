@@ -6,7 +6,9 @@ enum BatchEncoder {
     /// More than this many fixes in one batch is refused (413): batches are cut before.
     static let maxFixes = 600
 
-    static func dictionary(_ b: TrackBatch, battery: Int?, lowPower: Bool, left: Int, now: Date = Date()) -> [String: Any] {
+    /// `pace`: Ozitrac's pace of the run (`{ mode, fix, send, remote, boost, by }`, design.md « Sending »), left out when nil.
+    static func dictionary(_ b: TrackBatch, battery: Int?, lowPower: Bool, left: Int, pace: [String: Any]? = nil,
+                           now: Date = Date()) -> [String: Any] {
         var d: [String: Any] = [
             "v": 1,
             "run": b.run,
@@ -17,6 +19,7 @@ enum BatchEncoder {
             "left": max(0, left),
         ]
         if let battery { d["bat"] = battery }
+        if let pace { d["pace"] = pace }
         let t0 = b.fixes.first?.t ?? Int64(floor(now.timeIntervalSince1970))
         var dt: [Int64] = [], la: [Int64] = [], lo: [Int64] = [], ac: [Int] = [], al: [Int] = []
         dt.reserveCapacity(b.fixes.count)
@@ -53,8 +56,10 @@ enum BatchEncoder {
         return d
     }
 
-    static func encode(_ b: TrackBatch, battery: Int?, lowPower: Bool, left: Int, now: Date = Date()) throws -> Data {
-        try JSONSerialization.data(withJSONObject: dictionary(b, battery: battery, lowPower: lowPower, left: left, now: now),
+    static func encode(_ b: TrackBatch, battery: Int?, lowPower: Bool, left: Int, pace: [String: Any]? = nil,
+                       now: Date = Date()) throws -> Data {
+        try JSONSerialization.data(withJSONObject: dictionary(b, battery: battery, lowPower: lowPower, left: left, pace: pace,
+                                                              now: now),
                                    options: [.sortedKeys])
     }
 

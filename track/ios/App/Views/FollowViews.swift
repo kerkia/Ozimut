@@ -15,9 +15,31 @@ func followStateLine(_ r: FollowRun?) -> String {
     return bits.joined(separator: " · ")
 }
 
-/// An alert's sentence, the person's name in it (the notification extension words them alike).
-func alertText(name: String, kind: String) -> String {
+/// A followed phone's pace (docs/track/ozitrac.md « Pace »): « Course longue : une position toutes les 30 s, envoi toutes
+/// les 10 min », « En direct jusqu'à 14:35 » (« , à ta demande » when this iPhone asked it, `me` its number in the channel),
+/// a request not yet kept by the phone; nil in a Direct run or when no run is under way.
+func followPaceLine(_ r: FollowRun?, me w: String, now: Date = Date()) -> String? {
+    guard let r, !r.run.isEmpty, r.state != "end", let p = r.pace else { return nil }
+    let t = Int64(now.timeIntervalSince1970)
+    if p.boosted(now: t) {
+        return L(p.by == w ? "pace.boost.mine" : "pace.boost", Fmt.time(p.boost))
+    }
+    guard p.long else { return nil }
+    var line = L("pace.longLine", Fmt.span(p.fix), Fmt.span(p.send))
+    if let q = r.request, q.until > t, q.until > q.at {
+        line += " · " + L(q.by == w ? "pace.asked.mine" : "pace.asked")
+    }
+    return line
+}
+
+/// An alert's sentence, the person's name in it (the notification extension words them alike); `longSend`: the seconds
+/// between batches of the person's long run (standing still is 30 minutes there, silence 3 batches and 2 minutes).
+func alertText(name: String, kind: String, longSend: Int? = nil) -> String {
     let n = name.isEmpty ? "?" : name
+    if let s = longSend, s > 0 {
+        if kind == "still" { return L("alert.still.long", n) }
+        if kind == "silent" { return L("alert.silent.long", n, (3 * s + 120) / 60) }
+    }
     switch kind {
     case "start", "end", "help", "silent", "battery", "still", "zone": return L("alert." + kind, n)
     default: return L("alert.other", n)
@@ -50,9 +72,13 @@ struct FollowListView: View {
                 }
                 ForEach(m.followed) { f in
                     Button(action: { m.page = .follow(f.c) }) {
+                        let r = m.follows.cached(f.c)
                         VStack(alignment: .leading, spacing: 4) {
                             Text(f.name.isEmpty ? "?" : f.name).font(.headline).foregroundColor(.primary)
-                            Text(followStateLine(m.follows.cached(f.c))).font(.callout).foregroundColor(.secondary)
+                            Text(followStateLine(r)).font(.callout).foregroundColor(.secondary)
+                            if let pace = followPaceLine(r, me: f.w) {
+                                Text(pace).font(.callout).foregroundColor(.secondary)
+                            }
                         }
                         .id(tick)
                     }
@@ -92,6 +118,11 @@ struct FollowView: View {
     @State private var sharing: Shared?
     @State private var stopping = false
     @State private var working = false
+    @State private var asking = false
+    /// Read again every 10 s until then, after a request for Direct.
+    @State private var fastUntil = Date.distantPast
+    /// Changed to start the reading loop again at once.
+    @State private var pollKick = 0
 
     private var follow: Follow? { m.followed.first { $0.c == c } }
 
@@ -99,9 +130,13 @@ struct FollowView: View {
         VStack(spacing: 0) {
             VStack(alignment: .leading, spacing: 4) {
                 Text(followStateLine(run)).font(.callout).foregroundColor(.secondary)
+                if let pace = followPaceLine(run, me: follow?.w ?? "") {
+                    Text(pace).font(.callout).foregroundColor(.secondary)
+                }
                 ForEach(Array((run?.alerts ?? []).suffix(3).reversed().enumerated()), id: \.offset) { _, a in
                     let urgent = a.kind == "help" || a.kind == "silent" || a.kind == "zone"
-                    Text(Fmt.time(a.t) + " · " + alertText(name: follow?.name ?? "", kind: a.kind))
+                    Text(Fmt.time(a.t) + " · " + alertText(name: follow?.name ?? "", kind: a.kind,
+                                                           longSend: run?.pace?.long == true ? run?.pace?.send : nil))
                         .font(.callout.weight(urgent ? .bold : .regular))
                         .foregroundColor(urgent ? .red : .primary)
                 }
@@ -111,6 +146,10 @@ struct FollowView: View {
             .padding(.bottom, 8)
 
             LiveMap(trail: run?.fixes ?? [], position: run?.fixes.last, fitKey: run?.run ?? "")
+
+            if RemotePace.canAsk(run?.pace, state: run?.state ?? "") {
+                paceButtons.padding([.horizontal, .top])
+            }
 
             HStack(spacing: 10) {
                 Button(action: saveGpx) {
@@ -129,23 +168,75 @@ struct FollowView: View {
         .navigationBarTitleDisplayMode(.inline)
         .closable()
         .onAppear { run = m.follows.cached(c) }
-        .task {
+        .task(id: pollKick) {
             while !Task.isCancelled {
                 guard let f = m.follows.get(c) else { return }
                 let p = await m.follows.poll(f)
+                if Task.isCancelled { return }
                 if p.error == "gone" {
                     m.notice = L("follow.gone")
                     m.page = nil
                     return
                 }
                 run = p.run
-                try? await Task.sleep(nanoseconds: UInt64(p.next) * 1_000_000_000)
+                // sooner for two minutes after a request for Direct, to show the phone's answer
+                let wait = Date() < fastUntil ? min(p.next, 10) : p.next
+                try? await Task.sleep(nanoseconds: UInt64(wait) * 1_000_000_000)
             }
         }
         .sheet(item: $sharing) { s in ShareSheet(items: s.items) }
         .confirmationDialog(L("follow.stopAsk", follow?.name ?? "?"), isPresented: $stopping, titleVisibility: .visible) {
             Button(L("follow.stop"), role: .destructive, action: unfollow)
             Button(L("common.cancel"), role: .cancel) {}
+        }
+    }
+
+    /// « Passer en direct » (5, 15, 30 or 60 minutes) and, while Direct is asked or kept, « Revenir au rythme lent ».
+    private var paceButtons: some View {
+        HStack(spacing: 10) {
+            Menu {
+                ForEach([5, 15, 30, 60], id: \.self) { minutes in
+                    Button(L("pace.ask.min", minutes)) { askPace(minutes) }
+                }
+            } label: {
+                Label(L("pace.ask"), systemImage: "bolt.fill").frame(maxWidth: .infinity, minHeight: 44)
+            }
+            .menuStyle(.button)
+            .buttonStyle(.borderedProminent)
+            .tint(.orange)
+            .disabled(asking)
+            if RemotePace.canStop(run?.pace, state: run?.state ?? "", request: run?.request,
+                                  now: Int64(Date().timeIntervalSince1970)) {
+                Button(action: { askPace(0) }) {
+                    Text(L("pace.back")).frame(maxWidth: .infinity, minHeight: 44)
+                }
+                .buttonStyle(.bordered)
+                .disabled(asking)
+            }
+        }
+    }
+
+    private func askPace(_ minutes: Int) {
+        guard let f = m.follows.get(c) else { return }
+        asking = true
+        Task {
+            let (b, err) = await m.follows.askPace(f, minutes: minutes)
+            await MainActor.run {
+                asking = false
+                switch err {
+                case nil:
+                    if let b { run?.request = b }
+                    m.notice = L(minutes == 0 ? "pace.back.sent" : "pace.ask.sent")
+                    fastUntil = Date().addingTimeInterval(120)
+                    pollKick += 1
+                case "pace"?: m.notice = L("pace.err.pace")
+                case "slow"?: m.notice = L("pace.err.slow")
+                case "gone"?:
+                    m.notice = L("follow.gone")
+                    m.page = nil
+                default: m.notice = L("net.error")
+                }
+            }
         }
     }
 

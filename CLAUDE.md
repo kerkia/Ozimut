@@ -854,7 +854,15 @@ banner asking a parent), a child taking the account over from 15 (`POST /api/tra
   2026-11-23): the Wear OS Data Layer, an item `/ozitrac/run/<run>` with the run's CSV as an asset (`wear` `RunSync`, after
   each run's end), filed in « Mes courses » by the phone (`WatchRuns`, a `WearableListenerService`; « Mes courses » collects
   what a missed wake-up left) — both APKs must be signed with the same key, so from the same CI run until a release keystore
-  exists. Artifacts `ozitrac-android-apks`, `ozitrac-wearos-apks`; never run on a device yet. **The iPhone and Apple Watch apps** (`track/ios`, merged 2026-11-23; ids `com.ozimut.ozitrac`, `.watchkitapp`, `.widget`, `.notify`, App Group `group.com.ozimut.ozitrac`): the same two roles in SwiftUI, CryptoKit sealing checked against a WebCrypto vector shared with Android's tests, the map's layers as Android's (`MapLayers.swift`, `TileMap.swift`), a notification extension naming the person followed, the watch a watchee with its own channel and QR code (Nayuki's encoder ported) whose runs reach the iPhone by `transferFile`; built unsigned by `track-ios.yml`, the owner's Apple steps in `track/ios/README.md`. Site notifications no
+  exists. Artifacts `ozitrac-android-apks`, `ozitrac-wearos-apks`; never run on a device yet. **Two paces** (owner, 2026-11-25:
+  ultra-trails and raids of a few days, tested on ozimut.com's servers before any site of Ozitrac's own): « Direct » (1 fix a
+  second, as before) or « Course longue » (a fix every 15-60 s, batches every 5-15 min, the battery spared, 7 days at most;
+  silent after 3 batches + 2 min, given up after 36 h, still over 30 min), and **a watcher may ask for Direct for 5-60 min**
+  when the runner allowed it (`POST /api/ozitrac/<c>/w/<w>/pace`, the run's `boost`, the runner's phone woken through its own
+  token `PUT <c>/token` and a quiet data push — `nativepush.sendData`'s `quiet`, an APNs background push — else told at its
+  next batch; refused under 20 % battery). Linked to Ozimut, a long run keeps 7 days and its own interval there too
+  (`functions/api/track` `longPace`, `LiveTrack` `m.long`). Tests `t_ozitrac_pace.mjs` (19 checks) and the long run in
+  `gps-tracking/t_track.mjs`. The watch is never in long mode. **The iPhone and Apple Watch apps** (`track/ios`, merged 2026-11-23; ids `com.ozimut.ozitrac`, `.watchkitapp`, `.widget`, `.notify`, App Group `group.com.ozimut.ozitrac`): the same two roles in SwiftUI, CryptoKit sealing checked against a WebCrypto vector shared with Android's tests, the map's layers as Android's (`MapLayers.swift`, `TileMap.swift`), a notification extension naming the person followed, the watch a watchee with its own channel and QR code (Nayuki's encoder ported) whose runs reach the iPhone by `transferFile`; built unsigned by `track-ios.yml`, the owner's Apple steps in `track/ios/README.md`. Site notifications no
   longer go to the native devices: only the tracking's alerts (`pushToUser`'s `native`). Relay test: `C:\Kerkia\Ozimut\work\scratch-scripts\t_ozitrac.mjs`
   (30 checks), launch configs `ocn-live-track` + `pages-dev-track-open` (binds `OZITRAC=TracChannel@ocn-live`).
 - **Administrators only for now** (owner, 2026-11-22: « make all this visible to admin only for now »): while `TRACK_OPEN` is "0" the

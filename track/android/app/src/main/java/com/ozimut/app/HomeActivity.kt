@@ -108,11 +108,13 @@ class HomeActivity : ComponentActivity() {
         ui.removeCallbacks(ticker)
     }
 
-    /** The watchers, the people followed and the relay's settings read again (a network thread). */
+    /** The watchers, the people followed and the relay's settings read again, this phone's push token given (a network thread). */
     private fun refreshInBackground() {
         io.execute {
             RelayConfig.refresh(applicationContext)
             Channel.refresh(applicationContext)
+            // this phone's push token on its own channel (a channel made since, a token renewed): a request for Direct wakes it
+            OwnPush.sync(applicationContext)
             for (f in Follows.list(applicationContext)) Follows.poll(applicationContext, f)
             ui.post { if (visible) render() }
         }
@@ -270,6 +272,7 @@ class HomeActivity : ComponentActivity() {
             }
             card.addView(Ui.text(this, f.name.ifBlank { "?" }, 19f, bold = true))
             card.addView(Ui.text(this, FollowActivity.stateLine(this, st), 15f, color = Ui.GREY))
+            FollowActivity.paceLine(this, st, f.w)?.let { card.addView(Ui.text(this, it, 15f, color = Ui.GREY)) }
             add(card)
         }
     }

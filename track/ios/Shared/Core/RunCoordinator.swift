@@ -14,6 +14,10 @@ protocol RunCoordinatorDelegate: AnyObject {
 /// follows (« z ») —, each with its own engine. The run ends once every destination has sent its last batch. Its state is
 /// kept in the preferences so that a run left open is taken up again after the system ended the app. Used on the main
 /// thread; the position comes from the iPhone's LocationTracker or the watch's WorkoutRecorder.
+///
+/// Its pace (docs/track/ozitrac.md « Pace », `PaceState`): Direct, or a long run keeping one fix every `fix` seconds and
+/// sending every `send` seconds, switched to Direct for a while when a watcher asks it (`applyBoost`: from a background
+/// notification or a batch's answer) and back by itself when that time is over. The watch only runs Direct.
 final class RunCoordinator {
     static let oz = "oz"
     static let relay = "z"
@@ -32,6 +36,8 @@ final class RunCoordinator {
         var phase: String
         var cap: Int
         var batteryTold = false
+        /// nil: a run saved before paces existed (Direct).
+        var pace: PaceState?
     }
 
     private final class Link: TrackEngineDelegate {
@@ -52,10 +58,17 @@ final class RunCoordinator {
     weak var delegate: RunCoordinatorDelegate?
     var startLocation: (() -> Void)?
     var stopLocation: (() -> Void)?
+    /// The location's saving changed: true for a long run's own pace (a lower accuracy asked), false for Direct. Told before
+    /// `startLocation` and whenever a watcher's request starts or ends.
+    var setLocationSaving: ((Bool) -> Void)?
     /// The battery level now (nil: unknown).
     var battery: () -> Int? = { nil }
 
     private let links: [String: Link]
+    private let paceBox = PaceBox()
+    private var ozSettings = TrackSettings()
+    /// The time of the last fix kept (a long run keeps one every `fix` seconds).
+    private var lastKept: Int64 = 0
     private let defaults: UserDefaults
     private var saved: Saved?
     private var engineStatus: [String: TrackStatus] = [:]
@@ -79,6 +92,13 @@ final class RunCoordinator {
         ozEngine.delegate = links[RunCoordinator.oz]
         relayEngine.delegate = links[RunCoordinator.relay]
         if let d = defaults.data(forKey: "oz.run"), let s = try? JSONDecoder().decode(Saved.self, from: d) { saved = s }
+        paceBox.set(saved?.pace)
+        let box = paceBox
+        ozEngine.paceJson = { box.json(interval: $0) }
+        relayEngine.paceJson = { box.json(interval: $0) }
+        (relay as? RelayDestination)?.onBoost = { [weak self] b in
+            DispatchQueue.main.async { self?.applyBoost(b) }
+        }
     }
 
     private func engine(_ dest: String) -> TrackEngine {
@@ -87,15 +107,44 @@ final class RunCoordinator {
 
     var active: Bool { saved != nil }
 
+    /// The run's longest duration in seconds (nil: no run).
+    var cap: Int? { saved?.cap }
+
+    private static func seconds(_ d: Date = Date()) -> Int64 {
+        Int64(floor(d.timeIntervalSince1970))
+    }
+
     /// Ozimut's settings for its engine (the cap is the coordinator's), the relay's own.
     func update(ozimut settings: TrackSettings) {
-        var s = settings
+        ozSettings = settings
+        applyEngineSettings()
+    }
+
+    /// The engines' settings: the account's and the relay's in Direct, the long pace's batches in a long run.
+    private func applyEngineSettings() {
+        var s = ozSettings
         s.cap = Int(Int32.max)
-        ozEngine.update(settings: s)
         var r = TrackSettings()
         r.batch = RelayConfig.current.watched
         r.cap = Int(Int32.max)
+        let now = RunCoordinator.seconds()
+        if let every = saved?.pace?.sendEvery(now: now) {
+            s.batch = every
+            r.batch = every
+        }
+        ozEngine.update(settings: s)
         relayEngine.update(settings: r)
+        let b = RunCoordinator.bounds(saved?.pace, now: now)
+        ozEngine.setBounds(minimum: b.lo, maximum: b.hi)
+        relayEngine.setBounds(minimum: b.lo, maximum: b.hi)
+    }
+
+    /// The bounds of the interval between batches a server may ask: a long run keeping its own pace sends every `send`
+    /// seconds whatever it is told (a request for Direct it refused never makes it send faster), one a watcher asked to see
+    /// live every 15 s at most; Direct follows the server from 5 s to 15 min.
+    private static func bounds(_ p: PaceState?, now: Int64) -> (lo: Int, hi: Int) {
+        guard let p, p.choice.long else { return (5, 900) }
+        return p.boosted(now: now) ? (5, PaceChoice.boostSend) : (p.choice.send, 900)
     }
 
     func setBattery(_ level: Int?, lowPower: Bool) {
@@ -105,27 +154,33 @@ final class RunCoordinator {
 
     // MARK: the run
 
-    /// Starts a run from the visible Start screen. `share`: live to the people who follow (the relay).
+    /// Starts a run from the visible Start screen. `share`: live to the people who follow (the relay). `pace`: Direct (the
+    /// watch's always) or a long run, which lasts 7 days at most whatever `cap` says.
     @discardableResult
-    func start(share: Bool, linked: Bool, cap: Int?, now: Date = Date()) -> String? {
+    func start(share: Bool, linked: Bool, cap: Int?, pace: PaceChoice = .direct, now: Date = Date()) -> String? {
         guard saved == nil else { return nil }
         let run = RunId.make(start: now)
         var dests: [String] = []
         if linked { dests.append(RunCoordinator.oz) }
         if share && ChannelStore.shared.exists { dests.append(RunCoordinator.relay) }
+        let p = PaceState(choice: pace.clamped)
         Alerts.clear()
-        alertWatch = AlertWatch()
+        alertWatch = AlertWatch(window: p.stillSeconds, slack: p.stillSlack)
         fixes = 0
         distance = 0
         prevGood = nil
+        lastKept = 0
         reason = .user
         engineStatus = [:]
         saved = Saved(run: run, started: now.timeIntervalSince1970, share: share, dests: dests, helpAt: nil, phase: "running",
-                      cap: cap ?? RunCoordinator.defaultCap)
+                      cap: p.choice.long ? PaceChoice.longCap : (cap ?? RunCoordinator.defaultCap), pace: p)
+        paceBox.set(p)
         save(force: true)
+        applyEngineSettings()
         ozEngine.discard()
         relayEngine.discard()
         for d in dests { engine(d).start(run: run, share: share ? "watchers" : "private", now: now) }
+        setLocationSaving?(!p.live(now: RunCoordinator.seconds(now)))
         startLocation?()
         startTimer()
         publish(force: true)
@@ -140,10 +195,22 @@ final class RunCoordinator {
         fixes = kept.count
         distance = Geo.length(kept, maxAcc: RunCoordinator.goodForDistance)
         prevGood = kept.last { $0.ac <= RunCoordinator.goodForDistance }
+        lastKept = kept.last?.t ?? 0
+        let now = RunCoordinator.seconds()
+        if var p = s.pace {
+            // a request for Direct that ended while the app was away
+            _ = p.expire(now: now, battery: battery())
+            s.pace = p
+        }
+        alertWatch = AlertWatch(window: s.pace?.stillSeconds ?? AlertWatch.stillSeconds, slack: s.pace?.stillSlack ?? 10)
+        paceBox.set(s.pace)
+        saved = s
+        applyEngineSettings()
         s.dests = s.dests.filter { engine($0).resume() }
         saved = s
         save(force: true)
         if s.phase == "running" {
+            setLocationSaving?(!(s.pace?.live(now: now) ?? true))
             startLocation?()
             startTimer()
         } else {
@@ -156,6 +223,12 @@ final class RunCoordinator {
 
     func add(_ f: TrackFix) {
         guard let s = saved, s.phase == "running" else { return }
+        // a long run keeps one fix every `fix` seconds (Direct, and a watcher's request for it, every fix)
+        if let p = s.pace, lastKept > 0 {
+            let every = Int64(p.fixEvery(now: f.t))
+            if every > 1 && f.t - lastKept < every { return }
+        }
+        lastKept = f.t
         RunLog.append(run: s.run, fix: f)
         for d in s.dests { engine(d).add(f) }
         fixes += 1
@@ -202,6 +275,36 @@ final class RunCoordinator {
     func sendNow() {
         guard let s = saved else { return }
         for d in s.dests { engine(d).sendNow() }
+    }
+
+    // MARK: the pace
+
+    /// A watcher's request for Direct (a background notification, or a batch's answer, docs/track/ozitrac.md « Pace »):
+    /// looked at once; refused when the runner did not allow it or the battery is under 20 %; else Direct until its
+    /// `until`, then the long pace again by itself. A batch reporting the pace kept goes within a few seconds.
+    @discardableResult
+    func applyBoost(_ b: Boost, now: Date = Date()) -> PaceState.Outcome {
+        guard var s = saved, s.phase == "running", var p = s.pace else { return .notLong }
+        let out = p.apply(b, battery: battery(), now: RunCoordinator.seconds(now))
+        if out == .seen || out == .notLong { return out }
+        s.pace = p
+        saved = s
+        save(force: true)
+        paceChanged(soon: true)
+        return out
+    }
+
+    /// The pace changed during the run: the location's accuracy, the engines' cadence, and (`soon`) a batch within a few
+    /// seconds so that the watchers read the pace kept.
+    private func paceChanged(soon: Bool) {
+        guard let s = saved, let p = s.pace else { return }
+        paceBox.set(p)
+        let now = RunCoordinator.seconds()
+        setLocationSaving?(!p.live(now: now))
+        let every = p.sendEvery(now: now) ?? RelayConfig.current.watched
+        let b = RunCoordinator.bounds(p, now: now)
+        for e in [ozEngine, relayEngine] { e.repace(interval: every, minimum: b.lo, maximum: b.hi, soon: soon ? 5 : nil) }
+        publish(force: true)
     }
 
     // MARK: the engines
@@ -251,13 +354,14 @@ final class RunCoordinator {
         timer?.invalidate()
         timer = nil
         saved = nil
+        paceBox.set(nil)
         save(force: true)
         engineStatus = [:]
         publish(force: true)
         delegate?.runEnded(final, reason: reason)
     }
 
-    // MARK: every ten seconds: the cap, a channel made during the run, the battery
+    // MARK: every ten seconds: the cap, a request for Direct over, a channel made during the run, the battery
 
     private func startTimer() {
         timer?.invalidate()
@@ -271,6 +375,13 @@ final class RunCoordinator {
         if Date().timeIntervalSince1970 - s.started >= Double(s.cap) {
             stop(reason: .cap)
             return
+        }
+        // a watcher's request for Direct over (its time, or the battery now low): the long pace again
+        if var p = s.pace, p.expire(now: RunCoordinator.seconds(), battery: battery()) {
+            s.pace = p
+            saved = s
+            save(force: true)
+            paceChanged(soon: false)
         }
         // a channel made during the run (a first code shown): the relay joins from now on
         if s.share && !s.dests.contains(RunCoordinator.relay) && ChannelStore.shared.exists {
@@ -313,6 +424,7 @@ final class RunCoordinator {
         st.distance = distance
         st.helpAt = s.helpAt.map { Date(timeIntervalSince1970: $0) }
         st.dests = s.dests
+        st.pace = s.pace
         st.pending = s.dests.reduce(0) { $0 + (engineStatus[$1]?.pending ?? 0) }
         st.lastSent = s.dests.compactMap { engineStatus[$0]?.lastSent }.max()
         st.lastError = s.dests.compactMap { engineStatus[$0]?.lastError }.first

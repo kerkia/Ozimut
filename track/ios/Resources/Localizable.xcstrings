@@ -436,6 +436,35 @@
         }
       }
     },
+    "alert.silent.long": {
+      "extractionState": "manual",
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Plus de nouvelles de %@ depuis %ld minutes"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No news from %@ for %ld minutes"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Keine Nachricht von %@ seit %ld Minuten"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sin noticias de %@ desde hace %ld minutos"
+          }
+        }
+      }
+    },
     "alert.start": {
       "extractionState": "manual",
       "localizations": {
@@ -490,6 +519,35 @@
           "stringUnit": {
             "state": "translated",
             "value": "%@ no se ha movido en 5 minutos"
+          }
+        }
+      }
+    },
+    "alert.still.long": {
+      "extractionState": "manual",
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ n'a pas bougé depuis 30 minutes"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ has not moved for 30 minutes"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ hat sich seit 30 Minuten nicht bewegt"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ no se ha movido en 30 minutos"
           }
         }
       }
@@ -2375,6 +2433,644 @@
           "stringUnit": {
             "state": "translated",
             "value": "¿Desvincular este móvil de Ozimut? Tus carreras dejarán de ir a esa cuenta."
+          }
+        }
+      }
+    },
+    "pace.ask": {
+      "extractionState": "manual",
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Passer en direct"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Switch to live"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Auf Live umschalten"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Pasar a directo"
+          }
+        }
+      }
+    },
+    "pace.ask.min": {
+      "extractionState": "manual",
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Pendant %ld minutes"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "For %ld minutes"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Für %ld Minuten"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Durante %ld minutos"
+          }
+        }
+      }
+    },
+    "pace.ask.sent": {
+      "extractionState": "manual",
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Demande envoyée : le téléphone passe en direct dès qu'il la reçoit."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Request sent: the phone switches to live as soon as it gets it."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Anfrage gesendet: Das Handy schaltet auf Live, sobald es sie erhält."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Petición enviada: el móvil pasa a directo en cuanto la recibe."
+          }
+        }
+      }
+    },
+    "pace.asked": {
+      "extractionState": "manual",
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "direct demandé"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "live requested"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Live angefragt"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "directo pedido"
+          }
+        }
+      }
+    },
+    "pace.asked.mine": {
+      "extractionState": "manual",
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "tu as demandé le direct"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "you asked for live"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "du hast Live angefragt"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "has pedido el directo"
+          }
+        }
+      }
+    },
+    "pace.back": {
+      "extractionState": "manual",
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Revenir au rythme lent"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Back to the slow pace"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Zurück zum langsamen Rhythmus"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Volver al ritmo lento"
+          }
+        }
+      }
+    },
+    "pace.back.sent": {
+      "extractionState": "manual",
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Demande envoyée : le téléphone revient au rythme lent."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Request sent: the phone goes back to the slow pace."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Anfrage gesendet: Das Handy kehrt zum langsamen Rhythmus zurück."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Petición enviada: el móvil vuelve al ritmo lento."
+          }
+        }
+      }
+    },
+    "pace.boost": {
+      "extractionState": "manual",
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "En direct jusqu'à %@"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Live until %@"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Live bis %@"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "En directo hasta las %@"
+          }
+        }
+      }
+    },
+    "pace.boost.by": {
+      "extractionState": "manual",
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "En direct jusqu'à %@ (demandé par %@)"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Live until %@ (asked by %@)"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Live bis %@ (angefragt von %@)"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "En directo hasta las %@ (pedido por %@)"
+          }
+        }
+      }
+    },
+    "pace.boost.mine": {
+      "extractionState": "manual",
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "En direct jusqu'à %@, à ta demande"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Live until %@, as you asked"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Live bis %@, auf deine Anfrage"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "En directo hasta las %@, a petición tuya"
+          }
+        }
+      }
+    },
+    "pace.err.pace": {
+      "extractionState": "manual",
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Le direct n'est pas possible : pas de course longue en cours, ou elle ne le permet pas."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Live is not possible: no long run is under way, or it does not allow it."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Live ist nicht möglich: Es ist kein langer Lauf unterwegs, oder er erlaubt es nicht."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "El directo no es posible: no hay ninguna carrera larga en curso, o no lo permite."
+          }
+        }
+      }
+    },
+    "pace.err.slow": {
+      "extractionState": "manual",
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Attends quelques secondes avant de redemander."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Wait a few seconds before asking again."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Warte ein paar Sekunden, bevor du noch einmal fragst."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Espera unos segundos antes de volver a pedirlo."
+          }
+        }
+      }
+    },
+    "pace.fixEvery": {
+      "extractionState": "manual",
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Une position toutes les"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "One position every"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Eine Position alle"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Una posición cada"
+          }
+        }
+      }
+    },
+    "pace.live": {
+      "extractionState": "manual",
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Direct"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Live"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Live"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Directo"
+          }
+        }
+      }
+    },
+    "pace.live.text": {
+      "extractionState": "manual",
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Une position par seconde, envoyée toutes les 15 s quand quelqu'un te regarde. Pour une course de quelques heures."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "One position a second, sent every 15 s while someone is watching you. For a run of a few hours."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Eine Position pro Sekunde, alle 15 s gesendet, während dir jemand zuschaut. Für einen Lauf von ein paar Stunden."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Una posición por segundo, enviada cada 15 s mientras alguien te mira. Para una carrera de unas horas."
+          }
+        }
+      }
+    },
+    "pace.long": {
+      "extractionState": "manual",
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Course longue"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Long run"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Langer Lauf"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Carrera larga"
+          }
+        }
+      }
+    },
+    "pace.long.text": {
+      "extractionState": "manual",
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Pour un ultra ou un raid de plusieurs jours : le téléphone économise sa batterie. Une course longue dure 7 jours au plus. Ceux qui te suivent peuvent demander le direct un moment, sauf si ta batterie est faible."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "For an ultra or a raid over several days: the phone saves its battery. A long run lasts 7 days at most. The people who follow you can ask for live for a while, unless your battery is low."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Für einen Ultra oder ein Rennen über mehrere Tage: Das Handy spart Akku. Ein langer Lauf dauert höchstens 7 Tage. Wer dir folgt, kann für eine Weile Live anfragen, außer wenn dein Akku schwach ist."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Para un ultra o un raid de varios días: el móvil ahorra batería. Una carrera larga dura 7 días como máximo. Quienes te siguen pueden pedir el directo un rato, salvo si tu batería está baja."
+          }
+        }
+      }
+    },
+    "pace.longLine": {
+      "extractionState": "manual",
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Course longue : une position toutes les %@, envoi toutes les %@"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Long run: one position every %@, sent every %@"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Langer Lauf: eine Position alle %@, gesendet alle %@"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Carrera larga: una posición cada %@, envío cada %@"
+          }
+        }
+      }
+    },
+    "pace.refused": {
+      "extractionState": "manual",
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ a demandé le direct : refusé pour garder ta batterie"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ asked for live: refused to save your battery"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ hat Live angefragt: abgelehnt, um deinen Akku zu schonen"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ ha pedido el directo: rechazado para ahorrar tu batería"
+          }
+        }
+      }
+    },
+    "pace.remote": {
+      "extractionState": "manual",
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mes suiveurs peuvent passer en direct"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "My followers can switch to live"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Wer mir folgt, darf auf Live umschalten"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Quienes me siguen pueden pasar a directo"
+          }
+        }
+      }
+    },
+    "pace.sendEvery": {
+      "extractionState": "manual",
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Envoi toutes les"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sent every"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Senden alle"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Envío cada"
+          }
+        }
+      }
+    },
+    "pace.title": {
+      "extractionState": "manual",
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Rythme"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Pace"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Rhythmus"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ritmo"
           }
         }
       }

@@ -89,6 +89,8 @@ dependencies {
     if (hasFcm) implementation("com.google.firebase:firebase-messaging:24.1.1")
     // the runs the Wear OS watch hands over (WatchRuns; Google Play services)
     implementation("com.google.android.gms:play-services-wearable:19.0.0")
+    // a long run's fixes batched while the phone sleeps (LongRun.kt, FusedFixes; Google Play services)
+    implementation("com.google.android.gms:play-services-location:21.3.0")
 
     testImplementation("junit:junit:4.13.2")
     testImplementation("org.json:json:20240303")

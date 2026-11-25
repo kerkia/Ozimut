@@ -106,7 +106,8 @@ Authorization: Bearer <key>      Content-Type: application/json   (Content-Encod
   "t0": 1795253712, "dt": [0,1,1], "la": [48412345,12,-3], "lo": [2634567,-20,-18],
   "ac": [5,5,6],                          // estimated accuracy, metres (integers)
   "al": [87,0,0],                         // optional, metres
-  "bat": 71, "lp": false, "left": 0 }
+  "bat": 71, "lp": false, "left": 0,
+  "pace": { "mode": "long", "fix": 30, "send": 600, "remote": true, "boost": 0, "by": "" } }   // optional: Ozitrac's pace
 200 { "ack": 42, "next": 30, "stop": false }
 401 { error: "device" } — removed: the device stops, forgets its key, says so
 409 { error: "closed" } · 413 (more than 600 fixes: split) · 429 { error: "slow", next }
@@ -119,6 +120,10 @@ Authorization: Bearer <key>      Content-Type: application/json   (Content-Encod
 - An empty batch (`dt: []`) is allowed: a heartbeat with `bat`.
 - A run opens at its first batch, closes with `state: "end"`, the cap (`cap` seconds from its start) or 30 min of silence
   after the cap.
+- `pace` (Ozitrac, 2026-11-25; `docs/track/ozitrac.md` « Pace »): a long run (`mode` "long") is kept up to 7 days whatever
+  the account's cap, `next` is its `send` (15 while `boost` is ahead), `LiveTrack` calls it silent after 3 × `send` + 120 s
+  and still after 30 min within 15 m, and the watch page replays `send` + 10 s behind. Ozimut's watchers cannot ask for
+  Direct (Ozitrac's watchers can).
 
 ### Watches: claim codes (`kind` "wearos" | "applewatch" | "garmin")
 A watch has no keyboard: it makes its own key (32 random base64url) and a claim code (6 letters/digits from

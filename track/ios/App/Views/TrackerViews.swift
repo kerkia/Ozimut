@@ -47,6 +47,25 @@ func destinationsText(watchers: [ChannelStore.Watcher], share: Bool, linked: Boo
     return lines.joined(separator: "\n")
 }
 
+/// A long run's pace for the runner (docs/track/ozitrac.md « Pace »): « Course longue : une position toutes les 30 s, envoi
+/// toutes les 10 min », « En direct jusqu'à 14:35 (demandé par Tom) », and a request refused; nil in a Direct run.
+func runnerPaceLine(_ p: PaceState?, watchers: [ChannelStore.Watcher], now: Date = Date()) -> String? {
+    guard let p, p.choice.long else { return nil }
+    let t = Int64(now.timeIntervalSince1970)
+    func name(_ w: String) -> String {
+        if let n = watchers.first(where: { $0.w == w })?.name, !n.isEmpty { return n }
+        return L("watchers.unknown")
+    }
+    if p.boosted(now: t), let b = p.boost {
+        return L("pace.boost.by", Fmt.time(b.until), name(b.by))
+    }
+    var line = L("pace.longLine", Fmt.span(p.choice.fix), Fmt.span(p.choice.send))
+    if p.refused, let r = p.last, r.until > t {
+        line += "\n" + L("pace.refused", name(r.by))
+    }
+    return line
+}
+
 // MARK: Start
 
 struct StartView: View {
@@ -67,6 +86,8 @@ struct StartView: View {
                 }
 
                 Toggle(L("start.share"), isOn: $m.share)
+
+                PaceChooser()
 
                 Button(action: { m.startRun() }) {
                     Text(L("start.go"))
@@ -105,6 +126,38 @@ struct StartView: View {
         if !m.location.precise { return L("start.gps.reduced") }
         if let p = m.probe, p.horizontalAccuracy >= 0 { return L("start.gps.ok", Int(p.horizontalAccuracy.rounded())) }
         return L("start.gps.ready")
+    }
+}
+
+/// « Direct » or « Course longue » with its two intervals and « Mes suiveurs peuvent passer en direct » (the choices kept
+/// for the next run).
+struct PaceChooser: View {
+    @EnvironmentObject var m: AppModel
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Picker(L("pace.title"), selection: $m.pace.long) {
+                Text(L("pace.live")).tag(false)
+                Text(L("pace.long")).tag(true)
+            }
+            .pickerStyle(.segmented)
+            if m.pace.long {
+                Text(L("pace.fixEvery")).font(.subheadline)
+                Picker(L("pace.fixEvery"), selection: $m.pace.fix) {
+                    ForEach(PaceChoice.fixes, id: \.self) { s in Text(Fmt.span(s)).tag(s) }
+                }
+                .pickerStyle(.segmented)
+                Text(L("pace.sendEvery")).font(.subheadline)
+                Picker(L("pace.sendEvery"), selection: $m.pace.send) {
+                    ForEach(PaceChoice.sends, id: \.self) { s in Text(Fmt.span(s)).tag(s) }
+                }
+                .pickerStyle(.segmented)
+                Toggle(L("pace.remote"), isOn: $m.pace.remote)
+                Text(L("pace.long.text")).font(.footnote).foregroundColor(.secondary)
+            } else {
+                Text(L("pace.live.text")).font(.footnote).foregroundColor(.secondary)
+            }
+        }
     }
 }
 
@@ -155,6 +208,13 @@ struct RunningView: View {
                 }
 
                 Text(runText).font(.footnote).foregroundColor(.secondary).multilineTextAlignment(.center)
+
+                if let pace = runnerPaceLine(m.status.pace, watchers: m.watchers) {
+                    Text(pace)
+                        .font(.callout)
+                        .foregroundColor(m.status.pace?.boosted(now: Int64(Date().timeIntervalSince1970)) == true ? .orange : .primary)
+                        .multilineTextAlignment(.center)
+                }
 
                 if !m.status.online && !m.status.dests.isEmpty {
                     Text(L("run.offline")).font(.footnote).foregroundColor(.orange)
