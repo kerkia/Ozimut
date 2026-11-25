@@ -4647,6 +4647,7 @@ details[open] > .en-sum h2::before { content: "▾ "; }
   background: rgba(242, 107, 29, 0.92); color: #fff; box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.6), 0 6px 20px rgba(0, 0, 0, 0.35);
   animation: vt-pulse 1s ease-in-out infinite; pointer-events: none; white-space: nowrap; }
 @keyframes vt-pulse { 50% { transform: translateX(-50%) scale(1.05); } }
+.vt-cue.vt-cue-off { background: rgba(20, 24, 28, 0.78); font-weight: 600; box-shadow: 0 4px 14px rgba(0, 0, 0, 0.3); animation: none; }   /* a control not to punch: said, not invited */
 .vt-toast { position: absolute; left: 50%; top: 64px; transform: translateX(-50%); padding: 8px 16px; border-radius: 8px; color: #fff; font-weight: 600; pointer-events: none; }
 .vt-toast.ok { background: rgba(30, 130, 60, 0.9); } .vt-toast.bad { background: rgba(190, 40, 40, 0.92); }
 /* The map in the bottom left corner, the compass beside it (owner, 2026-11-11): --mw/--mh the map's size, --cw the compass's; small and

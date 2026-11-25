@@ -814,9 +814,10 @@ export function mount(root, raceId, opts = {}) {
       const parts = LEVELS.slice().reverse().filter((p) => st.paceT[p] / all >= 0.005).map((p) => `${p ? paceText(p) : t("vt.level.stopped")} ${pct(st.paceT[p] / all)}`);
       return html`<p class="muted">${t("vt.pace.done", { list: parts.join(" · ") })}</p>`;
     }
+    /** The control within reach: the next one when it is (two flags close together: the one to punch wins), else the nearest. */
     function nearest() {
       let best = null;
-      course.forEach((c, i) => { if (i === 0) return; const d = Math.hypot(c.x - st.x, c.z - st.z); if (d < REACH && (!best || d < best.d)) best = { i, d }; });
+      course.forEach((c, i) => { if (i === 0) return; const d = Math.hypot(c.x - st.x, c.z - st.z); if (d < REACH && (!best || i === st.next || (best.i !== st.next && d < best.d))) best = { i, d }; });
       return best;
     }
     function punch() {
@@ -878,6 +879,36 @@ export function mount(root, raceId, opts = {}) {
       if (st.t - st.lastTrack >= 1) { st.track.push([st.t, st.x, st.z]); st.lastTrack = st.t; }
     }
     let last = performance.now(), camPos = null, mapTick = 0, freeTick = 0;
+    // The third-person camera keeps the runner in sight (owner, 2026-11-25: at Gif's start a street tree's trunk stood between
+    // the camera and the runner): CAM_D m behind them when nothing is in the way, else swung round them (up to ±69°) to the side
+    // where the line of sight is clear of trunks, low crowns, tall rocks (world.sight) and a town's buildings (town.clear), the
+    // side kept while it stays clear; when none is, brought in front of what is in the way. Behind and clear (the usual case):
+    // one test a frame, as the walls' alone before; the other sides are looked at every third frame while something is in the
+    // way, the town's walls (the dearer test, ~0.1 ms) only for a side the trees leave better than the best found. Nothing
+    // allocated.
+    const CAM_D = 4.6, CAM_H = 2.5, SWINGS = [0.3, -0.3, 0.6, -0.6, 0.9, -0.9, 1.2, -1.2], want = new T.Vector3();
+    let swing = 0, swingGoal = 0, swingTick = 0, camX = 0, camY = 0, camZ = 0;
+    /** The camera swung by `a` round the runner (ground y): its place in camX/Y/Z, and how far toward it the sight is clear of
+     *  trees and rocks (0-1) and, when that is above `walls` (always by default), of a town's buildings too. */
+    function camSight(y, a, walls = -1) {
+      const yaw = st.yaw + a;
+      camX = st.x - Math.sin(yaw) * CAM_D; camZ = st.z + Math.cos(yaw) * CAM_D;
+      camY = Math.max(y + CAM_H, world.heightAt(camX, camZ) + 1.2);
+      let f = world.sight(st.x, y + 1.2, st.z, camX, camY, camZ);
+      if (f > walls && world.town) f = Math.min(f, world.town.clear(st.x, st.z, camX, camZ));
+      return f;
+    }
+    /** The side to swing to: behind when clear, else the clearest, a wider swing a little less liked, the side held a little more. */
+    function swingFor(y) {
+      const f0 = camSight(y, 0); if (f0 >= 1) return 0;
+      let best = 0, bestS = f0 + (swingGoal === 0 ? 0.08 : 0);
+      for (let i = 0; i < SWINGS.length; i++) {
+        const a = SWINGS[i], k = -0.05 * Math.abs(a) + (a === swingGoal ? 0.08 : 0);
+        const s = camSight(y, a, bestS - k) + k;
+        if (s > bestS) { bestS = s; best = a; }
+      }
+      return best;
+    }
     const step = (now) => {
       raf = requestAnimationFrame(step);
       // The game keeps real time whatever the frame rate (owner, 2026-11-11: « the speed does not seem to have changed »):
@@ -904,23 +935,33 @@ export function mount(root, raceId, opts = {}) {
         gh.fig.visible = Math.hypot(p[0] - st.x, p[1] - st.z) < 220;
       }
       const dx = Math.sin(st.yaw), dz = -Math.cos(st.yaw);
-      let want;
-      if (st.view === "first") want = new T.Vector3(st.x, y + 1.7, st.z);
-      else { want = new T.Vector3(st.x - dx * 4.6, y + 2.5, st.z - dz * 4.6); want.y = Math.max(want.y, world.heightAt(want.x, want.z) + 1.2); }
-      if (world.town && st.view === "third") { const f = world.town.clear(st.x, st.z, want.x, want.z); if (f < 1) { want.x = st.x + (want.x - st.x) * f; want.z = st.z + (want.z - st.z) * f; } }  // a town's walls: the camera stays in the street
+      if (st.view === "first") { want.set(st.x, y + 1.7, st.z); swing = swingGoal = 0; }
+      else {
+        // behind the runner, swung round them to where nothing hides them (camSight), then brought in front of what is still in
+        // the way — a town's walls, a trunk —, as the walls alone did before
+        swing += (swingGoal - swing) * Math.min(1, dt * 5); if (Math.abs(swingGoal - swing) < 0.002) swing = swingGoal;
+        const f = camSight(y, swing), wx = st.x + (camX - st.x) * f, wy = camY, wz = st.z + (camZ - st.z) * f;
+        if ((f < 1 || swing !== 0) && swingTick++ % 3 === 0) swingGoal = swingFor(y);   // something in the way, or swung: look round
+        want.set(wx, wy, wz);
+      }
       camPos = camPos && st.view === "third" ? camPos.lerp(want, Math.min(1, dt * 8)) : want.clone();
       camera.position.copy(camPos);
-      const look = st.view === "first" ? 10 : 4;
-      camera.lookAt(st.x + dx * look, y + (st.view === "first" ? 1.7 : 1.1) + Math.tan(st.pitch) * look, st.z + dz * look);
+      // the third-person camera looks over the runner along its own way round them, so that a swung camera keeps them centred
+      const look = st.view === "first" ? 10 : 4, lx = swing ? Math.sin(st.yaw + swing) : dx, lz = swing ? -Math.cos(st.yaw + swing) : dz;
+      camera.lookAt(st.x + lx * look, y + (st.view === "first" ? 1.7 : 1.1) + Math.tan(st.pitch) * look, st.z + lz * look);
       sun.position.set(st.x + SUN.x * 120, y + SUN.y * 120, st.z + SUN.z * 120); sun.target.position.set(st.x, y, st.z);
       ENV?.update(now, st.x, y, st.z, st.yaw, st.pitch);
-      // the controls' cues
-      const n = nearest();
-      course.forEach((c, i) => { if (i) world.cue(i, n && n.i === i ? 1 : Math.hypot(c.x - st.x, c.z - st.z) < 15 ? 0.25 : 0, now / 1000); });
+      // the controls' cues: the glow and « Espace pour poinçonner » only for the control that can be punched (the next one, the
+      // finish once every control is); a control already punched shows no glow and says so, one out of order or the finish too
+      // early says what a punch there would (owner, 2026-11-25: « Poste 34 — Espace pour poinçonner » stayed after punching it)
+      const n = nearest(), lastI = course.length - 1;
+      course.forEach((c, i) => { if (i) world.cue(i, i < st.next ? 0 : n && n.i === i && i === st.next ? 1 : Math.hypot(c.x - st.x, c.z - st.z) < 15 ? 0.25 : 0, now / 1000); });
       const cueEl = $("#vt-cue", root);
       if (n && st.phase === "run") {
-        const c = course[n.i];
-        cueEl.textContent = n.i === course.length - 1 ? t("vt.cueFinish") : t("vt.cue", { code: c.code });
+        const c = course[n.i], can = n.i === st.next;
+        cueEl.textContent = can ? (n.i === lastI ? t("vt.cueFinish") : t("vt.cue", { code: c.code }))
+          : n.i < st.next ? t("vt.already", { code: c.code }) : n.i === lastI ? t("vt.finishNotYet", { n: lastI - st.next }) : t("vt.wrong", { code: c.code, n: st.next });
+        cueEl.classList.toggle("vt-cue-off", !can);
         cueEl.hidden = false;
       } else cueEl.hidden = true;
       if (st.msgUntil && now > st.msgUntil) { $("#vt-toast", root).hidden = true; st.msgUntil = 0; }
@@ -948,7 +989,7 @@ export function mount(root, raceId, opts = {}) {
       }
     };
     reset(); resize();
-    window.vtDebug = { st, mv, course, world, ghosts };          // for support and scripted tests (the console)
+    window.vtDebug = { st, mv, course, world, ghosts, cam: () => ({ swing, goal: swingGoal, x: camX, z: camZ }) };          // for support and scripted tests (the console)
     // build the chunks around the start before the first frame (within NEAR_START: the farther ones, in the haze, come during the
     // briefing), the shaders compiled in parallel (KHR_parallel_shader_compile: the first frame no longer waits for them one by
     // one), then « Partir »

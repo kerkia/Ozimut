@@ -116,6 +116,7 @@ export class World {
     this.chunks = new Map();
     this.queue = [];
     this.trunks = new Map();                       // 8 m cell -> [[x, z, r]]
+    this.occl = new Map();                         // 8 m cell (a × 65536 + b) -> [x, z, r, y0, y1, …]: what hides the runner (sight)
     this.wind = { value: 0 };
     this.t0 = performance.now();
     this.atmosphere(renderer);
@@ -178,6 +179,43 @@ export class World {
       if (list) for (const [tx, tz, tr, low] of list) if (low && (tx - x) ** 2 + (tz - z) ** 2 < tr * tr) f = Math.min(f, low);
     }
     return f;
+  }
+  /** How far from the runner's (ax, ay, az) toward the camera's (bx, by, bz) the line of sight stays clear of a trunk, a low
+   *  crown, a tall rock (0-1; 1: clear). Each obstacle is a vertical cylinder (its radius widened by half a body, so that the
+   *  runner is seen whole, by less when the runner stands right by it); one standing over the runner's own spot (a sapling the
+   *  runner is in, a trunk crossed slowly) is left out — no camera can help there. Allocation-free: called a few times a
+   *  frame for the third-person camera (virtually.js camSight). */
+  sight(ax, ay, az, bx, by, bz) {
+    const dx = bx - ax, dz = bz - az, dy = by - ay, L2 = dx * dx + dz * dz;
+    if (L2 < 1e-6) return 1;
+    const R = 6;                                   // the widest occluder's radius: the cells to look in
+    const c0 = Math.floor((Math.min(ax, bx) - R) / 8), c1 = Math.floor((Math.max(ax, bx) + R) / 8);
+    const d0 = Math.floor((Math.min(az, bz) - R) / 8), d1 = Math.floor((Math.max(az, bz) + R) / 8);
+    let best = 1;
+    for (let a = c0; a <= c1; a++) for (let b = d0; b <= d1; b++) {
+      const l = this.occl.get(a * 65536 + b); if (!l) continue;
+      for (let i = 0; i < l.length; i += 5) {
+        const ox = l[i] - ax, oz = l[i + 1] - az, r0 = l[i + 2], d2 = ox * ox + oz * oz;
+        if (d2 <= r0 * r0) continue;                             // over the runner: nothing to do
+        // half a body's width round it, less when the runner stands right by it (a trunk at the runner's back)
+        const r = d2 < (r0 + 0.6) * (r0 + 0.6) ? r0 + 0.5 * (Math.sqrt(d2) - r0) : r0 + 0.3, c = d2 - r * r;
+        const p = (ox * dx + oz * dz) / L2;                     // the closest approach along the line
+        if (p <= 0) continue;
+        const disc = p * p - c / L2; if (disc < 0) continue;
+        const s = Math.sqrt(disc), t0 = p - s, t1 = Math.min(1, p + s);
+        if (t0 >= best || t0 > 1) continue;
+        const ya = ay + dy * t0, yb = ay + dy * t1;            // the line's heights through the footprint
+        if (Math.max(ya, yb) < l[i + 3] || Math.min(ya, yb) > l[i + 4]) continue;
+        best = t0;
+      }
+    }
+    return best;
+  }
+  /** An obstacle to the line of sight (see sight()), kept with its chunk. */
+  occluder_(g, x, z, r, y0, y1) {
+    const key = Math.floor(x / 8) * 65536 + Math.floor(z / 8);
+    let l = this.occl.get(key); if (!l) { this.occl.set(key, (l = [])); g.userData.ocells.push(key); }
+    l.push(x, z, r, y0, y1);
   }
 
   // ---- materials and shapes -----------------------------------------------------------------------------------------------
@@ -349,10 +387,11 @@ export class World {
     c.traverse((o) => { if (o.isMesh && o.geometry && !Object.values(this.K).some((K) => K.geo === o.geometry)) o.geometry.dispose(); if (o.isInstancedMesh) o.dispose?.(); });
     this.scene.remove(c); this.chunks.delete(k);
     for (const key of c.userData.cells || []) this.trunks.delete(key);
+    for (const key of c.userData.ocells || []) this.occl.delete(key);
   }
   build(a, b) {
     const T = this.T, k = `${a},${b}`, x0 = a * CH, z0 = b * CH, x1 = Math.min(x0 + CH, this.W), z1 = Math.min(z0 + CH, this.H);
-    const g = new T.Group(); g.userData = { cx: (x0 + x1) / 2, cz: (z0 + z1) / 2, x0, x1, z0, z1, cells: [] };
+    const g = new T.Group(); g.userData = { cx: (x0 + x1) / 2, cz: (z0 + z1) / 2, x0, x1, z0, z1, cells: [], ocells: [] };
     const nx = Math.round(x1 - x0) + 1, nz = Math.round(z1 - z0) + 1;
     // vegetation from the densities (the map's, or the LiDAR's undergrowth), trees from the LiDAR when the package has them
     const r = rng((a * 73856093) ^ (b * 19349663) ^ 0x5eed);
@@ -403,6 +442,11 @@ export class World {
       }
       shadeAt(x, z, cr * 1.15, 0.32); shadeAt(x, z, 1.4, 0.25);
       this.trunk_(g, x, z, 0.12 + h * 0.008 + 0.35, TREE_SLOW);     // crossed slowly, never a wall
+      // what hides the runner from the third-person camera: the trunk, and a crown low enough to come between them (a sapling's,
+      // a young conifer's down to the ground, a spruce's lower whorls); a tall tree's crown stands above the camera
+      this.occluder_(g, x, z, 0.2 * (1 + h * 0.013), y - 0.2, y + h * 0.75);
+      const cb = isPine ? h < (this.B.youngH ?? 7) ? 0.1 : 0.34 : 0.4;          // the crown's bottom, a share of the height
+      if (cb * h < 4) this.occluder_(g, x, z, cr * (isPine ? 0.8 : 0.95), y + cb * h, y + h);
     };
     const B_ = this.fb.get(k) || { rocks: [], walls: [], points: [], trees: [] };
     for (const [x, z, h, cr] of B_.trees) addTree(x, z, h, cr);
@@ -446,6 +490,7 @@ export class World {
       // shape's top is ~0.74 of a unit, drawn × 1.3 h); a lower one is climbed over, slowly — the « solid » flag of build.py
       // took every boulder over 1.1 m across, knee-high ones too
       const top = 0.96 * h - sink;
+      if (top >= 1) this.occluder_(g, x, z, s * 0.4, y - sink, y + top);     // a boulder the runner may hide behind
       if (solid && top >= STEP_OVER) this.trunk_(g, x, z, s * 0.42);
       else if (top >= 0.35) this.trunk_(g, x, z, s * 0.42, top >= 0.7 ? 0.35 : 0.6);
     }
@@ -453,8 +498,8 @@ export class World {
       const y = this.heightAt(p.x, p.z);
       if (p.k === "bigtree" || p.k === "orchard") addTree(p.x, p.z, p.k === "bigtree" ? 24 : 7, p.k === "bigtree" ? 6 : 2.5);
       else if (p.k === "vegspec") inst.bush.push([p.x, y + 0.4, p.z, 1.2, 0.9, 1.2, 0, this.bushC[0]]);
-      else if (p.k === "tower") { inst.box.push([p.x, y, p.z, 1.6, 6, 1.6, 0, new T.Color(0x7a6a58)]); this.trunk_(g, p.x, p.z, 1); }
-      else if (p.k === "smallbuilding") { inst.box.push([p.x, y - 0.2, p.z, 4, 3, 4, (p.a || 0) * Math.PI / 180, new T.Color(0x9a8e80)]); this.trunk_(g, p.x, p.z, 2); }
+      else if (p.k === "tower") { inst.box.push([p.x, y, p.z, 1.6, 6, 1.6, 0, new T.Color(0x7a6a58)]); this.trunk_(g, p.x, p.z, 1); this.occluder_(g, p.x, p.z, 0.9, y, y + 6); }
+      else if (p.k === "smallbuilding") { inst.box.push([p.x, y - 0.2, p.z, 4, 3, 4, (p.a || 0) * Math.PI / 180, new T.Color(0x9a8e80)]); this.trunk_(g, p.x, p.z, 2); this.occluder_(g, p.x, p.z, 2.4, y, y + 3); }
       else if (p.k === "manmade") inst.box.push([p.x, y, p.z, 0.5, 1.2, 0.5, 0, new T.Color(0x8a8278)]);
     }
     // ground
