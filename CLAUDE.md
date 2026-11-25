@@ -4420,6 +4420,19 @@ Every multiple-choice game was played through to its score page at phone size, w
   (its stored render is read, conditioned): made again from the PDF it reads better. Still open: map 2's second route to 16
   along the bridge's wall, map 3's passage to 16 between the building and the forbidden area, map 1's route to 11 clipping
   an olive tip and a route to 10 along a contour through a building's corner.
+  **The rest of that list, 2026-11-25** (owner: « continue everything remaining »), three rules of a sharp image's reading:
+  (1) **a hatched area is trimmed to between its own marks** (`trimToInk`'s `reach`, `strong`): beyond the closing by 2 m, a
+  pixel stays out of bounds only with the setter's purple within 3 m on both sides along a row, a column or a diagonal — the
+  square closing filled the corner between two marks lying aslant, the sidewalk along map 3's closed crossroads (15-16) — and
+  the black line's blend at the area's edge, which has the ink's colour, does not count there; (2) **a narrow way pinched to
+  one pixel runs on** (sprintLayers: a single open pixel between closed ones next to a way's middle is its middle too, a
+  closed side being real ground, never two stripes of hatching); (3) **a light strip inside a building with no outline along
+  either side is ink printed over the house** (a brown contour over grey, three pixels of « street » map 1's route to 10 ran
+  along; 1.5 m at most): building, and a narrow way between two houses needs a black line along one side. Map 2's second
+  route to 16 and map 1's route to 11 were already right after the commit before (checked, no change). Gate (accepted, the one
+  before `baseline_2026-11-24_before_trim.json`): scan 1 olive 22 → 19 m, every route's grey 19 → 11 m and lines 11 → 6;
+  scan 2 lines 16 → 15 (13-14's terraces now open, routes judged right by the owner); scan 3 lines 3 → 6 and one track fewer
+  laid — 15-16's passage is now the best route (83 m) and the runner's detour (138 m) falls outside the variants kept.
 - **Languages: French, English, German and Spanish** (owner, 2026-10-17 French and English, open to everyone since 2026-10-18,
   `i18n.OPEN` true; **German and Spanish since 2026-11-01**: `i18n.LANGS`, catalogues `i18n/de.js`, `es.js`, `tracer.de.js`,
   `tracer.es.js`, long texts `content/<name>.de.js` / `.es.js`, e-mails in `_lib/templates.js`, `manifest.de|es.webmanifest`;

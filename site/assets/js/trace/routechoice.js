@@ -1789,13 +1789,38 @@ export function sprintLayers(O, P, pts = [], r = 0) {
         // ones: the closing that made the area spread it a few metres past them, over the street beside a number and the sidewalk
         // along a closed crossroads (the third scan's 16)
         if (over === P.over) over = over.slice();
-        trimToInk(px, (i) => inkAt(i) && !course[i] && glyph[i] !== 2, Math.round(2 / mpp), over, w);
+        const mark = (i) => inkAt(i) && !course[i] && glyph[i] !== 2;
+        const byBlack = (i) => { for (let j = -w; j <= w; j += w) for (let e = -1; e <= 1; e++) if (P.kind[i + j + e] === I_BLACK) return true; return false; };
+        trimToInk(px, mark, Math.round(2 / mpp), over, w, Math.round(3 / mpp), (i) => mark(i) && (P.kind[i] === I_PURPLE || !byBlack(i)));
       }
     }
   }
   // the lanes: open ground a pixel or two wide between closed ground on both sides (across, along or slantwise), which a cell
   // of two pixels would lose to the houses beside it (the narrow path north of control 4 on the Auray photo: 1 px, 2026-11-19)
   const lane = new Uint8Array(N), ar = O.area;
+  // a strip of ground right inside a building, no outline along either side: ink printed over the house, not ground — a brown
+  // contour comes out pale orange over the grey, three pixels of « street » through the house, and the routes ran along it (the
+  // Quiberon scan's route to 10, owner 2026-11-24). A building's edge is always drawn: a way between two houses has a black line
+  // along one side at least. Up to 1.5 m wide, on a sharp image
+  if (1.6 / mpp >= 4) {
+    const inB = (i) => ar[i] === A.GREY || ar[i] === A.BUILDING, maxS = Math.max(2, Math.round(1.5 / mpp)), fill = [];
+    const scan = (i0, st, n) => {
+      for (let t = 1; t < n - 1; t++) {
+        if (inB(i0 + t * st) || !inB(i0 + (t - 1) * st)) continue;
+        let e = t;
+        while (e < n - 1 && !inB(i0 + e * st)) e++;
+        if (e < n - 1 && e - t <= maxS) {
+          let edge = false;
+          for (let u = Math.max(0, t - 2); u <= Math.min(n - 1, e + 1) && !edge; u++) { const q = i0 + u * st; if (P.kind[q] === I_BLACK || block[q] || ar[q] === A.OOB || ar[q] === A.WATER) edge = true; }
+          if (!edge) for (let u = t; u < e; u++) fill.push(i0 + u * st);
+        }
+        t = e;
+      }
+    };
+    for (let y = 0; y < h; y++) scan(y * w, 1, w);
+    for (let x = 0; x < w; x++) scan(x, w, h);
+    for (const i of fill) ar[i] = A.BUILDING;
+  }
   // a gap drawn between two houses (a sharp image): a core — the paper, light and neutral, or its blend with the outlines (grey),
   // or the course's line printed across it — between two black outlines 2-5 px apart (0.7-1.7 m: a house is never that narrow),
   // houses beyond both: the houses' grey blurs over its edges and the gap was one block with them. A passage: its pixels open
@@ -1970,8 +1995,18 @@ export function sprintLayers(O, P, pts = [], r = 0) {
     const maxW = Math.round(3 / mpp), minLen = 3 / mpp, deep = cellSize(mpp, "sprint");
     // an area out of bounds is a way's side too: the sidewalk between a house and a closed crossroads (the third scan's 15-16,
     // 1.4 m: lost to the cells shared with the hatching)
+    // (one side at least is closed ground itself: a gap between two stripes of hatching is no way)
     const shut = (i) => shut0(i) || over?.[i] === 1;
     const mark = new Uint8Array(N);
+    // between two buildings a way has an outline along one side at least (a building's edge is always drawn): a light strip
+    // right inside the grey is ink printed over the building — a brown contour comes out pale orange over grey, three pixels wide,
+    // and was a « lane » through the house (the Quiberon scan's route to 10, owner 2026-11-24)
+    const house = (i) => ar[i] === A.GREY || ar[i] === A.BUILDING;
+    const edged = (a, b, st) => {
+      if (!house(a - st) || !house(b)) return true;
+      for (let t = -2; t <= 1; t++) if (P.kind[a + t * st] === I_BLACK || P.kind[b + t * st] === I_BLACK) return true;
+      return false;
+    };
     // the middle of a run's own ground (its warm pixels: the lines drawn along a way are in the run, and are not its middle)
     const middle = (from, to, st) => {
       if (!O.warm) return from + st * (((to - from) / st - 1) >> 1);
@@ -1985,7 +2020,7 @@ export function sprintLayers(O, P, pts = [], r = 0) {
         if (shut(row + x) || !shut(row + x - 1)) continue;
         let e = x;
         while (e < w - 1 && !shut(row + e)) e++;
-        if (e < w - 1 && e - x >= 2 && e - x <= maxW) { const mid = middle(row + x, row + e, 1); if (mid >= 0) mark[mid] |= 1; }
+        if (e < w - 1 && e - x >= 2 && e - x <= maxW && (shut0(row + x - 1) || shut0(row + e)) && edged(row + x, row + e, 1)) { const mid = middle(row + x, row + e, 1); if (mid >= 0) mark[mid] |= 1; }
         x = e;
       }
     }
@@ -1993,8 +2028,26 @@ export function sprintLayers(O, P, pts = [], r = 0) {
       if (shut(y * w + x) || !shut((y - 1) * w + x)) continue;
       let e = y;
       while (e < h - 1 && !shut(e * w + x)) e++;
-      if (e < h - 1 && e - y >= 2 && e - y <= maxW) { const mid = middle(y * w + x, e * w + x, w); if (mid >= 0) mark[mid] |= 2; }
+      if (e < h - 1 && e - y >= 2 && e - y <= maxW && (shut0((y - 1) * w + x) || shut0(e * w + x)) && edged(y * w + x, e * w + x, w)) { const mid = middle(y * w + x, e * w + x, w); if (mid >= 0) mark[mid] |= 2; }
       y = e;
+    }
+    // a way pinched to one pixel for a metre or so (its light blended into the lines along it) runs on: a single open pixel
+    // between closed ones, next to a way's middle, is its middle too — never a way by itself (a hairline between two houses).
+    // The third scan's sidewalk between a house and a closed crossroads, 15-16: two pixels wide, then one, then two (2026-11-25)
+    for (let pass = 0, grown = 1; pass < Math.ceil(1.5 / mpp) && grown; pass++) {
+      const add = [];
+      for (let y = 1; y < h - 1; y++) for (let x = 1; x < w - 1; x++) {
+        const i = y * w + x;
+        if (!mark[i]) continue;
+        for (let dy = -w; dy <= w; dy += w) for (let dx = -1; dx <= 1; dx++) {
+          const q = i + dy + dx;
+          if (mark[q] || shut(q)) continue;
+          const bit = (shut(q - 1) && shut(q + 1) && (shut0(q - 1) || shut0(q + 1)) ? 1 : 0) | (shut(q - w) && shut(q + w) && (shut0(q - w) || shut0(q + w)) ? 2 : 0);
+          if (bit) add.push(q, bit);
+        }
+      }
+      for (let k = 0; k < add.length; k += 2) mark[add[k]] |= add[k + 1];
+      grown = add.length;
     }
     // the pieces of a way: each with its line (its pixels' main direction) and its two ends. A contour, the course's line or a
     // north line printed across a way takes the ground of what lies beside it — the gardens — and cut it in two (the Auray
@@ -3080,7 +3133,8 @@ function legSearchOnce(X, pa, pb, relax) {
 /** An area's pixels (px, image indices, row width w) kept only where ink(i) closed by d px covers them (dilated, then eroded:
  *  the space between stripes filled, nothing past the outer ones): over set to 0 elsewhere. A square neighbourhood, on the area's
  *  box, what lies outside the box not eroding it. */
-function trimToInk(px, ink, d, over, w) {
+function trimToInk(px, ink, d, over, w, reach = 0, strong = null) {
+  const done = () => { for (const i of px) { const x = i % w, y = (i - x) / w; if (!V[(y - y0) * bw + x - x0]) over[i] = 0; } };
   let x0 = Infinity, y0 = Infinity, x1 = -1, y1 = -1;
   for (const i of px) { const x = i % w, y = (i - x) / w; if (x < x0) x0 = x; if (x > x1) x1 = x; if (y < y0) y0 = y; if (y > y1) y1 = y; }
   const bw = x1 - x0 + 1, bh = y1 - y0 + 1, H = new Uint8Array(bw * bh), V = new Uint8Array(bw * bh);
@@ -3119,7 +3173,21 @@ function trimToInk(px, ink, d, over, w) {
       if (y >= 0) V[y * bw + x] = run > 0 ? 0 : 1;
     }
   }
-  for (const i of px) { const x = i % w, y = (i - x) / w; if (!V[(y - y0) * bw + x - x0]) over[i] = 0; }
+  // and between the marks: ink within reach on both sides along a row, a column or a diagonal. A square closing also fills the
+  // corner between two marks that lie aslant of each other — the sidewalk a metre wide between a house and the slanting edge of a
+  // closed crossroads (the third scan's 15-16, 2026-11-25). `strong`, when given, says which ink counts there (a black line's
+  // blend with the ground beside the area is the ink's colour too, and lies along the area's edge, on its far side as well)
+  if (!reach) return done();
+  const N = over.length, dg = Math.max(1, Math.round(reach / Math.SQRT2)), mark = strong || ink, seek = (i, st, n, xs) => {
+    for (let t = 1, k = i + st, x = (i % w) + xs; t <= n && k >= 0 && k < N && x >= 0 && x < w; t++, k += st, x += xs) if (mark(k)) return true;
+    return false;
+  };
+  for (const i of px) {
+    const x = i % w, y = (i - x) / w;
+    if (!V[(y - y0) * bw + x - x0]) { over[i] = 0; continue; }
+    if (ink(i)) continue;
+    if (!((seek(i, -1, reach, -1) && seek(i, 1, reach, 1)) || (seek(i, -w, reach, 0) && seek(i, w, reach, 0)) || (seek(i, -w - 1, dg, -1) && seek(i, w + 1, dg, 1)) || (seek(i, -w + 1, dg, 1) && seek(i, w - 1, dg, -1)))) over[i] = 0;
+  }
 }
 /** The point of cell k (map px) nearest map px p, a quarter of a cell inside it. */
 function besideAt(X, k, p) {
