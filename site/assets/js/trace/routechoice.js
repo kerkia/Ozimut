@@ -3056,11 +3056,14 @@ export function legSearch(X, pa, pb) {
   // slantwise lanes between two closed cells too (that courtyard's way out), then any cell within half a circle, and last any
   // closed ground that is no drawn wall, at a crawl: an area misread (the course's line across a narrow lane read as the gardens
   // beside it: the Auray scan's control 8, 2026-11-21) never leaves a control without a route; a wall still does
-  let q = legSearchOnce(X, pa, pb, 0);
+  // (q.fallback: how far down that list the leg had to go, 0 for none — a control shut in by a misreading shows there: the
+  // Auray scan's 14, reached only « at a crawl » since 2026-11-24, which nothing measured)
+  let q = legSearchOnce(X, pa, pb, 0), fallback = 0;
   for (let relax = 1; relax <= 4 && !q.routes?.length; relax++) {
-    X.loose = relax >= 2;
+    X.loose = relax >= 2; fallback = relax;
     try { q = legSearchOnce(X, pa, pb, relax === 3 ? 2 : relax === 4 ? 3 : 1); } finally { X.loose = false; }
   }
+  q.fallback = fallback;
   return q;
 }
 function legSearchOnce(X, pa, pb, relax) {

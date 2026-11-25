@@ -4479,6 +4479,16 @@ Every multiple-choice game was played through to its score page at phone size, w
   olive 19 → 16 m, buildings 11 → 9 m, every route's lines 6 → 9; scan 2 lines 15 → 12, olive 8 → 11 m; scan 3 lines 12 → 10.
   **The page reads a scanned PDF at the scan's own pixels only when the PDF is dropped** (`readMap`'s `native`); an analysis
   reopened from a stored map reads the stored 4200 px render, which differs.
+  **A regression found, 2026-11-25** (owner: « a previous version had computed routes through those stairs, both directions »):
+  until 2026-11-23 the page read a scanned PDF from its 4200 px render shrunk to ~9 Mpx, and the passage from 14 up to its
+  stairway was read there (66bfc9a); since 3e5c65d it reads the scan's own pixels, better almost everywhere, but that passage
+  (2-3 px of yellow between thick walls) breaks into pieces — the version of the 23rd fails on those pixels too. The gate had
+  not seen it: a leg routed only by the search's fallback (closed ground at a crawl) counted as a leg with routes. Now
+  `legSearch` returns `fallback` (0 none, 1-4 the step needed) and the gate counts those legs per set (`fb`) and refuses more of
+  them (baseline: scan 1 two — 12-13 and 13-14, control 13 —, scan 2 two — 13-14 and 14-15, control 14). **A kept calibration
+  of an earlier reading shows « Inter-postes »** when today's chain of printed legs takes every kept control in the kept
+  order, whatever circles today's reading finds besides (the check of 2026-11-24 asked the same list to 2 px, and map 1 kept by
+  an earlier reading lost the tab again; deleting an analysis leaves this browser's calibration, which a new drop restores).
 - **Languages: French, English, German and Spanish** (owner, 2026-10-17 French and English, open to everyone since 2026-10-18,
   `i18n.OPEN` true; **German and Spanish since 2026-11-01**: `i18n.LANGS`, catalogues `i18n/de.js`, `es.js`, `tracer.de.js`,
   `tracer.es.js`, long texts `content/<name>.de.js` / `.es.js`, e-mails in `_lib/templates.js`, `manifest.de|es.webmanifest`;

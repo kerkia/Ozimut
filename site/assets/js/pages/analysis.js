@@ -1106,13 +1106,16 @@ export async function render(main, { query = {}, route } = {}) {
       // legs gives the very order kept, the sequence is known — « Inter-postes » was missing beside « Itinéraires », which
       // listed every leg (owner, 2026-11-24)
       if (!mapOrdered && !taus && !files.iof && course && fit) {
-        const n0 = notes.length, placed = targets.filter((g) => g.pos);
+        const n0 = notes.length, placed = targets.filter((g) => g.pos).map((g) => ({ kind: g.kind, code: g.code, pos: g.pos }));
         let seq = null;
-        try { seq = courseOrder(fit, placed.map((g) => ({ kind: g.kind, code: g.code, pos: g.pos }))); } catch (e) { seq = null; }
+        try { seq = courseOrder(fit, placed); } catch (e) { seq = null; }
         // (the start apart: placed where the trace waits when no printed leg leads to it, it is not in the map's chain)
+        // (the kept controls themselves, as today's chain takes them — within its circle's reach: a circle the reading of today finds
+        // and the kept one has not is no reason to doubt the order, owner 2026-11-25: map 1 kept by an earlier reading lost
+        // « Inter-postes » again)
         const body = (l) => l.filter((p) => p.kind !== "start");
-        const a = seq ? body(seq) : [], b = body(placed);
-        const same = a.length >= 3 && a.length === b.length && a.every((p, i) => p.kind === b[i].kind && Math.hypot(p.pos[0] - b[i].pos[0], p.pos[1] - b[i].pos[1]) < 2);
+        const b = body(placed), mine = new Set(b), a = seq ? body(seq).filter((p) => mine.has(p)) : [];
+        const same = a.length >= 3 && a.length === b.length && a.every((p, i) => p === b[i]);
         if (same) { mapOrdered = true; recompute({ geometry: fit }); } else notes.length = n0;
       }
       cur = nextTarget(0);
