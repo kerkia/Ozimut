@@ -4497,6 +4497,18 @@ Every multiple-choice game was played through to its score page at phone size, w
   of an earlier reading shows « Inter-postes »** when today's chain of printed legs takes every kept control in the kept
   order, whatever circles today's reading finds besides (the check of 2026-11-24 asked the same list to 2 px, and map 1 kept by
   an earlier reading lost the tab again; deleting an analysis leaves this browser's calibration, which a new drop restores).
+  **Both shut-in controls opened again, the same day** (owner: « yes, go on »): (1) on a scan, open land survives the « a thin
+  yellow is a blend » test from 3 px wide (5 before: the terrace at 14, 4-6 px of yellow with blends among it, was cleared and
+  taken by the walls); (2) a wall is carried under a tree symbol only when both pieces have a direction there (a wall's corner, a
+  blob of black, carries nothing); (3) the strip between two thick walls is read before the narrow ways (so their joins and
+  marks see it as open ground), up to 7 px wide with its blurred edges — the slit from 14 up to its stairway widens to 6-7 px
+  where it meets the landing; (4) on a scan a colour as bright as the paper (245) and 3° yellower than the olive is open land,
+  whatever the olive-yellow model says: map 1's olive is 217 bright, and the strip of rough open land where its control 13
+  stands (255 226 54, 51°) read as garden. Map 2: 13-14 258 m, along the quay and the street, down the stairway and the slit to
+  14 (the terraces second), 14-15 up the stairway, then north round or down the street and right through the underpass. Gate
+  (accepted, the previous one `baseline_2026-11-25_before_passage.json`): no leg by the fallback anywhere (4 before); scan 1
+  tracks laid 22 → 24 of 24, olive on every route 35 → 28 m; scan 2 laid 15 → 16, lines 12 → 7, grey 10 → 4 m, olive 11 → 7 m;
+  scan 3 lines 10 → 13 on every route (a fence's end at control 9, a lane's mouth on 16-17).
 - **Languages: French, English, German and Spanish** (owner, 2026-10-17 French and English, open to everyone since 2026-10-18,
   `i18n.OPEN` true; **German and Spanish since 2026-11-01**: `i18n.LANGS`, catalogues `i18n/de.js`, `es.js`, `tracer.de.js`,
   `tracer.es.js`, long texts `content/<name>.de.js` / `.es.js`, e-mails in `_lib/templates.js`, `manifest.de|es.webmanifest`;

@@ -114,7 +114,10 @@ export function kindOf(r, g, b, ol = null) {
       if (ol.sharp && hue >= ol.oh + 5 && max >= ol.om + 35) return A.G1;
       // and one far brighter than its olive, whatever its hue, is a yellow (open land, rough open): a pale yellow of olive's hue
       // (247 240 125, 57° on the second Auray scan, 72 above its olive) shut the metre-wide passage down to control 14
-      if (ol.sharp && max >= ol.om + 50) { const y = (max - b) / max; return y > 0.55 ? A.OPEN : y > 0.15 ? A.ROUGH : A.WHITE; }
+      // (and, on a scan, one as bright as the paper and yellower than its olive: olive ink is never that bright on a scan — the
+      // Quiberon scan's olive is 217 bright, its open land 255 226 54 at 51° came nearer olive than its yellows and shut the strip
+      // where control 13 stands, 2026-11-25)
+      if (ol.sharp && (max >= ol.om + 50 || (max >= 245 && hue < ol.oh - 3))) { const y = (max - b) / max; return y > 0.55 ? A.OPEN : y > 0.15 ? A.ROUGH : A.WHITE; }
       const dO = ((hue - ol.oh) / 4) ** 2 + ((max - ol.om) / 40) ** 2, dY = ((hue - ol.yh) / 4) ** 2 + ((max - ol.ym) / 40) ** 2;
       if (dO < dY) return max < 200 && hue < ol.oh - 6 ? I_MIXED : I_OLIVE;
       if (max >= 200) { const y = (max - b) / max; return y > 0.55 ? A.OPEN : y > 0.15 ? A.ROUGH : A.WHITE; }
@@ -895,7 +898,9 @@ export function classify(rgba0, w, h, mpp, opt = {}, progress = () => {}) {
       if (!any) continue;
       // (on a sharp image a metre wide, as the other areas: a patch of open land 4 m across is one — the corner of a park
       // where the Auray scan's control 6 stands took the gardens' olive from beside it)
-      const kk = sharp ? Math.max(2, Math.round(0.5 / mpp)) : k, open = morph(morph(m, w, h, kk, true), w, h, kk, false);
+      // (and open land three pixels wide: a scan's blends are a pixel, and the terrace of the Auray scan's control 14, 4-6 px of
+      // yellow between walls with blends among them, was cleared and taken by the walls, 2026-11-25)
+      const kk = sharp ? (test === green ? Math.max(2, Math.round(0.5 / mpp)) : 1) : k, open = morph(morph(m, w, h, kk, true), w, h, kk, false);
       for (let i = 0; i < N; i++) if (m[i] && !open[i]) area[i] = UNKNOWN;
     }
     // (on a sharp image a round patch of green under 3 m across is a point symbol — a prominent tree or bush in its white ring,
@@ -1331,7 +1336,8 @@ function thickBlack(rgba, w, h, mpp) {
     const ax = a % w, ay = (a - ax) / w, bx = b % w, by = (b - bx) / w, L = Math.hypot(bx - ax, by - ay);
     if (L < 2) return true;
     const ux = (bx - ax) / L, uy = (by - ay) / L;
-    for (const [p, id] of [[a, lab[a]], [b, lab[b]]]) { const d = dirAt(p, id); if (d && Math.abs(d[0] * ux + d[1] * uy) < Math.cos((40 * Math.PI) / 180)) return false; }
+    // (a piece with no direction there — a wall's corner, a blob of black — carries nothing on: the corner of the terrace by 14)
+    for (const [p, id] of [[a, lab[a]], [b, lab[b]]]) { const d = dirAt(p, id); if (!d || Math.abs(d[0] * ux + d[1] * uy) < Math.cos((40 * Math.PI) / 180)) return false; }
     return true;
   };
   for (let step = reach; step > 0 && front.length; step--) {
@@ -2024,6 +2030,41 @@ export function sprintLayers(O, P, pts = [], r = 0) {
       if (a && b && a + b <= 3) { lane[i] = 1; break; }
     }
   }
+  // a strip of ground between two thick walls (thickBlack), 1-7 px wide (2.4 m, its blurred edges with it: where a passage
+  // meets its stairway's landing) and 3 m long at least, some of it the ground's own warm
+  // colour: a passage — the scan prints a metre-wide way between walls as two or three pixels of yellow, which the walls' blur
+  // and the reading's fill gave to the walls (the Auray scan's control 14, at the foot of such a passage up to a stairway:
+  // owner, 2026-11-25). Its pixels open ground and a narrow way's middle
+  if (1.6 / mpp >= 4 && O.thick && O.warm) {
+    const tk = (q) => O.thick[q] === 4 || O.thick[q] === 2, gap = new Uint8Array(N), runs = [];
+    for (const [st, n0, n1, step] of [[1, h, w, w], [w, w, h, 1]]) {
+      for (let a0 = 1; a0 < n0 - 1; a0++) {
+        const base = a0 * step;
+        for (let t = 2; t < n1 - 6; t++) {
+          const i = base + t * st;
+          if (tk(i) || !tk(i - st) || !tk(i - 2 * st)) continue;
+          let e = 0;
+          while (e < 8 && !tk(i + e * st)) e++;
+          if (e === 8 || !tk(i + e * st) || !tk(i + (e + 1) * st)) continue;
+          let warm = false;
+          // (the ground's colour, or its blend with the walls: yellow over olive's hue, a mixed tint — not black, grey or ink)
+          for (let u = 0; u < e; u++) { const q = i + u * st, v = P.kind[q]; if ((O.warm[q] && v !== I_BLACK) || v === I_OLIVE || v === I_MIXED || v < 20) warm = true; }
+          if (warm) for (let u = 0; u < e; u++) gap[i + u * st] = 1;
+          t += e;
+        }
+      }
+    }
+    // (a row missed here and there, where the strip's colour is lost in the walls': grouped through a pixel's margin)
+    const { lab, comps } = components(morph(gap, w, h, 1, false), w, h, true);
+    for (let i = 0; i < N; i++) {
+      const id = lab[i];
+      if (!id || !gap[i]) continue;
+      const c = comps[id];
+      if (Math.hypot(c.x1 - c.x0 + 1, c.y1 - c.y0 + 1) * mpp < 3) continue;
+      lane[i] = 2; block[i] = 0;
+      if (ar[i] === A.GREY || ar[i] === A.BUILDING || ar[i] === A.OOB) ar[i] = A.ROUGH;
+    }
+  }
   // where the image shows a line's width (a scan), the narrow ways too: open ground up to 3 m wide (with the lines drawn along it) between closed ground or
   // walls on both sides, 3 m long at least — a lane between a house and a garden wall, a passage between two walls. The route
   // grid's cell is as wide as they are and a wall beside them closes every cell it touches: the lane was lost, and the runners'
@@ -2190,40 +2231,6 @@ export function sprintLayers(O, P, pts = [], r = 0) {
       }
     }
     for (const k of banks) block[k] = 1;
-  }
-  // a strip of ground between two thick walls (thickBlack), 1-4 px wide and 3 m long at least, some of it the ground's own warm
-  // colour: a passage — the scan prints a metre-wide way between walls as two or three pixels of yellow, which the walls' blur
-  // and the reading's fill gave to the walls (the Auray scan's control 14, at the foot of such a passage up to a stairway:
-  // owner, 2026-11-25). Its pixels open ground and a narrow way's middle
-  if (1.6 / mpp >= 4 && O.thick && O.warm) {
-    const tk = (q) => O.thick[q] === 4 || O.thick[q] === 2, gap = new Uint8Array(N), runs = [];
-    for (const [st, n0, n1, step] of [[1, h, w, w], [w, w, h, 1]]) {
-      for (let a0 = 1; a0 < n0 - 1; a0++) {
-        const base = a0 * step;
-        for (let t = 2; t < n1 - 6; t++) {
-          const i = base + t * st;
-          if (tk(i) || !tk(i - st) || !tk(i - 2 * st)) continue;
-          let e = 0;
-          while (e < 4 && !tk(i + e * st)) e++;
-          if (e === 4 || !tk(i + e * st) || !tk(i + (e + 1) * st)) continue;
-          let warm = false;
-          // (the ground's colour, or its blend with the walls: yellow over olive's hue, a mixed tint — not black, grey or ink)
-          for (let u = 0; u < e; u++) { const q = i + u * st, v = P.kind[q]; if ((O.warm[q] && v !== I_BLACK) || v === I_OLIVE || v === I_MIXED || v < 20) warm = true; }
-          if (warm) for (let u = 0; u < e; u++) gap[i + u * st] = 1;
-          t += e;
-        }
-      }
-    }
-    // (a row missed here and there, where the strip's colour is lost in the walls': grouped through a pixel's margin)
-    const { lab, comps } = components(morph(gap, w, h, 1, false), w, h, true);
-    for (let i = 0; i < N; i++) {
-      const id = lab[i];
-      if (!id || !gap[i]) continue;
-      const c = comps[id];
-      if (Math.hypot(c.x1 - c.x0 + 1, c.y1 - c.y0 + 1) * mpp < 3) continue;
-      lane[i] = 2; block[i] = 0;
-      if (ar[i] === A.GREY || ar[i] === A.BUILDING || ar[i] === A.OOB) ar[i] = A.ROUGH;
-    }
   }
   // the two levels of an underpass: the upper level's edge at each mouth is a wall (underpasses: a drop; the passage itself is a
   // link between its mouths). The routes of the Auray scan's 14-15 came along the lower road to the mouth and stepped up onto
