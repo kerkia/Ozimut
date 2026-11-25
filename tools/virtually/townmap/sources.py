@@ -96,10 +96,13 @@ class Osm:
             for m in e.get("members", []):
                 if m.get("type") == "way" and m.get("geometry") and len(m["geometry"]) >= 2:
                     (inners if m.get("role") == "inner" else outers).append(LineString(self._pts(m["geometry"])))
-            ps = list(shapely.polygonize(outers).geoms) if outers else []
+            # (the members noded first: two closed outers sharing an edge — a house and its annex, as the cadastre's import draws
+            # them — polygonized as they came gave nothing, and the building fell back to BD TOPO's outline a metre off:
+            # 2026-11-25, 3 of Gif's 14 building relations, another one's area 364 m² of 432)
+            ps = list(shapely.polygonize([unary_union(outers)]).geoms) if outers else []
             g = unary_union(ps) if ps else None
             if g is not None and inners:
-                g = g.difference(unary_union(list(shapely.polygonize(inners).geoms)))
+                g = g.difference(unary_union(list(shapely.polygonize([unary_union(inners)]).geoms)))
             return g
         return None
 

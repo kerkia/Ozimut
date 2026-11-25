@@ -298,6 +298,19 @@ class Report:
                 "manual": [r["id"] for r in self.cat["rules"] if r["kind"] == "manual"]}
 
 
+def mouth_zone(g, k):
+    """Where black lines give way round 512.1's triangles (0.7 mm a side, on the line's right): the triangles and 0.15 mm round
+    them, with a little slack (ISSprOM 512.1: « A cartographic gap of 0.15 mm shall apply to the black objects pointing towards
+    the peaks of the triangles »)."""
+    cs = list(g.coords)
+    a, b = cs[0], cs[-1]
+    dx, dy = b[0] - a[0], b[1] - a[1]
+    L = math.hypot(dx, dy) or 1.0
+    th = 0.7 * math.sqrt(3) / 2 * k
+    rx, ry = dy / L * th, -dx / L * th
+    return Polygon([a, b, (b[0] + rx, b[1] + ry), (a[0] + rx, a[1] + ry)]).buffer((0.15 + 0.1) * k + 0.2)
+
+
 def check(doc, fix=False, frame=None, log=print, decks=None):
     """Checks a map_objects.json document (never changed); returns the Report. Coordinates in map mm about doc['realWorld'];
     frame: the map's box in Lambert 93 (default the extent of its areas). decks: the bridges' decks (Lambert 93), whose sides the
@@ -579,7 +592,9 @@ def _check(doc, frame, log, decks):
             if c == "white" and s.distance(frame.exterior) < 0.05:   # the map's edge, not a strip between areas
                 continue
             rule = "sliver" if c == "white" else "width"
-            if c == "521" and near_edge(s):
+            # (an area the map's edge cuts is narrow there, not on the ground: any class, as for the buildings — 2026-11-25, Gif's
+            # « 401 0.1 m wide » was a strip of open land between a building and the frame)
+            if c != "white" and near_edge(s):
                 continue
             # (a white crack between two areas that touch, narrower than a boundary line, prints as nothing — as for the white
             # openings: not reported)
@@ -623,6 +638,7 @@ def _check(doc, frame, log, decks):
         EL = unary_union([f["g"].buffer(_eb(c)) for c in RULES["edgeLines"] for f in by.get(c, []) if f["otp"] == 2]
                          + [f["g"].buffer((RULES["points"][c] + RULES["lineGapMm"] + 0.1) * k + 0.6)
                             for c in ("526", "531", "524") if c in RULES["points"] for f in by.get(c, []) if f["otp"] == 1]
+                         + [mouth_zone(f["g"], k) for f in by.get("512.1", []) if f["otp"] == 2]
                          or [Polygon()])
         shapely.prepare(EL)
         for pc in RULES["paving"]:

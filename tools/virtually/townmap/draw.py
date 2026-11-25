@@ -24,7 +24,8 @@ AREA_SYM = {"open": S(401), "open_t": S(402), "slow": S(406), "walk": S(408), "f
 PT_R = {417: 0.7, 418: 0.4, 526: 0.5, 531: 0.85, 311: 0.59, 524: 0.5}   # point symbols' radii, mm (legibility.json's)
 PT_MASK = {417: 0.7, 418: 0.4}                             # a tree symbol's white mask, mm from its centre
 PT_GAP = 0.15 + 0.02                                        # mm between two point symbols (0.15 mm, ISSprOM 3.3)
-MIN_522 = (2.05, 4.0)                                       # a canopy's minimum width (0.5 mm) and area (0.25 mm²), m and m²
+STAIR_MIN = 2 * 0.47 + 0.05                                 # mm: three steps of 532 (its treads every 0.47 mm, the first at its start)
+MIN_522 = (2.05, 4.0)                                      # a canopy's minimum width (0.5 mm) and area (0.25 mm²), m and m²
 LINE_GAP = 0.15                                             # mm between two black lines side by side (ISSprOM 3.3)
 BLACK = {S(513, 1): 0.21, S(513, 2): 0.21, S(515): 0.4, S(516): 0.21, S(518): 0.4, S(521, 9): 0.14, S(522, 9): 0.1, S(529): 0.4}
 PASSABLE_MIN = {S(513, 1): 5.65, S(513, 2): 5.65, S(516): 8.85}   # m: 1.4 mm, 2.2 mm
@@ -303,6 +304,26 @@ def run(env, s, t, a, d):
     pav = a.PAVED_ALL.buffer(0.3)
     steps = [(g, sw) for g, sw in a.stair_pieces if g.length > 0 and g.intersection(a.OLIVE_IN).length < 0.5 * g.length
              and g.intersection(pav).length >= 0.5 * g.length]
+    # three graphical steps at least (ISSprOM 532: « Minimum length: 3 (graphical) steps »; IOF, Best practices for sprint mapping
+    # 2025, n° 37: « Short stairs are lengthened to include 3 steps … Minor stairs can be removed all together »): a shorter
+    # stairway is drawn on straight at both ends to that length where it stays on paving, clear of buildings and of the ground not to
+    # be entered — else it is a minor stairway (to a door, between two gardens) and left out
+    n_long = n_minor = 0
+    kept_ = []
+    B_in = B.buffer(-0.1)
+    chains = lines(merge_lines(union([g for g, _ in steps]))) if steps else []
+    for g, sw in steps:
+        # (a stairway drawn in pieces of different widths counts whole)
+        whole = max([c.length for c in chains if c.distance(g) < 0.05] or [g.length])
+        if whole >= STAIR_MIN * k_:
+            kept_.append((g, sw)); continue
+        g2 = at_least(g, STAIR_MIN * k_)
+        ext = g2.difference(g.buffer(0.05, cap_style="flat"))
+        if ext.difference(pav).length <= 0.1 and not ext.intersects(B_in) and not ext.intersects(a.OLIVE_IN):
+            kept_.append((g2, sw)); n_long += 1
+        else:
+            n_minor += 1
+    steps = kept_
     # a stairway that runs along an uncrossable wall or fence is drawn clear of it, 0.15 mm between the two symbols (the owner,
     # 2026-11-24, east of the church: « pas terrible » — a stairway's boxes drawn into a fence's line and ticks)
     imp_l = [LineString([(env.CX + x * k_, env.CY + y * k_) for x, y in o["rings"][0]]) for o in d.objects
@@ -331,7 +352,8 @@ def run(env, s, t, a, d):
             side += g.length * (1 if (p1.x - p0.x) * (m.y - p0.y) - (p1.y - p0.y) * (m.x - p0.x) < 0 else -1)   # (+: on its right)
         if side > 0:
             o["rings"][0] = o["rings"][0][::-1]; flipped += 1
-    log("stairways", len(steps), "drawn clear of a wall or fence", moved, "fences turned round", flipped)
+    log("stairways", len(steps), "lengthened to three steps", n_long, "minor ones left out", n_minor, "drawn clear of a wall or fence", moved,
+        "fences turned round", flipped)
 
 
     # ---- water lines, the railway ------------------------------------------------------------------------------------------------
@@ -349,6 +371,7 @@ def run(env, s, t, a, d):
         d.line(s.RAIL.intersection(CLIP).difference(under), S(509, 1), 3)
     a.steps_drawn = steps
     points(env, s, t, a, d)
+    clear_mouths(env, d)
     helpers(env, s, d)
     for o in d.objects:
         o.pop("deck", None)
@@ -437,17 +460,31 @@ def close_ends(env, s, a, d):
         cs = to_m(o["rings"][0])
         for end in (0, -1):
             e = Point(cs[end])
-            near = [(feats[i][1].distance(e), i) for i in tree.query(e.buffer(GAP_M + HW)) if feats[i][0] is not o]
-            if not near or min(near)[0] <= TOUCH_M + HW:
+            # the gap is measured from the line as printed (0.4 mm wide, its end cut square): a wall ending aslant 1.6 m from a
+            # building leaves under 0.4 mm between the corner of its end and the building (2026-11-25, Gif's « 4 m² between
+            # 515/521 »: the centre line's end was 1.60 m away, the printed corner 0.9 m) — the check's own measure
+            L0 = LineString(cs)
+            tip = (substring(L0, 0, min(1.0, L0.length)) if end == 0 else substring(L0, max(0.0, L0.length - 1.0), L0.length))
+            tip = tip.buffer(HW, cap_style="flat") if tip.length > 0 else e.buffer(HW)
+            near = [(feats[i][1].distance(tip), feats[i][1].distance(e), i) for i in tree.query(tip.buffer(GAP_M)) if feats[i][0] is not o]
+            if not near or min(n_[1] for n_ in near) <= TOUCH_M + HW:
                 continue                                   # (touching already: closed)
-            dd, i = min(near)
-            if dd >= GAP_M:
+            # (a feature its printed side already lies against closes nothing at the end)
+            near = [(n_[0], n_[2]) for n_ in near if TOUCH_M < n_[0] < GAP_M]
+            if not near:
                 continue
+            dd, i = min(near)
             f_o, f_g = feats[i]
             tgt = LineString(to_m(f_o["rings"][0])) if f_o is not None else f_g.exterior
             q = nearest_points(tgt, e)[0]
             seg = LineString([e, q])
             L = LineString(cs)
+            if f_g.distance(e) >= GAP_M:                   # (only the printed corner is near: closed only straight ahead, within
+                nx_ = cs[1] if end == 0 else cs[-2]        # 60° — drawn on sideways it would make a hook)
+                ux, uy = e.x - nx_[0], e.y - nx_[1]; vx, vy = q.x - e.x, q.y - e.y
+                nu_, nv_ = math.hypot(ux, uy), math.hypot(vx, vy)
+                if nu_ < 1e-6 or nv_ < 1e-6 or (ux * vx + uy * vy) / (nu_ * nv_) < 0.5:
+                    continue
             if not ways.is_empty and seg.buffer(0.3).intersects(ways):
                 cut = GAP_M - dd + 0.05
                 if L.length > cut + 1.5:
@@ -747,9 +784,34 @@ def points(env, s, t, a, d):
     hedge = None if hedge is None or hedge.is_empty else hedge
     if hedge is not None:
         shapely.prepare(hedge)
+    # nor a tree symbol over the ground not to be entered: its white mask bites a hole in the olive, which then looks crossable
+    # (ISSprOM 520: « No feature shall be represented in this area, except very prominent features »; IOF, Best practices for
+    # sprint mapping 2025, n° 31: « Putting trees inside small areas that are out of bounds can be problematic if it makes some
+    # areas that are not to be crossed look crossable … Removing these trees makes the barriers clearer »). A tree standing beside
+    # it is moved off by up to 1 m (ISSprOM 3.3: neighbouring features displaced), else left out.
+    olive = a.OLIVE if not a.OLIVE.is_empty else None
+    if olive is not None:
+        shapely.prepare(olive)
+    off_olive = gone_olive = 0
     for pr, x, y, sym in cand:
         if no.contains(Point(x, y)):
             continue
+        if olive is not None:
+            need = PT_MASK[sym] * SCALE / 1000 + 0.05
+            p = Point(x, y)
+            dd = olive.distance(p)
+            if dd < need:
+                q = nearest_points(olive, p)[0]
+                dx, dy = x - q.x, y - q.y; nn = math.hypot(dx, dy)
+                ok = False
+                if nn > 0.01 and need - dd <= 1.0:
+                    x2, y2 = q.x + dx / nn * (need + 0.01), q.y + dy / nn * (need + 0.01)
+                    p2 = Point(x2, y2)
+                    ok = olive.distance(p2) >= need - 0.01 and not no.contains(p2)
+                if not ok:
+                    gone_olive += 1
+                    continue
+                x, y = x2, y2; off_olive += 1
         if hedge is not None and hedge.distance(Point(x, y)) < PT_MASK[sym] * SCALE / 1000 + 0.2:
             continue
         if any(math.dist((x, y), (k[0], k[1])) < (PT_R[sym] + PT_R[k[2]] + PT_GAP) * SCALE / 1000 for k in kept):
@@ -758,7 +820,8 @@ def points(env, s, t, a, d):
     for p in s.fountains:
         d.point(p.x, p.y, S(311))
     clear_points(env, a, d, [(p.x, p.y, 526) for p in s.monuments] + [(p.x, p.y, 524) for p in s.masts])
-    env.log("trees", len(kept) - n0, "of which LiDAR crowns standing alone", lone, "of", len(xy), "crowns")
+    env.log("trees", len(kept) - n0, "of which LiDAR crowns standing alone", lone, "of", len(xy), "crowns;", "moved off the olive", off_olive,
+            "left out over it", gone_olive)
 
 
 UNCROSS = {S(515): 0.4, S(518): 0.4, S(529): 0.4, S(521, 9): 0.14}   # black lines one may not open: the point symbol moves
@@ -830,6 +893,79 @@ def clear_points(env, a, d, pts):
                     out.append({**o, "rings": [[list(c) for c in q.coords]]})
         d.objects[:] = out
         env.log("black point symbols moved off a barrier", moved, "thin lines cut back round them", cut)
+
+
+MOUTH_TH = 0.7 * math.sqrt(3) / 2                           # 512.1's triangles: 0.7 mm a side, drawn on the line's right (mm)
+HARD_LINES = {S(515): 0.4, S(518): 0.4, S(529): 0.4, S(521, 9): 0.14}
+GIVE_WAY = {S(509, 1): 0.3}                           # (and the railway, cut over every underpass anyway: ISSprOM 509;
+# IOF Best practices 2025, n° 19, « The upper railway line should always be cut over underpasses »)
+
+
+def clear_mouths(env, d):
+    """Black lines keep 0.15 mm from 512.1's triangles (ISSprOM 512.1: « A cartographic gap of 0.15 mm shall apply to the black
+    objects pointing towards the peaks of the triangles »; IOF, Complex urban structures 3.2.2: « applied to the black objects (for
+    example road edges) »; Best practices 2025, n° 24: « Shark teeth must not overlap other black objects »). A thin passable
+    line — a paved edge, a passable wall or fence, a boundary — is cut back round the triangles; where an uncrossable line or a
+    building's outline comes into them, the 512.1 line is shortened from that end instead, down to its two triangles (1.4 mm,
+    ISSprOM's minimum in a standalone situation), never cutting the barrier. (512.2 starts 0.2 mm from the mouth by its own rule,
+    inside the passage: not a line pointing at the peaks.)"""
+    k = SCALE / 1000
+    to_m = lambda r: [(env.CX + x * k, env.CY + y * k) for x, y in r]
+    gap, th = LINE_GAP * k, MOUTH_TH * k
+
+    def band(cs):
+        a_, b_ = cs[0], cs[-1]
+        dx, dy = b_[0] - a_[0], b_[1] - a_[1]; L = math.hypot(dx, dy) or 1
+        rx, ry = dy / L, -dx / L
+        return Polygon([a_, b_, (b_[0] + rx * th, b_[1] + ry * th), (a_[0] + rx * th, a_[1] + ry * th)])
+
+    mouths = [o for o in d.objects if o["otp"] == 2 and o["sym"] == S(512, 1) and len(o["rings"][0]) >= 2]
+    if not mouths:
+        return
+    hard = [LineString(to_m(o["rings"][0])) .buffer(HARD_LINES[o["sym"]] * k / 2, cap_style="flat")
+            for o in d.objects if o["otp"] == 2 and o["sym"] in HARD_LINES and len(o["rings"][0]) >= 2]
+    ht = shapely.STRtree(hard) if hard else None
+    short = 0
+    for o in mouths:
+        cs = to_m(o["rings"][0])
+        L0 = LineString(cs)
+        near = [hard[i] for i in ht.query(band(cs).buffer(gap + 1.0))] if ht is not None else []
+        near = [h for h in near if h.distance(band(cs)) < gap]
+        if not near:
+            continue
+        H = union(near).buffer(gap)
+        # the stretch of the line whose triangles clear the barriers: from the middle out, by steps of 0.05 m
+        mid, half = L0.length / 2, L0.length / 2
+        lo, hi = mid, mid
+        step = 0.05
+        while lo - step >= 0 and not band(list(substring(L0, lo - step, hi).coords)).intersects(H):
+            lo -= step
+        while hi + step <= L0.length and not band(list(substring(L0, lo, hi + step).coords)).intersects(H):
+            hi += step
+        need = 2 * 0.7 * k + 0.05                          # two triangles
+        if hi - lo < need:                                 # (not enough room for two: left as it is — a barrier along its base)
+            continue
+        if hi - lo < L0.length - 0.01:
+            o["rings"][0] = [list(env.mm(x, y)) for x, y in substring(L0, lo, hi).coords]; short += 1
+    # the thin lines give way
+    zones = [band(to_m(o["rings"][0])) for o in mouths]
+    zt = shapely.STRtree(zones)
+    out, cut = [], 0
+    for o in d.objects:
+        w_ = THIN.get(o["sym"], GIVE_WAY.get(o["sym"]))
+        if o["otp"] != 2 or w_ is None or len(o["rings"][0]) < 2:
+            out.append(o); continue
+        g = LineString(to_m(o["rings"][0]))
+        z = [zones[i] for i in zt.query(g.buffer(gap + w_ * k / 2 + 0.1))]
+        z = [q.buffer(gap + w_ * k / 2) for q in z if q.distance(g) < gap + w_ * k / 2]
+        if not z:
+            out.append(o); continue
+        cut += 1
+        for q in lines(g.difference(union(z))):
+            if q.length >= 0.5:
+                out.append({**o, "rings": [[list(env.mm(x, y)) for x, y in q.coords]]})
+    d.objects[:] = out
+    env.log("512.1 shortened clear of a barrier", short, "thin lines cut back from their triangles", cut)
 
 
 def helpers(env, s, d):

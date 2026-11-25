@@ -1397,5 +1397,102 @@ def t50(M):
     return [f"{len(bad)} symbols"] + bad[:6] if bad else []
 
 
+@test(51, "512.1's triangles keep 0.15 mm from other black objects (ISSprOM 512.1: « A cartographic gap of 0.15 mm shall apply »)")
+def t51(M):
+    th = 0.7 * math.sqrt(3) / 2 * M.k                             # the triangles, on the right of the line's direction
+    gap = 0.15 * M.k
+    thin = {"501.1": 0.1, "513.1": 0.21, "513.2": 0.21, "516": 0.21, "520.9": 0.1, "522.9": 0.1, "509.1": 0.3}
+    hard = {"515": 0.4, "518": 0.4, "529": 0.4, "521.9": 0.14}
+    ls = [(c, w, g) for d_ in (thin, hard) for c, w in d_.items() for g in M.gs(c, otp=2)]
+    tree = shapely.STRtree([g for _, _, g in ls]) if ls else None
+    bad = []
+    for o, g in M.objs("512.1"):
+        if o["otp"] != 2 or tree is None:
+            continue
+        a_, b_ = g.coords[0], g.coords[-1]
+        dx, dy = b_[0] - a_[0], b_[1] - a_[1]; L = math.hypot(dx, dy) or 1
+        rx, ry = dy / L, -dx / L
+        band = Polygon([a_, b_, (b_[0] + rx * th, b_[1] + ry * th), (a_[0] + rx * th, a_[1] + ry * th)])
+        for i in tree.query(band.buffer(gap + 0.5)):
+            c, w, h = ls[i]
+            d = h.distance(band) - w * M.k / 2
+            # (an uncrossable line or an outline along the mouth of a passage two triangles wide: there is no room — the line
+            # cannot be shortened under ISSprOM's two triangles)
+            if c in hard and g.length < 2 * 0.7 * M.k + 0.2:
+                continue
+            if d < gap - 0.1:
+                bad.append(f"{c} {max(d, 0) / M.k:.2f} mm from 512.1's triangles at E {a_[0]:.0f} N {a_[1]:.0f}")
+                break
+    return [f"{len(bad)} mouths"] + bad[:6] if bad else []
+
+
+@test(52, "a stairway shows three steps at least (ISSprOM 532: « Minimum length: 3 (graphical) steps »; best practices n° 37)")
+def t52(M):
+    st = [g for c in [f"532.{i}" for i in range(1, 7)] + ["532"] for g in M.gs(c, otp=2)]
+    chains = list(getattr(shapely.line_merge(unary_union(st)), "geoms", [shapely.line_merge(unary_union(st))])) if st else []
+    bad = [f"{c.length:.1f} m at E {c.coords[0][0]:.0f} N {c.coords[0][1]:.0f}" for c in chains
+           if c.geom_type == "LineString" and c.length < 2 * 0.47 * M.k - 0.05]
+    return [f"{len(bad)} stairways under three steps (0.94 mm)"] + bad[:6] if bad else []
+
+
+@test(53, "no tree symbol over the ground not to be entered (ISSprOM 520; IOF best practices n° 31: trees in 520 look crossable)")
+def t53(M):
+    ol = M.union("520")
+    if ol.is_empty:
+        return []
+    shapely.prepare(ol)
+    bad = []
+    for c, r in (("417", 0.7), ("418", 0.4)):
+        for o, g in M.objs(c):
+            if o["otp"] == 1 and ol.distance(g) < r * M.k - 0.05:
+                bad.append(f"{c} at E {g.x:.0f} N {g.y:.0f}, its mask {ol.distance(g):.2f} m from the olive")
+    return [f"{len(bad)} trees"] + bad[:6] if bad else []
+
+
+@test(54, "an unpaved path's white through 520 is the same on both sides (ISSprOM 520: « overlap 0.15 mm on both sides »)")
+def t54(M):
+    ol = M.union("520")
+    if ol.is_empty:
+        return []
+    shapely.prepare(ol)
+    # (the white's edge: whatever colour comes first — the olive, or the paving where the path comes out on a street)
+    col = M.union("520", "501", "501.4", "401", "402", "406", "408", "411", "521", "301")
+    shapely.prepare(col)
+    tot, bad = 0, []
+    for c in ("505", "506"):
+        for g in M.gs(c, otp=2):
+            if g.distance(ol) > 2.5:
+                continue
+            for d in np.arange(0.5, g.length - 0.5, 1.0):
+                q = g.interpolate(d); a_, b_ = g.interpolate(max(0, d - 0.5)), g.interpolate(min(g.length, d + 0.5))
+                tx, ty = b_.x - a_.x, b_.y - a_.y; n = math.hypot(tx, ty) or 1
+                side, olv = [], 0
+                for sg in (1, -1):
+                    ray = LineString([(q.x, q.y), (q.x - sg * ty / n * 4, q.y + sg * tx / n * 4)])
+                    x = ray.intersection(col)
+                    side.append(q.distance(x) if not x.is_empty else None)
+                    olv += not ray.intersection(ol).is_empty
+                if None in side or max(side) > 3.5 or olv < 2:
+                    continue
+                tot += 1
+                if abs(side[0] - side[1]) > 0.3:
+                    bad.append(Point(q.x, q.y))
+    # (a path bending, a corridor's end, a junction: a few metres in all)
+    if tot and len(bad) > 0.05 * tot:
+        return [f"{len(bad)} of {tot} metres of path through 520 with the white wider on one side (0.3 m or more)",
+                fail_list(bad, "places")]
+    return []
+
+
+@test(55, "a courtyard nothing opens is part of the building (ISSprOM 520, 521; best practices n° 10)")
+def t55(M):
+    return [m for m in [fail_list(left(M, "building_hole"), "closed courtyards inside a building")] if m]
+
+
+@test(56, "no gap under 0.4 mm between uncrossable features — a wall's end measured as printed (ISSprOM 3.3)")
+def t56(M):
+    return [m for m in [fail_list(left(M, "gap"), "gaps under 0.4 mm")] if m]
+
+
 if __name__ == "__main__":
     main()

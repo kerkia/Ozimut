@@ -28,7 +28,7 @@ import numpy as np
 import shapely
 import shapely.ops
 from scipy.ndimage import binary_dilation, binary_opening, distance_transform_edt, gaussian_filter, label
-from shapely.geometry import shape
+from shapely.geometry import Polygon as Polygon_, shape
 
 from . import stairs
 from .env import BLOCKING, K, KNAME, R, RUNNABLE, area_of, lines, merge_lines, polys, union
@@ -55,11 +55,14 @@ NARROW_AS = {"open_t": "open", "paved_t": "paved"}
 # a white strip from 0.05 m²)
 SPEC_W = {"forest": 1.2, "open": 1.2, "open_t": 8.8, "slow": 1.6, "walk": 1.6, "paved": 1.4, "paved_t": 8.8, "heavy": 1.4,
           "private": 1.0, "building": 2.0, "water": 1.2, "imp_veg": 1.6}      # (the specification's minimum widths, m)
-SEEN = {k: max(0.6 * (0.95 * w) ** 2, 0.5) for k, w in SPEC_W.items()}
+# (… but 2 m² at most: for scattered trees, 8.8 m wide at least, the check's 42 m² hid a strip of 402 two metres wide and twenty
+# long — a wedge's tip is small, a strip is not; 2026-11-25, Gif's « 402 1.8 m wide »)
+SEEN = {k: min(max(0.6 * (0.95 * w) ** 2, 0.5), 2.0) for k, w in SPEC_W.items()}
 SEEN["forest"] = 0.05
 EDGE_TOL = 0.05                                            # the edges simplified within 5 cm (0.1 m broke more than it saved)
 SETTLED = 50                                               # faces changed in a pass under which the areas have settled
 PASSES = 4                                                 # the generalisation's passes after the first, at most
+FINAL_ROUNDS = 5                                           # the last looks (needles out, then the thin parts), at most
 # the photograph's and the LiDAR's patches are drawn only when large enough to be meant (m²): smaller ones are noise — a car, a
 # shadow, a flower bed (the owner, 2026-11-18: ragged edges; 2026-11-22: blobs)
 PATCH = {"forest": 400, "open": 60, "open_t": 1500, "paved": 120, "slow": 60, "walk": 60}
@@ -159,11 +162,48 @@ def vector_layers(env, s, t, stair_pieces):
     soft = union(s.paved_soft)
     white = getattr(s, "PW_WHITE", None)
     white = shapely.Polygon() if white is None else white
+    private = s.PRIVATE
+    if not white.is_empty:
+        private = union([private, beside_white(s, white, union([B, s.water, heavy, s.CARR, stairs_a, paths_a, s.PAVED, s.PW_CORR]))])
     return [("building", "building", B), ("water", "water", s.water), ("hedge", "imp_veg", hedge), ("pathgap", "forest", white),
             ("bpass", "paved", bpass), ("heavy", "heavy", heavy), ("carriageway", "paved", s.CARR), ("stairs", "paved", stairs_a),
-            ("private", "private", s.PRIVATE),
+            ("private", "private", private),
             ("paths", "paved", paths_a), ("pitch", "open", s.SP_OPEN), ("court", "paved", s.SP_PAVED), ("lawn", "open", s.GRASS),
             ("paved", "paved", union([s.PAVED, soft, s.PW_CORR])), ("wood", "forest", s.WOODS)], bpass
+
+
+def beside_white(s, white, hard):
+    """The ground beside an unpaved path's white corridor through the ground not to be entered that belongs to neither (ISSprOM
+    520: « The area shall be discontinued where a path goes through and white colour is used as background with overlap 0.15 mm
+    on both sides » — the same on both sides). The corridor is the path ± its symbol's half width and 0.15 mm; the cadastre's
+    parcels leave gaps between them (a lane a metre wide that the path runs in, a corner where three parcels miss each other),
+    and that ground, white as the corridor, widened it on one side only (2026-11-25, Gif: 2.4 m on one side of a path, 1.8 m on the
+    other). Taken as the olive: strips narrower than the olive's minimum width (0.4 mm) between the corridor and the olive, and
+    pockets the corridor alone opens (their edge 90 % olive or corridor) — never paving, a building, water or another way."""
+    P = s.PRIVATE
+    if P.is_empty:
+        return shapely.Polygon()
+    r = MIN_W["private"] / 2
+    win = white.buffer(8.0)
+    PW = union([P.intersection(win), white])
+    out = []
+    # strips: what a closing of the olive and the corridor fills beside the corridor
+    near = white.buffer(MIN_W["private"] + 0.1)
+    gap = area_of(PW.buffer(r, join_style="mitre").buffer(-r, join_style="mitre")).difference(PW).difference(hard).intersection(near)
+    for q in polys(area_of(gap)):
+        if q.area > 0.05 and q.distance(white) < 0.05 and q.distance(P) < 0.05:
+            out.append(q)
+    # pockets (under 50 m²: a corner, not a garden of its own) round the corridor that only the corridor and the olive bound
+    free = area_of(win.difference(PW).difference(hard).difference(union(out)))
+    rim = win.boundary
+    PWb = PW.buffer(0.05)
+    for q in polys(free):
+        if q.area < 0.05 or q.area > 50 or q.distance(white) > 0.05 or q.distance(rim) < 0.05:
+            continue
+        L = q.exterior.length
+        if L > 0 and q.exterior.intersection(PWb).length >= 0.9 * L:
+            out.append(q)
+    return union(out)
 
 
 def through_building(s, pc):
@@ -300,7 +340,7 @@ def generalise(env, s, t, faces, cls):
                      + [g for g, _ in stairs.pieces(s)] + [p[0] for p in s.passages])
     faces, cls = thin_parts(env, faces=faces, cls=cls, bars=bars)
     cls, corr, _ = merge_small(env, faces, cls)
-    GEOM = {KNAME[int(k)]: area_of(shapely.coverage_union_all(faces[cls == k])) for k in np.unique(cls)}
+    GEOM = assemble(env, faces, cls)
     GEOM = widen(env, GEOM, corr)
     GEOM, why = reach(env, s, t, GEOM)
     # simplified, then again until the areas settle (a merge or a widening can leave a narrow part of its own: a strip given to
@@ -311,7 +351,7 @@ def generalise(env, s, t, faces, cls):
     for _ in range(PASSES):
         faces, cls = thin_parts(env, GEOM=GEOM, bars=bars)
         cls, corr, n = merge_small(env, faces, cls)
-        GEOM = {KNAME[int(k)]: area_of(shapely.coverage_union_all(faces[cls == k])) for k in np.unique(cls)}
+        GEOM = assemble(env, faces, cls)
         GEOM = widen(env, GEOM, corr)
         if n <= SETTLED:
             break
@@ -320,24 +360,47 @@ def generalise(env, s, t, faces, cls):
     GEOM = slots_in_buildings(GEOM)
     # the needles out, and a last look at the areas as they then are (what the widening, the simplification and the needles left
     # under the minimums) — twice: each can leave a little of the other's work
+    # (until a look finds nothing to merge — it settles now that a thin part never goes back where the last pass took it from,
+    # a sliver is divided along its middle and a needle between two areas goes along its longer side: 2026-11-25 — and it ends on
+    # that look, so that no thin part the needles' removal made is left)
     n = 0
-    for rnd in range(3):
+    for rnd in range(FINAL_ROUNDS):
         for _ in range(3):                                 # (an ear taken out can leave the next needle)
             GEOM, n1 = despike(GEOM)
             GEOM, n2 = deslit(GEOM)
             n += n1 + n2
             if not n1 + n2:
                 break
-        if rnd == 2:
-            break
         faces, cls = thin_parts(env, GEOM=GEOM, bars=bars)
-        cls, _, m = merge_small(env, faces, cls)
-        GEOM = {KNAME[int(k)]: area_of(shapely.coverage_union_all(faces[cls == k])) for k in np.unique(cls)}
+        cls, _, m = merge_small(env, faces, cls, split=True)
+        GEOM = assemble(env, faces, cls)
         if not m:
             break
     GEOM, m = leftovers(GEOM)
-    env.log("needles taken out", n, "scraps given away", m)
+    GEOM, nc = courtyards(GEOM, union([s.PASSES, getattr(s, "canopy", None)] + ([env.WAYS.buffer(0.5)] if not env.WAYS.is_empty else [])))
+    env.log("needles taken out", n, "scraps given away", m, "closed courtyards made building", nc)
     return GEOM, why
+
+
+def courtyards(GEOM, opens):
+    """A building's courtyard that nothing opens — no passage, canopy or way leads into it — is part of the building (ISSprOM 520:
+    « Areas that shall not be entered totally contained within buildings shall be mapped as being a part of the building »; 521;
+    IOF, Best practices for sprint mapping 2025, n° 10: « Inaccessible areas inside building blocks are removed »). reach() does
+    it for runnable ground no way reaches; this is the rest — a garden's olive, a lawn, a pool walled in by the building
+    (2026-11-25: a 9 m² courtyard of olive inside a building, Gif)."""
+    B = GEOM.get("building")
+    if B is None or B.is_empty:
+        return GEOM, 0
+    holes = [Polygon_(r) for p in polys(B) for r in p.interiors]
+    holes = [h for h in holes if h.area > 0.01 and (opens is None or opens.is_empty or not opens.intersects(h))]
+    if not holes:
+        return GEOM, 0
+    H = shapely.set_precision(union(holes), GRID)
+    for k in [k for k in GEOM if k != "building"]:
+        if GEOM[k].intersects(H):
+            GEOM[k] = area_of(shapely.difference(GEOM[k], H, grid_size=GRID))
+    GEOM["building"] = area_of(shapely.union(B, H, grid_size=GRID))
+    return {k: g for k, g in GEOM.items() if not g.is_empty}, len(holes)
 
 
 def leftovers(GEOM):
@@ -421,7 +484,7 @@ def thin_parts(env, faces=None, cls=None, GEOM=None, bars=None):
     its own, which merge_small() then gives to a neighbour. Returns the new faces and their classes (a thin one: class + 100)."""
     regions, rcls, cuts = [], [], []
     if GEOM is None:
-        GEOM = {KNAME[int(k)]: area_of(shapely.coverage_union_all(faces[cls == k])) for k in np.unique(cls)}
+        GEOM = assemble(env, faces, cls)
     for name, g in GEOM.items():
         k = K[name]
         ps = polys(g)
@@ -456,7 +519,8 @@ def thin_parts(env, faces=None, cls=None, GEOM=None, bars=None):
             disk = shapely.LineString([u, v]).buffer(max(0.8, dd))
             bx = disk.bounds                               # (an olive parcel is large: cut to the disk's box first)
             h = union([shapely.clip_by_rect(pa, *bx).intersection(disk), shapely.clip_by_rect(pb, *bx).intersection(disk)]).convex_hull
-            hulls.append(h.difference(union([shapely.clip_by_rect(P_[m], *h.bounds) for m in bt.query(h)])))
+            # (made valid: GEOS's fast clip can leave a ring it cannot union)
+            hulls.append(h.difference(union([area_of(shapely.clip_by_rect(P_[m], *h.bounds)) for m in bt.query(h)])))
         pinch = union([pinch] + hulls)
     pinch = [q for q in polys(pinch) if q.area > 0.02]
     # (the wedge where two uncrossable features meet at an angle is a dead end, not a gap: left as it is — the check's rule)
@@ -560,7 +624,7 @@ def opened(a, w):
     return o
 
 
-def merge_small(env, faces, cls):
+def merge_small(env, faces, cls, split=False):
     """Thin parts and faces under their class's minimum area go to the neighbouring class they share most edge with — but a
     thin strip of runnable ground that joins two places is a way (an alley between two houses, an entrance): it stays, and is
     widened afterwards. Returns the classes and the corridors' geometry."""
@@ -666,6 +730,22 @@ def merge_small(env, faces, cls):
         t_ = gtally.get(gfind(i))
         if t_:
             res[i] = max(t_, key=t_.get); todo[i] = False
+    # a thin part the previous pass moved from class A to B comes back as a thin part of B (its shape is thin whatever its class:
+    # a sliver where three classes meet) and, never given back to its own class, would go to A again — the same twenty pieces
+    # swapped between two classes at every pass, never settling (2026-11-25: 20-22 merges a pass from the fourth pass on, the
+    # last pass's leaving them thin on the map — Gif's 501 0.2 m and 0.6 m wide, 402 1.8 m wide). Such a piece does not go back
+    # to A: to the other neighbour sharing most edge (the building beside the sliver), else it stays where it is.
+    # (nor to any class it has been in on its way: three classes round a sliver passed it round in turn)
+    back = {}
+    prev = getattr(env, "MOVED", None) or []
+    if prev:
+        ptree = shapely.STRtree([q for q, _a, _f, _t in prev])
+        for i in np.nonzero(thin)[0]:
+            for j in ptree.query(pts[i].buffer(0.5)):
+                q, a_, f_, t_ = prev[j]
+                if t_ == int(base[i]) and q.distance(pts[i]) <= 0.5 and 0.6 * a_ <= A[i] <= 1.6 * a_:
+                    back[int(i)] = set(f_)
+                    break
     patient = True
     for _ in range(12):
         changed = waited = False
@@ -677,6 +757,12 @@ def merge_small(env, faces, cls):
             for j, l in by.get(int(i), []):
                 if not todo[j]:
                     tally[int(res[j])] = tally.get(int(res[j]), 0.0) + l
+            if thin[i] and int(i) in back and tally:
+                for c_ in back[int(i)]:
+                    tally.pop(c_, None)
+                if not tally or set(tally) <= {int(base[i])}:
+                    todo[i] = False; changed = True        # (nowhere else to go: it stays)
+                    continue
             if thin[i] and len(tally) > 1:
                 tally.pop(int(base[i]), None)
             elif thin[i] and patient and set(tally) <= {int(base[i])} and any(todo[j] for j, _l in by.get(int(i), [])):
@@ -705,9 +791,82 @@ def merge_small(env, faces, cls):
         res[ix] = k_
         corr.append((union(list(faces[ix])), KNAME[k_]))
     corr += ways
-    env.log("thin or small faces merged", int((res != base)[flag].sum()), "of", int(flag.sum()), "left", int(todo.sum()), "corridors", len(keep_root),
-            "gaps kept as ways", len(ways))
-    return res, corr, int((res != base)[flag].sum())
+    # a sliver of runnable ground between two other areas (each along 30 % of its edge or more, its own class at most at a tip)
+    # is divided between them along its middle, not given whole to one (see split_sliver) — in the last looks only (split=True):
+    # in the first passes, where hundreds of thin parts move, it cost minutes and made new slivers of its own (2026-11-25)
+    splits = []
+    for i in (np.nonzero(thin & ~pinch & ~corridor & runnable)[0] if split else []):
+        sh = {}
+        for j, l in by.get(int(i), []):
+            if int(res[j]) != int(base[i]) or j == i:
+                sh.setdefault(int(res[j]), []).append(int(j))
+        per = faces[i].length
+        tot = {k: sum(l for j, l in by.get(int(i), []) if int(res[j]) == k) for k in sh}
+        big = sorted([k for k in tot if k != int(base[i]) and tot[k] >= 0.3 * per], key=lambda k: -tot[k])[:2]
+        if len(big) < 2:
+            continue
+        sides = []
+        bx = faces[i].buffer(0.5).bounds                   # (a street's paving is one face: cut to the place first)
+        for k in big:
+            e = union([faces[i].boundary.intersection(area_of(shapely.clip_by_rect(faces[j], *bx)).buffer(0.01)) for j in sh[k]])
+            sides.append((KNAME[k], e))
+        pieces = split_sliver(faces[i], sides)
+        if pieces:
+            splits.append((int(i), pieces)); res[i] = big[0]
+    env.SPLITS = (faces, splits)
+    mv = np.nonzero(flag & thin & (res != base))[0]
+    env.MOVED = [(pts[i], float(A[i]), back.get(int(i), set()) | {int(base[i])}, int(res[i])) for i in mv] \
+        + [(pts[i], float(A[i]), back[i], int(res[i])) for i in back if res[i] == base[i]]   # (and those kept: still remembered)
+    # (what changed, specks under 0.1 m² apart: the white cracks a needle's removal leaves, below what prints, come and go)
+    ch = (res != base) & flag
+    env.log("thin or small faces merged", int(ch.sum()), "of", int(flag.sum()), "left", int(todo.sum()), "corridors", len(keep_root),
+            "gaps kept as ways", len(ways), "kept from going back", len(back))
+    return res, corr, int((ch & (A >= 0.1)).sum())
+
+
+def assemble(env, faces, cls):
+    """{class: geometry} from the faces and their classes — a sliver merge_small() divided (env.SPLITS, for these faces) by its
+    pieces."""
+    sp = getattr(env, "SPLITS", None)
+    sp = sp[1] if sp and sp[0] is faces else []
+    skip = np.zeros(len(faces), bool)
+    for i, _pieces in sp:
+        skip[i] = True
+    G = {KNAME[int(k)]: area_of(shapely.coverage_union_all(faces[(cls == k) & ~skip])) for k in np.unique(cls[~skip])}
+    add = {}
+    for _i, pieces in sp:
+        for k, g in pieces:
+            add.setdefault(k, []).append(g)
+    for k, gs in add.items():                              # (no snapping: the pieces tile the face as cut)
+        G[k] = area_of(shapely.union_all(np.array([G.get(k, shapely.Polygon())] + gs, dtype=object)))
+    return {k: g for k, g in G.items() if not g.is_empty}
+
+
+def split_sliver(F, sides, step=0.05):
+    """A sliver divided between the areas along its two long sides, along its middle (the Voronoi cells of points along each
+    side's shared edge): each side's edge moves to the middle — no part of it sticks out (a sliver given whole to one side made a
+    needle of it, which the needles' removal gave back: 2026-11-25). sides: [(class, shared edge)]. Returns [(class, piece)]."""
+    pts, own = [], []
+    for k, e in sides:
+        for l in lines(e):
+            n = max(2, int(l.length / step) + 1)
+            for p in shapely.line_interpolate_point(l, np.linspace(0, l.length, n)):
+                pts.append((round(p.x, 3), round(p.y, 3))); own.append(k)
+    seen, P, O = set(), [], []
+    for p, k in zip(pts, own):
+        if p not in seen:
+            seen.add(p); P.append(p); O.append(k)
+    if len(set(O)) < 2 or len(P) < 4:
+        return None
+    cells = shapely.get_parts(shapely.voronoi_polygons(shapely.MultiPoint(P), extend_to=F.buffer(1.0), ordered=True))
+    if len(cells) != len(P):
+        return None
+    out = []
+    for k in set(O):
+        g = area_of(shapely.intersection(shapely.union_all(cells[np.array(O) == k]), F))
+        if not g.is_empty:
+            out.append((k, g))
+    return out if abs(sum(g.area for _k, g in out) - F.area) < 0.02 * F.area + 0.01 else None
 
 
 def shuts(faces, runnable, tree, ix, r=12.0):
@@ -922,13 +1081,17 @@ def despike(GEOM, turn=165.0, seg=0.3):
             m = len(xy)
             if m < 4:
                 continue
-            ix, nu, nv = _sharp(xy, turn)
+            ix, nu, nv = _sharp(xy, turn - 5.0)
             cs = [tuple(q) for q in xy] if len(ix) else []
             for i in ix:
                 a, b, c = cs[i - 1], cs[i], cs[(i + 1) % m]
                 if nu[i] < seg or nv[i] < seg:
                     continue
                 tri = shapely.Polygon([a, b, c])
+                # (an angle of 15-20°: a needle too when small — under 1 m², a wedge of paving 2 m long between two sections of a
+                # street, its sides drawn by no line, 2026-11-25 — not a real sharp corner, whose ear would be large)
+                if _turn(a, b, c) < turn and tri.area >= 1.0:
+                    continue
                 if tri.area < 1e-4 or any(tri.intersection(q).area > 1e-4 for q in done if q.intersects(tri)):
                     continue                               # (the same needle seen from the area beside it: one move)
                 mid = ((a[0] + c[0]) / 2, (a[1] + c[1]) / 2)
@@ -940,8 +1103,26 @@ def despike(GEOM, turn=165.0, seg=0.3):
                 if not other:
                     continue
                 done.append(tri)
-                if inside:                                 # a spike of k: to the area beyond its tip
-                    take.setdefault(k, []).append(tri); give.setdefault(other[0], []).append(tri)
+                if inside:                                 # a spike of k: to the area along its longer side (beyond its tip
+                    # when that is the same area on both sides, the usual spike). A spike between two areas — a sliver given to one
+                    # of them, its tip pointing at a third — given to the area beyond its tip came back as that area's sliver, and
+                    # was given back at the next pass (2026-11-25: the same pieces swapped at every pass, never settling)
+                    to = other[0]
+                    sides_ = []
+                    for u, v in ((a, b), (b, c)):
+                        mx, my = (u[0] + v[0]) / 2, (u[1] + v[1]) / 2
+                        cx_, cy_ = (a[0] + b[0] + c[0]) / 3, (a[1] + b[1] + c[1]) / 3
+                        ex, ey = v[0] - u[0], v[1] - u[1]; en = math.hypot(ex, ey) or 1
+                        nx_, ny_ = -ey / en, ex / en
+                        if (mx - cx_) * nx_ + (my - cy_) * ny_ < 0:
+                            nx_, ny_ = -nx_, -ny_
+                        q_ = shapely.Point(mx + nx_ * 0.05, my + ny_ * 0.05)
+                        own_ = [keys[j] for j in tree.query(q_) if parts[j] is not p and parts[j].contains(q_)]
+                        sides_.append((en, own_[0] if own_ else None))
+                    sides_.sort(key=lambda z: -z[0])
+                    if sides_[0][1] is not None and sides_[0][1] != k:
+                        to = sides_[0][1]
+                    take.setdefault(k, []).append(tri); give.setdefault(to, []).append(tri)
                 else:                                      # a crack of the neighbour into k: filled
                     take.setdefault(other[0], []).append(tri); give.setdefault(k, []).append(tri)
                 n += 1
