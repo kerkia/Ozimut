@@ -3,8 +3,9 @@
   py town_3d.py <race>      writes pkg/town.json and pkg/town.bin, and replaces pkg/ground.jpg by the aerial photograph
 
 - each building of IGN's BD TOPO: its footprint, walls from the ground to its roof's edge, and its roof fitted to the LiDAR's
-  building points (class 6): up to 8 planes found by RANSAC, each roof node taking the plane of its nearest points, so that
-  gables, hips and flat roofs come out as they are; a building without points gets a flat roof at BD TOPO's height;
+  building points (class 6) seen from above (town_roofs.py): up to 8 planes found by RANSAC, each roof node taking the plane of
+  its nearest points, so that gables, hips and flat roofs come out as they are; a building without points gets a flat roof at
+  BD TOPO's height;
 - the façades' look from BD TOPO's use (housing, shops, church…) and a seed: the shader (games/vtown.js) draws floors, windows,
   shutters and doors on them; the roofs' colour is the photograph's over the roof;
 - walls, fences and hedges (town_map.py's, their heights measured on the LiDAR), street furniture from OpenStreetMap;
@@ -27,10 +28,12 @@ from pathlib import Path
 import numpy as np
 from PIL import Image
 from scipy.ndimage import gaussian_filter, distance_transform_edt, binary_dilation
-from scipy.spatial import cKDTree, Delaunay
+from scipy.spatial import cKDTree
 import shapely
 from shapely.geometry import shape, Polygon, Point, LineString
 from shapely.ops import unary_union
+
+from town_roofs import roof as roof_of, Neighbours
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 DATA = Path(os.environ.get("VIRTUAL_DATA") or Path(__import__("paths").DATA_DIR) / "virtual")
@@ -93,6 +96,7 @@ WPOLYS = []
 for f in feats:
     g = shapely.transform(shapely.force_2d(shape(f["geometry"])).buffer(0), lambda c: np.c_[wx(c[:, 0]), wz(c[:, 1])]).intersection(world_box)
     WPOLYS += [q.simplify(0.1) for q in getattr(g, "geoms", [g]) if q.geom_type == "Polygon" and q.area >= 4]
+NEIGH = Neighbours(WPOLYS, roof, rtree)                            # every outline and its height: a roof's points are no other building's
 _LG = np.load(SRC / "lidar_grids.npz"); _ZV, _ZB = _LG["zv"], _LG["zb"]
 
 
@@ -141,57 +145,6 @@ def gauss(a, sigma, truncate=4.0):
     """gaussian_filter(a, sigma), the same values, by strips in parallel."""
     s0 = sigma[0] if isinstance(sigma, (tuple, list)) else sigma
     return strips(lambda b: gaussian_filter(b, sigma, truncate=truncate), a, int(truncate * float(s0) + 0.5))
-
-
-def _inliers(a, b, c, Qx, Qy, Qz, tol, j0, j1, blk=1024):
-    """Each plane's inliers (|z − (a x + b y + c)| < tol, the residual computed as written, so exactly) among Q[j0:j1], by blocks
-    that stay in the cache."""
-    cnt = np.zeros(len(a), np.int64)
-    A, B, C = a[:, None], b[:, None], c[:, None]
-    for j in range(j0, j1, blk):
-        e = min(j1, j + blk)
-        r = A * Qx[None, j:e]
-        r += B * Qy[None, j:e]
-        r += C
-        np.subtract(Qz[None, j:e], r, out=r)
-        np.abs(r, out=r)
-        cnt += np.count_nonzero(r < tol, axis=1)
-    return cnt
-
-
-def ransac_planes(P, max_planes=8, tol=0.15):
-    """Planes z = a x + b y + c over roof points P (n×3): [(a, b, c, inlier indices)]."""
-    planes = []; left = np.arange(len(P)); n0 = len(P)
-    for _ in range(max_planes):
-        if len(left) < max(20, 0.05 * n0):
-            break
-        Q = P[left]
-        t = rng.integers(0, len(Q), (300, 3))
-        p1, p2, p3 = Q[t[:, 0]], Q[t[:, 1]], Q[t[:, 2]]
-        nrm = np.cross(p2 - p1, p3 - p1)
-        ok = np.abs(nrm[:, 2]) > 1e-6
-        a = -nrm[:, 0] / np.where(ok, nrm[:, 2], 1); b = -nrm[:, 1] / np.where(ok, nrm[:, 2], 1)
-        c = p1[:, 2] - a * p1[:, 0] - b * p1[:, 1]
-        ok &= np.hypot(a, b) < 1.25                                # roofs steeper than 51° are walls
-        Qx, Qy, Qz = np.ascontiguousarray(Q[:, 0]), np.ascontiguousarray(Q[:, 1]), np.ascontiguousarray(Q[:, 2])
-        cnt = np.zeros(len(a), np.int64); act = np.nonzero(ok)[0]   # a hypothesis not ok counts 0
-        if len(act):
-            aa, bb, cc = a[act], b[act], c[act]
-            if len(Q) < 3000:
-                cnt[act] = _inliers(aa, bb, cc, Qx, Qy, Qz, tol, 0, len(Q))
-            else:
-                cuts = np.linspace(0, len(Q), NT + 1).astype(int)
-                cnt[act] = sum(POOL.map(lambda i: _inliers(aa, bb, cc, Qx, Qy, Qz, tol, cuts[i], cuts[i + 1]), range(NT)))
-        k = int(np.argmax(cnt))
-        if cnt[k] < max(18, 0.06 * n0):
-            break
-        inl = np.abs(Qz - (a[k] * Qx + b[k] * Qy + c[k])) < tol
-        X = np.c_[Q[inl, 0], Q[inl, 1], np.ones(inl.sum())]
-        sol = np.linalg.lstsq(X, Q[inl, 2], rcond=None)[0]
-        inl = np.abs(Q[:, 2] - (sol[0] * Q[:, 0] + sol[1] * Q[:, 1] + sol[2])) < tol
-        planes.append((*sol, left[inl]))
-        left = left[~inl]
-    return planes
 
 
 def colour_over(poly):
@@ -298,140 +251,15 @@ for f in feats:
         if len(P):
             P = P[shapely.contains_xy(poly.buffer(-0.25), P[:, 0], P[:, 1])]
         hz = float(pr.get("hauteur") or 0) or 3.0 * (pr.get("nombre_d_etages") or 2)
-        # the roof's nodes: the outline densified, a lattice inside
-        edge = shapely.segmentize(poly, 0.9)
-        bnd = [np.array(edge.exterior.coords)[:-1]] + [np.array(r.coords)[:-1] for r in edge.interiors]
-        x0, z0, x1, z1 = poly.bounds
-        xs, zs = np.meshgrid(np.arange(x0 + 0.45, x1, 0.9), np.arange(z0 + 0.45, z1, 0.9))
-        xs, zs = xs.ravel(), zs.ravel()
-        inner = poly.buffer(-0.3)
-        keep = shapely.contains_xy(inner, xs, zs) if not inner.is_empty else np.zeros(len(xs), bool)
-        nodes = np.vstack(bnd + [np.c_[xs[keep], zs[keep]]])
-        nb = sum(len(b) for b in bnd)
-        planes, cand = [], None
+        z_flat = float(pr.get("altitude_maximale_toit") or 0) or (top_g + max(hz, 3))
         tick("points")
-        if len(P) >= 15:
-            planes = ransac_planes(P.astype(np.float64))
-            stats["planes"] += len(planes); stats["fitted"] += 1
-        tick("ransac")
-        if planes:
-            pa = np.array([[p[0], p[1], p[2]] for p in planes])
-            lab = np.full(len(P), -1)
-            for k, pl in enumerate(planes):
-                lab[pl[3]] = k
-            Lm = lab >= 0
-            kt = cKDTree(P[Lm, :2]); plab = lab[Lm]
-            zmax = float(P[:, 2].max()) + 0.2
-            pt = cKDTree(P[:, :2])
-
-            def cands(q):
-                """Each point's candidate planes, as a mask (points × planes): those of its 8 nearest labelled points within 3 m
-                (else the nearest's)."""
-                d, ii = kt.query(q, k=min(8, int(Lm.sum())))
-                d, ii = np.atleast_2d(d), np.atleast_2d(ii)
-                ok = d < 3.0
-                ok[~ok.any(1), 0] = True
-                m = np.zeros((len(d), len(pa)), bool)
-                m[np.broadcast_to(np.arange(len(d))[:, None], ok.shape)[ok], plab[ii[ok]]] = True
-                return m
-
-            def envelope(q, cs):
-                """The roof's height at points q: the lowest of their candidate planes (a gable's or hip's ridge exact; the first
-                plane on a tie), the points' own median where that is 0.8 m off (a step between two levels, a dormer)."""
-                zp = np.where(cs, pa[:, 0][None, :] * q[:, 0:1] + pa[:, 1][None, :] * q[:, 1:2] + pa[:, 2][None, :], np.inf)
-                arg = zp.argmin(1)
-                z = zp[np.arange(len(zp)), arg]
-                dd, jj = pt.query(q, k=min(8, len(P)))
-                zloc = np.median(P[np.atleast_2d(jj), 2], axis=1)
-                bad = np.abs(z - zloc) > 0.8
-                z[bad] = zloc[bad]; arg[bad] = -1
-                return np.clip(z, top_g + 2.2, zmax), arg
-
-            cand = cands(nodes)
-            nz, arg = envelope(nodes, cand)
-        elif len(P) >= 15:
-            pt = cKDTree(P[:, :2]); dd, jj = pt.query(nodes, k=min(5, len(P)))
-            nz = np.clip(np.median(P[np.atleast_2d(jj), 2], axis=1), top_g + 2.2, float(P[:, 2].max()) + 0.2)
-        else:
-            stats["flat"] += 1
-            z = float(pr.get("altitude_maximale_toit") or 0) or (top_g + max(hz, 3))
-            nz = np.full(len(nodes), max(z, top_g + 2.5))
-        tick("heights")
-        flat = (nz.max() - nz.min()) < 0.6
-        # the roof's mesh: the eaves 0.35 m beyond the walls on a pitched roof, the creases (ridges, hips, valleys) as vertices
-        rnodes, rz, rpoly = nodes, nz, poly
-        if planes and not flat:
-            rpoly = poly.buffer(0.35, join_style="mitre", mitre_limit=2.0)
-            ob = shapely.segmentize(rpoly.exterior, 0.9); ob = np.array(ob.coords)[:-1]
-            # each outer point takes the candidate planes of the outline's node nearest to it
-            near = cKDTree(nodes[:nb]).query(ob)[1]
-            oz, _ = envelope(ob, cand[near])
-            inner_n = nodes[nb:]; inner_z = nz[nb:]; inner_a = arg[nb:]
-            holes = [np.array(r.coords)[:-1] for r in shapely.segmentize(poly, 0.9).interiors]
-            hz_ = [envelope(h_, cands(h_))[0] for h_ in holes]
-            rnodes = np.vstack([ob] + holes + [nodes[:nb], inner_n]); rz = np.concatenate([oz] + hz_ + [nz[:nb], inner_z])
-            ra = np.concatenate([np.full(len(ob) + sum(len(h_) for h_ in holes), -1), arg[:nb], inner_a])
-            try:
-                t0 = Delaunay(rnodes).simplices
-                extra = []
-                # the triangles' edges, each once, in the order a set of them gives (the creases' order makes the mesh's); only those
-                # between two different planes can hold a crease
-                ed = np.sort(t0[:, [0, 1, 1, 2, 0, 2]].reshape(-1, 3, 2), axis=2).reshape(-1, 2)
-                E = np.array(list(set(map(tuple, ed.tolist()))), np.int64).reshape(-1, 2)
-                ke = ra[E]
-                for a_, b_ in E[(ke[:, 0] >= 0) & (ke[:, 1] >= 0) & (ke[:, 0] != ke[:, 1])]:
-                    ka, kb = ra[a_], ra[b_]
-                    p0, p1 = rnodes[a_], rnodes[b_]
-                    f0 = (pa[ka] - pa[kb]) @ [p0[0], p0[1], 1.0]; f1 = (pa[ka] - pa[kb]) @ [p1[0], p1[1], 1.0]
-                    if f0 * f1 >= 0:
-                        continue
-                    t_ = f0 / (f0 - f1); q = p0 + (p1 - p0) * t_
-                    extra.append((q, pa[ka] @ [q[0], q[1], 1.0]))
-                if extra:
-                    rnodes = np.vstack([rnodes, np.array([e[0] for e in extra])])
-                    rz = np.concatenate([rz, np.clip(np.array([e[1] for e in extra]), top_g + 2.2, zmax)])
-                stats["creases"] = stats.get("creases", 0) + len(extra)
-            except Exception:
-                rnodes, rz, rpoly = nodes, nz, poly
-            tick("roof mesh")
-            # chimneys: the points standing 0.6-3 m above their roof in a tight group
-            res = P[:, 2] - envelope(P[:, :2].astype(np.float64), cands(P[:, :2]))[0]
-            up = np.nonzero((res > 0.9) & (res < 3.5))[0]
-            tick("chimney heights")
-            mine = []
-            if len(up) >= 4:
-                ut = cKDTree(P[up, :2]); seen = set()
-                nbr = ut.query_ball_point(P[up, :2], 0.7, return_sorted=False)   # each point's neighbours, as one query each gives them
-                for s0 in range(len(up)):
-                    if s0 in seen:
-                        continue
-                    grp, stack = [], [s0]
-                    while stack:
-                        q_ = stack.pop()
-                        if q_ in seen:
-                            continue
-                        seen.add(q_); grp.append(q_); stack += nbr[q_]
-                    if len(grp) < 5:
-                        continue
-                    G = P[up[grp]]
-                    ext_ = G[:, :2].max(0) - G[:, :2].min(0)
-                    if ext_.max() > 1.4:                                   # a dormer or a skylight is wider
-                        continue
-                    cxy = G[:, :2].mean(0); top = float(G[:, 2].max())
-                    base_z = float(envelope(cxy[None].astype(np.float64), cands(cxy[None]))[0][0])
-                    mine.append([round(float(cxy[0]), 2), round(float(cxy[1]), 2), round(base_z - 0.3, 2), round(top - base_z + 0.3, 2),
-                                     round(float(max(0.45, ext_[0])), 2), round(float(max(0.45, ext_[1])), 2)])
-                chimneys.extend(sorted(mine, key=lambda c_: -c_[3])[:3])   # three a building at most
-            tick("chimneys")
-        try:
-            tri = Delaunay(rnodes).simplices
-        except Exception:
+        # the roof (town_roofs.py): its nodes' heights (the walls' tops along the outline), its mesh, its chimneys
+        R = roof_of(poly, P, top_g, z_flat, rng, stats, ground(P[:, 0], P[:, 1]) if len(P) else None, NEIGH.around(poly))
+        tick("roof")
+        if R is None:
             continue
-        cen = rnodes[tri].mean(axis=1)
-        tri = tri[shapely.contains_xy(rpoly, cen[:, 0], cen[:, 1])]
-        if not len(tri):
-            continue
-        tick("triangles")
+        nz, nb, bnd, rnodes, rz, tri, flat = R["nz"], R["nb"], R["bnd"], R["rnodes"], R["rz"], R["tri"], R["flat"]
+        chimneys.extend(R["chimneys"])
         rc = colour_over(poly)
         tick("roof colour")
         use = (pr.get("usage_1") or "indifférencié").lower()
