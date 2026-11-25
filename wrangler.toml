@@ -82,6 +82,9 @@ REGISTRATION_OPEN = "1"
 NUTRITION_OPEN = "0"
 # "1": registration without France (the countries, migration 0014); "0" until the site's access follows the countries
 WORLD_OPEN = "1"
+# Ozimut's own plans (docs/billing/design.md §1): "off" nothing shows to anyone (the limits are still enforced, as today),
+# "test" the administrators and the accounts whose preview names « billing », "live" everyone
+BILLING = "off"
 # « Orga › Gérer » (functions/_lib/events.js, owner 2026-11-11): "1" — only the team of the event holding a competition (and
 # the administrators) act as its organisers; "0" — a competition no event holds keeps the rule of before (a member of its
 # organising club). Before migration 0026 is applied the rule of before holds either way.

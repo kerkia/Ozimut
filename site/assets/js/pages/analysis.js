@@ -24,6 +24,7 @@ import { anchorsOf, straightPx, timeline, ownGeo, toGpx, drawingOf, parseClock, 
 import { measureTool } from "../trace/measure.js";
 import { t, tn, locale } from "../i18n.js";
 import * as auth from "../auth.js";
+import * as offers from "../offers.js";
 import { getProv, clock } from "./provisional.js";
 import { raceFilters } from "../racefilters.js";
 import * as country from "../country.js";
@@ -184,7 +185,7 @@ export async function render(main, { query = {}, route } = {}) {
       else if (!(d.analysis.courses || []).length) orgaErr = "an.orga.noCourse";
       // the organisers may close « Analyse solo » on their map (owner, 2026-11-04); they still open it themselves
       else if (d.analysis.opts?.solo === false && !d.you?.organiser) orgaErr = "an.orga.closed";
-      else { orga = { id, A: d.analysis, key: k, organiser: !!d.you?.organiser }; orgaN = d.analysis.courses.some((c) => String(c.n) === String(query.c)) ? Number(query.c) : d.analysis.courses[0].n; }
+      else { orga = { id, A: d.analysis, key: k, organiser: !!d.you?.organiser, opened: d.opened || d.analysis.opened || null }; orgaN = d.analysis.courses.some((c) => String(c.n) === String(query.c)) ? Number(query.c) : d.analysis.courses[0].n; }
     } catch (e) { orgaErr = "an.orga.err"; }
   }
   const orgaRace = orga?.A?.kind === "race" && orga.A.race ? orga.A.race : null;
@@ -192,6 +193,8 @@ export async function render(main, { query = {}, route } = {}) {
   // the administrators always), the 3D view, saving the run in « Mes cartes »
   const orgaOpt = (k, d) => (orgaMode && orga ? (typeof orga.A.opts?.[k] === "boolean" ? orga.A.opts[k] : d) : true);
   const routesOk = !!me?.admin || orgaOpt("routes", true);
+  // what the organiser's plan opens to everyone on its analysis (docs/billing/design.md §3; none on one's own map)
+  const capOpened = orgaMode && orga ? orga.opened : null;
   /** A replay on the organiser's map counted for its organisers (once a visit and circuit; never who: api/analyses stats). */
   const soloSeen = () => {
     if (!orgaMode || !orga || orga.organiser) return;
@@ -236,7 +239,7 @@ export async function render(main, { query = {}, route } = {}) {
         <aside class="an-side" id="an-side"></aside>
         ${raw(panelHtml({ id: "an-right", side: "right", cls: "an-right", tabs: [{ key: "display", label: t("an.tab.display"), tip: t("an.tab.display.tip") }, ...(routesOk ? [{ key: "compute", label: t("an.tab.compute"), tip: t("an.tab.compute.tip") }] : []),
           { key: "export", label: t("an.tab.export"), tip: t("an.tab.export.tip") }, { key: "legend", label: t("lg.tab"), tip: t("lg.tab.tip") }],
-          inner: { legend: keyHtml({ video: true }) } }))}
+          inner: { legend: keyHtml({ video: offers.shown("headcamVideo", capOpened) }) } }))}
       </div>
     </div>`;
   if (!perso && !here.length && !races.some((r) => r.key === query.course)) {
@@ -748,6 +751,8 @@ export async function render(main, { query = {}, route } = {}) {
       await take(made.files);
     } catch (e) {
       console.error(e);
+      // a limit of the account's plan (the server's answer names its capability, `cap`): explained by the purchase gate, else the page's own message
+      if (e.data?.cap && (await offers.refused(["plan", "quota"].includes(e.data.error) ? e : { ...e.data, error: "plan" }))) return say("", false);
       say(t(e.message === "none" ? "an.gen.none" : "an.gen.failed"), false);
     }
   }
@@ -1918,7 +1923,7 @@ export async function render(main, { query = {}, route } = {}) {
       ${rmsM != null || geoHow ? html`<div class="an-fitbox muted">${rmsM != null ? html`${t("an.cal.fit")} ${fmt(rmsM)} m` : ""}${geoHow ? html`${rmsM != null ? " · " : ""}${t("an.st.geo")} ${geoHow}` : ""}</div>` : ""}`;
     // the third tab (owner, 2026-11-05): what leaves the page — an image of the map, the map and the run into « Mes cartes »
     rightP.pane("export").innerHTML = html`
-      <div class="an-opts an-shot"><b>${t("an.shot.title")}</b>
+      <div class="an-opts an-shot"><b>${t("an.shot.title")} ${offers.mark("analysisExport", capOpened)}</b>
         <label><span>${t("an.shot.zone")}</span><select id="an-shot-zone"><option value="view" ${raw(shot.zone === "view" ? "selected" : "")}>${t("sh.shot.zone.view")}</option><option value="race" ${raw(shot.zone === "race" ? "selected" : "")}>${t("an.shot.zone.race")}</option><option value="map" ${raw(shot.zone === "map" ? "selected" : "")}>${t("an.shot.zone.map")}</option></select></label>
         <label><span>${t("an.shot.type")}</span><select id="an-shot-type"><option value="png" ${raw(shot.type === "png" ? "selected" : "")}>PNG</option><option value="jpeg" ${raw(shot.type === "jpeg" ? "selected" : "")}>JPEG</option></select></label>
         <label><span>${t("an.shot.legend")}</span><input type="checkbox" id="an-shot-legend" ${raw(shot.legend ? "checked" : "")}></label>
@@ -1949,7 +1954,8 @@ export async function render(main, { query = {}, route } = {}) {
     $("#an-colour").addEventListener("change", (e) => { colour = e.target.value; vSet = false; $("#an-colour-row").hidden = colour !== "plain"; savePrefs(); paceLegend(); draw(); });
     const shotSet = () => { shot.zone = $("#an-shot-zone").value; shot.type = $("#an-shot-type").value; shot.legend = $("#an-shot-legend").checked; savePrefs(); };
     ["#an-shot-zone", "#an-shot-type", "#an-shot-legend"].forEach((s) => $(s).addEventListener("change", shotSet));
-    $("#an-shot").addEventListener("click", () => exportImage());
+    $("#an-shot").addEventListener("click", async () => { if (await offers.guard("analysisExport", { opened: capOpened, el: $("#an-shot") })) exportImage(); });
+    if (!offers.shown("analysisExport", capOpened)) rightP.pane("export").querySelector(".an-shot").hidden = true;
     // an organiser's map lent, not given (their switch « export », owner 2026-11-16): no image of it from here
     if (!orgaOpt("export", true) && !orga?.organiser) rightP.pane("export").querySelector(".an-shot").innerHTML = html`<b>${t("an.shot.title")}</b><p class="hint" style="margin:0">${t("sh.export.closed")}</p>`;
     // « Enregistrer dans Mes cartes » (owner, 2026-11-01): the map and the run as drawn here (trace/mymapsave.js)
@@ -1988,7 +1994,8 @@ export async function render(main, { query = {}, route } = {}) {
     const sc = $("#an-course-on"); if (sc) sc.checked = showCourse;
     fitView();
     seek(0);
-    $("#an-3d").hidden = !orgaOpt("view3d", true); $("#an-measure").hidden = false; $("#an-video-btn").hidden = !orgaOpt("video", true);
+    $("#an-3d").hidden = !orgaOpt("view3d", true); $("#an-measure").hidden = false; $("#an-video-btn").hidden = !orgaOpt("video", true) || !offers.shown("headcamVideo", capOpened);
+    $("#an-video-btn").innerHTML = html`🎥${offers.mark("headcamVideo", capOpened)}`;
     soloSeen();
     const gc = $("#an-gen-credit");
     gc.hidden = !LM.isGenerated(files.map?.name);
@@ -2109,7 +2116,7 @@ export async function render(main, { query = {}, route } = {}) {
       try { localStorage.setItem(keptKey(), JSON.stringify({ id: res.id, cal: mark, title: title || was?.title || "" })); } catch (e) { /* this visit */ }
       keepName = null;
       keptNote("done");
-    } catch (e) { console.warn(e); keptNote("err"); }
+    } catch (e) { console.warn(e); keptNote("err"); offers.refused(e); }       // a full library: the purchase gate explains it too
     finally { keeping = null; }
   }
   /** The pace under the map, shown or folded (the bar with the figures stays). */
@@ -2431,7 +2438,10 @@ export async function render(main, { query = {}, route } = {}) {
   const SOLO = { uid: 0, get name() { return (withTimes && runner()?.name) || t("an.perso.title"); } };
   video = videoPanel($(".an-map"), { runners: [SOLO], get key() { return `ocn.an.video.${traceSig() || "none"}`; }, playing: () => playing, speed: () => speed,
     pick: () => SOLO, raceTime: () => (calibrated ? tNow : null) });
-  $("#an-video-btn").addEventListener("click", () => $("#an-video-file").click());
+  $("#an-video-btn").addEventListener("click", () => {
+    if (offers.has("headcamVideo", capOpened)) $("#an-video-file").click();       // at once: a file chooser needs the click itself
+    else offers.guard("headcamVideo", { opened: capOpened, el: $("#an-video-btn") }).then((ok) => { if (ok) $("#an-video-file").click(); });
+  });
   $("#an-video-file").addEventListener("change", (e) => { const f = e.target.files[0]; if (f) { video.open(f); video.sync(true); } e.target.value = ""; });
   const ro = new ResizeObserver(() => {
     if (!map) return;
@@ -2666,7 +2676,7 @@ export async function render(main, { query = {}, route } = {}) {
 
   // ---- the route choices computed (trace/routeplan.js; administrators only, a prototype — 2026-10-24) ---------------------
   // each leg's fastest routes on the map as read, the route the runner took measured on the same model
-  const rcs = { s: RC.loadSettings(), mapSet: false, pic: null, picOn: false, plan: null, planFor: "", planMap: null, dem: null, info: null,
+  const rcs = { s: RC.loadSettings(undefined, capOpened), mapSet: false, pic: null, picOn: false, plan: null, planFor: "", planMap: null, dem: null, info: null,
     routes: [], mine: [], auto: null, token: 0, status: "", prog: null, warn: "", decOn: RC.decisionOn(), dec: null, decAsk: "",
     on: routesOk && (() => { try { return localStorage.getItem("ocn.rc.on") !== "0"; } catch (e) { return true; } })() };
   const rcPace = () => RC.paceOf(rcs.s, rcs.auto);

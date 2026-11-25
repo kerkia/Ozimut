@@ -29,6 +29,9 @@ const PUBLIC = [/^\/$/, /^\/index\.html$/, /^\/robots\.txt$/, /^\/assets\//, /^\
   /^\/api\/track\/(pair|push|claim|webtoken|session|pushtoken|alert|polar\/webhook)$/, /^\/api\/track\/osmand\/[A-Za-z0-9_-]{20,80}$/,
   // Ozitrac (docs/track/ozitrac.md): no account; its channel's and watchers' own secrets, checked by the relay
   /^\/api\/ozitrac(\/[a-z0-9_]{1,16}(\/[a-z0-9_]{1,16}){0,3})?$/, /^\/z\/[a-z2-7]{16}$/,
+  // Ozimut's own billing (docs/billing/design.md): Stripe's webhook — no session, its signature is its proof — and the pricing
+  // page's figures, which answer 404 « off » until the switch is live (both checked in api/billing)
+  /^\/api\/billing\/(webhook|offer)$/,
   /^\/t\/[A-Za-z0-9]{0,12}$/, /^\/\.well-known\/(assetlinks\.json|apple-app-site-association)$/];
 const RECHECK_MS = 3600e3;       // how often a session is re-validated against the accounts database
 // A demo account (admin page, « Démo »; 2026-10-18) only reads: any other method is refused, but for these
@@ -36,7 +39,8 @@ const DEMO_WRITES = [/^\/api\/track$/, /^\/api\/ask$/];
 
 // The Ozimut app (docs/app/design.md; owner, 2026-11-23): a companion that never shows an invitation to buy and makes or
 // deletes no account. Its web view says who it is in its user agent (« OzimutApp/1.0 (ios) »); whatever a page did there, the
-// server refuses it everything about buying (/api/billing, when plans exist) and the account's making and deletion.
+// server refuses it everything about buying (/api/billing, when plans exist) and the account's making and deletion — but
+// GET /api/billing itself, which answers the app the plan's state only ({ plan, why }: no price, no link; api/billing).
 export const fromApp = (request) => /\bOzimutApp\/[\d.]+/.test(request.headers.get("User-Agent") || "");
 const APP_REFUSED = [/^\/api\/billing(\/|$)/, /^\/api\/account\/register$/, /^\/api\/account\/delete$/, /^\/api\/entries\/[^/]+\/guest$/];
 const parisToday = () => new Date().toLocaleDateString("en-CA", { timeZone: "Europe/Paris" });
@@ -175,7 +179,7 @@ export async function onRequest(context) {
   const path = canonical(new URL(request.url).pathname);
   if (path === null) return new Response("Bad request", { status: 400 });
   if (path === "/auth" || path.startsWith("/auth/")) return new Response("Not found", { status: 404 });
-  if (APP_REFUSED.some((re) => re.test(path)) && fromApp(request)) {
+  if (APP_REFUSED.some((re) => re.test(path)) && fromApp(request) && !(path === "/api/billing" && request.method === "GET")) {
     return new Response(JSON.stringify({ error: "app" }), { status: 403, headers: { "Content-Type": "application/json", "Cache-Control": "no-store" } });
   }
   if (PUBLIC.some((re) => re.test(path))) return next();

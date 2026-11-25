@@ -7,6 +7,7 @@
 import { html, raw, $, fmt, fmtDate, fmtTime, downloadCsv, normalise, pct, fmtCat } from "../util.js";
 import { t, tn, lang } from "../i18n.js";
 import * as auth from "../auth.js";
+import * as offers from "../offers.js";
 import * as data from "../data.js";
 import * as store from "../store.js";
 import { timeChart, columnChart, slotColor } from "../charts.js";
@@ -311,6 +312,8 @@ export async function render(main) {
         if (!answer) throw new Error(t("ia.unreadable"));
         return answer;
       }
+      // the day's questions used up (the capability the answer names, `cap`): the purchase gate explains it beside the page's message
+      if (!r.ok && d.cap) offers.refused(["plan", "quota"].includes(d.error) ? d : { ...d, error: "plan" });
       if (!r.ok || !d.answer) throw new Error(errText(d, r.status));
       entry.usage = d.usage;
       return d.answer;

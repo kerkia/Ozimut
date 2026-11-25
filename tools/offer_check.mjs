@@ -1,8 +1,10 @@
-// The purchase gate's commit check (docs/app/design.md; owner, 2026-11-23): everything about prices, plans and buying is
-// drawn by site/assets/js/offers.js from the catalogue area i18n/billing.<lang>.js, and by nothing else — so that the Ozimut
-// app, where offers.js draws nothing, can never show an invitation to buy. Run by tools/git-hooks/pre-commit on the files as
-// they will be committed; by hand: node tools/offer_check.mjs [--list]. It fails when
-//   1. a bill.* key, the « billing » area, a checkout host or /api/billing is named outside offers.js;
+// The purchase gate's commit check (docs/app/design.md, docs/billing/design.md §9; owner, 2026-11-23 and 2026-11-25): everything
+// about prices, plans and buying is drawn by site/assets/js/offers.js and the modules of site/assets/js/billing/ (which only
+// offers.js loads) from the catalogue area i18n/billing.<lang>.js, and by nothing else — so that the Ozimut app, where offers.js
+// draws nothing about buying, can never show an invitation to buy. Run by tools/git-hooks/pre-commit on the files as they will
+// be committed; by hand: node tools/offer_check.mjs [--list]. It fails when
+//   1. a bill.* key, the « billing » area, a checkout host or /api/billing is named outside the gate, or a module of billing/
+//      is imported by any other module than offers.js;
 //   2. a selling word appears in a text of another catalogue or of a page's code, unless its key or file is allowed below
 //      (payments for real-world services between people and clubs — race entries, club accounts —, the administrators'
 //      figures, a watch's mobile plan, other companies' prices on « IA », which no phone shows).
@@ -14,8 +16,9 @@ const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
 const JS = join(ROOT, "site", "assets", "js");
 const list = process.argv.includes("--list");
 
-// the gate itself
-const GATE = new Set(["offers.js", "i18n/billing.fr.js", "i18n/billing.en.js", "i18n/billing.de.js", "i18n/billing.es.js"]);
+// the gate itself: offers.js, the modules of billing/, the area « billing »
+const GATE = [/^offers\.js$/, /^billing\//, /^i18n\/billing\.(fr|en|de|es)\.js$/];
+const inGate = (file) => GATE.some((re) => re.test(file));
 // not the site's interface: other people's code, the deploy's generated copies, Ozimut Chrono's copy (an organiser's desk tool)
 const SKIP = [/^vendor\//, /^gen\//, /^i18n\/gen\//, /^chrono\//];
 
@@ -25,6 +28,7 @@ const GATED = [
   [/loadArea\(\s*["'`]billing["'`]\s*\)|i18n\/billing\./, "the billing area"],
   [/api\/billing\b/, "/api/billing"],
   [/\b(checkout|buy|billing|pay)\.stripe\.com|\bpaddle\.com|\blemonsqueezy\.com|\bpaypal\.com/, "a checkout host"],
+  [/(?:\bfrom\s*|\bimport\s*\(\s*|\bimport\s+)["'`](?:\.{1,2}\/)+billing\//, "an import of billing/"],
 ];
 
 // 2. selling words, by language (a catalogue's language from its file name; code and French content: all of them)
@@ -67,14 +71,14 @@ const say = (file, line, what, text) => problems.push(`  ${file}:${line}: ${what
 
 for (const path of walk(JS)) {
   const file = relative(JS, path).split(sep).join("/");
-  if (GATE.has(file) || SKIP.some((re) => re.test(file))) continue;
+  if (inGate(file) || SKIP.some((re) => re.test(file))) continue;
   const lines = readFileSync(path, "utf8").split(/\r?\n/);
   const cat = /^i18n\/(?:[\w-]+\.)?(fr|en|de|es)\.js$/.exec(file), content = /^content\/[\w-]+\.(fr|en|de|es)\.js$/.exec(file);
   const fileOk = ALLOW_FILES.some(([re]) => re.test(file));
   lines.forEach((ln, i) => {
     if (/offer-ok/.test(ln)) return;                                  // a line marked as looked at (say why beside it)
     const code = ln.replace(/^\s*\/\/.*$/, "").replace(/\/\*.*?\*\//g, "");
-    for (const [re, what] of GATED) if (re.test(code)) say(file, i + 1, `${what} named outside offers.js`, ln);
+    for (const [re, what] of GATED) if (re.test(code)) say(file, i + 1, `${what} outside the gate (offers.js, billing/)`, ln);
     if (fileOk) return;
     if (cat) {
       // a catalogue: each "key": "text" of the line
@@ -88,10 +92,10 @@ for (const path of walk(JS)) {
 }
 
 if (problems.length) {
-  console.log(`The purchase gate (docs/app/design.md): ${problems.length} thing(s) about buying outside site/assets/js/offers.js`);
+  console.log(`The purchase gate (docs/app/design.md): ${problems.length} thing(s) about buying outside site/assets/js/offers.js and billing/`);
   for (const p of list ? problems : problems.slice(0, 40)) console.log(p);
   if (!list && problems.length > 40) console.log(`  … ${problems.length - 40} more (--list)`);
-  console.log("Move the text to i18n/billing.<lang>.js and draw it from offers.js; or, if it sells nothing of Ozimut's, allow its key or file in tools/offer_check.mjs with the reason.");
+  console.log("Move the text to i18n/billing.<lang>.js and draw it from offers.js (or a module of billing/, loaded through offers.js); or, if it sells nothing of Ozimut's, allow its key or file in tools/offer_check.mjs with the reason.");
   process.exit(1);
 }
-console.log("The purchase gate: nothing about buying outside offers.js.");
+console.log("The purchase gate: nothing about buying outside offers.js and billing/.");

@@ -7,12 +7,13 @@
 // model with detail, unreadable) the page words in its language, and a French `error` for older pages. With promptOnly the model is not called: the answer is the messages themselves, for the browser to send to a
 // model of the user's own choosing, with their own key (pages/ask.js, askbyok.js; owner, 2026-10-15) - the key never comes here.
 import { allow, isAdmin, json, LANGS, readBody, withUser } from "../_lib/api.js";
+import { entitlementsOf, needOf, refusal } from "../_lib/plans.js";
 import { DEFAULT_MODEL, MODELS, NEURONS_PER_DOLLAR, parseAnswer, systemPrompt, userPrompt } from "../_lib/ask.js";
 
 const PER_HOUR = 40, PER_HOUR_ADMIN = 200;      // questions an hour per account: a runaway loop cannot eat the day's quota
 // and a day (UTC) per account on the free model, so that a few accounts cannot use up the whole site's allowance (~90 a
 // day); administrators apart, and nothing counted for a model of one's own (promptOnly)
-const PER_DAY = 15;
+// (15 today: the capability « aiPerDay » of the pack in force, _lib/plans.js)
 
 export const onRequestPost = withUser(async ({ request, env }, user) => {
   const admin = isAdmin(env, user);
@@ -28,11 +29,16 @@ export const onRequestPost = withUser(async ({ request, env }, user) => {
   if (b.promptOnly) return json({ messages });            // the user's own model: no call here, no quota used
   if (!env.AI) return json({ error: "ai not bound" }, 500);
   if (!(await allow(env, `ask:${user.id}`, admin ? PER_HOUR_ADMIN : PER_HOUR, 3600))) return json({ error: "Trop de questions cette heure-ci.", code: "hour" }, 429);
-  if (!admin && !(await allow(env, `askday:${user.id}`, PER_DAY, 86400))) {
-    return json({ error: `Vous avez posé ${PER_DAY} questions aujourd'hui au modèle gratuit d'Ozimut : réessayez demain, ou utilisez votre propre clé d'API.`,
-      code: "day", n: PER_DAY }, 429);
+  // the day's questions: the capability « aiPerDay » (_lib/plans.js; PER_DAY under today's pack), null: no daily limit
+  const ent = admin ? null : await entitlementsOf(env, user);
+  const perDay = admin ? null : ent.caps.aiPerDay;
+  if (perDay !== null && !(await allow(env, `askday:${user.id}`, perDay, 86400))) {
+    return json({ error: `Vous avez posé ${perDay} questions aujourd'hui au modèle gratuit d'Ozimut : réessayez demain, ou utilisez votre propre clé d'API.`,
+      code: "day", n: perDay, cap: "aiPerDay", need: needOf("aiPerDay") }, 429);
   }
-  const model = b.model && MODELS[b.model] && admin ? b.model : DEFAULT_MODEL;
+  // another model than the default: the administrators' tests, and the accounts holding « aiStrong »
+  if (b.model && MODELS[b.model] && b.model !== DEFAULT_MODEL && !admin && !ent.caps.aiStrong) return refusal("aiStrong");
+  const model = b.model && MODELS[b.model] ? b.model : DEFAULT_MODEL;
   const t0 = Date.now();
   let out;
   try {

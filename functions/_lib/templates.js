@@ -1098,3 +1098,380 @@ export function payReminderPush(lang, r) {
   return { title: `${T.remTitle} · ${r.event}`, body: `${money(r.amount, r.cur, lang)} · ${r.ref}`,
     url: r.payerClub ? "/#/monclub?onglet=comptes" : "/#/mes-inscriptions", tag: `pay-${r.ref}` };
 }
+
+// ---- Billing: clubs -------------------------------------------------------------------------------------------------
+// (docs/billing/design.md §6, §10; functions/_lib/invoices.js) Ozimut's own invoices to a club, a league or a federation,
+// paid by bank transfer: the invoice issued, its reminder, the payment seen, a federation's or league's agreement. Written
+// to a club's officers (managers and treasurers): neutral in every language (no « du »). E-mails only, never a push.
+// `b.invoice` is a record of _lib/invoices.js `parsed` (its seller as it was when issued: the IBAN printed is the invoice's).
+const CLUBBILL = {
+  fr: { c: " : ", plan: "Ozimut Club",
+    invTitle: (n) => `Facture ${n}`, invIntro: (club) => `la commande de la formule Ozimut Club pour ${club} est enregistrée. La formule est active dès maintenant ; voici la facture, à régler par virement bancaire.`,
+    invOther: (club) => `voici une facture d'Ozimut pour ${club}, à régler par virement bancaire.`,
+    number: "Facture", amount: "Montant", due: "À régler avant le", period: "Période", ref: "Référence à indiquer sur le virement", holder: "Bénéficiaire",
+    noIban: "Les coordonnées bancaires figurent sur la facture.", open: "Voir la facture et la formule du club",
+    pdf: "La facture en PDF se télécharge depuis la page « Mon club › Formule ».",
+    remTitle: (n) => `Rappel : facture ${n}`, remIntro: (club, n) => `sauf erreur de notre part, le règlement de la facture ${n} pour ${club} ne nous est pas encore parvenu.`,
+    remSeen: "Si le virement est déjà parti, merci de ne pas tenir compte de ce message : le paiement sera enregistré dès sa réception.",
+    paidTitle: (n) => `Paiement reçu : facture ${n}`, paidIntro: (club, n) => `le règlement de la facture ${n} pour ${club} est bien arrivé. Merci.`,
+    paidUntil: (d) => `La formule Ozimut Club est active jusqu'au ${d}.`, paidOn: "Reçu le",
+    agrTitle: "Accord avec Ozimut", agrIntro: (name) => `un accord entre Ozimut et ${name} est en place.`,
+    agrClubs: "Chaque club concerné dispose de la formule Ozimut Club.", agrAll: "Chaque club concerné dispose de la formule Ozimut Club, et chaque licencié de la formule Plus.",
+    agrUntil: (d) => `L'accord court jusqu'au ${d}.`, agrNoEnd: "L'accord n'a pas de date de fin.", agrOpen: "Ouvrir Ozimut" },
+  en: { c: ": ", plan: "Ozimut Club",
+    invTitle: (n) => `Invoice ${n}`, invIntro: (club) => `the order of the Ozimut Club plan for ${club} is recorded. The plan is active from now on; here is the invoice, payable by bank transfer.`,
+    invOther: (club) => `here is an invoice from Ozimut for ${club}, payable by bank transfer.`,
+    number: "Invoice", amount: "Amount", due: "Payable by", period: "Period", ref: "Reference to put on the transfer", holder: "Payee",
+    noIban: "The bank details are on the invoice.", open: "See the invoice and the club's plan",
+    pdf: "The invoice can be downloaded as a PDF from “My club › Plan”.",
+    remTitle: (n) => `Reminder: invoice ${n}`, remIntro: (club, n) => `unless we are mistaken, the payment of invoice ${n} for ${club} has not reached us yet.`,
+    remSeen: "If the transfer has already been made, please ignore this message: the payment will be recorded as soon as it arrives.",
+    paidTitle: (n) => `Payment received: invoice ${n}`, paidIntro: (club, n) => `the payment of invoice ${n} for ${club} has arrived. Thank you.`,
+    paidUntil: (d) => `The Ozimut Club plan is active until ${d}.`, paidOn: "Received on",
+    agrTitle: "Agreement with Ozimut", agrIntro: (name) => `an agreement between Ozimut and ${name} is in place.`,
+    agrClubs: "Every club concerned has the Ozimut Club plan.", agrAll: "Every club concerned has the Ozimut Club plan, and every member the Plus plan.",
+    agrUntil: (d) => `The agreement runs until ${d}.`, agrNoEnd: "The agreement has no end date.", agrOpen: "Open Ozimut" },
+  de: { c: ": ", plan: "Ozimut Club",
+    invTitle: (n) => `Rechnung ${n}`, invIntro: (club) => `die Bestellung von Ozimut Club für ${club} ist eingegangen. Ozimut Club ist ab sofort aktiv; hier ist die Rechnung, zahlbar per Banküberweisung.`,
+    invOther: (club) => `hier ist eine Rechnung von Ozimut für ${club}, zahlbar per Banküberweisung.`,
+    number: "Rechnung", amount: "Betrag", due: "Zahlbar bis", period: "Zeitraum", ref: "Verwendungszweck der Überweisung", holder: "Empfänger",
+    noIban: "Die Bankverbindung steht auf der Rechnung.", open: "Rechnung und Vereinsangebot ansehen",
+    pdf: "Die Rechnung lässt sich unter „Mein Verein › Angebot“ als PDF herunterladen.",
+    remTitle: (n) => `Erinnerung: Rechnung ${n}`, remIntro: (club, n) => `wenn wir uns nicht irren, ist die Zahlung der Rechnung ${n} für ${club} noch nicht bei uns eingegangen.`,
+    remSeen: "Falls die Überweisung schon unterwegs ist, ist diese Nachricht gegenstandslos: Die Zahlung wird vermerkt, sobald sie eingeht.",
+    paidTitle: (n) => `Zahlung erhalten: Rechnung ${n}`, paidIntro: (club, n) => `die Zahlung der Rechnung ${n} für ${club} ist eingegangen. Vielen Dank.`,
+    paidUntil: (d) => `Ozimut Club ist bis zum ${d} aktiv.`, paidOn: "Eingegangen am",
+    agrTitle: "Vereinbarung mit Ozimut", agrIntro: (name) => `zwischen Ozimut und ${name} besteht eine Vereinbarung.`,
+    agrClubs: "Jeder betroffene Verein verfügt über Ozimut Club.", agrAll: "Jeder betroffene Verein verfügt über Ozimut Club, jedes lizenzierte Mitglied über Plus.",
+    agrUntil: (d) => `Die Vereinbarung läuft bis zum ${d}.`, agrNoEnd: "Die Vereinbarung hat kein Enddatum.", agrOpen: "Ozimut öffnen" },
+  es: { c: ": ", plan: "Ozimut Club",
+    invTitle: (n) => `Factura ${n}`, invIntro: (club) => `el pedido de Ozimut Club para ${club} está registrado. Ozimut Club está activo desde ahora; esta es la factura, que se abona por transferencia bancaria.`,
+    invOther: (club) => `esta es una factura de Ozimut para ${club}, que se abona por transferencia bancaria.`,
+    number: "Factura", amount: "Importe", due: "Fecha límite", period: "Periodo", ref: "Referencia que indicar en la transferencia", holder: "Beneficiario",
+    noIban: "Los datos bancarios figuran en la factura.", open: "Ver la factura y el plan del club",
+    pdf: "La factura se descarga en PDF desde «Mi club › Plan».",
+    remTitle: (n) => `Recordatorio: factura ${n}`, remIntro: (club, n) => `salvo error por nuestra parte, el abono de la factura ${n} para ${club} aún no nos ha llegado.`,
+    remSeen: "Si la transferencia ya está hecha, este mensaje no tiene efecto: el abono se anotará en cuanto llegue.",
+    paidTitle: (n) => `Abono recibido: factura ${n}`, paidIntro: (club, n) => `el abono de la factura ${n} para ${club} ha llegado. Gracias.`,
+    paidUntil: (d) => `Ozimut Club está activo hasta el ${d}.`, paidOn: "Recibido el",
+    agrTitle: "Acuerdo con Ozimut", agrIntro: (name) => `hay un acuerdo en vigor entre Ozimut y ${name}.`,
+    agrClubs: "Cada club afectado dispone de Ozimut Club.", agrAll: "Cada club afectado dispone de Ozimut Club, y cada federado de Plus.",
+    agrUntil: (d) => `El acuerdo dura hasta el ${d}.`, agrNoEnd: "El acuerdo no tiene fecha de fin.", agrOpen: "Abrir Ozimut" },
+};
+const clubBillLink = (env) => `${siteUrl(env)}/#/monclub?onglet=formule`;
+/** The lines every invoice mail shares: number, amount, due day, period, then where to pay. → { html, text } */
+function clubBillFacts(T, lang, inv, { pay = true } = {}) {
+  const cur = String(inv.currency || "eur").toUpperCase(), s = inv.seller || {};
+  const rows = [[T.number, inv.number], [T.amount, money(inv.total, cur, lang)], ...(inv.due_at ? [[T.due, longDate(inv.due_at, lang)]] : []),
+    ...(inv.period_from && inv.period_to ? [[T.period, `${shortDate(inv.period_from, lang)} – ${shortDate(inv.period_to, lang)}`]] : [])];
+  let html = `<p>${rows.map(([k, v]) => `${esc(k)}${T.c}<b>${esc(v)}</b>`).join("<br>")}</p>`;
+  let text = rows.map(([k, v]) => `${k}${T.c}${v}`).join("\n");
+  if (pay) {
+    html += `<p>${esc(T.ref)}${T.c}<b style="font-family:monospace;font-size:15px">${esc(inv.number)}</b></p>`
+      + (s.iban ? `<p style="margin:8px 0 0">${esc(T.holder)}${T.c}<b>${esc(s.name || "Ozimut")}</b><br>IBAN${T.c}<b>${esc(ibanText(s.iban))}</b>${s.bic ? `<br>BIC${T.c}<b>${esc(s.bic)}</b>` : ""}</p>`
+        : `<p style="font-size:13px;color:#5b6675">${esc(T.noIban)}</p>`);
+    text += `\n\n${T.ref}${T.c}${inv.number}\n` + (s.iban ? `${T.holder}${T.c}${s.name || "Ozimut"}\nIBAN${T.c}${ibanText(s.iban)}${s.bic ? `\nBIC${T.c}${s.bic}` : ""}` : T.noIban);
+  }
+  return { html, text };
+}
+/** An invoice issued to a club: b = { club, invoice } (an order of the Club plan when invoice.plan is « club »). */
+export function clubInvoiceMail(env, user, b) {
+  const lang = L(user.lang), T = CLUBBILL[lang], inv = b.invoice, link = clubBillLink(env);
+  const title = T.invTitle(inv.number), intro = inv.plan === "club" ? T.invIntro(b.club) : T.invOther(b.club), f = clubBillFacts(T, lang, inv);
+  const html = wrap(env, title, `<p>${esc(greet(lang, user.first_name || user.display_name || ""))}</p><p>${esc(intro)}</p>${f.html}
+${button(link, T.open, lang)}<p style="font-size:13px;color:#5b6675">${esc(T.pdf)}</p>`, lang);
+  const text = `${greet(lang, user.first_name || user.display_name || "")}\n\n${intro}\n\n${f.text}\n\n${T.open}${T.c}${link}\n\n${T.pdf}`;
+  return { subject: `${title} — ${b.club}`, html, text };
+}
+/** The reminder of an invoice past its due day: b = { club, invoice }. */
+export function clubInvoiceReminderMail(env, user, b) {
+  const lang = L(user.lang), T = CLUBBILL[lang], inv = b.invoice, link = clubBillLink(env);
+  const title = T.remTitle(inv.number), intro = T.remIntro(b.club, inv.number), f = clubBillFacts(T, lang, inv);
+  const html = wrap(env, title, `<p>${esc(greet(lang, user.first_name || user.display_name || ""))}</p><p>${esc(intro)}</p>${f.html}
+${button(link, T.open, lang)}<p style="font-size:13px;color:#5b6675">${esc(T.remSeen)}</p>`, lang);
+  const text = `${greet(lang, user.first_name || user.display_name || "")}\n\n${intro}\n\n${f.text}\n\n${T.open}${T.c}${link}\n\n${T.remSeen}`;
+  return { subject: `${title} — ${b.club}`, html, text };
+}
+/** The transfer was seen: b = { club, invoice (paid), until? (the plan's last day, when the invoice carries one) }. */
+export function clubPaidMail(env, user, b) {
+  const lang = L(user.lang), T = CLUBBILL[lang], inv = b.invoice, link = clubBillLink(env), until = b.until || (inv.plan ? inv.period_to : null);
+  const title = T.paidTitle(inv.number), intro = T.paidIntro(b.club, inv.number), f = clubBillFacts(T, lang, { ...inv, due_at: null }, { pay: false });
+  const on = inv.paid_at ? `${T.paidOn}${T.c}${longDate(inv.paid_at, lang)}` : "", plan = until ? T.paidUntil(longDate(until, lang)) : "";
+  const html = wrap(env, title, `<p>${esc(greet(lang, user.first_name || user.display_name || ""))}</p><p>${esc(intro)}</p>${f.html}
+${on ? `<p>${esc(on)}</p>` : ""}${plan ? `<p>${esc(plan)}</p>` : ""}${button(link, T.open, lang)}`, lang);
+  const text = `${greet(lang, user.first_name || user.display_name || "")}\n\n${intro}\n\n${f.text}\n${on ? `${on}\n` : ""}${plan ? `\n${plan}\n` : ""}\n${T.open}${T.c}${link}`;
+  return { subject: `${title} — ${b.club}`, html, text };
+}
+/** A federation's or a league's agreement: b = { name (the federation or league), plan: "fed-clubs" | "fed-all", until (a day or null), note? }. */
+export function agreementMail(env, user, b) {
+  const lang = L(user.lang), T = CLUBBILL[lang], link = `${siteUrl(env)}/`;
+  const intro = T.agrIntro(b.name), what = b.plan === "fed-all" ? T.agrAll : T.agrClubs, end = b.until ? T.agrUntil(longDate(b.until, lang)) : T.agrNoEnd;
+  const html = wrap(env, T.agrTitle, `<p>${esc(greet(lang, user.first_name || user.display_name || ""))}</p><p>${esc(intro)}</p><p>${esc(what)}</p><p>${esc(end)}</p>
+${b.note ? `<p style="color:#5b6675">${esc(b.note)}</p>` : ""}${button(link, T.agrOpen, lang)}`, lang);
+  const text = `${greet(lang, user.first_name || user.display_name || "")}\n\n${intro}\n\n${what}\n${end}\n${b.note ? `\n${b.note}\n` : ""}\n${T.agrOpen}${T.c}${link}`;
+  return { subject: `${T.agrTitle} — ${b.name}`, html, text };
+}
+// =====================================================================================================================
+// Billing: individuals (docs/billing/design.md §10; functions/_lib/billing.js, api/billing). E-mails only, never a push;
+// account e-mails, sent at once. Each takes the account (its language, first name) and the facts; amounts in cents, dates
+// as ISO days or timestamps. Plain wording, nothing pushy: what happened, what happens next, how to undo it.
+// =====================================================================================================================
+const BN = " ";                         // the French no-break space before « : ; ! ? » and inside guillemets
+const billDay = (isoDate, lang) => longDate(String(isoDate || "").slice(0, 10), lang);
+const billLinks = (env) => ({ settings: `${siteUrl(env)}/#/reglages?onglet=abonnement`, terms: `${siteUrl(env)}/#/conditions-de-vente` });
+/** French typography: a no-break space before « : ; ! ? » and inside guillemets (addresses have no space there). */
+const frSpaces = (s) => String(s).replace(/ ([:;!?»])/g, `${BN}$1`).replace(/« /g, `«${BN}`);
+/** Paragraphs (plain strings), an optional button [href, label] and small print (plain strings) → { subject, html, text }. */
+function billingMailOf(env, user, title, paras, { btn = null, small = [] } = {}) {
+  const lang = L(user.lang), hello = greet(lang, user.first_name || user.display_name || "");
+  const sp = (s) => (lang === "fr" ? frSpaces(s) : s);
+  title = sp(title);
+  const body = paras.filter(Boolean).map(sp), fine = small.filter(Boolean).map(sp);
+  const html = wrap(env, title, `<p>${esc(hello)}</p>${body.map((p) => `<p>${esc(p)}</p>`).join("")}${btn ? button(btn[0], btn[1], lang) : ""}${fine.map((p) => `<p style="font-size:13px;color:#5b6675">${esc(p)}</p>`).join("")}`, lang);
+  const text = `${hello}\n\n${body.join("\n\n")}${btn ? `\n\n${btn[1]}${lang === "fr" ? BN : ""}: ${btn[0]}` : ""}${fine.length ? `\n\n${fine.join("\n\n")}` : ""}\n`;
+  return { subject: title, html, text };
+}
+const BILL_BTN = { fr: "Voir mon abonnement", en: "See my subscription", de: "Mein Abo ansehen", es: "Ver mi suscripción" };
+const BILL_KEEP = {
+  fr: "Rien de ce que vous avez enregistré n'est supprimé : tout reste lisible, exportable et supprimable ; seuls les ajouts au-delà des limites de la formule gratuite ne sont plus possibles.",
+  en: "Nothing you have saved is deleted: everything stays readable, exportable and yours to delete; only additions beyond the free plan's limits are no longer possible.",
+  de: "Nichts von dem, was du gespeichert hast, wird gelöscht: Alles bleibt lesbar, exportierbar und löschbar; nur Ergänzungen über die Grenzen des kostenlosen Angebots hinaus sind nicht mehr möglich.",
+  es: "Nada de lo que has guardado se borra: todo sigue siendo legible, exportable y eliminable; solo dejan de ser posibles los añadidos por encima de los límites del plan gratuito.",
+};
+
+/** The 30-day trial has started: i = { until }. */
+export function trialStartMail(env, user, i) {
+  const lang = L(user.lang), d = billDay(i.until, lang), K = billLinks(env);
+  const T = pick(lang, {
+    fr: { title: "Votre essai d'Ozimut Plus a commencé",
+      p: [`Votre essai gratuit d'Ozimut Plus court jusqu'au ${d} inclus.`,
+        `Aucune carte bancaire ne vous a été demandée${BN}: à cette date, l'essai s'arrête de lui-même et rien n'est prélevé. Votre compte retrouve alors la formule gratuite.`, BILL_KEEP.fr] },
+    en: { title: "Your Ozimut Plus trial has started",
+      p: [`Your free trial of Ozimut Plus runs until ${d} inclusive.`,
+        "No card was asked for: on that date the trial stops by itself and nothing is charged. Your account then goes back to the free plan.", BILL_KEEP.en] },
+    de: { title: "Dein Test von Ozimut Plus hat begonnen",
+      p: [`Dein kostenloser Test von Ozimut Plus läuft bis einschließlich ${d}.`,
+        "Es wurde keine Karte verlangt: An diesem Tag endet der Test von selbst, und es wird nichts abgebucht. Dein Konto kehrt dann zum kostenlosen Angebot zurück.", BILL_KEEP.de] },
+    es: { title: "Tu prueba de Ozimut Plus ha empezado",
+      p: [`Tu prueba gratuita de Ozimut Plus dura hasta el ${d} inclusive.`,
+        "No se te ha pedido ninguna tarjeta: ese día la prueba termina sola y no se cobra nada. Tu cuenta vuelve entonces al plan gratuito.", BILL_KEEP.es] },
+  });
+  return billingMailOf(env, user, T.title, T.p, { btn: [K.settings, BILL_BTN[lang]] });
+}
+
+/** Three days before the trial ends: i = { until, price } (price: billing.js displayPrices; its plus.year in cents). */
+export function trialEndMail(env, user, i) {
+  const lang = L(user.lang), d = billDay(i.until, lang), K = billLinks(env);
+  const ready = i.price?.plus?.ready, amount = ready ? money(i.price.plus.founder ?? i.price.plus.year, String(i.price.currency || "eur").toUpperCase(), lang) : "";
+  const T = pick(lang, {
+    fr: { title: `Votre essai d'Ozimut Plus se termine le ${d}`,
+      p: [`Votre essai d'Ozimut Plus se termine le ${d}.`,
+        "Vous n'avez rien à faire : sans abonnement de votre part, l'essai s'arrête ce jour-là, rien n'est prélevé et votre compte retrouve la formule gratuite.".replace(" :", `${BN}:`),
+        BILL_KEEP.fr, ready ? `Si vous souhaitez continuer, l'abonnement est de ${amount} par an, depuis Réglages › Abonnement.` : ""] },
+    en: { title: `Your Ozimut Plus trial ends on ${d}`,
+      p: [`Your Ozimut Plus trial ends on ${d}.`,
+        "There is nothing you need to do: unless you subscribe, the trial stops that day, nothing is charged and your account goes back to the free plan.",
+        BILL_KEEP.en, ready ? `If you would like to continue, the subscription is ${amount} a year, from Settings › Subscription.` : ""] },
+    de: { title: `Dein Test von Ozimut Plus endet am ${d}`,
+      p: [`Dein Test von Ozimut Plus endet am ${d}.`,
+        "Du musst nichts tun: Ohne ein Abo von dir endet der Test an diesem Tag, es wird nichts abgebucht, und dein Konto kehrt zum kostenlosen Angebot zurück.",
+        BILL_KEEP.de, ready ? `Wenn du weitermachen möchtest, kostet das Abo ${amount} pro Jahr, unter Einstellungen › Abo.` : ""] },
+    es: { title: `Tu prueba de Ozimut Plus termina el ${d}`,
+      p: [`Tu prueba de Ozimut Plus termina el ${d}.`,
+        "No tienes que hacer nada: si no te suscribes, la prueba termina ese día, no se cobra nada y tu cuenta vuelve al plan gratuito.",
+        BILL_KEEP.es, ready ? `Si quieres continuar, la suscripción cuesta ${amount} al año, desde Ajustes › Suscripción.` : ""] },
+  });
+  return billingMailOf(env, user, T.title, T.p, { btn: [K.settings, BILL_BTN[lang]] });
+}
+
+/** The subscription is paid and active: i = { amount, currency, end, withdrawDays }. States the withdrawal right and the terms. */
+export function subscribedMail(env, user, i) {
+  const lang = L(user.lang), d = billDay(i.end, lang), K = billLinks(env), n = i.withdrawDays || 14;
+  const amount = money(i.amount, String(i.currency || "eur").toUpperCase(), lang);
+  const T = pick(lang, {
+    fr: { title: "Votre abonnement Ozimut Plus est actif",
+      p: [`Merci${BN}: votre abonnement Ozimut Plus est actif. Montant${BN}: ${amount} par an.`,
+        `Il se renouvelle le ${d}, sauf résiliation de votre part${BN}; nous vous le rappellerons par e-mail avant cette date.`,
+        `Droit de rétractation${BN}: vous disposez de ${n} jours à compter de ce paiement pour vous rétracter, sans donner de motif, depuis Réglages › Abonnement ou en nous écrivant. Comme vous avez demandé que l'abonnement commence tout de suite, le remboursement porte sur la part non utilisée.`,
+        `Résilier${BN}: Réglages › Abonnement › Résilier, à tout moment${BN}; l'abonnement court alors jusqu'à la fin de la période payée.`,
+        `Votre facture et votre moyen de paiement se trouvent au même endroit.`],
+      terms: `Conditions générales de vente${BN}: ${K.terms}` },
+    en: { title: "Your Ozimut Plus subscription is active",
+      p: [`Thank you: your Ozimut Plus subscription is active. Amount: ${amount} a year.`,
+        `It renews on ${d} unless you cancel; we will remind you by e-mail before that date.`,
+        `Right of withdrawal: you have ${n} days from this payment to withdraw, without giving a reason, from Settings › Subscription or by writing to us. As you asked for the subscription to start at once, the refund covers the unused share.`,
+        "To cancel: Settings › Subscription › Cancel, at any time; the subscription then runs until the end of the period paid for.",
+        "Your invoice and your payment method are in the same place."],
+      terms: `Terms of sale: ${K.terms}` },
+    de: { title: "Dein Abo Ozimut Plus ist aktiv",
+      p: [`Danke: Dein Abo Ozimut Plus ist aktiv. Betrag: ${amount} pro Jahr.`,
+        `Es verlängert sich am ${d}, sofern du nicht kündigst; wir erinnern dich vorher per E-Mail daran.`,
+        `Widerrufsrecht: Du kannst innerhalb von ${n} Tagen ab dieser Zahlung ohne Angabe von Gründen widerrufen, unter Einstellungen › Abo oder indem du uns schreibst. Da du gewünscht hast, dass das Abo sofort beginnt, wird der nicht genutzte Anteil erstattet.`,
+        "Kündigen: Einstellungen › Abo › Kündigen, jederzeit; das Abo läuft dann bis zum Ende des bezahlten Zeitraums.",
+        "Deine Rechnung und dein Zahlungsmittel findest du an derselben Stelle."],
+      terms: `Verkaufsbedingungen: ${K.terms}` },
+    es: { title: "Tu suscripción a Ozimut Plus está activa",
+      p: [`Gracias: tu suscripción a Ozimut Plus está activa. Importe: ${amount} al año.`,
+        `Se renueva el ${d}, salvo que la canceles; te lo recordaremos por correo antes de esa fecha.`,
+        `Derecho de desistimiento: dispones de ${n} días desde este pago para desistir, sin dar motivos, desde Ajustes › Suscripción o escribiéndonos. Como pediste que la suscripción empezara de inmediato, el reembolso corresponde a la parte no utilizada.`,
+        "Cancelar: Ajustes › Suscripción › Cancelar, en cualquier momento; la suscripción sigue entonces hasta el final del periodo pagado.",
+        "Tu factura y tu medio de pago están en el mismo sitio."],
+      terms: `Condiciones de venta: ${K.terms}` },
+  });
+  return billingMailOf(env, user, T.title, T.p, { btn: [K.settings, BILL_BTN[lang]], small: [T.terms] });
+}
+
+/** The yearly notice before a renewal (the date, the amount, how to terminate): i = { end, amount, currency }. */
+export function renewalNoticeMail(env, user, i) {
+  const lang = L(user.lang), d = billDay(i.end, lang), K = billLinks(env);
+  const amount = money(i.amount, String(i.currency || "eur").toUpperCase(), lang);
+  const T = pick(lang, {
+    fr: { title: `Votre abonnement Ozimut Plus se renouvelle le ${d}`,
+      p: [`Votre abonnement Ozimut Plus arrive à échéance le ${d}. Sans résiliation de votre part avant cette date, il sera renouvelé pour un an et ${amount} seront prélevés sur votre moyen de paiement.`,
+        `Pour ne pas le renouveler${BN}: Réglages › Abonnement › Résilier (trois clics), jusqu'au ${d}. Vous gardez Ozimut Plus jusqu'à cette date.`,
+        BILL_KEEP.fr, "Si vous souhaitez continuer, vous n'avez rien à faire."], btn: "Gérer mon abonnement" },
+    en: { title: `Your Ozimut Plus subscription renews on ${d}`,
+      p: [`Your Ozimut Plus subscription reaches its term on ${d}. Unless you cancel before that date, it will renew for one year and ${amount} will be charged to your payment method.`,
+        `To stop it from renewing: Settings › Subscription › Cancel (three clicks), until ${d}. You keep Ozimut Plus until that date.`,
+        BILL_KEEP.en, "If you would like to continue, there is nothing you need to do."], btn: "Manage my subscription" },
+    de: { title: `Dein Abo Ozimut Plus verlängert sich am ${d}`,
+      p: [`Dein Abo Ozimut Plus läuft am ${d} ab. Wenn du nicht vorher kündigst, verlängert es sich um ein Jahr, und ${amount} werden von deinem Zahlungsmittel abgebucht.`,
+        `Damit es sich nicht verlängert: Einstellungen › Abo › Kündigen (drei Klicks), bis zum ${d}. Du behältst Ozimut Plus bis zu diesem Tag.`,
+        BILL_KEEP.de, "Wenn du weitermachen möchtest, musst du nichts tun."], btn: "Mein Abo verwalten" },
+    es: { title: `Tu suscripción a Ozimut Plus se renueva el ${d}`,
+      p: [`Tu suscripción a Ozimut Plus vence el ${d}. Si no la cancelas antes de esa fecha, se renovará por un año y se cobrarán ${amount} en tu medio de pago.`,
+        `Para que no se renueve: Ajustes › Suscripción › Cancelar (tres clics), hasta el ${d}. Conservas Ozimut Plus hasta esa fecha.`,
+        BILL_KEEP.es, "Si quieres continuar, no tienes que hacer nada."], btn: "Gestionar mi suscripción" },
+  });
+  return billingMailOf(env, user, T.title, T.p, { btn: [K.settings, T.btn] });
+}
+
+/** A payment did not go through: i = { amount, currency, next (ISO, Stripe's next try, or null) }. */
+export function paymentFailedMail(env, user, i) {
+  const lang = L(user.lang), K = billLinks(env), next = i.next ? billDay(i.next, lang) : "";
+  const amount = money(i.amount, String(i.currency || "eur").toUpperCase(), lang);
+  const T = pick(lang, {
+    fr: { title: "Le paiement de votre abonnement Ozimut Plus n'a pas abouti",
+      p: [`Le paiement de votre abonnement Ozimut Plus (${amount}) n'a pas abouti. Cela arrive${BN}: une carte expirée, un plafond atteint…`,
+        `Vous pouvez mettre à jour votre moyen de paiement depuis Réglages › Abonnement.${next ? ` Un nouvel essai aura lieu le ${next}.` : ""}`,
+        "Votre abonnement reste actif pour l'instant. Si le paiement ne peut pas être fait, il prendra fin et votre compte retrouvera la formule gratuite, sans rien perdre de ce que vous avez enregistré."],
+      btn: "Mettre à jour mon moyen de paiement" },
+    en: { title: "The payment for your Ozimut Plus subscription did not go through",
+      p: [`The payment for your Ozimut Plus subscription (${amount}) did not go through. It happens: an expired card, a limit reached…`,
+        `You can update your payment method from Settings › Subscription.${next ? ` Another attempt will be made on ${next}.` : ""}`,
+        "Your subscription stays active for now. If the payment cannot be made, it will end and your account will go back to the free plan, without losing anything you have saved."],
+      btn: "Update my payment method" },
+    de: { title: "Die Zahlung für dein Abo Ozimut Plus ist fehlgeschlagen",
+      p: [`Die Zahlung für dein Abo Ozimut Plus (${amount}) ist fehlgeschlagen. Das kommt vor: eine abgelaufene Karte, ein erreichtes Limit…`,
+        `Du kannst dein Zahlungsmittel unter Einstellungen › Abo aktualisieren.${next ? ` Ein neuer Versuch findet am ${next} statt.` : ""}`,
+        "Dein Abo bleibt vorerst aktiv. Wenn die Zahlung nicht möglich ist, endet es, und dein Konto kehrt zum kostenlosen Angebot zurück, ohne dass etwas von dem verloren geht, was du gespeichert hast."],
+      btn: "Zahlungsmittel aktualisieren" },
+    es: { title: "El pago de tu suscripción a Ozimut Plus no se ha completado",
+      p: [`El pago de tu suscripción a Ozimut Plus (${amount}) no se ha completado. A veces pasa: una tarjeta caducada, un límite alcanzado…`,
+        `Puedes actualizar tu medio de pago desde Ajustes › Suscripción.${next ? ` Se hará un nuevo intento el ${next}.` : ""}`,
+        "Tu suscripción sigue activa por ahora. Si el pago no puede hacerse, terminará y tu cuenta volverá al plan gratuito, sin perder nada de lo que has guardado."],
+      btn: "Actualizar mi medio de pago" },
+  });
+  return billingMailOf(env, user, T.title, T.p, { btn: [K.settings, T.btn] });
+}
+
+/** The termination is noted (the subscription runs to its period's end): i = { end }. */
+export function cancelledMail(env, user, i) {
+  const lang = L(user.lang), d = billDay(i.end, lang), K = billLinks(env);
+  const T = pick(lang, {
+    fr: { title: "Votre résiliation est enregistrée",
+      p: [`Votre abonnement Ozimut Plus ne sera pas renouvelé. Vous en gardez tous les avantages jusqu'au ${d}${BN}; plus rien ne sera prélevé.`,
+        `Ensuite, votre compte retrouve la formule gratuite. ${BILL_KEEP.fr}`,
+        `Vous avez changé d'avis${BN}? Vous pouvez reprendre l'abonnement depuis Réglages › Abonnement, avant cette date.`] },
+    en: { title: "Your cancellation is recorded",
+      p: [`Your Ozimut Plus subscription will not renew. You keep all of it until ${d}; nothing more will be charged.`,
+        `After that, your account goes back to the free plan. ${BILL_KEEP.en}`,
+        "Changed your mind? You can resume the subscription from Settings › Subscription, before that date."] },
+    de: { title: "Deine Kündigung ist eingetragen",
+      p: [`Dein Abo Ozimut Plus wird nicht verlängert. Du behältst alle Vorteile bis zum ${d}; es wird nichts mehr abgebucht.`,
+        `Danach kehrt dein Konto zum kostenlosen Angebot zurück. ${BILL_KEEP.de}`,
+        "Hast du es dir anders überlegt? Du kannst das Abo vor diesem Tag unter Einstellungen › Abo fortsetzen."] },
+    es: { title: "Tu cancelación está registrada",
+      p: [`Tu suscripción a Ozimut Plus no se renovará. Conservas todas sus ventajas hasta el ${d}; no se cobrará nada más.`,
+        `Después, tu cuenta vuelve al plan gratuito. ${BILL_KEEP.es}`,
+        "¿Has cambiado de idea? Puedes reanudar la suscripción desde Ajustes › Suscripción, antes de esa fecha."] },
+  });
+  return billingMailOf(env, user, T.title, T.p, { btn: [K.settings, BILL_BTN[lang]] });
+}
+
+/** A withdrawal within 14 days: the subscription ended, the unused share refunded: i = { refund (cents), currency }. */
+export function withdrawnMail(env, user, i) {
+  const lang = L(user.lang), K = billLinks(env), has = Number(i.refund) > 0;
+  const amount = money(i.refund, String(i.currency || "eur").toUpperCase(), lang);
+  const T = pick(lang, {
+    fr: { title: "Votre rétractation est enregistrée",
+      p: ["Votre rétractation est enregistrée et votre abonnement Ozimut Plus a pris fin aujourd'hui.",
+        has ? `Nous vous remboursons ${amount}, la part non utilisée de votre paiement, sur le moyen de paiement utilisé. Le remboursement apparaît en général sous 5 à 10 jours.` : "",
+        `Votre compte retrouve la formule gratuite. ${BILL_KEEP.fr}`] },
+    en: { title: "Your withdrawal is recorded",
+      p: ["Your withdrawal is recorded and your Ozimut Plus subscription ended today.",
+        has ? `We are refunding ${amount}, the unused share of your payment, to the payment method you used. The refund usually shows within 5 to 10 days.` : "",
+        `Your account goes back to the free plan. ${BILL_KEEP.en}`] },
+    de: { title: "Dein Widerruf ist eingetragen",
+      p: ["Dein Widerruf ist eingetragen, und dein Abo Ozimut Plus ist heute beendet worden.",
+        has ? `Wir erstatten dir ${amount}, den nicht genutzten Anteil deiner Zahlung, auf das verwendete Zahlungsmittel. Die Erstattung erscheint in der Regel innerhalb von 5 bis 10 Tagen.` : "",
+        `Dein Konto kehrt zum kostenlosen Angebot zurück. ${BILL_KEEP.de}`] },
+    es: { title: "Tu desistimiento está registrado",
+      p: ["Tu desistimiento está registrado y tu suscripción a Ozimut Plus ha terminado hoy.",
+        has ? `Te reembolsamos ${amount}, la parte no utilizada de tu pago, en el medio de pago que usaste. El reembolso suele aparecer en un plazo de 5 a 10 días.` : "",
+        `Tu cuenta vuelve al plan gratuito. ${BILL_KEEP.es}`] },
+  });
+  return billingMailOf(env, user, T.title, T.p, { small: [pick(lang, { fr: `Conditions générales de vente${BN}: ${K.terms}`, en: `Terms of sale: ${K.terms}`, de: `Verkaufsbedingungen: ${K.terms}`, es: `Condiciones de venta: ${K.terms}` })] });
+}
+
+/** The subscription has ended (its period's end after a termination, or a payment that could not be made): i = { end }. */
+export function endedMail(env, user, i) {
+  const lang = L(user.lang), K = billLinks(env);
+  const T = pick(lang, {
+    fr: { title: "Votre abonnement Ozimut Plus a pris fin",
+      p: ["Votre abonnement Ozimut Plus a pris fin et votre compte est revenu à la formule gratuite. Plus rien ne sera prélevé.", BILL_KEEP.fr,
+        "Vous pouvez vous réabonner quand vous le souhaitez, depuis Réglages › Abonnement."] },
+    en: { title: "Your Ozimut Plus subscription has ended",
+      p: ["Your Ozimut Plus subscription has ended and your account is back on the free plan. Nothing more will be charged.", BILL_KEEP.en,
+        "You can subscribe again whenever you like, from Settings › Subscription."] },
+    de: { title: "Dein Abo Ozimut Plus ist beendet",
+      p: ["Dein Abo Ozimut Plus ist beendet, und dein Konto nutzt wieder das kostenlose Angebot. Es wird nichts mehr abgebucht.", BILL_KEEP.de,
+        "Du kannst jederzeit wieder ein Abo abschließen, unter Einstellungen › Abo."] },
+    es: { title: "Tu suscripción a Ozimut Plus ha terminado",
+      p: ["Tu suscripción a Ozimut Plus ha terminado y tu cuenta ha vuelto al plan gratuito. No se cobrará nada más.", BILL_KEEP.es,
+        "Puedes volver a suscribirte cuando quieras, desde Ajustes › Suscripción."] },
+  });
+  return billingMailOf(env, user, T.title, T.p, { btn: [K.settings, BILL_BTN[lang]] });
+}
+
+/**
+ * To an administrator, in their language: what = "dispute" (a payment disputed with the bank) | "webhook" (a Stripe event that
+ * could not be applied) | "check" (what the daily check found and repaired); lines: the facts, as they are (ids, states).
+ */
+export function billingAlertMail(env, lang, what, lines = []) {
+  lang = L(lang);
+  const link = `${siteUrl(env)}/#/admin?onglet=abonnements`;
+  const T = pick(lang, {
+    fr: { dispute: ["Abonnements : un paiement est contesté", "Un paiement a été contesté auprès de la banque du client. Stripe attend une réponse dans son tableau de bord, dans le délai qu'il indique."],
+      webhook: ["Abonnements : un événement Stripe n'a pas pu être appliqué", "Stripe le renverra de lui-même ; il peut aussi être rejoué depuis l'onglet « Abonnements » de la page d'administration."],
+      check: ["Abonnements : le contrôle quotidien a trouvé des écarts", "Le contrôle quotidien a comparé les abonnements de Stripe à ceux du site. Voici ce qui différait ; ce qui pouvait l'être a été corrigé d'après Stripe."],
+      open: "Ouvrir l'administration" },
+    en: { dispute: ["Subscriptions: a payment is disputed", "A payment was disputed with the customer's bank. Stripe expects an answer in its dashboard, within the time it gives."],
+      webhook: ["Subscriptions: a Stripe event could not be applied", "Stripe will send it again by itself; it can also be replayed from the admin page's “Subscriptions” tab."],
+      check: ["Subscriptions: the daily check found differences", "The daily check compared Stripe's subscriptions with the site's. This is what differed; what could be was corrected from Stripe."],
+      open: "Open the admin page" },
+    de: { dispute: ["Abos: Eine Zahlung wird angefochten", "Eine Zahlung wurde bei der Bank des Kunden angefochten. Stripe erwartet in seinem Dashboard eine Antwort innerhalb der dort genannten Frist."],
+      webhook: ["Abos: Ein Stripe-Ereignis konnte nicht angewendet werden", "Stripe sendet es von selbst erneut; es kann auch im Tab „Abos“ der Verwaltungsseite erneut abgespielt werden."],
+      check: ["Abos: Die tägliche Prüfung hat Abweichungen gefunden", "Die tägliche Prüfung hat die Abos bei Stripe mit denen der Website verglichen. Das war unterschiedlich; was möglich war, wurde nach Stripe korrigiert."],
+      open: "Verwaltung öffnen" },
+    es: { dispute: ["Suscripciones: se ha impugnado un pago", "Se ha impugnado un pago ante el banco del cliente. Stripe espera una respuesta en su panel, en el plazo que indica."],
+      webhook: ["Suscripciones: no se pudo aplicar un evento de Stripe", "Stripe lo reenviará por sí mismo; también puede volver a ejecutarse desde la pestaña «Suscripciones» de la página de administración."],
+      check: ["Suscripciones: la comprobación diaria ha encontrado diferencias", "La comprobación diaria ha comparado las suscripciones de Stripe con las del sitio. Esto es lo que difería; lo que se podía se ha corregido según Stripe."],
+      open: "Abrir la administración" },
+  });
+  const [title0, intro0] = T[what] || T.check;
+  const title = lang === "fr" ? title0.replace(" :", `${BN}:`) : title0, intro = lang === "fr" ? intro0.replace(/ ;/g, `${BN};`).replace(/« /g, `«${BN}`).replace(/ »/g, `${BN}»`) : intro0;
+  const list = (lines || []).map((x) => String(x).slice(0, 300)).slice(0, 40);
+  const html = wrap(env, title, `<p>${esc(intro)}</p>${list.length ? `<ul style="padding-left:20px;margin:0 0 12px;font-family:monospace;font-size:13px">${list.map((x) => `<li>${esc(x)}</li>`).join("")}</ul>` : ""}${button(link, T.open, lang)}`, lang);
+  return { subject: title, html, text: `${intro}\n\n${list.map((x) => `- ${x}`).join("\n")}\n\n${T.open}${lang === "fr" ? BN : ""}: ${link}\n` };
+}

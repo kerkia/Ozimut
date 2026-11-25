@@ -6,6 +6,7 @@
 import { html, raw, $, fmt, pct, pctN } from "../util.js";
 import { t } from "../i18n.js";
 import { replaced } from "../front.js";
+import * as offers from "../offers.js";
 import { DEFAULTS, LEGEND, A, CROSS_PACE } from "./routechoice.js";
 import { layers, resampleLayers, LAYER_KEYS, OPTIONAL_KEYS, VECTOR_ACCEPT } from "./vectorroutes.js";
 
@@ -18,15 +19,23 @@ const SPEED_KEYS = ["track", "path", "small", "open", "rough", "g1", "g2", "g3",
 const VECTOR_SPEEDS = ["slow1", "slow2", "slow3"];         // an OCAD or Mapper map's stony or sandy ground: shown with one only
 
 /** The settings: the saved ones over the defaults; the map's kind from the race (`map`), unless changed this visit. */
-export function loadSettings(map = "forest") {
+export function loadSettings(map = "forest", opened = null) {
   let saved = {};
   try { saved = JSON.parse(localStorage.getItem(PREFS) || "{}") || {}; } catch (e) { /* defaults */ }
   // what Ozimut decides itself, never the user (owner, 2026-11-05): the black lines read automatically, the relief from the map's
   // own contour lines (the model where too few are read), their interval the standard's — 2.5 m in sprint, 5 m in forest
-  return { ...DEFAULTS, ...saved, map, black: "auto", relief: "contours", speeds: { ...DEFAULTS.speeds, ...(saved.speeds || {}) } };
+  const s = { ...DEFAULTS, ...saved, map, black: "auto", relief: "contours", speeds: { ...DEFAULTS.speeds, ...(saved.speeds || {}) } };
+  // the speeds adjusted on the runners' own times are a capability (docs/billing/design.md, routesOwnSpeeds; `opened`: what a map
+  // analysis's organiser opens to its participants): an account without it computes unadjusted, its saved choice kept as it is
+  const lack = !offers.has(OWN_SPEEDS, opened);
+  CAP.set(s, { opened, lack, wish: !!s.calib });
+  if (lack) s.calib = false;
+  return s;
 }
+const OWN_SPEEDS = "routesOwnSpeeds", CAP = new WeakMap();
 function saveSettings(s) {
   const { map, ...rest } = s;
+  if (CAP.get(s)?.lack) rest.calib = CAP.get(s).wish;
   try { localStorage.setItem(PREFS, JSON.stringify(rest)); } catch (e) { /* this visit only */ }
 }
 /** Whether a race reads as a sprint (its discipline, else its name). */
@@ -298,6 +307,7 @@ export const minKm = (sPerM) => { const v = Math.round(sPerM * 1000); return `${
  */
 export function panelHtml(s, { on, picture, decision = false, status = "", progress = null, warn = "", auto = null, vector = null, calib = "" } = {}) {
   const range = (id, v, lo, hi, step, label, unit = "") => html`<label><span>${label}</span><span class="rc-range"><input type="range" id="${id}" min="${lo}" max="${hi}" step="${step}" value="${v}"><b id="${id}-v">${v}${unit}</b></span></label>`;
+  const cap = CAP.get(s), own = offers.shown(OWN_SPEEDS, cap?.opened);      // not drawn where the account lacks it and nothing is offered (the app)
   return html`<details class="an-settings rc-box" id="rc-box" open><summary>${t("rc.title")}</summary>
     <label class="rc-on"><input type="checkbox" id="rc-on" ${raw(on ? "checked" : "")}> ${t("rc.on")}</label>
     <div class="muted rc-status" id="rc-status" ${raw(progress == null ? "hidden" : "")}>${status}</div>
@@ -306,7 +316,7 @@ export function panelHtml(s, { on, picture, decision = false, status = "", progr
     <div ${raw(on ? "" : "hidden")} id="rc-opts">
       <div class="an-opts">
         <label><span>${t("rc.map")}</span><select id="rc-map"><option value="forest" ${raw(s.map === "forest" ? "selected" : "")}>${t("rc.map.forest")}</option><option value="sprint" ${raw(s.map === "sprint" ? "selected" : "")}>${t("rc.map.sprint")}</option></select></label>
-        <label class="rc-on" title="${t("rc.calib.hint")}"><input type="checkbox" id="rc-calib" ${raw(s.calib ? "checked" : "")}> ${t("rc.calib")}</label>
+        ${own ? html`<label class="rc-on" title="${t("rc.calib.hint")}"><input type="checkbox" id="rc-calib" ${raw(s.calib ? "checked" : "")}> ${t("rc.calib")} ${offers.mark(OWN_SPEEDS, cap?.opened)}</label>` : ""}
         <div class="muted rc-cal" id="rc-cal" ${raw(calib ? "" : "hidden")}>${calib || ""}</div>
         <fieldset class="rc-calgroup" id="rc-calgroup" ${raw(s.calib ? "disabled" : "")}>
           <label><span>${t("rc.pace")}</span><span class="rc-range"><input id="rc-pace" inputmode="numeric" placeholder="${auto ? minKm(auto) : "6:00"}" value="${s.pace > 0 ? minKm(s.pace / 1000) : ""}" style="width:70px"> <span class="muted">${t("rc.pace.unit")}</span></span></label>
@@ -339,7 +349,13 @@ export function bindPanel(root, s, onChange) {
   $("#rc-map", box).addEventListener("change", (e) => { s.map = e.target.value; set("map"); });
   $("#rc-variants", box).addEventListener("change", (e) => { s.variants = Number(e.target.value); set("search"); });
   // calibrated: the pace, the climb and the terrain speeds come from the times run, their own controls greyed (a typed pace dropped)
-  $("#rc-calib", box).addEventListener("change", (e) => {
+  $("#rc-calib", box)?.addEventListener("change", async (e) => {
+    const cap = CAP.get(s);
+    if (cap?.lack && e.target.checked) {                      // the account lacks it: the box stays unticked unless the capability comes
+      e.target.checked = false;
+      if (!(await offers.guard(OWN_SPEEDS, { opened: cap.opened, el: e.target }))) return;
+      cap.lack = false; e.target.checked = true;
+    }
     s.calib = e.target.checked; $("#rc-calgroup", box).disabled = s.calib;
     if (s.calib && s.pace) { s.pace = 0; $("#rc-pace", box).value = ""; }
     if (!s.calib) showFitted(s, null);                       // the user's own values back
@@ -363,7 +379,7 @@ export function bindPanel(root, s, onChange) {
     e.target.value = s.pace ? minKm(s.pace / 1000) : "";
     set("pace");
   });
-  $("#rc-reset", box).addEventListener("click", () => { Object.assign(s, { ...DEFAULTS, map: s.map, speeds: { ...DEFAULTS.speeds } }); set("reset"); });
+  $("#rc-reset", box).addEventListener("click", () => { Object.assign(s, { ...DEFAULTS, map: s.map, speeds: { ...DEFAULTS.speeds } }); const cap = CAP.get(s); if (cap?.lack) { cap.wish = !!s.calib; s.calib = false; } set("reset"); });
 }
 /** The status line, and the progress bar under it (frac 0-1; null hides it). */
 export const setStatus = (text, frac = null) => {

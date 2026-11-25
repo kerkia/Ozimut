@@ -9,6 +9,7 @@ import { t } from "../i18n.js";
 import { bar, setBar, elapsed } from "../waitbar.js";
 import { confirmBox, alertBox } from "../askbox.js";
 import * as auth from "../auth.js";
+import * as offers from "../offers.js";
 import { WEATHERS, TIMES, LAMPS, envOf, envText } from "../games/vweather.js";
 import { LAYERS, mapOptOf, mapOptText } from "../games/vmapopt.js";
 import { bindPicker, sourceOf } from "../orgmapuse.js";
@@ -37,7 +38,7 @@ export async function renderOrga(el, { onPlay, onChange } = {}) {
     try { d = await call(API); } catch (e) { el.innerHTML = html`<div class="card"><div class="empty">${errText(e)}</div></div>`; return; }
     const mine = d.events.filter((e) => e.mine);
     el.innerHTML = html`<p class="muted vtp-intro">${t("vo.intro")}</p>
-      <div class="vo-head"><h2 class="vtp-h">${t("vo.mine")}</h2><button type="button" class="btn btn-primary" id="vo-new">${t("vo.new")}</button></div>
+      <div class="vo-head"><h2 class="vtp-h">${t("vo.mine")}</h2><button type="button" class="btn btn-primary" id="vo-new" ${raw(admin || offers.shown("pixelOwnMap") ? "" : "hidden")}>${t("vo.new")}</button></div>
       ${mine.length ? html`<div class="vo-list">${mine.map((e) => html`<button type="button" class="card vo-ev" data-id="${e.id}">
           <b>${e.name}</b>
           <span class="tag ${e.type === "competition" ? "vo-comp" : ""}">${t(`vo.type.${e.type}`)}</span>
@@ -85,7 +86,7 @@ export async function renderOrga(el, { onPlay, onChange } = {}) {
         </fieldset>
         <div class="vo-dates" hidden><label>${t("vo.f.from")} <input type="date" id="vo-from"></label><label>${t("vo.f.to")} <input type="date" id="vo-to"></label></div>
         <fieldset><legend>${t("vo.f.source")}</legend>
-          <label class="vo-radio"><input type="radio" name="vo-src" value="ocad" checked> <b>${t("vo.src.ocad")}</b> <span class="muted">${t("vo.src.ocadHint")}</span></label>
+          <label class="vo-radio"><input type="radio" name="vo-src" value="ocad" checked> <b>${t("vo.src.ocad")}</b> ${offers.mark("pixelOwnMap")} <span class="muted">${t("vo.src.ocadHint")}</span></label>
           ${admin ? html`<label class="vo-radio"><input type="radio" name="vo-src" value="lidar"> <b>${t("vo.src.lidar")}</b> <span class="muted">${t("vo.src.lidarHint")}</span></label>` : ""}
           <div class="om-pick" id="vo-club" hidden></div>
         </fieldset>
@@ -134,6 +135,8 @@ export async function renderOrga(el, { onPlay, onChange } = {}) {
         if (!m) return say(t("vo.err.area"));
         body.area = { lat: +m[1].replace(",", "."), lon: +m[2].replace(",", "."), size: +$("#vo-size", el).value };
       }
+      // an event on one's own map is a capability (docs/billing/design.md, pixelOwnMap): asked here, the form kept as filled
+      if (body.source === "ocad" && !(await offers.guard("pixelOwnMap", { el: $("#vo-create", el) }))) return;
       $("#vo-create", el).disabled = true;
       try {
         const ev = await post(API, body);

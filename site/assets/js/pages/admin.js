@@ -45,7 +45,10 @@ export async function render(main, { query = {} } = {}) {
     return { title: t("ad.title") };
   }
   let { users, duplicates, queued, me } = await r.json();
-  let tab = { inscrits: "members", utilisation: "usage", consommation: "conso", depots: "uploads", sites: "sites", anonymises: "anon", demo: "demo", cartes: "mymaps", evenements: "events", vitesse: "perf", clubs: "clubs" }[query.onglet] || "accounts";
+  let tab = { inscrits: "members", utilisation: "usage", consommation: "conso", depots: "uploads", sites: "sites", anonymises: "anon", demo: "demo", cartes: "mymaps", evenements: "events", vitesse: "perf", clubs: "clubs", abonnements: "billing" }[query.onglet] || "accounts";
+  // « Abonnements » (docs/billing/design.md §8): only while the account's session says billing is on — nothing of it otherwise
+  const billingOn = auth.billing ? !!auth.billing() : !!auth.session()?.billing;
+  if (tab === "billing" && !billingOn) tab = "accounts";
   await loadArea("manage");          // « Événements » (Orga › Gérer, 2026-11-11): its texts are the page's
 
   main.innerHTML = html`
@@ -132,6 +135,7 @@ export async function render(main, { query = {} } = {}) {
     </div>
     <div data-panel="perf" hidden><div id="pf-body"></div></div>
     <div data-panel="clubs" hidden><div id="oc-body" class="stack"></div></div>
+    ${billingOn ? html`<div data-panel="billing" hidden><div id="ab-body"></div></div>` : ""}
     <div data-panel="conso" hidden>
       <p class="muted" style="margin:0 2px 12px">${t("ad.co.lede")}</p>
       <div id="co-note"></div>
@@ -161,11 +165,11 @@ export async function render(main, { query = {} } = {}) {
 
   function showTab() {
     $("#ad-tabs").innerHTML = seg("adtab", [["accounts", t("ad.tab.accounts")], ["members", t("ad.tab.members")], ["usage", t("ad.tab.usage")], ["conso", t("ad.tab.conso")], ["uploads", t("ad.tab.uploads")],
-      ["sites", t("ad.tab.sites")], ["anon", t("ad.tab.anon")], ["demo", t("ad.tab.demo")], ["mymaps", t("ad.tab.mymaps")], ["events", t("mg.ad.tab")], ["clubs", t("ad.tab.clubs")], ["perf", t("ad.tab.perf")]], tab);
+      ["sites", t("ad.tab.sites")], ["anon", t("ad.tab.anon")], ["demo", t("ad.tab.demo")], ["mymaps", t("ad.tab.mymaps")], ["events", t("mg.ad.tab")], ["clubs", t("ad.tab.clubs")], ...(billingOn ? [["billing", t("ad.tab.billing")]] : []), ["perf", t("ad.tab.perf")]], tab);
     $$('[data-seg="adtab"]').forEach((b) => b.addEventListener("click", () => { tab = b.dataset.value; showTab(); }));
     $$("[data-panel]", main).forEach((p) => { p.hidden = p.dataset.panel !== tab; });
     setLede(t(`ad.lede.${tab}`));       // the head says what the tab shows (one line: the tabs' own paragraphs say more)
-    if (tab === "usage") saveUsage(); else replaceQuery({ members: { onglet: "inscrits" }, conso: { onglet: "consommation" }, uploads: { onglet: "depots" }, sites: { onglet: "sites" }, anon: { onglet: "anonymises" }, demo: { onglet: "demo" }, mymaps: { onglet: "cartes" }, events: { onglet: "evenements" }, perf: { onglet: "vitesse" }, clubs: { onglet: "clubs" } }[tab] || {});   // the address keeps the usage filters
+    if (tab === "usage") saveUsage(); else if (tab !== "billing") replaceQuery({ members: { onglet: "inscrits" }, conso: { onglet: "consommation" }, uploads: { onglet: "depots" }, sites: { onglet: "sites" }, anon: { onglet: "anonymises" }, demo: { onglet: "demo" }, mymaps: { onglet: "cartes" }, events: { onglet: "evenements" }, perf: { onglet: "vitesse" }, clubs: { onglet: "clubs" } }[tab] || {});   // the address keeps the usage filters
     if (tab === "usage" && !usageStarted) { usageStarted = true; startUsage(); }
     if (tab === "members") drawMembers();
     if (tab === "uploads") drawUploads();
@@ -176,6 +180,8 @@ export async function render(main, { query = {} } = {}) {
     if (tab === "perf" && !$("#pf-body").firstChild) drawPerf($("#pf-body"));     // how fast the site is (adminperf.js)
     if (tab === "mymaps") drawMymaps();
     if (tab === "events") drawEvents();
+    if (tab === "billing" && !$("#ab-body").firstChild) import("./adminbilling.js").then((m) => m.draw($("#ab-body"), { query }));     // « Abonnements » (adminbilling.js; it writes its own address)
+    else if (tab === "billing") replaceQuery({ onglet: "abonnements", vue: $("#ab-body").dataset.vue || null });
     if (tab === "clubs") import("./adminclubs.js").then((m) => m.draw($("#oc-body")));     // « Clubs »: the claims waiting (adminclubs.js)
   }
 
@@ -684,6 +690,8 @@ export async function render(main, { query = {} } = {}) {
     }));
   }
   $("#ad-q").addEventListener("input", (e) => { q = e.target.value; draw(); });
+  // « Abonnements »: a subscription's account opens its row here (adminbilling.js sends the e-mail)
+  main.addEventListener("ab:account", (e) => { q = String(e.detail || ""); $("#ad-q").value = q; onlyDups = false; $("#ad-dups").checked = false; tab = "accounts"; showTab(); draw(); });
   $("#ad-dups").addEventListener("change", (e) => { onlyDups = e.target.checked; draw(); });
   // the administrator's own e-mail at each new account, saved at once
   $("#ad-signup").addEventListener("change", async (e) => {

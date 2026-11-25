@@ -13,6 +13,7 @@ import * as auth from "../auth.js";
 import * as country from "../country.js";
 import { pageTabs, tabFrom, bindPageTabs } from "../ui.js";
 import { confirmBox, alertBox } from "../askbox.js";
+import * as offers from "../offers.js";
 
 const BASE = "#/monclub";
 const ROLES = ["manager", "organiser", "mapper", "treasurer"];
@@ -136,6 +137,8 @@ async function clubPage(main, pick, shown, mine, q) {
   const org = D.org, R = D.rights || {}, me = D.me;
   const tabs = [["membres", t("mc.tab.membres")], ["evenements", t("mc.tab.evenements")], ["cartes", t("mc.tab.cartes")], ["comptes", t("mc.tab.comptes")]];
   if (R.manage || R.treasure) tabs.push(["reglages", t("mc.tab.reglages")]);
+  // « Formule » (docs/billing/design.md §6, §9): the purchase gate's tab, to the managers and treasurers, when billing is on
+  if (R.manage || R.treasure) { await offers.ready(); const name = offers.clubTab(); if (name) tabs.push(["formule", name]); }
   const tab = tabFrom(tabs, q);
   const myRoles = me?.roles || [];
   main.innerHTML = html`
@@ -166,6 +169,7 @@ async function clubPage(main, pick, shown, mine, q) {
     else if (k === "cartes") otherModule(panel, ctx, () => import("./clubmaps.js"));
     else if (k === "comptes") otherModule(panel, ctx, () => import("./clubaccounts.js"));
     else if (k === "reglages") settingsTab(panel, ctx);
+    else if (k === "formule") { panel.innerHTML = offers.clubSection(org); offers.bindClub(panel, org).catch(() => {}); }
   };
   bindPageTabs(main, tabs, tab, draw);
   draw(tab);

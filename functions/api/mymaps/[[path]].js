@@ -62,7 +62,8 @@
 import { allow, currentUser, isAdmin, json, nowIso, readBody } from "../../_lib/api.js";
 import { clubLabel } from "../../_lib/club.js";
 import { newToken, randomBytes, sha256hex } from "../../_lib/crypto.js";
-import { key, origKey, getOrig, quota, used } from "../../_lib/mymaps.js";
+import { key, origKey, getOrig, used } from "../../_lib/mymaps.js";
+import { bytesOf, capOf, needOf } from "../../_lib/plans.js";
 
 const MAX_MAP = 80 * 1024 * 1024;                     // as the shared analyses' maps (Cloudflare takes 100 MB a request)
 const MAX_THUMB = 600 * 1024;
@@ -325,12 +326,17 @@ export async function onRequest(ctx) {
     const user = await currentUser(request, env);
     if (!user) return json({ error: "login required" }, 401);
     const uid = user.id;
-    const limit = isAdmin(env, user) ? null : quota(env);
+    // the library's size is the capability « mymapsMB » (_lib/plans.js; MYMAPS_QUOTA_MB stands for the free value when set)
+    // read only when a request needs it (a list, a write): images and thumbnails never ask
+    let limitP = null;
+    const quotaOf = () => (limitP ||= isAdmin(env, user) ? Promise.resolve(null)
+      : capOf(env, user, "mymapsMB").then((v) => bytesOf(env, "mymapsMB", v, env.MYMAPS_QUOTA_MB)));
     /** Would `more` bytes go beyond the account's quota? -> the 413 to answer, or null. */
     const over = async (more) => {
+      const limit = await quotaOf();
       if (limit == null) return null;
       const u = await used(env, uid);
-      return u + more > limit ? json({ error: "quota", used: u, limit }, 413) : null;
+      return u + more > limit ? json({ error: "quota", used: u, limit, cap: "mymapsMB", need: needOf("mymapsMB") }, 413) : null;
     };
 
     if (parts[0] === "from-solo" && parts.length === 1 && method === "POST") {
@@ -432,7 +438,7 @@ export async function onRequest(ctx) {
       }
       // « Carte privée » is offered only once its column exists (migration 0025): a box ticked in vain would mislead
       const privateReady = !!(await env.DB.prepare("SELECT 1 AS ok FROM pragma_table_info('mymaps') WHERE name = 'private'").first().catch(() => null));
-      return json({ maps: listed(maps, runs), links: out, name: nameOf(user), quota: { used: await used(env, uid), limit }, privateReady });
+      return json({ maps: listed(maps, runs), links: out, name: nameOf(user), quota: { used: await used(env, uid), limit: await quotaOf() }, privateReady });
     }
 
     if (parts[0] === "link" && parts.length === 1 && method === "POST") {

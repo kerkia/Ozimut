@@ -3,6 +3,7 @@
 // named one) can be opened and restored; comments pinned on the map, with the field photos, are listed and ticked off.
 
 import * as S from "./store.js";
+import * as offers from "../offers.js";
 import { modal, field, sel } from "../tracer/dialogs.js";
 import { t, tn, locale } from "./lang.js";
 
@@ -54,7 +55,9 @@ async function versionSave(E) {
   const v = await modal(E, { title: t("map.rib.version-save"), body: field(t("map.team.note"), `<input name="note" maxlength="200" placeholder="${esc(t("map.team.notePh"))}">`) });
   if (!v) return;
   await E.save(true);
-  await S.saveVersion(E.id, E.live.toJSON(), v.note || "");
+  // the versions kept a map are a limit of the account's plan (cartoVersions): its refusal is the purchase gate's to explain
+  try { await S.saveVersion(E.id, E.live.toJSON(), v.note || ""); }
+  catch (e) { if (e.data?.cap && (await offers.refused(e))) return; throw e; }
   E.say(t("map.team.versionSaved"));
 }
 async function versions(E) {

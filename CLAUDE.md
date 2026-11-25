@@ -916,6 +916,36 @@ Health), laid on each other in « Analyse » minutes after the finish.
   app-bound domains against the anti-robot frame, APNs from a Worker, the Android scanner's dependency version and photos
   shared from the iPhone's Photos app (a Share Extension, not built) are the known unknowns.
 
+## Paid plans (built, switched off)
+
+**Built 2026-11-25** (owner: « build the entire solution, in a way that what is not free can evolve easily, just without
+making it visible to anyone yet » — the SASU is not created yet). **The contract is `docs/billing/design.md`: change it first,
+then the code; the owner's checklist (what is built, what remains, every step to take, the rehearsals) is
+`docs/billing/owner.md`.** The switch `BILLING` in wrangler.toml: `off` (deployed: every `/api/billing*` route answers 404
+`{ error: "off" }`, `/api/account/me` carries no `billing`, nothing drawn for anyone, administrators included; the
+entitlements still run, with the `launch` packaging = today's limits), `test` (administrators and accounts whose
+`users.preview` names `billing`, against Stripe's sandbox), `live`. Going live does not make anything paid: the packaging
+does (`billing_config`, Administration › Abonnements › Formules: base `launch` or `v1`, each capability's plan and limit).
+- **Server**: `_lib/plans.js` (CAPS, PACKS, entitlements from four scopes — person, clubs, the analysis's or event's
+  organiser, federation — the most generous wins; `limit(env, user, cap, ctx)`, 402 `{ error: "plan", cap, need }`, 413
+  quota with `cap`), `_lib/stripe.js` (fetch, no SDK, API version 2024-06-20, webhook HMAC on WebCrypto; `STRIPE_API`
+  points it at the fake), `_lib/billing.js` (Checkout, trial grant 30 days without card, codes, withdrawal pro rata, portal,
+  `handleEvent` re-reading the subscription, `billingDaily` from `/api/track`), `_lib/invoices.js` (clubs and federations:
+  quote, invoice `OZ-<year>-<nnnn>`, bank transfer, 30 days on trust, `markPaid`, credit notes, agreements), routes
+  `api/billing/[[path]].js` (webhook and `GET offer` public in `_middleware.js`; the app only `GET /api/billing`),
+  `api/billing/org`, `api/billing/event`, `api/admin/billing.js`. The tools' APIs (analyses, events, mymaps, lidarmap,
+  townmap, ask, mapper, orgmaps) ask `limit`. D1 **migration 0034_billing.sql** (not applied remotely: the owner's step).
+- **Site**: everything about prices, plans and buying stays inside the purchase gate — `offers.js` (its interface: `selling`,
+  `has`, `shown`, `mark`, `guard` — never rejects —, `limitNote`, `refused`, `settingsSection`, `clubSection`, `page`,
+  `invoicePdf`…), `site/assets/js/billing/*` (loaded only by offers.js), `i18n/billing.*.js`, `pages/offer.js` (`#/tarifs`,
+  `#/conditions-de-vente`, `#/changements`), `pages/adminbilling.js`; `tools/offer_check.mjs` refuses `billing/` imported
+  anywhere else. Tool pages call offers.js only.
+- **Tests**: `node tools/billing/t_plans.mjs`, `t_webhook.mjs`, `t_invoice.mjs`. Local: launch configs `fake-stripe` (8769,
+  `tools/billing/fake_stripe.mjs`) then `pages-dev-billing` (8762, `BILLING=test` and fake keys by `--binding`, state
+  `.wrangler/state-billing`), `pages-dev-billing-off` (8767, the same state, the switch as deployed). `--env-file` does not
+  override a wrangler.toml var: use `--binding`. A dev server left running on 8762 by another session answers « off »: check
+  the port's process before suspecting the code.
+
 ## Changing a method: migrations
 
 `update.py` holds version numbers stored in table `engine_meta`. Bumping one makes the next run of any kind

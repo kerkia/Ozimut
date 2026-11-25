@@ -68,6 +68,7 @@ import { hashPassword, checkPassword, b64url, randomBytes } from "../../_lib/cry
 import { clubOf, clubLabel, findRace, orgCode, organises } from "../../_lib/club.js";
 import { orgsOf, inForce, ready as orgsReady } from "../../_lib/orgs.js";
 import { scoreEvent, strict, teamIndex, withScore } from "../../_lib/events.js";
+import { openedForAnalysis } from "../../_lib/plans.js";
 import { checkSource, recordUse } from "../../_lib/orgmaps.js";
 
 const META = "analyses-meta/";
@@ -337,7 +338,9 @@ async function visitors(ctx, parts) {
     if (new URL(request.url).searchParams.get("poll") === "1") return json({ traces });
     const { owner, ownerName, pw, ...rest } = meta;
     ctx.waitUntil?.(countGuest(env, id));
-    return json({ analysis: withScore({ ...rest, opts: optsOf(meta) }, await scoreEvent(env, meta)), traces, you: { uid: 0, organiser: false, visitor: true } });
+    // `opened`: what the organiser's plan opens to everyone here (_lib/plans.js; nothing read while nobody holds a plan)
+    const opened = await openedForAnalysis(env, request, meta);
+    return json({ analysis: withScore({ ...rest, opts: optsOf(meta) }, await scoreEvent(env, meta)), traces, you: { uid: 0, organiser: false, visitor: true }, ...(opened ? { opened } : {}) });
   }
   if (parts.length !== 3 || !Number.isInteger(n) || !(meta.courses || []).some((c) => c.n === n)) return json({ error: "not found" }, 404);
   if (parts[1] === "map" || parts[1] === "thumb" || parts[1] === "layers") {
@@ -536,7 +539,9 @@ const forUsers = withUser(async (ctx, user) => {
       if (!organiser && new URL(request.url).searchParams.get("for") !== "solo") ctx.waitUntil?.(countUse(env, id, "view", user.id));
       // the administrators: the e-mail of the account that opened it
       const creator = isAdmin(env, user) ? (await withEmails(env, [{ owner: meta.owner }]))[0] : null;
-      return json({ analysis: withScore(publicMeta(meta), await scoreEvent(env, meta)), traces, you: { uid: user.id, organiser }, ...(thumbs ? { thumbs } : {}), ...(creator?.ownerEmail ? { ownerEmail: creator.ownerEmail } : {}) });
+      // `opened`: what the organiser's plan opens to everyone here (_lib/plans.js; nothing read while nobody holds a plan)
+      const opened = await openedForAnalysis(env, request, meta);
+      return json({ analysis: withScore(publicMeta(meta), await scoreEvent(env, meta)), traces, you: { uid: user.id, organiser }, ...(opened ? { opened } : {}), ...(thumbs ? { thumbs } : {}), ...(creator?.ownerEmail ? { ownerEmail: creator.ownerEmail } : {}) });
     }
     if (!organiser) return json({ error: "forbidden" }, 403);
     if (method === "PUT") {

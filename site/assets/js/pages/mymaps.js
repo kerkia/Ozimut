@@ -25,6 +25,7 @@
 import { html, raw, $, $$, fmt, fmtDate, fmtTime, fileAccept, pctN } from "../util.js";
 import { t, tn, loadArea, lang } from "../i18n.js";
 import * as auth from "../auth.js";
+import * as offers from "../offers.js";
 import { replaceQuery } from "../app.js";
 import * as MM from "../trace/mymaps.js";
 import * as MP from "../trace/mymapsplace.js";
@@ -289,7 +290,7 @@ export async function render(main, { query = {} } = {}) {
       ${tile(fmt(f.regions), tn("mm.fig.regionsK", f.regions))}
       ${all ? tile(fmt(new Set(maps.map((m) => m.uid).filter(Boolean)).size), t("mm.adm.accounts"), size(bytes)) : ""}
       ${mine && st.quota?.limit ? html`<div class="mm-stat mm-quota"><b>${size(st.quota.used)}</b><span>${t("mm.quota.of", { n: size(st.quota.limit) })}</span>
-        ${raw(bar(Math.min(1, st.quota.used / st.quota.limit), st.quota.used > 0.9 * st.quota.limit ? "mm-quota-high" : ""))}</div>` : ""}`;
+        ${raw(bar(Math.min(1, st.quota.used / st.quota.limit), st.quota.used > 0.9 * st.quota.limit ? "mm-quota-high" : ""))}${offers.limitNote("mymapsMB", st.quota.used / 1048576)}</div>` : ""}`;
   }
 
   // ---- the table ----------------------------------------------------------------------------------------------------------
@@ -839,7 +840,7 @@ export async function render(main, { query = {} } = {}) {
         m.runs.push(...runs);
         if (!m.day) m.day = run.day;
         openMap(m);
-      } catch (e) { alert(t(e.message === "outside" ? "mm.track.outside" : e.message === "quota" ? "mm.quota.full" : "mm.err.save")); }
+      } catch (e) { if (!(await offers.refused(e))) alert(t(e.message === "outside" ? "mm.track.outside" : e.message === "quota" ? "mm.quota.full" : "mm.err.save")); }
       return;
     }
     if (!confirm(t("mm.track.calibrate"))) return;
@@ -1041,7 +1042,7 @@ export async function render(main, { query = {} } = {}) {
         go(r.map.id);
       } catch (er) {
         delete d.dataset.busy; btn.disabled = false; $("#mm-nf-state", d).textContent = "";
-        say(er.message === "quota" ? "mm.quota.full" : er.status === 413 ? "mm.err.size" : er.status === 503 ? "mm.err.notReady" : "mm.err.save");
+        if (!(await offers.refused(er))) say(er.message === "quota" ? "mm.quota.full" : er.status === 413 ? "mm.err.size" : er.status === 503 ? "mm.err.notReady" : "mm.err.save");
       }
     });
   }
@@ -1131,7 +1132,7 @@ export async function render(main, { query = {} } = {}) {
           console.error(m.path, e);
           res.failed.push({ path: m.path, why: e.message === "quota" ? t("mm.quota.full") : e.status === 413 ? t("mm.err.size") : e.status === 429 ? t("mm.folder.rate") : e.status === 503 ? t("mm.err.notReady")
             : ["unknown", "map", "pdf"].includes(e.message) ? t("mm.folder.unreadable") : e.status ? t("mm.err.save") : e.message || t("mm.folder.unreadable") });
-          if (e.status === 429 || e.status === 503 || e.message === "quota") break;
+          if (e.status === 429 || e.status === 503 || e.message === "quota") { offers.refused(e); break; }
         }
       }
       delete d.dataset.busy;

@@ -20,6 +20,7 @@
 
 import { isAdmin, nowIso, parisToday } from "./api.js";
 import { rolesOf, rightsOf } from "./orgs.js";
+import { bytesOf, capOf } from "./plans.js";
 
 export const PFX = "orgmaps/";
 export const key = (org, map, rest) => `${PFX}${org}/${map}/${rest}`;
@@ -31,6 +32,12 @@ export const WRITTEN = ["tracer", "analyses", "pixel", "thumb"];
 export const STATES = ["current", "revising", "outdated"];
 /** A club's quota (every version's files; the viewing copies and thumbnails are Ozimut's), in bytes: 3 GB, env ORGMAPS_QUOTA_MB. */
 export const quota = (env) => Math.max(1, Number(env.ORGMAPS_QUOTA_MB) || 3072) * 1024 * 1024;
+/** The org's own quota in bytes (null: none): the capability « orgmapsMB » of its plan (_lib/plans.js; ORGMAPS_QUOTA_MB stands
+ *  for the free value when set). */
+export async function orgQuota(env, orgId) {
+  try { return await bytesOf(env, "orgmapsMB", await capOf(env, null, "orgmapsMB", { org: orgId }), env.ORGMAPS_QUOTA_MB); }
+  catch (e) { return quota(env); }
+}
 
 export const parse = (s, d) => { try { const v = JSON.parse(s || ""); return v ?? d; } catch (e) { return d; } };
 const at = (lvl, l) => LEVELS.indexOf(lvl) >= LEVELS.indexOf(l);

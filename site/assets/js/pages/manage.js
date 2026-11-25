@@ -528,7 +528,7 @@ async function eventPage(main, id, q) {
   const panel = $("#mg-panel");
   if (tab === "equipe") return teamTab(panel, D);
   if (tab === "trace") return traceTab(panel, D);
-  if (tab === "chrono") return (await import("./chrono.js")).render(panel, { event: ev });
+  if (tab === "chrono") return (await import("./chrono.js")).render(panel, { event: ev, opened: D.opened || null });
   if (pending && tab !== "analyse") { panel.innerHTML = html`<div class="card"><div class="empty">${t("mg.link.waitTools")}</div></div>`; return; }
   if (tab === "analyse") return analysisTab(panel, D, q);
   const race = await raceOf(ev);

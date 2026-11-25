@@ -133,7 +133,29 @@ const fromUser = (u) => ({ uid: u.uid, lic: String(u.lic || ""), nom: u.nom, ema
   nutrition: ["admin", "author", "reader"].includes(u.nutrition) ? u.nutrition : "",
   countries: Array.isArray(u.countries) ? u.countries : null,     // { cc, club, id, status }: `sees`
   // the tracking (migration 0029): a child account managed by its parents, an under-15's own account waiting for one, the flag
-  child: !!u.child, guardianWanted: !!u.guardianWanted, trackOpen: !!u.trackOpen });
+  child: !!u.child, guardianWanted: !!u.guardianWanted, trackOpen: !!u.trackOpen,
+  // what the account may use (functions/_lib/plans.js): `ent` { caps, why }; null from a server of before
+  ent: u.ent && typeof u.ent === "object" && u.ent.caps ? { caps: u.ent.caps, why: u.ent.why || {} } : null,
+  billing: !!u.billing, plan: u.plan || "", trial: u.trial || null });
+/**
+ * May the account use the capability `key` (docs/billing/design.md §3)? `opened`: what an event's or an analysis's organiser
+ * opened to everyone there ({ caps: [keys], by }, from its API). A session that says nothing of it (kept from before, a
+ * visitor) answers true: nothing disappears.
+ */
+export function can(key, opened) {
+  if (Array.isArray(opened?.caps) && opened.caps.includes(key)) return true;
+  const caps = session()?.ent?.caps;
+  return !caps || !(key in caps) ? true : caps[key] !== false && caps[key] !== 0;
+}
+/** The capability's limit for the account: a number, or null — none, or not known. */
+export function limit(key) {
+  const v = session()?.ent?.caps?.[key];
+  return typeof v === "number" ? v : null;
+}
+/** Where the account's value of a capability comes from: { scope, plan, name, until }, or null (its own, plain value). */
+export function capWhy(key) { return session()?.ent?.why?.[key] || null; }
+/** Has the server switched the plans on for this account? */
+export function billing() { return !!session()?.billing; }
 /** Re-read the account from the server: rights granted or withdrawn by the administrator apply at once. */
 export async function refresh() {
   const s = session();

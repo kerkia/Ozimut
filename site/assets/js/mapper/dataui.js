@@ -11,6 +11,7 @@
 import * as G from "./geom.js";
 import { modal, field, sel } from "../tracer/dialogs.js";
 import { setBar } from "../waitbar.js";
+import * as offers from "../offers.js";
 import { t, tn, locale } from "./lang.js";
 import { areaCoords as areaCoordsOf, bezier as bezierOf, lineCoords as lineCoordsOf } from "./data/frame.js";
 
@@ -204,6 +205,8 @@ async function ensureTownSymbols(E) {
   const add = L.scaled(set, E.doc.scale).filter((s) => miss.includes(s.sym));
   E.live.transact(t("map.undo.data"), () => { for (const s of add) E.live.addSymbol({ ...s, set: "issprom2019-2" }); });
 }
+/** A refusal for a limit of the account's plan (its body names the capability, `cap`): shown by the purchase gate? */
+const planRefused = (d) => (d?.cap ? offers.refused(["plan", "quota"].includes(d.error) ? d : { ...d, error: "plan" }) : Promise.resolve(false));
 const TOWN_API = "/api/townmap", TOWN_MAX = 2000;           // metres a side (the workflow's limit)
 /** The area asked for, in m², from the data area at the map's scale. */
 function townArea(E) { const b = areaOf(E), k = (E.doc.scale || 4000) / 1000; return [(b[2] - b[0]) * k, (b[3] - b[1]) * k]; }
@@ -241,6 +244,7 @@ export async function town(E, o = {}) {
     const res = await fetch(TOWN_API, { method: "POST", credentials: "same-origin", headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ lat, lon, w: Math.round(w), h: Math.round(h) }) });
     r = await res.json().catch(() => ({}));
+    if (!res.ok && (await planRefused(r))) { E.say(""); return; }
     if (!res.ok) throw new Error(res.status === 429 ? t("map.data.town.limit") : r.error === "not france" ? t("map.data.town.notFrance") : r.error || `HTTP ${res.status}`);
   } catch (e) { E.say(e.message, "bad"); return; }
   const pending = { req: r.req, contours: !!o.contours, at: Date.now() };
@@ -360,7 +364,7 @@ async function lidar(E) {
   // a sprint map: no cliffs (in a town karttapullautin's are every building's edge), no contours where the map has its own
   const town = style === "sprint" ? { cliffs: false, covered: reliefCover(E) } : {};
   try { r = await L.loadLidar(f, areaOf(E), style, { interval, helpers, say: (key, vars, frac) => say(t(key, { n: "", t: "", ...vars }), frac), progress: (key, vars, frac) => say(t(key, vars), frac), stop: () => E._stopData, ...town }); }
-  catch (e) { E.say(e.message === "tooLarge" ? t("map.data.tooLarge") : e.message === "nogeo" ? t("map.data.nogeo") : e.message, "bad"); return; }
+  catch (e) { if (await planRefused(e.data)) E.say(""); else E.say(e.message === "tooLarge" ? t("map.data.tooLarge") : e.message === "nogeo" ? t("map.data.nogeo") : e.message, "bad"); return; }
   if (!r) { E.say(""); return; }
   // a forest map: the LiDAR's contours replace another source's draft contours, if the mapper agrees, else they stay out (cliffs,
   // knolls and vegetation come all the same); a sprint map's own relief already keeps them out where it lies (reliefCover)

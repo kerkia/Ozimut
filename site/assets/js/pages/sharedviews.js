@@ -38,9 +38,14 @@ export function views(el, X) {
   function draw() {
     const list = tabs();
     if (!list.includes(X.state.tab)) X.state.tab = list[0];
-    el.innerHTML = html`<nav class="page-tabs sh-vtabs" role="tablist">${list.map((k) => html`<button type="button" role="tab" data-vtab="${k}" aria-selected="${k === X.state.tab}">${t(`sh.v.${k}`)}</button>`)}</nav>
+    el.innerHTML = html`<nav class="page-tabs sh-vtabs" role="tablist">${list.map((k) => html`<button type="button" role="tab" data-vtab="${k}" aria-selected="${k === X.state.tab}">${t(`sh.v.${k}`)}${X.tabMark?.(k) ? html` ${X.tabMark(k)}` : ""}</button>`)}</nav>
       <div id="sh-vbody"></div>`;
-    $$("[data-vtab]", el).forEach((b) => b.addEventListener("click", () => { X.state.tab = b.dataset.vtab; draw(); X.changed(); }));
+    const go = (k) => { X.state.tab = k; draw(); X.changed(); };
+    // a tab the account lacks (X.tabGuard: true, or a promise of it — offers.js) opens only once it may
+    $$("[data-vtab]", el).forEach((b) => b.addEventListener("click", () => {
+      const ok = X.tabGuard ? X.tabGuard(b.dataset.vtab, b) : true;
+      if (ok === true) go(b.dataset.vtab); else Promise.resolve(ok).then((y) => { if (y) go(b.dataset.vtab); });
+    }));
     const body = $("#sh-vbody", el);
     if (X.state.tab === "legs") legsView(body, X);
     else if (X.state.tab === "gaps") gapsView(body, X);

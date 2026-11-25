@@ -7,6 +7,7 @@ import { html, $ } from "../util.js";
 import { imageBlob } from "./mapfile.js";
 import { t, loadArea, locale } from "../i18n.js";
 import * as auth from "../auth.js";
+import * as offers from "../offers.js";
 import * as MM from "./mymaps.js";
 
 await loadArea("mymaps");
@@ -83,7 +84,7 @@ export function mount(el, state) {
       out.innerHTML = html`${t(existed ? "mm.solo.addedTo" : "mm.solo.saved")} <a href="#/mes-cartes?carte=${map.id}">${t("mm.solo.open")}</a>`.toString();
     } catch (e) {
       console.error(e);
-      out.textContent = t(e.status === 503 ? "mm.err.notReady" : e.status === 413 ? "mm.err.size" : "mm.err.save");
+      out.textContent = (await offers.refused(e)) ? "" : t(e.status === 503 ? "mm.err.notReady" : e.status === 413 ? "mm.err.size" : "mm.err.save");
       btn.disabled = false;
     }
   });

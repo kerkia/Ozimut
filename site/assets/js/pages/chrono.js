@@ -6,6 +6,7 @@
 
 import { html } from "../util.js";
 import * as auth from "../auth.js";
+import * as offers from "../offers.js";
 
 let running = null;
 
@@ -19,14 +20,15 @@ function style() {
   });
 }
 
-/** `event`: the Orga event `{ id, name, date, country, type, club, race, place }`. */
-export async function render(panel, { event }) {
+/** `event`: the Orga event `{ id, name, date, country, type, club, race, place }`; `opened`: what its club's plan opens (the
+ *  events API's answer) — the line about timing a competition is offers.js's (docs/billing/design.md, chronoCompetition). */
+export async function render(panel, { event, opened = null }) {
   // Chrono's own texts (its catalogues, in the page's language)
   const [{ t: ct }] = await Promise.all([import("../chrono/lib/i18n.js"), style()]);
   if (running) { try { await running.stop(); } catch (e) { /* gone */ } running = null; }
   const me = auth.session();
   if (!me?.admin) { panel.innerHTML = html`<p class="note">${ct("chr.adminOnly")}</p>`.toString(); return; }
-  panel.innerHTML = html`<p class="chr-beta">${ct("chr.beta")} <button type="button" class="btn btn-sm" id="chrono-app-dl">${ct("chr.app.get")}</button></p><div id="chrono-root" class="chr-in-tab"></div>`.toString();
+  panel.innerHTML = html`${offers.eventNote({ ...event, opened }, { kind: event.kind, form: event.form })}<p class="chr-beta">${ct("chr.beta")} <button type="button" class="btn btn-sm" id="chrono-app-dl">${ct("chr.app.get")}</button></p><div id="chrono-root" class="chr-in-tab"></div>`.toString();
   panel.querySelector("#chrono-app-dl").addEventListener("click", async () => (await import("../chrono/ui/prepare.js")).appDialog());
   const root = panel.querySelector("#chrono-root");
   const { mountChrono } = await import("../chrono/ui/app.js");

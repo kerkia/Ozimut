@@ -121,7 +121,7 @@ async function call(path, { method = "GET", body, headers = {} } = {}) {
     body: body instanceof Blob ? body : body ? JSON.stringify(body) : undefined });
   const d = await r.json().catch(() => null);
   if (r.status === 401) window.dispatchEvent(new Event("cnx:unauthorised"));
-  if (!r.ok) { const e = new Error(d?.error || `HTTP ${r.status}`); e.status = r.status; throw e; }
+  if (!r.ok) { const e = new Error(d?.error || `HTTP ${r.status}`); e.status = r.status; e.data = d; throw e; }
   return d;
 }
 export const list = () => call("");

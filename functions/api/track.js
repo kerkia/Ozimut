@@ -8,11 +8,12 @@ import { robotsSoon } from "../_lib/robots.js";
 import { entriesSoon } from "../_lib/entries.js";
 import { maplibSoon } from "../_lib/maplib.js";
 import { runsSoon } from "../_lib/ciwatch.js";
+import { billingSoon } from "../_lib/billing.js";
 import { soloSweepSoon } from "./mymaps/[[path]].js";
 
 // the site's pages (app.js routes; the Réseau views apart) — anything else is refused
 const PAGES = new Set(["overview", "ranking", "runner", "compare", "clubs", "club", "clubcompare", "courses", "agenda",
-  "methods", "settings", "contact", "admin", "provisional", "splits", "deposit", "live", "relays", "analysis", "analysisPerso", "analysisOrga", "mapAnalysis", "myMaps", "track", "analysisClub", "analysisRace", "orgAnalyses", "orgRace", "orgTraining", "orgResults", "orgStarts", "booking", "entry", "myEntries", "myClub", "orgDirect", "orgTracer", "orgMapper", "orgManage", "needCountry", "categories", "relayHistory", "games", "virtually", "vma", "descriptions", "mapkey", "learn", "nutrition", "nutritionWrite", "hub", "modtiles", "ask", "network:ego", "network:leaders", "network:territories", "network:stats"]);
+  "methods", "settings", "contact", "admin", "provisional", "splits", "deposit", "live", "relays", "analysis", "analysisPerso", "analysisOrga", "mapAnalysis", "myMaps", "track", "analysisClub", "analysisRace", "orgAnalyses", "orgRace", "orgTraining", "orgResults", "orgStarts", "booking", "entry", "myEntries", "myClub", "orgDirect", "orgTracer", "orgMapper", "orgManage", "needCountry", "orgaOff", "categories", "relayHistory", "games", "virtually", "vma", "descriptions", "mapkey", "learn", "nutrition", "nutritionWrite", "hub", "modtiles", "ask", "offer", "network:ego", "network:leaders", "network:territories", "network:stats"]);
 const KEEP_DAYS = 400;
 
 /** Today's date in Paris, YYYY-MM-DD; `plus` days later (negative: earlier). */
@@ -32,6 +33,7 @@ export const onRequestPost = withUser(async (ctx, user) => {
   maplibSoon(ctx);               // the maps sent to Ozimut copied into the administrators' collection, a few at a time
   soloSweepSoon(ctx);            // the solo analyses still kept apart moved into their accounts' « Mes cartes », a few at a time
   runsSoon(ctx, allow);          // a results run GitHub's schedule skipped, started through workflow_dispatch (_lib/ciwatch.js)
+  billingSoon(ctx);              // Ozimut's own billing, once a day: Stripe against D1, the notices due (_lib/billing.js); nothing while BILLING is off
   const b = await readBody(request);
   const page = String(b?.page || "");
   if (!PAGES.has(page)) return json({ error: "bad request" }, 400);

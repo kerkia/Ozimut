@@ -11,6 +11,7 @@
 import { alertsAllowed, json, LANGS, publicUser, readBody, withUser } from "../../_lib/api.js";
 import { memberships } from "../../_lib/countries.js";
 import { CONSUMER } from "../../_lib/modules.js";
+import { entCaps } from "../../_lib/plans.js";
 
 export const onRequestPost = withUser(async ({ request, env }, user) => {
   const b = await readBody(request);
@@ -44,5 +45,5 @@ export const onRequestPost = withUser(async ({ request, env }, user) => {
   if (!sets.length) return json({ error: "bad request" }, 400);
   await env.DB.prepare(`UPDATE users SET ${sets.join(", ")} WHERE id = ?`).bind(...vals, user.id).run();
   const fresh = await env.DB.prepare("SELECT * FROM users WHERE id = ?").bind(user.id).first();
-  return json(publicUser(env, fresh, await memberships(env, fresh.id)));
+  return json({ ...publicUser(env, fresh, await memberships(env, fresh.id)), ...(await entCaps(env, fresh, { request })) });
 });

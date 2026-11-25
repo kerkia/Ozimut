@@ -233,7 +233,7 @@ export const creditOf = (name) => CREDITS[gridOfName(name).country] || CREDIT_LI
 async function call(url, opts) {
   const r = await fetch(url, { credentials: "same-origin", ...opts });
   const body = await r.json().catch(() => ({}));
-  if (!r.ok) { const e = new Error(body.error || `http ${r.status}`); e.status = r.status; throw e; }
+  if (!r.ok) { const e = new Error(body.error || `http ${r.status}`); e.status = r.status; e.data = body; throw e; }
   return body;
 }
 /** The tiles' state in a style ("forest" | "sprint"), the missing ones asked for: { req?, tiles: { id: "ready" | "none" | "queued" }, started? }.

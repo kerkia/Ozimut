@@ -32,6 +32,7 @@
 
 import { allow, json, readBody, withUser, nowIso, isAdmin } from "../../_lib/api.js";
 import { showModule } from "../../_lib/modules.js";
+import { capOf } from "../../_lib/plans.js";
 import { newToken, randomBytes, sha256hex } from "../../_lib/crypto.js";
 import { cleanGroups, groupsText, inGroups, inGroupsIndexed, rightsIndex } from "../../_lib/orgs.js";
 
@@ -305,7 +306,9 @@ export const onRequest = withUser(async (ctx, user) => {
       const note = decodeURIComponent(request.headers.get("X-Note") || "").slice(0, 300);
       const err = await putRaw(env, request, `${base}v/${next}`, MAX_DOC, { at: nowIso(), by: user.display_name || "", note });
       if (err) return err;
-      if (list.length + 1 > MAX_VERSIONS) await env.BUCKET.delete(list.slice(0, list.length + 1 - MAX_VERSIONS).map((k) => `${base}v/${k}`));
+      // how many are kept: the capability « cartoVersions » (_lib/plans.js; MAX_VERSIONS under today's pack), null: all
+      const keep = await capOf(env, user, "cartoVersions").catch(() => MAX_VERSIONS);
+      if (keep !== null && keep !== undefined && list.length + 1 > keep) await env.BUCKET.delete(list.slice(0, list.length + 1 - Math.max(1, keep)).map((k) => `${base}v/${k}`));
       return json({ ok: true, n: next });
     }
     return json({ error: "method" }, 405);

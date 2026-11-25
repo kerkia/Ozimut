@@ -9,6 +9,7 @@ import { html, raw, $, $$, fmt, fmtDate } from "../util.js";
 import { t, tn, loadArea } from "../i18n.js";
 import * as country from "../country.js";
 import { confirmBox, alertBox } from "../askbox.js";
+import * as offers from "../offers.js";
 import { replaceQuery } from "../app.js";
 
 const STATES = ["current", "revising", "outdated"];
@@ -258,7 +259,7 @@ function addForm(box, org, done) {
       else await cartoPictures(org.id, map, note, card).catch(() => null);   // its pictures and place, when the document can be read
       box.innerHTML = "";
       done();
-    } catch (e) { note(errText(e)); ev.target.disabled = false; }
+    } catch (e) { if (!(await offers.refused(e))) note(errText(e)); ev.target.disabled = false; }
   });
 }
 function bindDrop(zone, input, take) {
@@ -299,7 +300,7 @@ async function folderImport(box, org, list, done) {
         added++;
       } catch (e) {
         failed++;
-        if (e.code === "quota") { say(errText(e)); break; }
+        if (e.code === "quota") { if (!(await offers.refused(e))) say(errText(e)); break; }
       }
     }
     say(t("om.folder.done", { added, failed }));

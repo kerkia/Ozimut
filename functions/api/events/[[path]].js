@@ -33,6 +33,7 @@ import { eventPush } from "../../_lib/templates.js";
 import { broadcasts } from "../../_lib/live.js";
 import { startRun } from "../upload.js";
 import { showModule } from "../../_lib/modules.js";
+import { openedForEvent } from "../../_lib/plans.js";
 import { can, clubTeam, creatorOrg, orgByCode, ready as orgsReady, rightsIndex, rightsOf, rolesOf, settingsOf } from "../../_lib/orgs.js";
 
 const TERRAINS = ["Forêt", "Sprint", "VTT", "Ski"];
@@ -294,17 +295,19 @@ export const onRequest = withUser(async ({ request, env, params, waitUntil }, us
   const sub = parts[1] || "";
 
   if (!sub && method === "GET") {
+    // what the organiser's plan opens on this event (_lib/plans.js; nothing read while nobody holds a plan)
+    const opened = await openedForEvent(env, request, ev);
     if (!may) {
       const asked = await env.DB.prepare("SELECT id FROM event_requests WHERE event_id = ? AND user_id = ? AND status = 'pending'").bind(id, user.id).first();
       return json({ event: { id: ev.id, type: ev.type, kind: kindOf(ev.type), form: formOf(ev.type), name: ev.name, date: ev.date, place: ev.place, club: ev.club, country: ev.country },
-        member: false, holder: await holderOf(env, ev, user.id), asked: asked?.id || null });
+        member: false, holder: await holderOf(env, ev, user.id), asked: asked?.id || null, ...(opened ? { opened } : {}) });
     }
     const team = await members(env, id);
     const { results: reqs } = await env.DB.prepare(`SELECT r.id, r.user_id, r.message, r.created_at, u.first_name, u.last_name, u.display_name, u.licence
       FROM event_requests r JOIN users u ON u.id = r.user_id WHERE r.event_id = ? AND r.status = 'pending' ORDER BY r.created_at`).bind(id).all();
     const club = async (lic) => (lic ? await clubOf(env, request, lic) : null);
     const link = ev.link_key ? (await calendarOf(env, request, ev.link_key)).race : null;
-    return json({ event: view(ev), member, admin, ...(viaClub ? { viaClub: true } : {}),
+    return json({ event: view(ev), member, admin, ...(viaClub ? { viaClub: true } : {}), ...(opened ? { opened } : {}),
       competition: link ? { key: link.key, name: link.name, date: link.date_iso, org: link.org, place: link.place } : null,
       team: await Promise.all(team.map(async (m) => ({ uid: m.user_id, name: m.display_name || `${m.first_name} ${m.last_name}`,
         club: await club(m.licence), joined: m.joined_at, you: m.user_id === user.id, creator: m.user_id === ev.created_by }))),

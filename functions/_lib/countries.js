@@ -8,6 +8,7 @@
 
 import { checkLicensee, cleanLicence, nowIso, publicUser, sessionCookie } from "./api.js";
 import { autoShow } from "./modules.js";
+import { entCaps } from "./plans.js";
 
 // The IOF's member federations (2026), by ISO code; France first. A code outside this list is refused.
 export const COUNTRIES = ["FR",
@@ -80,5 +81,6 @@ export const sessionCountries = (user, rows) => (user.demo_until ? ["FR"] : acce
 export async function accountView(env, user) {
   user = await autoShow(env, user);            // its existing work shows its creators' modules (_lib/modules.js)
   const rows = await memberships(env, user.id);
-  return { body: publicUser(env, user, rows), cookie: await sessionCookie(env, user, sessionCountries(user, rows)) };
+  // with its entitlements (_lib/plans.js entCaps), as /api/account/me
+  return { body: { ...publicUser(env, user, rows), ...(await entCaps(env, user)) }, cookie: await sessionCookie(env, user, sessionCountries(user, rows)) };
 }

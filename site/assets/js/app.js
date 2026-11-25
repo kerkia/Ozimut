@@ -78,6 +78,9 @@ const PAGES = {
   nutrition: () => import("./pages/nutrition.js"),     // « Nutrition » (Coach): articles by theme and date (2026-11-01)
   nutritionWrite: () => import("./pages/nutritionwrite.js"),   // « Rédaction »: its authors write, change and delete them
   ask: () => import("./pages/ask.js"),             // « IA »: a question answered by a query an AI writes and the browser runs
+  // the purchase gate's pages (offers.js, docs/billing/design.md §9): #/tarifs, #/conditions-de-vente, #/changements — they exist
+  // only while billing is on for the visitor (offers.page sends anyone else home)
+  offer: () => import("./pages/offer.js"),
 };
 
 // Pages without the runner search of the header: it leads away from what they show.
@@ -111,7 +114,7 @@ const homeOf = () => "#/modules";
 // multi » (a trace is shared by an account), Stats' runner, ranking and races over the period the federation publishes
 // openly — and the pages outside the modules (the home page, the documentation, the rules, « Nous écrire »).
 const GUEST_ROUTES = new Set(["overview", "account", "hub", "modtiles", "methods", "contact", "agenda", "provisional", "live", "splits",
-  "analysis", "analysisPerso", "mapAnalysis", "analysisClub", "analysisRace", "myMaps", "learn", "games", "vma", "runner", "ranking", "courses", "needCountry", "phoneSend", "entry"]);
+  "analysis", "analysisPerso", "mapAnalysis", "analysisClub", "analysisRace", "myMaps", "learn", "games", "vma", "runner", "ranking", "courses", "needCountry", "phoneSend", "entry", "offer"]);
 // The pages shown only to the accounts named Le Helloco (auth.owner): none since 2026-11-10 (owner: « Apprendre », its three
 // tabs, for everyone; « Définitions de postes » and « Symboles de carte » were the owner's from 2026-10-31)
 const OWNER_ROUTES = new Set([]);
@@ -206,6 +209,7 @@ function parseHash(hash = location.hash) {
     : head === "apprendre" || head === "definitions" || head === "symboles" ? "learn"     // the two pages of before: its views
     : head === "sante" || head === "nutrition" ? "nutrition"     // « Santé » (« Nutrition » until 2026-11-01: old links)
     : head === "redaction" ? "nutritionWrite"
+    : head === "tarifs" || head === "conditions-de-vente" || head === "changements" ? "offer"
     : "overview";
   return { route, arg: arg ? decodeURIComponent(arg) : null, query, path };
 }
@@ -941,7 +945,7 @@ async function siteChanged() {
 // signed-in visit opening on one — the modules page, Coach's tools, Réglages — no longer waits for those files (1.6 MB
 // and 0.5 MB for France); they load once the page is drawn, for the pages that follow. Keep it to pages checked so.
 const NO_RUNNERS = new Set(["hub", "orgaOff", "modtiles", "games", "vma", "learn", "nutrition", "nutritionWrite",
-  "myMaps", "track", "settings", "myClub", "contact", "orgMapper", "needCountry", "phoneSend", "entry", "myEntries"]);
+  "myMaps", "track", "settings", "myClub", "contact", "orgMapper", "needCountry", "phoneSend", "entry", "myEntries", "offer"]);
 // the pages a text loaded late never draws again (i18n « ocn:i18n-late »): they hold work in hand
 const NO_REDRAW = new Set(["orgTracer", "orgMapper", "analysis", "analysisPerso", "analysisOrga", "analysisClub", "analysisRace",
   "orgAnalyses", "orgManage", "orgDirect", "deposit", "games", "virtually", "learn", "nutritionWrite", "myMaps", "track"]);
@@ -974,7 +978,7 @@ async function route_() {
   const guest = !me && auth.guest();
   if (guest) await ensurePass().catch(() => {});        // the guest pass, renewed when it runs out (guestpass.js)
   // (the phone's page of « Depuis mon téléphone » too: its link is the permission, no account on the phone)
-  if (!me && !guest && !["overview", "account", "phoneSend"].includes(r.route)) {
+  if (!me && !guest && !["overview", "account", "phoneSend", "offer"].includes(r.route)) {
     try { sessionStorage.setItem("ocn.after", location.hash); } catch (e) {}
     history.replaceState(null, "", "#/");
     r.route = "overview"; r.arg = null; r.query = {};
@@ -1153,7 +1157,7 @@ async function route_() {
 // the pages a visit may open on that draw no chart (none of their modules calls charts.js's builders, checked 2026-11-06):
 // the first of them shown needs no ECharts (app.route_); keep it to pages checked so
 const NO_CHARTS = new Set(["track", "hub", "orgaOff", "overview", "modtiles", "agenda", "mapAnalysis", "account", "phoneSend", "entry", "myEntries", "myClub",
-  "analysis", "analysisPerso", "analysisOrga", "games", "vma", "learn"]);
+  "analysis", "analysisPerso", "analysisOrga", "games", "vma", "learn", "offer"]);
 let routed = false;
 /** Redraws the page for another method without moving anything (owner, 2026-10-12): no loading screen, the page keeps
  *  its height while it redraws, and the window's and the inner panes' scroll positions (the races' list, the tables)

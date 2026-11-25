@@ -12,6 +12,7 @@ import { methodShort } from "../ui.js";
 import * as pwa from "../pwa.js";
 import { inApp, call as appCall } from "../appbridge.js";
 import { name as countryName, membershipFields, bindMembershipFields, readMembership, flagImg } from "../country.js";
+import * as offers from "../offers.js";
 
 // The alerts of the table: the user's field for each channel (publicUser, /api/account/settings); `gated`: the e-mail
 // needs the administrator's right (users.alerts_allowed) and is not offered at all without it — every alert's e-mail since
@@ -66,6 +67,7 @@ export async function render(main, { query = {} } = {}) {
   if (r.status === 401) { window.dispatchEvent(new Event("cnx:unauthorised")); return null; }
   if (!user) throw new Error(`api/account/me: HTTP ${r.status}`);
   if (user.demo) return demoPage(main, user);
+  await offers.ready();                       // « Abonnement » (#/reglages?onglet=abonnement): the purchase gate's, when billing is on
 
   main.innerHTML = html`
     <div class="page-head"><div><h1>${t("st.title")}</h1><p class="lede">${t(app ? "st.lede.app" : "st.lede")}</p></div></div>
@@ -78,6 +80,7 @@ export async function render(main, { query = {} } = {}) {
           ${LANGS.map((l) => html`<option value="${l}" lang="${l}" ${l === lang() ? "selected" : ""}>${LANG_NAMES[l]}</option>`)}</select>
           <span class="muted" style="font-size:12.5px">${t("st.lang.hint")}</span></label>` : ""}
       </div></section>
+      ${offers.settingsSection()}
 
       <section class="card" data-web-only id="st-countries"><div class="card-head"><h2>${t("st.cty.title")}</h2></div><div class="card-body stack" style="gap:12px">
         <p class="soft" style="margin:0">${t("st.cty.hint")}</p>
@@ -152,6 +155,7 @@ export async function render(main, { query = {} } = {}) {
   // the Ozimut app is a companion (docs/app/design.md): the settings that belong to the phone — the alerts, its notifications,
   // the language, signing out; the account itself (password, countries, modules, deletion) is the website's
   if (app) $$("[data-web-only]", main).forEach((el) => el.parentNode.removeChild(el));
+  offers.bindSettings(main).catch(() => {});
   $("#st-logout")?.addEventListener("click", async () => { await auth.logout(); location.hash = "#/"; location.reload(); });
 
   const flash = (el, text, ok) => { el.textContent = text; el.className = `notice${ok ? " ok" : ""}`; el.hidden = false; };

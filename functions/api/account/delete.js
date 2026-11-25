@@ -6,6 +6,7 @@ import { runnerHash } from "../../_lib/virtual.js";
 import { deleteAllRuns, deleteChild } from "../../_lib/track.js";
 import { forgetAccount } from "../../_lib/entries.js";
 import { managersOf, orgsOf, ready as orgsReady } from "../../_lib/orgs.js";
+import { dropAccount } from "../../_lib/billing.js";
 
 export const onRequestPost = withUser(async ({ request, env }, user) => {
   const b = await readBody(request);
@@ -285,6 +286,9 @@ export const onRequestPost = withUser(async ({ request, env }, user) => {
       env.DB.prepare("DELETE FROM push_queue WHERE user_id = ?").bind(user.id)]);
   } catch (e) {}
   try { await env.DB.prepare("DELETE FROM app_push WHERE user_id = ?").bind(user.id).run(); } catch (e) { /* before migration 0032 */ }   // the Ozimut app's phones
+  // Ozimut's own billing (migration 0034): its Stripe subscription cancelled at once, its customer row, grants, counters and
+  // credits deleted (_lib/billing.js; nothing before the migration)
+  await dropAccount(env, user.id);
   await env.DB.batch([
     env.DB.prepare("DELETE FROM notified WHERE user_id = ?").bind(user.id),
     env.DB.prepare("DELETE FROM user_countries WHERE user_id = ?").bind(user.id),

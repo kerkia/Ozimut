@@ -41,7 +41,7 @@ import { allow, isAdmin, json, nowIso, parisToday, readBody, siteUrl, withUser }
 import { newToken, sha256hex } from "../../_lib/crypto.js";
 import { inGroups, notReady, orgById, orgsOf, ready, rightsOf, rolesOf } from "../../_lib/orgs.js";
 import {
-  LEVELS, STATES, USES, WRITTEN, accessOf, embargoed, fileKey, key, mapRow, mayUse, parse, quota, recordUse, used, usesOf,
+  LEVELS, STATES, USES, WRITTEN, accessOf, embargoed, fileKey, key, mapRow, mayUse, orgQuota, parse, recordUse, used, usesOf,
 } from "../../_lib/orgmaps.js";
 
 const MAX_FILE = 80 * 1024 * 1024, MAX_VIEW = 6 * 1024 * 1024, MAX_THUMB = 600 * 1024, MAX_FILES = 12, MAX_MAPS = 500;
@@ -94,7 +94,7 @@ async function route({ request, env, params }, user) {
       const A = await accessOf(env, user, m, R);
       if (A.list) maps.push(listView(m, A));
     }
-    return json({ maps, quota: editor ? { used: await used(env, org.id), limit: quota(env) } : null, may: { add: editor }, member: true });
+    return json({ maps, quota: editor ? { used: await used(env, org.id), limit: await orgQuota(env, org.id) } : null, may: { add: editor }, member: true });
   }
 
   if (parts[1] !== "maps") return json({ error: "not found" }, 404);
@@ -207,8 +207,8 @@ async function route({ request, env, params }, user) {
       if (!size) return json({ error: "empty" }, 400);
       if (size > MAX_FILE) return json({ error: "size" }, 413);
       if (!files.some((x) => x.name === name) && files.length >= MAX_FILES) return json({ error: "too many files" }, 400);
-      const old = files.find((x) => x.name === name)?.size || 0, u = await used(env, org.id), limit = quota(env);
-      if (u - old + size > limit) return json({ error: "quota", used: u, limit }, 413);
+      const old = files.find((x) => x.name === name)?.size || 0, u = await used(env, org.id), limit = await orgQuota(env, org.id);
+      if (limit !== null && u - old + size > limit) return json({ error: "quota", used: u, limit, cap: "orgmapsMB", need: "club" }, 413);
       const type = clean((request.headers.get("Content-Type") || "application/octet-stream").split(";")[0], 80) || "application/octet-stream";
       const k = fileKey(org.id, m.id, m.version, name);
       const obj = await env.BUCKET.put(k, request.body, { httpMetadata: { contentType: type } });

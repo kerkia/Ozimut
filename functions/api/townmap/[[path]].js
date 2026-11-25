@@ -13,6 +13,7 @@
 // Only the area's centre and size are sent by the page. Every signed-in account (Carto is every account's), 3 maps a day, the
 // administrators 20: each one downloads hundreds of MB of point clouds on the workflow's runner.
 import { allow, isAdmin, json, nowIso, readBody, withUser } from "../../_lib/api.js";
+import { atLeast, entitlementsOf, fits, needOf, refusal, spend } from "../../_lib/plans.js";
 
 const Q = "townmap/req/", OUT = "townmap/out/";
 const MIN = 100, MAX = 2000;                                  // a side, metres (the runner's disk and memory: 2 × 2 km at most)
@@ -55,7 +56,20 @@ export const onRequestPost = withUser(async ({ request, env }, user) => {
   if (![lat, lon, w, h].every(Number.isFinite) || w < MIN || h < MIN) return json({ error: "bad area" }, 400);
   if (w > MAX || h > MAX) return json({ error: "too large", max: MAX }, 400);
   if (!inFrance(lat, lon)) return json({ error: "not france" }, 400);
-  if (!(await allow(env, `townmap:${user.id}`, isAdmin(env, user) ? 20 : 3, 86400))) return json({ error: "too many requests" }, 429);
+  // the day's requests: the capability « townPerDay » (_lib/plans.js; the administrators 20 at least), then — when the pack
+  // counts them — the month's km² (« genKm2Month », docs/billing/design.md §7: the plan's area, credits after the allowance)
+  const admin = isAdmin(env, user), ent = await entitlementsOf(env, user);
+  const perDay = admin ? atLeast(ent.caps.townPerDay, 20) : ent.caps.townPerDay;
+  const km2 = Math.round(w * h / 1e4) / 100, metered = !admin && ent.caps.genKm2Month !== null;
+  const no = (s) => refusal("genKm2Month", { used: s.used, limit: s.limit, credits: s.credits });
+  if (metered) { const f = await fits(env, user, "genKm2", km2, ent.caps.genKm2Month); if (!f.ok) return no(f); }
+  if (perDay !== null && !(await allow(env, `townmap:${user.id}`, perDay, 86400))) {
+    return json({ error: "too many requests", cap: "townPerDay", need: needOf("townPerDay"), limit: perDay }, 429);
+  }
+  if (metered) {
+    const s = await spend(env, user, "genKm2", km2, ent.caps.genKm2Month);
+    if (!s.ok) return no(s);
+  }
   const id = `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`;
   await env.BUCKET.put(`${Q}${id}.json`, JSON.stringify({ id, lat: +lat.toFixed(6), lon: +lon.toFixed(6), w, h, by: user.id, at: nowIso(), status: "queued" }),
     { httpMetadata: { contentType: "application/json" } });

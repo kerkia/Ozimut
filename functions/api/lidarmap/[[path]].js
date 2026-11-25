@@ -25,6 +25,7 @@
 //   GET /t/<file>             a tile's file
 // Nothing of the trace is sent: the page asks for the tiles its trace's area touches.
 import { allow, isAdmin, json, nowIso, readBody, withUser } from "../../_lib/api.js";
+import { atLeast, entitlementsOf, fits, needOf, refusal, spend } from "../../_lib/plans.js";
 
 const T = "lidarmap/t/", Q = "lidarmap/req/";
 // the tile ids (mapgen/grids.py ID; keep the two in step)
@@ -111,7 +112,20 @@ export const onRequestPost = withUser(async ({ request, env }, user) => {
   for (const id of ids) tiles[id] = await tileState(env, id, variant, helpers);
   const missing = ids.filter((id) => tiles[id] === "missing");
   if (!missing.length) return json({ tiles });
-  if (!(await allow(env, `lidarmap:${user.id}`, isAdmin(env, user) ? 20 : 5, 86400))) return json({ error: "too many requests" }, 429);
+  // the day's requests: the capability « lidarPerDay » (_lib/plans.js; the administrators 20 at least), then — when the pack
+  // counts them — the month's km² (« genKm2Month », docs/billing/design.md §7: a tile newly asked is 1 km², credits after it)
+  const admin = isAdmin(env, user), ent = await entitlementsOf(env, user);
+  const perDay = admin ? atLeast(ent.caps.lidarPerDay, 20) : ent.caps.lidarPerDay;
+  const metered = !admin && ent.caps.genKm2Month !== null;
+  const no = (s) => refusal("genKm2Month", { used: s.used, limit: s.limit, credits: s.credits });
+  if (metered) { const f = await fits(env, user, "genKm2", missing.length, ent.caps.genKm2Month); if (!f.ok) return no(f); }
+  if (perDay !== null && !(await allow(env, `lidarmap:${user.id}`, perDay, 86400))) {
+    return json({ error: "too many requests", cap: "lidarPerDay", need: needOf("lidarPerDay"), limit: perDay }, 429);
+  }
+  if (metered) {
+    const s = await spend(env, user, "genKm2", missing.length, ent.caps.genKm2Month);
+    if (!s.ok) return no(s);
+  }
   const id = `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`;
   const interval = variant === style ? INTERVALS[style][0] : +body.interval;
   await env.BUCKET.put(`${Q}${id}.json`, JSON.stringify({ id, tiles: missing, style, interval, variant, by: user.id, at: nowIso(), status: "queued" }),

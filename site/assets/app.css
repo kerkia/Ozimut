@@ -1751,6 +1751,9 @@ body.an-theatre .an-right { grid-area: side; }
 .an-map .an-3d-canvas:active { cursor: grabbing; }
 .an-tools .an-3d-btn { font-weight: 700; font-size: 12px; }
 .an-tools .an-3d-btn[aria-pressed="true"] { background: var(--flag-wash); border-color: var(--flag); color: var(--ink); }
+/* a map tool's plan mark (offers.js): beside the button, outside the column, so the tools keep their width */
+.an-tools .btn:has(> .bl-mark, > .bl-gift) { position: relative; }
+.an-tools .btn > .bl-mark, .an-tools .btn > .bl-gift { position: absolute; right: calc(100% + 4px); top: 50%; transform: translateY(-50%); }
 .an-3d-credit { position: absolute; left: 50%; transform: translateX(-50%); bottom: 8px; z-index: 2; max-width: calc(100% - 200px); font-size: 11px; padding: 2px 8px; border-radius: 8px;
   background: color-mix(in srgb, var(--surface) 85%, transparent); color: var(--ink-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .an-3d-credit[hidden] { display: none; }
@@ -5218,3 +5221,164 @@ table.data tr.mc-past td { color: var(--ink-3); }
 .appf-item { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; height: auto; padding: 8px 10px; text-align: left; }
 .appf-item .muted { font-size: 12.5px; }
 .an-fit-tip { font-size: 12.5px; color: var(--ink-3); margin: 6px 0 0; }
+
+/* ---- The admin page's tab « Abonnements » (pages/adminbilling.js; docs/billing/design.md §8) ---- */
+.ab-tabs { margin: 0 0 14px; }
+.ab-wait { display: flex; align-items: center; gap: 10px; padding: 24px 4px; }
+.ab-wait .wait-bar { width: 160px; }
+.ab-cmd { display: inline-block; margin-top: 6px; padding: 2px 6px; border-radius: 5px; background: var(--surface-2); font-size: 12.5px; user-select: all; }
+.ab-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(340px, 1fr)); gap: 16px; align-items: start; margin-top: 16px; }
+.ab-card-pad { padding: 14px 18px 18px; }
+.ab-card-pad > h2, .ab-card-pad > h3 { margin: 0 0 6px; }
+.ab-card-pad > .muted { font-size: 12.5px; margin: 0 0 10px; }
+.ab-note { font-size: 12.5px; color: var(--ink-3); margin: 8px 2px 0; }
+.ab-pill { display: inline-block; padding: 1px 8px; border-radius: 999px; font-size: 12px; font-weight: 600; white-space: nowrap; }
+.ab-pill.ab-ok { background: color-mix(in srgb, var(--good) 18%, transparent); color: var(--good); }
+.ab-pill.ab-warn { background: color-mix(in srgb, var(--flag) 22%, transparent); color: var(--ink); }
+.ab-pill.ab-bad { background: color-mix(in srgb, var(--bad) 18%, transparent); color: var(--bad); }
+.ab-pill.ab-na { background: var(--surface-2); color: var(--ink-3); }
+.ab-health { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+.ab-health li { display: grid; grid-template-columns: 92px minmax(0, 1fr); gap: 10px; align-items: baseline; font-size: 13.5px; }
+.ab-health li small { display: block; color: var(--ink-3); font-size: 12.5px; }
+.ab-health code { font-size: 12.5px; }
+.ab-pack { width: 100%; }
+.ab-pack th, .ab-pack td { vertical-align: middle; }
+.ab-pack td.ab-cell { text-align: center; white-space: nowrap; }
+.ab-pack td.ab-cell.ab-diff { background: color-mix(in srgb, var(--flag) 14%, transparent); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--flag) 45%, transparent); }
+.ab-pack td.ab-cell.ab-dirty { box-shadow: inset 0 0 0 2px var(--focus); }
+.ab-pack input[type="number"] { width: 78px; height: 28px; padding: 0 6px; border: 1px solid var(--border-strong); border-radius: 6px; background: var(--surface); color: var(--ink); font: inherit; font-size: 13px; }
+.ab-pack input[type="checkbox"] { width: 16px; height: 16px; accent-color: var(--focus); vertical-align: middle; }
+.ab-pack .ab-unl { display: flex; justify-content: center; align-items: center; gap: 3px; margin-top: 2px; font-size: 11.5px; color: var(--ink-3); }
+.ab-pack .ab-unl input[type="checkbox"] { width: 13px; height: 13px; }
+.ab-pack .ab-cap small { display: block; color: var(--ink-3); font-size: 12px; }
+.ab-savebar { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; position: sticky; bottom: 0; z-index: 3; margin-top: 16px; padding: 10px 14px;
+  background: var(--surface); border: 1px solid var(--border-strong); border-radius: 10px; box-shadow: 0 -2px 10px rgba(0, 0, 0, .08); }
+.ab-savebar .muted { font-size: 13px; }
+.ab-fields { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 10px 14px; margin: 10px 0 4px; }
+.ab-fields .ab-f-wide { grid-column: 1 / -1; }
+.ab-fields .field input, .ab-fields .field select, .ab-fields .field textarea, .ab-changes input, .ab-changes textarea {
+  width: 100%; min-height: 32px; padding: 5px 8px; border: 1px solid var(--border-strong); border-radius: 7px; background: var(--surface); color: var(--ink); font: inherit; font-size: 14px; }
+.ab-fields .field textarea, .ab-changes textarea { resize: vertical; }
+.ab-fields .field textarea.ab-json { font-family: ui-monospace, Consolas, monospace; font-size: 12.5px; }
+.ab-fields .field small { font-size: 12px; }
+.ab-sub { margin: 16px 0 2px; font-size: 14px; font-weight: 650; }
+.ab-dlg { width: min(520px, calc(100vw - 24px)); max-height: calc(100dvh - 32px); overflow: auto; }
+.ab-dlg.ab-wide { width: min(760px, calc(100vw - 24px)); }
+.ab-dlg h3 { margin: 0 0 8px; font-size: 16px; }
+.ab-intro { font-size: 13px; margin: 0 0 8px; white-space: pre-line; }
+.ab-form-err { color: var(--bad); font-size: 13px; margin: 6px 0; }
+.ab-once { margin: 10px 0; text-align: center; }
+.ab-once code { font-size: 20px; letter-spacing: .06em; padding: 6px 12px; border-radius: 8px; background: var(--surface-2); user-select: all; }
+.ab-changes { display: grid; gap: 12px; }
+.ab-change { border: 1px solid var(--border-strong); border-radius: 9px; padding: 10px 12px; display: grid; gap: 8px; }
+.ab-change-head { display: flex; gap: 10px; align-items: flex-end; flex-wrap: wrap; }
+.ab-change-langs { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 8px 12px; }
+.ab-change-langs label { display: grid; gap: 4px; font-size: 12px; color: var(--ink-3); font-weight: 550; }
+.ab-actions { display: flex; gap: 6px; flex-wrap: wrap; justify-content: flex-end; }
+.ab-toolbar { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin: 0 0 12px; }
+.ab-toolbar .ab-spacer { flex: 1 1 auto; }
+.ab-lines { display: grid; gap: 6px; }
+.ab-out { font-size: 13px; margin-top: 10px; white-space: pre-wrap; }
+tr.ab-fail td { background: color-mix(in srgb, var(--bad) 8%, transparent); }
+.ab-pack td.ab-cell.ab-absent { outline: 1px dotted var(--border-strong); outline-offset: -4px; }
+.ab-pack th.ab-cap { text-align: left; font-weight: 600; min-width: 210px; white-space: normal; }
+.ab-pack td.ab-cell input[type="number"]:disabled { opacity: .45; }
+.ab-lede { font-size: 13px; margin: 0 2px 12px; }
+.ab-basehint { font-size: 13px; align-self: flex-end; padding-bottom: 6px; }
+.ab-said { color: var(--good); }
+.ab-tiles { grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); }
+.ab-ov { display: grid; grid-template-columns: minmax(300px, 1fr) minmax(0, 2fr); gap: 16px; align-items: start; margin-top: 16px; }
+.ab-ov > .ab-grid { margin-top: 0; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); }
+@media (max-width: 900px) { .ab-ov { grid-template-columns: minmax(0, 1fr); } }
+
+/* ---- The purchase gate (offers.js, billing/*.js; docs/billing/design.md §9): marks, the sheet, « Réglages › Abonnement »,
+   « Mon club › Formule », the pricing page, the terms. Drawn only while billing is on for the visitor, never in the app. ---- */
+.bl-mark { display: inline-flex; align-items: center; gap: 3px; padding: 0 7px; height: 19px; border-radius: 999px; font-size: 11.5px; font-weight: 700;
+  letter-spacing: .02em; line-height: 1; vertical-align: middle; cursor: pointer; white-space: nowrap; user-select: none;
+  background: var(--flag-wash); color: var(--ink); border: 1px solid color-mix(in srgb, var(--flag) 55%, transparent); }
+.bl-mark[data-bl-plan="club"] { background: var(--course-wash); border-color: color-mix(in srgb, var(--course) 55%, transparent); }
+.bl-mark:hover, .bl-mark:focus-visible { background: var(--flag); color: var(--flag-ink); outline: none; }
+.bl-mark[data-bl-plan="club"]:hover, .bl-mark[data-bl-plan="club"]:focus-visible { background: var(--course); color: #fff; }
+.bl-mark-big { height: 24px; padding: 0 10px; font-size: 13px; cursor: default; }
+.bl-mark-big:hover { background: var(--flag-wash); color: var(--ink); }
+.bl-mark-big[data-bl-plan="club"]:hover { background: var(--course-wash); color: var(--ink); }
+.bl-gift { display: inline-block; padding: 0 7px; border-radius: 999px; font-size: 11.5px; color: var(--ink-2); background: var(--surface-2); vertical-align: middle; white-space: nowrap; }
+.bl-limit { margin: 6px 0 0; font-size: 12.5px; color: var(--ink-2); }
+.bl-limit-full { color: var(--ink); font-weight: 600; }
+.bl-note { margin: 0 0 10px; font-size: 13px; color: var(--ink-2); display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.bl-small { font-size: 12.5px; margin: 0; }
+.bl-explain { font-size: 13.5px; color: var(--ink-2); margin: 0; }
+.bl-what { margin: 0 0 10px; }
+.bl-price { margin: 4px 0 10px; font-size: 15px; }
+.bl-founder { display: inline-block; padding: 0 7px; border-radius: 6px; font-size: 12px; font-weight: 600; background: var(--flag-wash); color: var(--ink); }
+.bl-facts { margin: 6px 0 10px; padding-left: 20px; display: grid; gap: 4px; font-size: 13.5px; }
+.bl-btns { display: flex; flex-wrap: wrap; gap: 8px; justify-content: flex-end; margin-top: 12px; }
+.bl-actions { gap: 8px; flex-wrap: wrap; }
+.bl-ok { background: color-mix(in srgb, var(--good) 16%, transparent); color: var(--good); }
+.bl-gap { background: var(--warn-bg); color: var(--warn-ink); padding: 0 4px; border-radius: 4px; font-weight: 600; }
+/* the gate's dialog */
+dialog.bl-dlg { border: 1px solid var(--border-strong); border-radius: 12px; padding: 0; width: min(520px, calc(100vw - 24px)); max-height: calc(100dvh - 32px);
+  overflow: auto; background: var(--surface); color: var(--ink); box-shadow: var(--shadow-pop); }
+dialog.bl-dlg::backdrop { background: rgba(0, 0, 0, .45); }
+.bl-dlg-body { padding: 18px 20px 16px; }
+.bl-dlg-body h2 { margin: 0 0 8px; font-size: 18px; }
+.bl-x { position: sticky; top: 6px; float: right; margin: 6px 6px 0 0; border: 0; background: transparent; color: var(--ink-3); font-size: 18px; width: 32px; height: 32px; border-radius: 8px; cursor: pointer; }
+.bl-x:hover { background: var(--surface-2); color: var(--ink); }
+.bl-msg { margin: 6px 0; white-space: pre-line; }
+.bl-sheet-head { display: flex; align-items: center; gap: 10px; margin: 0 0 8px; }
+.bl-sheet-head h2 { margin: 0; }
+.bl-also { margin: 0 0 10px; font-size: 13.5px; }
+.bl-also ul { margin: 4px 0 0; padding-left: 20px; display: grid; gap: 2px; }
+.bl-consent { align-items: flex-start; gap: 8px; margin: 8px 0; padding: 10px 12px; border: 1px solid var(--border-strong); border-radius: 9px; font-size: 13.5px; }
+.bl-consent input { margin-top: 3px; flex: none; }
+/* « Réglages › Abonnement » */
+.bl-plan-line { display: flex; align-items: flex-start; gap: 10px; }
+.bl-plan-line > div { min-width: 0; }
+.bl-plans { margin: 0; padding-left: 20px; display: grid; gap: 6px; font-size: 13.5px; }
+.bl-opened { font-size: 13.5px; }
+.bl-opened ul { margin: 4px 0 0; padding-left: 20px; }
+.bl-code { align-items: flex-end; gap: 8px; flex-wrap: wrap; }
+.bl-code .field { max-width: 220px; }
+.bl-code .notice { flex-basis: 100%; }
+.bl-price-in { font-size: 13px; color: var(--ink-2); }
+.bl-activating { display: grid; gap: 8px; }
+.bl-activating .wait-bar { width: 100%; max-width: 320px; }
+/* « Mon club › Formule » */
+.bl-club { display: grid; gap: 16px; }
+.bl-club > .card { margin: 0; }
+.bl-form textarea { resize: vertical; }
+.bl-form .row { gap: 10px; flex-wrap: wrap; align-items: flex-end; }
+.bl-form .row .field { flex: 1 1 160px; }
+table.bl-inv td { vertical-align: top; }
+/* the pricing page */
+.bl-founder-bar { margin: 0 0 14px; }
+.bl-cols { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 14px; align-items: stretch; }
+.bl-col { margin: 0; display: flex; }
+.bl-col > .card-body { display: flex; flex-direction: column; gap: 6px; width: 100%; }
+.bl-col h2 { margin: 0; font-size: 18px; }
+.bl-col-main { border: 2px solid var(--flag); }
+.bl-col[data-bl-plan="club"] h2 { color: var(--course); }
+.bl-col-price { margin: 0; font-size: 14px; color: var(--ink-2); }
+.bl-col-price b { font-size: 24px; color: var(--ink); }
+.bl-col-lede { margin: 0; font-size: 13.5px; color: var(--ink-2); }
+.bl-col-list { margin: 4px 0 8px; padding-left: 18px; display: grid; gap: 4px; align-content: start; font-size: 13.5px; flex: 1 1 auto; }
+.bl-col-list ul { margin: 4px 0 0; padding-left: 16px; }
+.bl-val { color: var(--ink-3); font-size: 12.5px; white-space: nowrap; }
+.bl-col-btn { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.bl-myclub { margin-top: 16px; }
+.bl-notes { margin-top: 16px; font-size: 13.5px; color: var(--ink-2); max-width: 820px; }
+.bl-home-link { margin-top: 10px; }
+/* the terms of sale, « Ce qui change » */
+.bl-terms h2 { font-size: 17px; margin: 22px 0 6px; }
+.bl-terms h3 { font-size: 15px; margin: 16px 0 4px; }
+.bl-draft { padding: 10px 12px; border-radius: 9px; background: var(--warn-bg); color: var(--warn-ink); }
+.bl-change h3 { font-size: 15px; margin: 16px 0 4px; }
+@media (max-width: 640px) {
+  .bl-dlg-body { padding: 14px 14px 12px; }
+  .bl-btns { justify-content: stretch; }
+  .bl-btns > .btn { flex: 1 1 auto; }
+  .bl-col-price b { font-size: 21px; }
+}
+.bl-form-model { padding: 10px 14px; border: 1px dashed var(--border-strong); border-radius: 9px; }
+.bl-settings, .bl-club { scroll-margin-top: 80px; }
+.bl-form textarea { width: 100%; min-height: 64px; padding: 6px 10px; border: 1px solid var(--border-strong); border-radius: 8px; background: var(--surface); color: var(--ink); font: inherit; font-size: 14px; }

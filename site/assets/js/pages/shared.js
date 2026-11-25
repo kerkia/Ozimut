@@ -21,6 +21,7 @@
 import { html, raw, $, $$, fmt, fmtDate, traceAccept, touchScreen, dateFormat } from "../util.js";
 import { t, tn, locale } from "../i18n.js";
 import * as auth from "../auth.js";
+import * as offers from "../offers.js";
 import { pageTabs, tabFrom, bindPageTabs, dataTable } from "../ui.js";
 import { getProv, clock } from "./provisional.js";
 import * as declare from "../declare.js";
@@ -564,7 +565,7 @@ async function eventPage(main, kind, id, org = false, query = {}) {
       return;
     }
     const init = initial; initial = {};                    // the address's state for the first circuit opened only
-    viewer = await replay($("#sh-viewer"), { A, id, course: c, race, init, traces: data.traces.filter((x) => x.course === c.n), allTraces: data.traces, you: data.you, reload: async (n) => {
+    viewer = await replay($("#sh-viewer"), { A, id, course: c, race, init, traces: data.traces.filter((x) => x.course === c.n), allTraces: data.traces, you: data.you, opened: data.opened || A.opened || null, reload: async (n) => {
       data = await api(`/${id}`, { key: keyOf(id) });
       if (n != null && n !== courseN && A.courses.some((x) => x.n === n)) { courseN = n; drawTabs(); }     // a track sent to its own circuit
       openViewer(); }, onCourse: pickCourse });
@@ -1797,7 +1798,7 @@ export async function courseThumb(img, c, side = 480) {
 }
 
 // ---- the replay --------------------------------------------------------------------------------------------------
-async function replay(box, { A, id, course, race, init = {}, traces, allTraces = [], you, reload, onCourse = null }) {
+async function replay(box, { A, id, course, race, init = {}, traces, allTraces = [], you, opened = null, reload, onCourse = null }) {
   document.body.classList.add("an-theatre");
   // a score course (owner, 2026-11-02): its controls in any order — no legs, each runner's visits timed wherever they come
   const score = !!course.score, ctrls = course.controls, legsN = score ? 0 : ctrls.length - 1;
@@ -1850,9 +1851,12 @@ async function replay(box, { A, id, course, race, init = {}, traces, allTraces =
   // evening, on by default; the administrators always),
   // adding a trace (the organisers always), comments, route choices, the 3D view, a headcam video, saving one's run in « Mes cartes »
   const O = A.opts || {}, routesOn = admin || O.routes !== false, canAdd = !!you.organiser || O.upload !== false, notesOn = O.notes !== false,
-    variantsOn = O.variants !== false, view3dOn = O.view3d !== false, videoOn = O.video !== false, mymapsOn = O.mymaps !== false,
+    variantsOn = O.variants !== false, view3dOn = O.view3d !== false, videoOn = O.video !== false && offers.shown("headcamVideo", opened), mymapsOn = O.mymaps !== false,
     exportOn = !!you.organiser || O.export !== false;       // the map saved as an image (owner, 2026-11-16: a map lent, not given)
-  if (!variantsOn && colourBy === "variant") colourBy = "runner";
+  // the capabilities an account may lack (docs/billing/design.md §3; `opened`: what the organiser's plan opens to everyone here):
+  // drawn marked and asked when used (offers.js), not drawn at all where nothing is offered
+  const varHas = () => offers.has("routeVariants", opened), varShown = variantsOn && offers.shown("routeVariants", opened);
+  if ((!variantsOn || !varHas()) && colourBy === "variant") colourBy = "runner";
   box.innerHTML = html`
     <div class="sh-layout" id="sh-layout">
       ${raw(panelHtml({ id: "sh-lp", side: "left", cls: "sh-lp", tabs: [{ key: "runners", label: t("sh.tab.circuits"), tip: t("sh.tab.circuits.tip") }, { key: "legs", label: t("an.tab.legs"), tip: t("sh.tab.legs.tip") },
@@ -1863,7 +1867,7 @@ async function replay(box, { A, id, course, race, init = {}, traces, allTraces =
       <div class="sh-mapcol"><div class="an-bar sh-bar" id="sh-bar"></div><div class="sh-map"><div class="an-3d" id="sh-3d-host" hidden></div><canvas id="sh-canvas"></canvas>
         <div class="an-tools">${view3dOn ? html`<button type="button" class="btn btn-sm an-3d-btn" id="sh-3d" aria-pressed="false" title="${t("an.v3.hint")}">3D</button>${exHtml("sh")}` : ""}<button type="button" class="btn btn-sm" id="sh-zin" title="${t("lg.zin.t")}" aria-label="${t("lg.zin.t")}">+</button><button type="button" class="btn btn-sm" id="sh-zout" title="${t("lg.zout.t")}" aria-label="${t("lg.zout.t")}">−</button>
           <button type="button" class="btn btn-sm" id="sh-fit" title="${t("sh.fit")}" aria-label="${t("sh.fit")}">${raw(ICONS.fit)}</button><button type="button" class="btn btn-sm" id="sh-fitmap" title="${t("an.fitMap")}">▭</button>
-          <button type="button" class="btn btn-sm an-measure" id="sh-measure" aria-pressed="false" title="${t("an.measure.hint")}">📏</button>${videoOn ? html`<button type="button" class="btn btn-sm" id="sh-video-btn" title="${t("sh.video.add")}">🎥</button><input type="file" id="sh-video-file" accept="video/*" hidden>` : ""}</div>
+          <button type="button" class="btn btn-sm an-measure" id="sh-measure" aria-pressed="false" title="${t("an.measure.hint")}">📏</button>${videoOn ? html`<button type="button" class="btn btn-sm" id="sh-video-btn" title="${t("sh.video.add")}">🎥${offers.mark("headcamVideo", opened)}</button><input type="file" id="sh-video-file" accept="video/*" hidden>` : ""}</div>
         <div class="an-legchip" id="sh-legchip" hidden><span id="sh-legchip-t"></span><button type="button" class="btn btn-sm ico-btn" id="sh-leg-all" hidden title="${t("lg.whole")}" aria-label="${t("lg.whole")}">${raw(ICONS.course)}</button></div><div class="an-measure-out" id="sh-measure-out" hidden></div><div class="an-northarrow" id="sh-northarrow" hidden title="${t("an.orient.n")}"><span>N</span></div><div class="an-courseinfo" id="sh-courseinfo">${courseInfo}</div><div class="an-legend" id="sh-legend" hidden></div><div class="an-3d-credit" id="sh-3d-credit" hidden></div></div>
         <div class="sh-bottom"><div class="sh-stripbar"><button type="button" class="sh-strip-tog" id="sh-strip-tog" aria-expanded="${showStrip}" title="${t("sh.strip.fold")}">${stripArrow(showStrip)} ${graphName(graph)}</button><span class="an-bar-stats" id="sh-stats"></span></div>
         <canvas class="sh-strip" id="sh-strip" ${raw(showStrip ? "" : "hidden")}></canvas></div></div>
@@ -2376,7 +2380,7 @@ async function replay(box, { A, id, course, race, init = {}, traces, allTraces =
         const lt = leg ? legTime(r, leg) : null, dist = leg && lt != null ? cumAt(r.tr, r.passes[leg]) - cumAt(r.tr, r.passes[leg - 1]) : null;
         return html`<div class="sh-runner${r === sel ? " sel" : ""}${r.visible ? "" : " off"}" data-uid="${r.uid}" role="checkbox" aria-checked="${r.visible}">
           <input type="checkbox" data-vis="${r.uid}" ${raw(r.visible ? "checked" : "")} tabindex="-1"><span class="sh-swatch" style="background:${r.colour}"></span>
-          <span class="sh-name">${leg && legTime(r, leg) != null ? html`<span class="sh-vtag" style="--v:${routeVar(r).c}" title="${routeVar(r).name}">${routeVar(r).key}</span> ` : ""}${r.name}${r.mine ? html` <span class="tag">${t("sh.me")}</span>` : ""}${r.test ? html` <span class="tag">${t("sh.test.tag")}</span>` : ""}</span>
+          <span class="sh-name">${leg && varHas() && legTime(r, leg) != null ? html`<span class="sh-vtag" style="--v:${routeVar(r).c}" title="${routeVar(r).name}">${routeVar(r).key}</span> ` : ""}${r.name}${r.mine ? html` <span class="tag">${t("sh.me")}</span>` : ""}${r.test ? html` <span class="tag">${t("sh.test.tag")}</span>` : ""}</span>
           <button type="button" class="sh-follow-one${r === sel && follow === "sel" ? " on" : ""}" data-follow="${r.uid}" aria-pressed="${r === sel && follow === "sel"}" title="${t("sh.followOne")}">⌖</button>
           <span class="num muted">${leg ? (lt != null ? html`${clock(lt)}${lt > bestLeg ? html` <span class="sh-behind">${signed(lt - bestLeg)}</span>` : ""}` : "—")
             : r.official?.time != null ? clock(r.official.time) : total(r) != null ? (A.via === "pixel" ? clock(total(r)) : html`<span class="sh-est" title="${t("sh.time.est")}">~${clock(total(r))}</span>`) : "—"}</span>
@@ -2559,7 +2563,7 @@ async function replay(box, { A, id, course, race, init = {}, traces, allTraces =
     rightP.pane("display").innerHTML = html`
         <div class="an-opts">
           <label><span>${t("an.width")}</span><select id="sh-width">${WIDTHS.map(([w, k]) => html`<option value="${w}" ${raw(w === width ? "selected" : "")}>${t(k)}</option>`)}</select></label>
-          <label><span>${t("an.colour")}</span><select id="sh-colour-by">${COLOUR_BY.filter((c) => (leg || !LEG_ONLY.includes(c)) && (c !== "variant" || variantsOn)).map((c) => html`<option value="${c}" ${raw(c === cmode() ? "selected" : "")} title="${c === "gap" ? t("an.colour.gap.tip") : ""}">${t(`sh.colourBy.${c}`)}</option>`)}</select></label>
+          <label><span>${t("an.colour")}</span><select id="sh-colour-by">${COLOUR_BY.filter((c) => (leg || !LEG_ONLY.includes(c)) && (c !== "variant" || varShown)).map((c) => html`<option value="${c}" ${raw(c === cmode() ? "selected" : "")} title="${c === "gap" ? t("an.colour.gap.tip") : ""}">${t(`sh.colourBy.${c}`)}</option>`)}</select></label>
           ${one ? html`<label id="sh-colour-row"><span>${t("an.traceColour")}</span><span class="an-swatches">${TRACE_PRESETS.map((c) => html`<button type="button" class="an-swatch" data-colour="${c}" style="background:${c}" aria-pressed="${c === one.colour}" title="${c}"></button>`)}<input type="color" id="sh-colour-pick" value="${one.colour}" title="${t("an.traceColour.any")}"></span></label>` : ""}
           <label title="${t("an.graph.tip")}"><span>${t("an.graph")}</span><select id="sh-graph">${GRAPHS.map((g) => html`<option value="${g}" ${raw(g === graph ? "selected" : "")}>${graphName(g)}</option>`)}</select></label>
           <label><span>${t("an.orient")}</span><select id="sh-orient"><option value="north" ${raw(orient === "north" ? "selected" : "")}>${t("an.orient.north")}</option><option value="leg" ${raw(orient === "leg" ? "selected" : "")}>${t("sh.orient.leg")}</option></select></label>
@@ -2607,7 +2611,14 @@ async function replay(box, { A, id, course, race, init = {}, traces, allTraces =
     $("#sh-trace-alpha").addEventListener("input", (e) => { traceAlpha = Number(e.target.value); savePrefs(); mv.draw(); });
     $("#sh-course-on").addEventListener("change", (e) => { showCourse = e.target.checked; if (printed) courseOver = showCourse; else courseOn = showCourse; savePrefs(); mv.draw(); });
     for (const ev of ["pointerdown", "focus"]) $("#sh-colour-by").addEventListener(ev, () => needHeights(true), { once: true });
-    $("#sh-colour-by").addEventListener("change", (e) => { colourBy = e.target.value; savePrefs(); legend(); right(); mv.draw(); });
+    $("#sh-colour-by").addEventListener("change", async (e) => {
+      if (e.target.value === "variant" && !varHas()) {         // lacking: the choice as it was, unless the capability comes
+        e.target.value = cmode();
+        if (!(await offers.guard("routeVariants", { opened, el: e.target }))) return;
+        colourBy = "variant";
+      } else colourBy = e.target.value;
+      savePrefs(); legend(); right(); mv.draw();
+    });
     if (one) {
       const setColour = (c) => {
         one.colour = c; colours[one.uid] = c;
@@ -2625,7 +2636,7 @@ async function replay(box, { A, id, course, race, init = {}, traces, allTraces =
   function exportPane() {
     const pane = rightP.pane("export"), mine = myRun(), me = auth.session();
     pane.innerHTML = html`
-      <div class="an-opts an-shot"><b>${t("an.shot.title")}</b>
+      <div class="an-opts an-shot"><b>${t("an.shot.title")} ${offers.mark("analysisExport", opened)}</b>
         <label><span>${t("an.shot.zone")}</span><select id="sh-shot-zone"><option value="view" ${raw(shot.zone === "view" ? "selected" : "")}>${t("sh.shot.zone.view")}</option><option value="race" ${raw(shot.zone === "race" ? "selected" : "")}>${t("an.shot.zone.race")}</option><option value="map" ${raw(shot.zone === "map" ? "selected" : "")}>${t("an.shot.zone.map")}</option></select></label>
         <label><span>${t("an.shot.type")}</span><select id="sh-shot-type"><option value="png" ${raw(shot.type === "png" ? "selected" : "")}>PNG</option><option value="jpeg" ${raw(shot.type === "jpeg" ? "selected" : "")}>JPEG</option></select></label>
         <label><span>${t("an.shot.legend")}</span><input type="checkbox" id="sh-shot-legend" ${raw(shot.legend ? "checked" : "")}></label>
@@ -2637,7 +2648,8 @@ async function replay(box, { A, id, course, race, init = {}, traces, allTraces =
         : html`<div class="an-opts"><b>${t("nav.myMaps")}</b><p class="hint" style="margin:0">${t("sh.mymaps.noRun")}</p></div>`}`;
     const set = () => { shot.zone = $("#sh-shot-zone").value; shot.type = $("#sh-shot-type").value; shot.legend = $("#sh-shot-legend").checked; savePrefs(); };
     ["#sh-shot-zone", "#sh-shot-type", "#sh-shot-legend"].forEach((s) => $(s).addEventListener("change", set));
-    $("#sh-shot").addEventListener("click", exportImage);
+    $("#sh-shot").addEventListener("click", async () => { if (await offers.guard("analysisExport", { opened, el: $("#sh-shot") })) exportImage(); });
+    if (!offers.shown("analysisExport", opened)) pane.querySelector(".an-shot").hidden = true;
     if (!exportOn) pane.querySelector(".an-shot").innerHTML = html`<b>${t("an.shot.title")}</b><p class="hint" style="margin:0">${t("sh.export.closed")}</p>`;
     // « Enregistrer dans Mes cartes » (owner, 2026-11-04: an organiser's switch): one's run on the organiser's map, as « Analyse
     // solo » saves it (trace/mymapsave.js) — the map as stored, one's route in its pixels with its times
@@ -2939,7 +2951,7 @@ async function replay(box, { A, id, course, race, init = {}, traces, allTraces =
 
   // ---- the route choices computed (trace/routeplan.js; administrators only, a prototype — 2026-10-24): the leg shown's
   // fastest routes on the map as read, each runner's own route measured on the same model
-  const rcm = { s: RC.loadSettings(RC.isSprint(race) ? "sprint" : "forest"), on: routesOn && (() => { try { return localStorage.getItem("ocn.rc.on") !== "0"; } catch (e) { return true; } })(),
+  const rcm = { s: RC.loadSettings(RC.isSprint(race) ? "sprint" : "forest", opened), on: routesOn && (() => { try { return localStorage.getItem("ocn.rc.on") !== "0"; } catch (e) { return true; } })(),
     plan: null, ready: null, pic: null, picOn: false, routes: [], mine: [], auto: [], token: 0, status: "", prog: null, warn: "", dem: null, info: null,
     decOn: RC.decisionOn(), dec: null, decAsk: "", calib: null, calibKey: "", calibP: null,
     vec: null,                                          // an OCAD or Mapper map of the analysis's map, this visit only
@@ -3319,7 +3331,7 @@ async function replay(box, { A, id, course, race, init = {}, traces, allTraces =
   window.anDebug3d = () => ({ on: v3on, view: v3?.stats(), grid: rcm.grid && { nx: rcm.grid.nx, ny: rcm.grid.ny, source: rcm.grid.source } });
 
   // ---- the views under the replay (sharedviews.js): the splits against a reference, one runner's legs
-  const state = { tab: TABS.includes(init.v) ? init.v : TABS[0], ref: runners.find((r) => r.uid === Number(init.ref)) || null, legsOf: int(init.lo, 0, 1e12, null),
+  const state = { tab: TABS.includes(init.v) && (init.v !== "variants" || varHas()) ? init.v : TABS[0], ref: runners.find((r) => r.uid === Number(init.ref)) || null, legsOf: int(init.lo, 0, 1e12, null),
     ex: /^[a-z0-9]{1,12}$/.test(init.ex || "") ? init.ex : null,
     gref: /^(superman|r\d+)$/.test(init.g || "") ? init.g : null, gx: init.gx === "dist" ? "dist" : null, gm: init.gm === "duel" ? "duel" : null, da: int(init.da, 0, 1e12, null),
     get sel() { return sel; } };
@@ -3343,7 +3355,10 @@ async function replay(box, { A, id, course, race, init = {}, traces, allTraces =
       setLeg(j); saveUrl();
     },
     get leg() { return leg; }, organiser: !!you.organiser, VARIANT_COLOURS,
-    tabOk: (k) => (score ? k === "splits" : k !== "legs" && (k !== "exercises" || A.kind === "club") && (k !== "variants" || variantsOn)), score, visitsOf, scoreN,
+    tabOk: (k) => (score ? k === "splits" : k !== "legs" && (k !== "exercises" || A.kind === "club") && (k !== "variants" || varShown)), score, visitsOf, scoreN,
+    // a tab the account lacks: its mark, and what using it answers (true, or a promise of it)
+    tabMark: (k) => (k === "variants" ? offers.mark("routeVariants", opened) : ""),
+    tabGuard: (k, el) => (k !== "variants" || varHas() ? true : offers.guard("routeVariants", { opened, el })),
     exercises: () => exercises, exScores, exWidth, get draft() { return draft; },
     setDraft: (d) => { draft = d; mv.draw(); bottom.draw(); },
     setExWidth: (e, w, save) => { if (save) { saveExercises(exercises.map((x) => (x.id === e.id ? { ...x, w } : x))).then(() => { delete exW[e.id]; bottom.draw(); }).catch((err) => alertBox(errText(err))); } exW[e.id] = w; mv.draw(); },
@@ -3376,7 +3391,10 @@ async function replay(box, { A, id, course, race, init = {}, traces, allTraces =
   const video = videoPanel($(".sh-map", box), { runners, key: `ocn.sh.video.${id}.${course.n}`, playing: () => playing, speed: () => speed,
     pick: () => sel || runners.find((r) => r.mine) || runners[0],
     raceTime: (r) => { const s = sAt(r, T); return s == null ? null : s - r.start; } });
-  $("#sh-video-btn")?.addEventListener("click", () => $("#sh-video-file").click());
+  $("#sh-video-btn")?.addEventListener("click", () => {
+    if (offers.has("headcamVideo", opened)) $("#sh-video-file").click();          // at once: a file chooser needs the click itself
+    else offers.guard("headcamVideo", { opened, el: $("#sh-video-btn") }).then((ok) => { if (ok) $("#sh-video-file").click(); });
+  });
   $("#sh-video-file")?.addEventListener("change", (e) => { const f = e.target.files[0]; if (f) { video.open(f); video.sync(true); } e.target.value = ""; });
   // the strip: a click or a drag seeks
   const strip = $("#sh-strip");
