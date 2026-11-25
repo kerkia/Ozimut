@@ -53,7 +53,7 @@ export const body = (SITE, { world = false, later = "" } = {}) => `
         saisons que la FFCO montre sur son site sans demander de connexion, ainsi que les résultats publiés par les organisateurs (nom,
         club, catégorie, temps), sans CN ni score. Les saisons plus anciennes, que la FFCO réserve à ses licenciés, et les historiques
         et statistiques qui en sont tirés ne sont accessibles qu'aux comptes connectés${world ? " qui ont rejoint la France" : ""}, dont
-        le numéro de licence FFCO est vérifié d'après le nom. Seule exception : l'éditeur peut ouvrir,
+        le numéro de licence FFCO est vérifié d'après le nom ; un numéro que l'index des coureurs classés ne connaît pas (aucune course classée depuis 2010) peut, à la demande de la personne, être vérifié à la main par l'éditeur, qui garde le numéro et le message joint jusqu'à sa décision, le message étant alors effacé. Seule exception : l'éditeur peut ouvrir,
         pour une durée limitée, un compte de démonstration à un organisme de course d'orientation (fédération, ligue, club) qui
         souhaite découvrir le site ; ce compte n'est rattaché à aucune licence, ne peut rien modifier ni déposer et cesse de
         fonctionner à la date fixée. Toute personne concernée peut en demander la rectification ou demander à ne plus y être identifiée (voir
@@ -322,5 +322,5 @@ export const body = (SITE, { world = false, later = "" } = {}) => `
       <p><b>Crédits :</b> les symboles et les textes des définitions de postes (Coach › Définitions de postes, le tracé des circuits)
         viennent de Purple Pen, de Peter Golde (<a href="https://github.com/petergolde/PurplePen" target="_blank" rel="noopener">github.com/petergolde/PurplePen</a>),
         sous <a href="assets/tracer/LICENSE-PurplePen.txt" target="_blank" rel="noopener">licence BSD</a>.</p>
-      <p class="muted">Dernière mise à jour : 24 novembre 2026.</p>
+      <p class="muted">Dernière mise à jour : 25 novembre 2026.</p>
 `;

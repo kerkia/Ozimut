@@ -54,7 +54,7 @@ export const body = (SITE, { world = false, later = "" } = {}) => `
         Saisons, die die FFCO auf ihrer Website ohne Anmeldung zeigt, sowie die von den Veranstaltern veröffentlichten Ergebnisse (Name,
         Verein, Kategorie, Zeit), ohne CN und Score. Die älteren Saisons, die die FFCO ihren Lizenzinhabern vorbehält, sowie die daraus abgeleiteten Verläufe
         und Statistiken sind nur angemeldeten Konten zugänglich${world ? ", die Frankreich beigetreten sind" : ""}, deren
-        FFCO-Lizenznummer anhand des Namens geprüft wurde. Einzige Ausnahme: Der Herausgeber kann einer Orientierungslauf-Organisation
+        FFCO-Lizenznummer anhand des Namens geprüft wurde; eine Nummer, die der Index der gewerteten Läufer nicht kennt (kein gewerteter Lauf seit 2010), kann auf Wunsch der Person vom Herausgeber von Hand geprüft werden, der die Nummer und die beigefügte Nachricht bis zu seiner Entscheidung aufbewahrt; die Nachricht wird dann gelöscht. Einzige Ausnahme: Der Herausgeber kann einer Orientierungslauf-Organisation
         (Verband, Regionalverband, Verein), die die Website kennenlernen möchte, für begrenzte Zeit ein Demokonto einrichten; dieses Konto
         ist mit keiner Lizenz verbunden, kann nichts ändern oder hochladen und funktioniert ab dem festgelegten Datum nicht mehr. Jede
         betroffene Person kann die Berichtigung verlangen oder verlangen, dort nicht mehr identifiziert zu werden (siehe
@@ -328,5 +328,5 @@ export const body = (SITE, { world = false, later = "" } = {}) => `
       <p><b>Danksagung:</b> Die Symbole und Texte der Postenbeschreibungen (Coach › Postenbeschreibungen, die Bahnlegung)
         stammen aus Purple Pen von Peter Golde (<a href="https://github.com/petergolde/PurplePen" target="_blank" rel="noopener">github.com/petergolde/PurplePen</a>),
         unter der <a href="assets/tracer/LICENSE-PurplePen.txt" target="_blank" rel="noopener">BSD-Lizenz</a>.</p>
-      <p class="muted">Letzte Aktualisierung: 24. November 2026.</p>
+      <p class="muted">Letzte Aktualisierung: 25. November 2026.</p>
 `;

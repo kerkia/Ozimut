@@ -5,6 +5,7 @@
 
 import { allow, cleanEmail, clientIp, LANGS, nowIso, pause, validEmail } from "./api.js";
 import { checkMembership, cleanCountry, saveMembership } from "./countries.js";
+import { keepNote } from "./licencecheck.js";
 import { turnstileOk } from "./turnstile.js";
 import { hashPassword, newToken, sha256hex } from "./crypto.js";
 import { sendOrQueue } from "./mail.js";
@@ -61,13 +62,15 @@ export async function createAccount(env, request, b) {
   const rows = [];
   let display = `${first} ${last}`, licence = "";
   for (const c of asked) {
-    const chk = await checkMembership(env, request, c || {}, first, last);
+    // `review` (the form's « Mes informations sont exactes ») : a France licence the index does not know waits for an
+    // administrator instead of refusing the registration; the account has no licence until then (_lib/licencecheck.js)
+    const chk = await checkMembership(env, request, { ...(c || {}), review: b.review === true }, first, last);
     if (!chk.ok) {
       if (chk.error === "mismatch") await pause(600);
-      return { error: chk.error, status: 422, country: cleanCountry(c?.country) };
+      return { error: chk.error, status: 422, country: cleanCountry(c?.country), ...(chk.reason ? { reason: chk.reason } : {}) };
     }
     rows.push(chk.row);
-    if (chk.row.country === "FR") { display = chk.display; licence = chk.row.member_id; }
+    if (chk.row.country === "FR" && chk.row.status === "ok") { display = chk.display; licence = chk.row.member_id; }
   }
 
   const existing = await env.DB.prepare("SELECT * FROM users WHERE email = ?").bind(email).first();
@@ -82,6 +85,9 @@ export async function createAccount(env, request, b) {
      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING *`,
   ).bind(email, pw.hash, pw.salt, pw.iter, first, last, licence, display, nowIso(), nowIso(), LANGS.includes(b.lang) ? b.lang : "fr").first();
   if (rows.length) await env.DB.batch(rows.map((r) => saveMembership(env, row.id, r)));
+  // the person's word to the administrators who will check the licence (sent with their e-mail at the confirmation)
+  const pending = rows.some((r) => r.country === "FR" && r.status === "pending");
+  if (pending) await keepNote(env, row.id, b.note);
   // « J'organise des courses ou je fais des cartes » (one optional box, owner 2026-11-12): the creators' modules, Orga and
   // Carto (migrations 0016, 0027; `orga` the form of before). A new account has no work to look at (_lib/modules.js autoShow).
   // under 15 (possible only while TRACK_OPEN is "0"): the account waits for a parent to be attached (« Suivi GPS »)
@@ -90,5 +96,5 @@ export async function createAccount(env, request, b) {
   try { await env.DB.prepare(`UPDATE users SET modules_checked = 1${creator ? ", orga = 1, carto = 1" : ""} WHERE id = ?`).bind(row.id).run(); }
   catch (e) { if (creator) { try { await env.DB.prepare("UPDATE users SET orga = 1 WHERE id = ?").bind(row.id).run(); } catch (e2) { /* no column yet */ } } }
   const mail = await sendVerification(env, row);
-  return { ok: true, user: { ...row, birth_year: birth }, mail };
+  return { ok: true, user: { ...row, birth_year: birth }, mail, ...(pending ? { pending: true } : {}) };
 }

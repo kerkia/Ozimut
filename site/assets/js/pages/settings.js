@@ -11,7 +11,7 @@ import { link, MODULES, CREATOR_MODULES } from "../app.js";
 import { methodShort } from "../ui.js";
 import * as pwa from "../pwa.js";
 import { inApp, call as appCall } from "../appbridge.js";
-import { name as countryName, membershipFields, bindMembershipFields, readMembership, flagImg } from "../country.js";
+import { name as countryName, membershipFields, bindMembershipFields, readMembership, flagImg, reviewFields, showReview, readReview, mismatchText } from "../country.js";
 import * as offers from "../offers.js";
 
 // The alerts of the table: the user's field for each channel (publicUser, /api/account/settings); `gated`: the e-mail
@@ -170,13 +170,13 @@ export async function render(main, { query = {} } = {}) {
   // another joined. France is checked against FFCO's licensees with the account's own first name and surname. A change
   // of country changes what the site may show: the page starts again (the data loaded for France, or without it, goes).
   const countries = user.countries || [];
-  const errText = (r) => (r.status === 429 ? t("ac.err.rate") : r.data?.error === "mismatch" ? t("st.cty.err.mismatch")
+  const errText = (r) => (r.status === 429 ? t("ac.err.rate") : r.data?.error === "mismatch" ? mismatchText(r.data.reason, { account: true })
     : r.data?.error === "id" ? t("ac.reg.err.id") : r.data?.error === "country" ? t("ac.reg.err.country") : t("ac.err.generic"));
   const restart = async () => { await auth.refresh(); data.dropPrivate(); location.hash = "#/reglages?onglet=pays"; location.reload(); };
   function drawCountries(editing = null) {
     $("#cty-list").innerHTML = countries.length ? countries.map((c) => (c.cc === editing
       ? html`<form class="cty-row stack" style="gap:8px" data-edit="${c.cc}">${membershipFields("e", { row: c, fixed: true })}
-          <div class="notice" hidden></div>
+          ${reviewFields()}<div class="notice" hidden></div>
           <div class="row" style="gap:8px"><button class="btn btn-primary btn-sm" type="submit">${t("st.cty.save")}</button>
             <button class="btn btn-ghost btn-sm" type="button" data-cancel>${t("st.cty.cancel")}</button></div></form>`
       : html`<div class="cty-row row" style="gap:10px;flex-wrap:wrap;align-items:center">
@@ -187,9 +187,12 @@ export async function render(main, { query = {} } = {}) {
           <button class="btn btn-ghost btn-sm" type="button" data-edit-cc="${c.cc}">${t("st.cty.edit")}</button>
           <button class="btn btn-ghost btn-sm" type="button" data-leave="${c.cc}" style="color:var(--bad)">${t("st.cty.leave")}</button></div>`)).join("")
       : html`<p class="muted" style="margin:0">${t("st.cty.none")}</p>`.toString();
+    // a France licence waiting for the administrators' check (functions/_lib/licencecheck.js)
+    if (countries.some((c) => c.cc === "FR" && c.status === "pending")) $("#cty-list").insertAdjacentHTML("beforeend",
+      html`<p class="muted" style="margin:6px 0 0;font-size:12.5px">${t("st.cty.pendingFR")}</p>`.toString());
     $("#cty-add").innerHTML = html`<b style="font-size:13.5px">${t("st.cty.addTitle")}</b>
       ${membershipFields("a", { allowNone: true, except: countries.map((c) => c.cc) })}
-      <div class="notice" hidden></div>
+      ${reviewFields()}<div class="notice" hidden></div>
       <div><button class="btn btn-primary btn-sm" type="submit">${t("st.cty.join")}</button></div>`;
     bindMembershipFields($("#st-countries"));
     $$("[data-edit-cc]").forEach((b) => b.addEventListener("click", () => drawCountries(b.dataset.editCc)));
@@ -209,8 +212,13 @@ export async function render(main, { query = {} } = {}) {
     const form = e.target, m = readMembership(form, prefix), err = $(".notice", form), btn = $("button[type=submit]", form);
     if (!m) { flash(err, t("st.cty.pick")); return; }
     btn.disabled = true;
-    const res = await auth.api("api/account/countries", m);
-    if (res.ok) restart(); else { btn.disabled = false; flash(err, errText(res)); }
+    const res = await auth.api("api/account/countries", { ...m, ...readReview(form) });
+    if (res.ok) restart();
+    else {
+      btn.disabled = false;
+      if (res.data?.error === "mismatch" && m.country === "FR") showReview(form);
+      flash(err, errText(res));
+    }
   }
   if (!app) drawCountries();
   if (query.onglet === "pays") $("#st-countries")?.scrollIntoView({ block: "start" });

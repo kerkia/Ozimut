@@ -238,6 +238,42 @@ export function bindMembershipFields(root) {
     sync();
   }
 }
+/**
+ * After a France licence the licensee index does not know (it holds only the licensees with a ranked race since 2010):
+ * « my details are correct, ask for a check », and a word for the administrators (functions/_lib/licencecheck.js). Hidden
+ * until `showReview`; one block a form.
+ */
+export function reviewFields() {
+  return html`<div class="cty-review stack" style="gap:8px" hidden>
+    <label class="check"><input type="checkbox" name="review"><span>${t("cty.review")}</span></label>
+    <label class="field" data-review-note hidden><span>${t("cty.review.note")}</span>
+      <textarea name="note" rows="3" maxlength="1000" placeholder="${t("cty.review.ph")}"></textarea></label>
+  </div>`;
+}
+/** Show the review block of `form` (wired once: the message field follows the box). */
+export function showReview(form) {
+  const box = form.querySelector(".cty-review");
+  if (!box) return;
+  box.hidden = false;
+  const tick = box.querySelector("[name=review]"), note = box.querySelector("[data-review-note]");
+  if (!box.dataset.bound) {
+    box.dataset.bound = "1";
+    tick.addEventListener("change", () => { note.hidden = !tick.checked; if (tick.checked) note.querySelector("textarea").focus(); });
+  }
+  note.hidden = !tick.checked;
+}
+/** What the review block of `form` asks: { review, note } (nothing while it is hidden). */
+export function readReview(form) {
+  const box = form.querySelector(".cty-review");
+  if (!box || box.hidden || !box.querySelector("[name=review]").checked) return {};
+  return { review: true, note: box.querySelector("textarea").value.trim().slice(0, 1000) };
+}
+/** Why France refused a licence, from the server's `reason`: in no ranked result since 2010, or under another name. */
+export function mismatchText(reason, { account = false } = {}) {
+  if (reason === "unknown") return t("cty.err.unknown");
+  if (reason === "name") return t(account ? "cty.err.nameAccount" : "cty.err.name");
+  return t(account ? "st.cty.err.mismatch" : "ac.reg.err.mismatch");
+}
 /** The membership a form holds under `prefix`: { country, club, id }, or null when no country is chosen. */
 export function readMembership(form, prefix) {
   const cc = form.querySelector(`[name="${prefix}-cc"]`)?.value;

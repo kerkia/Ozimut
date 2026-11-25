@@ -18,6 +18,7 @@ export const onRequestPost = withUser(async ({ request, env }, user) => {
   // the account's traces on shared analyses (R2: analyses/<id>/trace-<n>-<uid>.json), an administrator's test traces too
   // (uid 1e9 + account × 1000 + k: api/analyses)
   if (env.BUCKET) {
+    await env.BUCKET.delete(`licencecheck/${user.id}.json`).catch(() => {});   // a word for a licence check
     try {
       const keys = [];
       let cursor;

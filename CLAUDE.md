@@ -4590,7 +4590,14 @@ Every multiple-choice game was played through to its score page at phone size, w
   processors Cloudflare / Resend / GitHub and their transfer safeguards, the IP-keyed rate limits, every right, the CNIL)
   and the legal notices (publisher, host). When the site starts keeping new data, say so there and update its date.
 - Accounts: e-mail + password with confirmation; registration checks name + licence against the licensee index
-  (`site/auth`, never served); several accounts on one licence are allowed but flagged to the admin.
+  (`site/auth`, never served); several accounts on one licence are allowed but flagged to the admin. **The index holds only
+  the licensees with a ranked result since 2010** (owner, 2026-11-25: Françoise Py, never ranked, could not register): a
+  France mismatch says why (`reason` "unknown" — no ranked race — or "name" — the licence is under another name), and the
+  person may tick « Mes informations sont exactes » with a message (registration and Réglages › Mes pays,
+  `country.reviewFields`): the France membership is then 'pending' (opens nothing, no `users.licence`), the message kept in R2
+  `licencecheck/<uid>.json`, the administrators mailed (at the e-mail confirmation for a registration), and the admin page's
+  « Comptes » shows « Licences à vérifier » (`/api/admin/licences`, `_lib/licencecheck.js`): accept (licence set, France
+  'ok') or refuse ('refused'), the person mailed.
   Rights per account, set on the admin page (D1 `users.analyst`, `users.alerts_allowed`; they apply to admins too,
   so an admin can uncheck « Analyse » to see the site as a regular user does): the
   analysis methods, and the agenda e-mail alerts — new courses (`agenda_alert`) and registrations closing within

@@ -52,7 +52,7 @@ export const body = (SITE, { world = false, later = "" } = {}) => `
         temporadas que la FFCO muestra en su web sin pedir inicio de sesión, así como los resultados publicados por los organizadores (nombre,
         club, categoría, tiempo), sin CN ni puntuación. Las temporadas más antiguas, que la FFCO reserva a sus federados, y los historiales
         y estadísticas que se derivan de ellas solo son accesibles para las cuentas con sesión iniciada${world ? " que se han unido a Francia" : ""}, cuyo
-        número de licencia FFCO se verifica a partir del nombre. Única excepción: el editor puede abrir,
+        número de licencia FFCO se verifica a partir del nombre; un número que el índice de corredores clasificados no conoce (ninguna carrera puntuable desde 2010) puede, a petición de la persona, verificarlo a mano el editor, que guarda el número y el mensaje adjunto hasta su decisión; el mensaje se borra entonces. Única excepción: el editor puede abrir,
         por un tiempo limitado, una cuenta de demostración a una entidad de orientación (federación, liga regional, club) que
         desee conocer el sitio; esa cuenta no está vinculada a ninguna licencia, no puede modificar ni subir nada y deja de
         funcionar en la fecha fijada. Toda persona afectada puede solicitar su rectificación o pedir que deje de ser identificada en ellos (ver
@@ -319,5 +319,5 @@ export const body = (SITE, { world = false, later = "" } = {}) => `
       <p><b>Créditos:</b> los símbolos y los textos de las descripciones de control (Coach › Descripciones de control, el trazado de recorridos)
         proceden de Purple Pen, de Peter Golde (<a href="https://github.com/petergolde/PurplePen" target="_blank" rel="noopener">github.com/petergolde/PurplePen</a>),
         bajo <a href="assets/tracer/LICENSE-PurplePen.txt" target="_blank" rel="noopener">licencia BSD</a>.</p>
-      <p class="muted">Última actualización: 24 de noviembre de 2026.</p>
+      <p class="muted">Última actualización: 25 de noviembre de 2026.</p>
 `;

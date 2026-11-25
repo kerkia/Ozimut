@@ -14,6 +14,6 @@ export { sendVerification };
 
 export async function onRequestPost({ request, env }) {
   const r = await createAccount(env, request, await readBody(request));
-  if (r.error) return json({ error: r.error, ...(r.country ? { country: r.country } : {}) }, r.status || 400);
-  return json(r.mail ? { ok: true, mail: r.mail } : { ok: true });
+  if (r.error) return json({ error: r.error, ...(r.country ? { country: r.country } : {}), ...(r.reason ? { reason: r.reason } : {}) }, r.status || 400);
+  return json({ ok: true, ...(r.mail ? { mail: r.mail } : {}), ...(r.pending ? { pending: true } : {}) });
 }

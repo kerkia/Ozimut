@@ -6,7 +6,7 @@ import { html, raw, $, esc } from "../util.js";
 import { t, lang, setLang, LANGS, LANG_NAMES } from "../i18n.js";
 import * as auth from "../auth.js";
 import { SITE } from "../app.js";
-import { membershipFields, bindMembershipFields, readMembership } from "../country.js";
+import { membershipFields, bindMembershipFields, readMembership, reviewFields, showReview, readReview, mismatchText } from "../country.js";
 import { loadTurnstile } from "../turnstile.js";
 
 const VIEWS = {
@@ -74,6 +74,7 @@ async function register(main) {
           <div id="reg-cty">${membershipFields("c0", { fixed: !world, allowNone: world, row: world ? {} : { cc: "FR" } })}</div>
           ${world ? html`<button type="button" class="btn btn-ghost btn-sm" id="reg-cty-add">${t("cty.add")}</button>` : ""}
         </fieldset>
+        ${reviewFields()}
         <label class="field"><span>${t("ac.email")}</span><input name="email" type="email" autocomplete="email" required maxlength="254"></label>
         <label class="field"><span>${t("ac.password")} <span class="muted">· ${t("ac.password.hint")}</span></span><input name="password" type="password" autocomplete="new-password" required minlength="6" maxlength="200"></label>
         <label class="field"><span>${t("ac.password2")}</span><input name="password2" type="password" autocomplete="new-password" required minlength="6" maxlength="200"></label>
@@ -125,7 +126,7 @@ async function register(main) {
       countries: Array.from({ length: rows }, (_, i) => readMembership(form, `c${i}`)).filter(Boolean),
       consent: f.get("consent") === "on", website: f.get("website"), creator: f.get("creator") === "on",
       birthYear: track ? Number(f.get("birthYear")) || null : null,
-      lang: lang(), turnstile: tsToken,
+      lang: lang(), turnstile: tsToken, ...readReview(form),
     });
     if (!r.ok && tsWidget !== null) { try { window.turnstile.reset(tsWidget); } catch (e) { /* gone */ } tsToken = ""; }
     if (r.ok) {
@@ -133,12 +134,15 @@ async function register(main) {
       form.outerHTML = html`<div class="notice ok"><span>${t("ac.reg.done")} <b>${f.get("email")}</b>.</span></div>
         <p class="soft" style="margin:0">${t("ac.reg.done2")}</p>
         ${r.data?.mail === "queued" ? html`<p class="muted" style="margin:0">${t("ac.reg.queued")}</p>` : ""}
+        ${r.data?.pending ? html`<div class="notice info"><span>${t("ac.reg.pending")}</span></div>` : ""}
         <p style="margin:0"><a href="#/compte/renvoyer">${t("ac.resend")}</a></p>`.toString();
       return null;
     }
     if (r.status === 0) return t("ac.err.unavailable");
     if (r.status === 429) return t("ac.err.rate");
     if (r.status === 503) return t("ac.reg.closed");
+    // France's licence not recognised: why (no ranked race since 2010, or another name), and the way to ask for a check
+    if (r.data?.error === "mismatch" && r.data?.country === "FR") { showReview(form); return mismatchText(r.data.reason); }
     return t(`ac.reg.err.${r.data?.error}`) !== `ac.reg.err.${r.data?.error}` ? t(`ac.reg.err.${r.data?.error}`) : t("ac.err.generic");
   });
   return { title: t("ac.reg.title") };

@@ -1475,3 +1475,94 @@ export function billingAlertMail(env, lang, what, lines = []) {
   const html = wrap(env, title, `<p>${esc(intro)}</p>${list.length ? `<ul style="padding-left:20px;margin:0 0 12px;font-family:monospace;font-size:13px">${list.map((x) => `<li>${esc(x)}</li>`).join("")}</ul>` : ""}${button(link, T.open, lang)}`, lang);
   return { subject: title, html, text: `${intro}\n\n${list.map((x) => `- ${x}`).join("\n")}\n\n${T.open}${lang === "fr" ? BN : ""}: ${link}\n` };
 }
+
+/**
+ * To each administrator (in their language): a France membership waits for them — its licence is not in the index of the
+ * licensees with a ranked result (_lib/licencecheck.js). known: the name the index gives that licence, or null; note: the
+ * person's word to the administrators, or "".
+ */
+export function licenceCheckMail(env, user, licence, known, lang, note = "") {
+  const url = `${siteUrl(env)}/#/admin`;
+  const who = `${user.first_name} ${user.last_name}`;
+  const T = pick(lang, {
+    fr: { subject: `Licence à vérifier : ${who} — Ozimut`, title: `Licence à vérifier : ${who}`,
+      intro: "Une personne demande à rejoindre la France sur Ozimut avec un numéro de licence que l'index des licenciés ne lui associe pas (l'index ne contient que les licenciés ayant couru au moins une course du classement national depuis 2010).",
+      note: "Son message :", email: "E-mail", lic: "Licence", known: (n) => `Cette licence est connue sous le nom : ${n}`, unknown: "Cette licence n'est pas dans l'index.",
+      ask: "Vérifiez-la (par exemple auprès de la FFCO ou du club), puis acceptez ou refusez la demande sur la page d'administration, onglet « Comptes ».",
+      button: "Ouvrir la page d'administration" },
+    en: { subject: `Licence to check: ${who} — Ozimut`, title: `Licence to check: ${who}`,
+      intro: "Someone asks to join France on Ozimut with a licence number the licensee index does not give them (the index holds only the licensees who have run at least one national-ranking race since 2010).",
+      note: "Their message:", email: "Email", lic: "Licence", known: (n) => `This licence is known under the name: ${n}`, unknown: "This licence is not in the index.",
+      ask: "Check it (with the FFCO or the club, for instance), then accept or refuse the request on the admin page, « Accounts » tab.",
+      button: "Open the admin page" },
+    de: { subject: `Lizenz zu prüfen: ${who} — Ozimut`, title: `Lizenz zu prüfen: ${who}`,
+      intro: "Jemand möchte auf Ozimut Frankreich beitreten, mit einer Lizenznummer, die der Lizenzindex dieser Person nicht zuordnet (der Index enthält nur die Lizenzierten, die seit 2010 mindestens einen Lauf der nationalen Rangliste gelaufen sind).",
+      note: "Die Nachricht:", email: "E-Mail", lic: "Lizenz", known: (n) => `Diese Lizenz ist unter dem Namen bekannt: ${n}`, unknown: "Diese Lizenz steht nicht im Index.",
+      ask: "Prüfe sie (zum Beispiel beim FFCO oder beim Verein) und nimm die Anfrage dann auf der Administrationsseite, Reiter « Konten », an oder lehne sie ab.",
+      button: "Administrationsseite öffnen" },
+    es: { subject: `Licencia por verificar: ${who} — Ozimut`, title: `Licencia por verificar: ${who}`,
+      intro: "Alguien pide unirse a Francia en Ozimut con un número de licencia que el índice de licenciados no le asocia (el índice solo contiene a los licenciados que han corrido al menos una carrera de la clasificación nacional desde 2010).",
+      note: "Su mensaje:", email: "Correo electrónico", lic: "Licencia", known: (n) => `Esta licencia figura con el nombre: ${n}`, unknown: "Esta licencia no está en el índice.",
+      ask: "Verifícala (por ejemplo con la FFCO o con el club) y luego acepta o rechaza la solicitud en la página de administración, pestaña « Cuentas ».",
+      button: "Abrir la página de administración" },
+  });
+  const lines = [`${T.email} : ${user.email}`, `${T.lic} : ${licence}`, known ? T.known(known) : T.unknown]
+    .map((l) => (L(lang) === "fr" ? l : l.replace(" : ", ": ")));
+  return {
+    subject: T.subject,
+    html: wrap(env, T.title, `<p>${esc(T.intro)}</p>
+<ul>${lines.map((l) => `<li>${esc(l)}</li>`).join("")}</ul>${note ? `<p><b>${esc(T.note)}</b></p><blockquote style="margin:0 0 12px;padding:8px 12px;border-left:3px solid #d4561a;background:#f7f3ef;white-space:pre-line">${esc(note)}</blockquote>` : ""}<p>${esc(T.ask)}</p>${button(url, T.button, lang)}`, lang),
+    text: `${T.intro}
+
+${lines.join("\n")}${note ? `\n\n${T.note}\n${note}` : ""}
+
+${T.ask}
+${url}`,
+  };
+}
+
+/** To the person (in their language): their France membership was checked by an administrator — accepted or not. */
+export function licenceDecisionMail(env, user, licence, ok) {
+  const lang = user.lang;
+  const url = `${siteUrl(env)}/#/reglages?onglet=pays`;
+  const T = pick(lang, {
+    fr: ok
+      ? { subject: "Votre licence est vérifiée — Ozimut", title: "Votre licence est vérifiée",
+        body: `Votre licence FFCO ${licence} a été vérifiée : votre compte a désormais accès aux classements, au CN et aux alertes liées à votre licence. Votre page de coureur apparaîtra après votre première course classée.`,
+        button: "Ouvrir Ozimut" }
+      : { subject: "Votre licence n'a pas pu être vérifiée — Ozimut", title: "Votre licence n'a pas pu être vérifiée",
+        body: `Nous n'avons pas pu vérifier la licence FFCO ${licence} sous votre nom. Votre compte reste ouvert, sans l'accès réservé aux licenciés. Vérifiez le numéro dans Réglages › Mes pays, ou répondez à ce message pour nous en dire plus.`,
+        button: "Ouvrir Mes pays" },
+    en: ok
+      ? { subject: "Your licence is checked — Ozimut", title: "Your licence is checked",
+        body: `Your FFCO licence ${licence} has been checked: your account now opens the rankings, the CN and the alerts tied to your licence. Your runner page will appear after your first ranked race.`,
+        button: "Open Ozimut" }
+      : { subject: "Your licence could not be checked — Ozimut", title: "Your licence could not be checked",
+        body: `We could not check the FFCO licence ${licence} under your name. Your account stays open, without the access reserved to licensees. Check the number in Settings › My countries, or reply to this message to tell us more.`,
+        button: "Open My countries" },
+    de: ok
+      ? { subject: "Deine Lizenz ist geprüft — Ozimut", title: "Deine Lizenz ist geprüft",
+        body: `Deine FFCO-Lizenz ${licence} wurde geprüft: Dein Konto öffnet jetzt die Ranglisten, den CN und die Benachrichtigungen zu deiner Lizenz. Deine Läuferseite erscheint nach deinem ersten gewerteten Lauf.`,
+        button: "Ozimut öffnen" }
+      : { subject: "Deine Lizenz konnte nicht geprüft werden — Ozimut", title: "Deine Lizenz konnte nicht geprüft werden",
+        body: `Wir konnten die FFCO-Lizenz ${licence} unter deinem Namen nicht prüfen. Dein Konto bleibt offen, ohne den Lizenzierten vorbehaltenen Zugang. Prüfe die Nummer unter Einstellungen › Meine Länder, oder antworte auf diese Nachricht, um uns mehr zu sagen.`,
+        button: "Meine Länder öffnen" },
+    es: ok
+      ? { subject: "Tu licencia está verificada — Ozimut", title: "Tu licencia está verificada",
+        body: `Tu licencia FFCO ${licence} ha sido verificada: tu cuenta abre ahora las clasificaciones, el CN y las alertas ligadas a tu licencia. Tu página de corredor aparecerá tras tu primera carrera puntuable.`,
+        button: "Abrir Ozimut" }
+      : { subject: "No se ha podido verificar tu licencia — Ozimut", title: "No se ha podido verificar tu licencia",
+        body: `No hemos podido verificar la licencia FFCO ${licence} a tu nombre. Tu cuenta sigue abierta, sin el acceso reservado a los licenciados. Comprueba el número en Ajustes › Mis países, o responde a este mensaje para contarnos más.`,
+        button: "Abrir Mis países" },
+  });
+  const href = ok ? `${siteUrl(env)}/` : url;
+  return {
+    subject: T.subject,
+    html: wrap(env, T.title, `<p>${esc(greet(lang, user.first_name))}</p><p>${esc(T.body)}</p>${button(href, T.button, lang)}`, lang),
+    text: `${greet(lang, user.first_name)}
+
+${T.body}
+
+${href}`,
+  };
+}

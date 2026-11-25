@@ -55,6 +55,8 @@ export async function render(main, { query = {} } = {}) {
     <div class="page-head"><div><h1>${t("ad.title")}</h1><p class="lede" id="page-lede"></p></div>
       <div class="row" style="gap:8px"><div id="ad-tabs"></div></div></div>
     <div data-panel="accounts" hidden>
+      <section class="card" id="ad-lic" hidden style="margin-bottom:14px"><div class="card-head"><div><h2>${t("ad.lic.title")}</h2>
+        <div class="hint">${t("ad.lic.hint")}</div></div></div><div class="table-wrap" id="ad-lic-list"></div></section>
       <div class="tiles tiles-compact" id="ad-tiles" style="margin-bottom:14px"></div>
       <div class="filters">
         <label class="field"><span>${t("ad.search")}</span><input type="search" id="ad-q" style="width:260px"></label>
@@ -180,6 +182,7 @@ export async function render(main, { query = {} } = {}) {
     if (tab === "perf" && !$("#pf-body").firstChild) drawPerf($("#pf-body"));     // how fast the site is (adminperf.js)
     if (tab === "mymaps") drawMymaps();
     if (tab === "events") drawEvents();
+    if (tab === "accounts") drawLicences();
     if (tab === "billing" && !$("#ab-body").firstChild) import("./adminbilling.js").then((m) => m.draw($("#ab-body"), { query }));     // « Abonnements » (adminbilling.js; it writes its own address)
     else if (tab === "billing") replaceQuery({ onglet: "abonnements", vue: $("#ab-body").dataset.vue || null });
     if (tab === "clubs") import("./adminclubs.js").then((m) => m.draw($("#oc-body")));     // « Clubs »: the claims waiting (adminclubs.js)
@@ -626,6 +629,34 @@ export async function render(main, { query = {} } = {}) {
   let q = "", onlyDups = false;
   const dupSet = () => new Set(duplicates);
   const status = (u) => (u.status === "disabled" ? t("ad.st.disabled") : u.email_verified ? t("ad.st.active") : t("ad.st.unverified"));
+
+  // « Licences à vérifier » (owner, 2026-11-25): France memberships whose licence the licensee index does not know (no ranked
+  // race since 2010, or another name), asked to be checked; accepted or refused here, the person told by e-mail
+  // (functions/api/admin/licences.js). The card shows only while some wait.
+  async function drawLicences() {
+    let list = [];
+    try {
+      const r = await fetch("api/admin/licences", { credentials: "same-origin", cache: "no-store" });
+      if (r.ok) list = (await r.json()).pending || [];
+    } catch (e) { /* nothing shown */ }
+    $("#ad-lic").hidden = !list.length;
+    if (!list.length) return;
+    $("#ad-lic-list").innerHTML = html`<table class="data compact"><thead><tr><th>${t("ad.lic.asked")}</th><th>${t("ad.lic.account")}</th>
+        <th>${t("ad.lic.licence")}</th><th>${t("ad.lic.index")}</th><th>${t("ad.lic.note")}</th><th></th></tr></thead>
+      <tbody>${list.map((p) => html`<tr data-lic="${p.id}"><td class="num">${fmtDate(String(p.asked || p.created).slice(0, 10), "short")}</td>
+        <td>${p.first} ${p.last}<br><span class="muted">${p.email}${p.verified ? "" : html` · ${t("ad.lic.unverified")}`}</span></td>
+        <td class="num">${p.licence}${p.club ? html`<br><span class="muted">${p.club}</span>` : ""}</td>
+        <td>${p.known ? t("ad.lic.known", { name: p.known }) : t("ad.lic.unknown")}${p.taken ? html`<br><span class="tag">${t(p.taken === 1 ? "ad.lic.taken.one" : "ad.lic.taken.other", { n: fmt(p.taken) })}</span>` : ""}</td>
+        <td style="white-space:pre-line;max-width:360px">${p.note || "—"}</td>
+        <td class="r" style="white-space:nowrap"><button type="button" class="btn btn-sm btn-primary" data-lic-ok="1">${t("ad.lic.accept")}</button>
+          <button type="button" class="btn btn-sm" data-lic-ok="0">${t("ad.lic.refuse")}</button></td></tr>`)}</tbody></table>`;
+    $$("#ad-lic-list [data-lic-ok]").forEach((btn) => btn.addEventListener("click", async () => {
+      $$("button", btn.closest("td")).forEach((x) => { x.disabled = true; });
+      const res = await auth.api("api/admin/licences", { id: Number(btn.closest("[data-lic]").dataset.lic), ok: btn.dataset.licOk === "1" });
+      if (!res.ok) { btn.closest("td").append(` ${res.data?.error || res.status}`); return; }
+      drawLicences();
+    }));
+  }
 
   function draw() {
     const dups = dupSet();

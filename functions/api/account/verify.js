@@ -8,6 +8,7 @@ import { sendOrQueue } from "../../_lib/mail.js";
 import { duplicateAlert, newUserMail, welcomeMail } from "../../_lib/templates.js";
 import { memberships } from "../../_lib/countries.js";
 import { confirmPending } from "../../_lib/entries.js";
+import { askAdmins } from "../../_lib/licencecheck.js";
 
 export async function onRequestPost({ request, env }) {
   const b = await readBody(request);
@@ -33,6 +34,9 @@ export async function onRequestPost({ request, env }) {
   }
   if (!user.email_verified) {                                          // a confirmed account is announced once
     await signupAlert(env, user);
+    // a France licence the index did not know, asked to be checked at registration: the administrators are told now
+    const fr = (await memberships(env, user.id)).find((c) => c.country === "FR" && c.status === "pending");
+    if (fr) await askAdmins(env, request, user, fr.member_id);
     // the welcome (owner, 2026-10-21): what the site does, and where to send one's remarks; an account e-mail, not an alert
     // (the right to the alert e-mails does not apply), sent once; off until WELCOME_MAIL is "1"
     if (env.WELCOME_MAIL === "1") {

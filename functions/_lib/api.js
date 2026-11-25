@@ -131,4 +131,13 @@ export async function checkLicensee(env, request, first, last, licence) {
   return entry && entry[0] === await sha256hex(key) ? entry[1] : null;
 }
 
+/** The name the FFCO index holds for a licence, whoever asks (the administrators' check of a licence to verify), or null. */
+export async function licenseeName(env, request, licence) {
+  const lic = cleanLicence(licence);
+  if (!lic || lic.length > 12) return null;
+  const bucket = /^\d+$/.test(lic) ? Math.floor(Number(lic) / 100) : 999999;
+  const res = await env.ASSETS.fetch(new URL(`/auth/${bucket}.json`, request.url));
+  return ((res.ok ? await res.json().catch(() => ({})) : {})[lic] || [])[1] || null;
+}
+
 export const siteUrl = (env) => String(env.SITE_URL || "").replace(/\/+$/, "");

@@ -47,7 +47,7 @@ export const body = (SITE, { world = false, later = "" } = {}) => `
         the FFCO shows on its website without asking for a login, and the results published by the organisers (name, club, class,
         time), with no CN or score. The older seasons, which the FFCO keeps to its licence holders, and the histories and statistics
         drawn from them are only accessible to logged-in accounts${world ? " that have joined France" : ""}, whose FFCO licence number is
-        checked against their name. The one exception: the publisher
+        checked against their name; a number the index of ranked runners does not know (no ranked race since 2010) may, at the person's request, be checked by hand by the publisher, who keeps the number and the message attached until the decision, the message then being deleted. The one exception: the publisher
         may open, for a limited time, a demo account for an orienteering body (federation, league, club) that wants to see the
         site; it is tied to no licence, can't change or upload anything and stops working on the date set. Anyone concerned may ask for it to be corrected or ask no longer to be identified (see “Your rights”);
         the source remains the FFCO's website.</p>
@@ -293,5 +293,5 @@ export const body = (SITE, { world = false, later = "" } = {}) => `
       <p><b>Credits:</b> the control description symbols and texts (Coach › Control descriptions, the course setting) come from Purple
         Pen, by Peter Golde (<a href="https://github.com/petergolde/PurplePen" target="_blank" rel="noopener">github.com/petergolde/PurplePen</a>),
         under the <a href="assets/tracer/LICENSE-PurplePen.txt" target="_blank" rel="noopener">BSD licence</a>.</p>
-      <p class="muted">Last updated: 24 November 2026.</p>
+      <p class="muted">Last updated: 25 November 2026.</p>
 `;

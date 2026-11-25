@@ -1,12 +1,15 @@
 // The countries an account joins (D1 user_countries, migration 0014; owner, 2026-10-20: Ozimut open to every orienteer).
 // A country is its ISO 3166-1 alpha-2 code (the browser names it in the reader's language with Intl.DisplayNames). Its
 // policy says how a membership is accepted:
-//   "ffco"  — France: first name + last name + licence against the licensee index (site/auth, as registration always did);
+//   "ffco"  — France: first name + last name + licence against the licensee index (site/auth, as registration always did).
+//             The index holds only the licensees with a result in FFCO's rankings: one not found may ask for a check
+//             (`review`, owner 2026-11-25: Françoise Py, a licensee who had never run a ranked race) — the membership is then
+//             'pending', opens nothing and sets no licence on the account until an administrator accepts it (_lib/licencecheck.js);
 //   "open"  — accepted as declared (no federation data here yet: the membership opens nothing but records the club);
 //   "manual" — waits for an administrator ('pending'); none yet.
 // Only a membership with status 'ok' counts (rights, the session's `cc`); a club typed by the user grants nothing by itself.
 
-import { checkLicensee, cleanLicence, nowIso, publicUser, sessionCookie } from "./api.js";
+import { checkLicensee, cleanLicence, licenseeName, nowIso, publicUser, sessionCookie } from "./api.js";
 import { autoShow } from "./modules.js";
 import { entCaps } from "./plans.js";
 
@@ -28,11 +31,12 @@ export const cleanCountry = (c) => String(c || "").trim().toUpperCase();
 export const validCountry = (cc) => KNOWN.has(cc);
 
 /**
- * Check one membership as asked: { country, club, id } of a person named first + last.
- * -> { ok: true, row: { country, club, member_id, status, checked_at }, display? } (display: the name as FFCO publishes it)
- *    or { ok: false, error: "country" | "id" | "mismatch" }.
+ * Check one membership as asked: { country, club, id, review } of a person named first + last.
+ * -> { ok: true, row: { country, club, member_id, status, checked_at }, display? } (display: the name as FFCO publishes it;
+ *    none for a France membership left 'pending' by `review`) or { ok: false, error: "country" | "id" | "mismatch", reason? }
+ *    (a France mismatch's reason: "unknown", the licence is in no ranked result since 2010, or "name", it is under another name).
  */
-export async function checkMembership(env, request, { country, club, id }, first, last) {
+export async function checkMembership(env, request, { country, club, id, review }, first, last) {
   const cc = cleanCountry(country);
   if (!validCountry(cc)) return { ok: false, error: "country" };
   const p = policyOf(cc);
@@ -41,7 +45,10 @@ export async function checkMembership(env, request, { country, club, id }, first
   const row = { country: cc, club: String(club || "").trim().slice(0, 80), member_id: mid, status: "ok", checked_at: null };
   if (p.policy === "ffco") {
     const display = await checkLicensee(env, request, first, last, mid);
-    if (!display) return { ok: false, error: "mismatch" };
+    if (!display) {
+      if (review === true) return { ok: true, row: { ...row, status: "pending" } };
+      return { ok: false, error: "mismatch", reason: (await licenseeName(env, request, mid).catch(() => null)) ? "name" : "unknown" };
+    }
     return { ok: true, row: { ...row, checked_at: nowIso() }, display };
   }
   if (p.policy === "manual") row.status = "pending";
