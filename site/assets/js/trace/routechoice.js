@@ -875,7 +875,10 @@ export function classify(rgba0, w, h, mpp, opt = {}, progress = () => {}) {
   // outline of its own and covers hundreds of square metres: out of bounds, where the second route to the Auray scan's 10 ran.
   // A canopy is drawn with its thin black outline, and small: under 300 m², or outlined along 70 % of its edge and under 1 500)
   thickOf((v, i) => v === I_LILAC || (sprintInk && (v === I_PURPLE || v === I_MIXED || (v === I_BROWN && rgba[4 * i] < 170))),
-    (st) => { const m2 = st[0] * mpp * mpp; return m2 < 300 || (m2 < 1500 && st[7] > 0 && st[8] >= 0.7 * st[7]) ? A.PAVED : A.OOB; }, (v) => v === I_LILAC, k, minArea, true);
+    // (2026-11-25: on a scan, where the outline shows, a small one too when nothing black outlines it — a pink square edged in
+    // the course's purple is the setter's, out of bounds, from 3 x 3 m: the Quiberon scan's best route to 10 crossed one of 30 m²,
+    // owner)
+    (st) => { const m2 = st[0] * mpp * mpp, lined = st[7] > 0 && st[8] >= 0.7 * st[7]; return (m2 < 300 && (!sharp || lined)) || (m2 < 1500 && lined) ? A.PAVED : A.OOB; }, (v) => v === I_LILAC, k, sharp ? Math.max(9, (3 / mpp) ** 2) : minArea, true);
   // open land is never a line: a full yellow streak narrower than the thickness test is a blend — the course's leg printed across
   // olive comes out yellow on a photo, a passable corridor through the gardens (the Quiberon photo, 2026-11-18) — and takes its
   // neighbours' area, as a thin ink does. On a sprint map only: a forest map's open rides and rough open land are narrow or
@@ -894,6 +897,16 @@ export function classify(rgba0, w, h, mpp, opt = {}, progress = () => {}) {
       // where the Auray scan's control 6 stands took the gardens' olive from beside it)
       const kk = sharp ? Math.max(2, Math.round(0.5 / mpp)) : k, open = morph(morph(m, w, h, kk, true), w, h, kk, false);
       for (let i = 0; i < N; i++) if (m[i] && !open[i]) area[i] = UNKNOWN;
+    }
+    // (on a sharp image a round patch of green under 3 m across is a point symbol — a prominent tree or bush in its white ring,
+    // ISSprOM 417-419 —, not a thicket: one runs round its trunk. Read as the dark green, two trees shut the terrace at the foot
+    // of the Auray scan's control 14, owner 2026-11-25)
+    if (sharp) {
+      const m = new Uint8Array(N);
+      for (let i = 0; i < N; i++) if (green(area[i])) m[i] = 1;
+      const { lab, comps } = components(m, w, h);
+      const pt = comps.map((c) => c && c.n * mpp * mpp <= 7 && Math.max(c.x1 - c.x0 + 1, c.y1 - c.y0 + 1) * mpp <= 3 && c.n >= 0.5 * (c.x1 - c.x0 + 1) * (c.y1 - c.y0 + 1));
+      for (let i = 0; i < N; i++) if (lab[i] && pt[lab[i]]) area[i] = UNKNOWN;
     }
   }
   // the overprint's white outline (round the control numbers, the course's texts) is ink, not white forest: its pixels take
@@ -1295,6 +1308,32 @@ function thickBlack(rgba, w, h, mpp) {
   front = [];
   for (let i = 0; i < N; i++) if (out[i]) { own[i] = lab[i]; front.push(i); }
   const mark = (j) => { for (let k = j; k >= 0 && !out[k]; k = from[k]) out[k] = 3; };
+  // (only a wall carried on under the symbol: the bridge runs along both pieces at its ends — two parallel walls with a tree
+  // between them, a terrace's, are not one wall: the trees on the Auray scan's terrace by 14 shut it, owner 2026-11-25)
+  const origin = (k) => { while (k >= 0 && !out[k]) k = from[k]; return k; };
+  const dirAt = (p, id) => {
+    const px = p % w, py = (p - px) / w, R = 4;
+    let n = 0, sx = 0, sy = 0, sxx = 0, syy = 0, sxy = 0;
+    for (let dy = -R; dy <= R; dy++) for (let dx = -R; dx <= R; dx++) {
+      const X = px + dx, Y = py + dy;
+      if (X < 0 || Y < 0 || X >= w || Y >= h || lab[Y * w + X] !== id) continue;
+      n++; sx += dx; sy += dy; sxx += dx * dx; syy += dy * dy; sxy += dx * dy;
+    }
+    if (n < 4) return null;
+    const mx = sx / n, my = sy / n, xx = sxx / n - mx * mx, yy = syy / n - my * my, xy = sxy / n - mx * my;
+    if (Math.abs(xx - yy) < 0.3 && Math.abs(xy) < 0.3) return null;      // a blob, no direction
+    const th = 0.5 * Math.atan2(2 * xy, xx - yy);
+    return [Math.cos(th), Math.sin(th)];
+  };
+  const along = (q, j) => {
+    const a = origin(q), b = origin(j);
+    if (a < 0 || b < 0) return true;
+    const ax = a % w, ay = (a - ax) / w, bx = b % w, by = (b - bx) / w, L = Math.hypot(bx - ax, by - ay);
+    if (L < 2) return true;
+    const ux = (bx - ax) / L, uy = (by - ay) / L;
+    for (const [p, id] of [[a, lab[a]], [b, lab[b]]]) { const d = dirAt(p, id); if (d && Math.abs(d[0] * ux + d[1] * uy) < Math.cos((40 * Math.PI) / 180)) return false; }
+    return true;
+  };
   for (let step = reach; step > 0 && front.length; step--) {
     const next = [];
     for (const j of front) {
@@ -1303,7 +1342,7 @@ function thickBlack(rgba, w, h, mpp) {
         const X = x + dx, Y = y + dy;
         if (X < 0 || Y < 0 || X >= w || Y >= h) continue;
         const q = Y * w + X;
-        if (own[q]) { if (own[q] !== own[j] && (sym[q] || sym[j])) { mark(q); mark(j); } continue; }
+        if (own[q]) { if (own[q] !== own[j] && (sym[q] || sym[j]) && along(q, j)) { mark(q); mark(j); } continue; }
         if (!sym[q]) continue;
         own[q] = own[j]; from[q] = j; next.push(q);
       }
@@ -2151,6 +2190,40 @@ export function sprintLayers(O, P, pts = [], r = 0) {
       }
     }
     for (const k of banks) block[k] = 1;
+  }
+  // a strip of ground between two thick walls (thickBlack), 1-4 px wide and 3 m long at least, some of it the ground's own warm
+  // colour: a passage — the scan prints a metre-wide way between walls as two or three pixels of yellow, which the walls' blur
+  // and the reading's fill gave to the walls (the Auray scan's control 14, at the foot of such a passage up to a stairway:
+  // owner, 2026-11-25). Its pixels open ground and a narrow way's middle
+  if (1.6 / mpp >= 4 && O.thick && O.warm) {
+    const tk = (q) => O.thick[q] === 4 || O.thick[q] === 2, gap = new Uint8Array(N), runs = [];
+    for (const [st, n0, n1, step] of [[1, h, w, w], [w, w, h, 1]]) {
+      for (let a0 = 1; a0 < n0 - 1; a0++) {
+        const base = a0 * step;
+        for (let t = 2; t < n1 - 6; t++) {
+          const i = base + t * st;
+          if (tk(i) || !tk(i - st) || !tk(i - 2 * st)) continue;
+          let e = 0;
+          while (e < 4 && !tk(i + e * st)) e++;
+          if (e === 4 || !tk(i + e * st) || !tk(i + (e + 1) * st)) continue;
+          let warm = false;
+          // (the ground's colour, or its blend with the walls: yellow over olive's hue, a mixed tint — not black, grey or ink)
+          for (let u = 0; u < e; u++) { const q = i + u * st, v = P.kind[q]; if ((O.warm[q] && v !== I_BLACK) || v === I_OLIVE || v === I_MIXED || v < 20) warm = true; }
+          if (warm) for (let u = 0; u < e; u++) gap[i + u * st] = 1;
+          t += e;
+        }
+      }
+    }
+    // (a row missed here and there, where the strip's colour is lost in the walls': grouped through a pixel's margin)
+    const { lab, comps } = components(morph(gap, w, h, 1, false), w, h, true);
+    for (let i = 0; i < N; i++) {
+      const id = lab[i];
+      if (!id || !gap[i]) continue;
+      const c = comps[id];
+      if (Math.hypot(c.x1 - c.x0 + 1, c.y1 - c.y0 + 1) * mpp < 3) continue;
+      lane[i] = 2; block[i] = 0;
+      if (ar[i] === A.GREY || ar[i] === A.BUILDING || ar[i] === A.OOB) ar[i] = A.ROUGH;
+    }
   }
   // the two levels of an underpass: the upper level's edge at each mouth is a wall (underpasses: a drop; the passage itself is a
   // link between its mouths). The routes of the Auray scan's 14-15 came along the lower road to the mouth and stepped up onto

@@ -4463,6 +4463,22 @@ Every multiple-choice game was played through to its score page at phone size, w
   before `baseline_2026-11-24_before_trim.json`): scan 1 olive 22 → 19 m, every route's grey 19 → 11 m and lines 11 → 6;
   scan 2 lines 16 → 15 (13-14's terraces now open, routes judged right by the owner); scan 3 lines 3 → 6 and one track fewer
   laid — 15-16's passage is now the best route (83 m) and the runner's detour (138 m) falls outside the variants kept.
+  **Control 14 of the Auray scan, the same day** (owner: the stairway choices round 14 and 15 gone): both legs touching 14 found
+  no way at all and only the last fallback — closed ground crossed « at a crawl » — gave routes, before and after the commit
+  above, so their costs meant nothing (the terrace route the owner judged right was such a crawl). Four rules: (1) **a round
+  green patch under 3 m across is a point symbol** (a prominent tree or bush in its white ring, ISSprOM 417-419; classify, sharp
+  images): its ground is its neighbours', not a thicket — two trees shut the terrace into 14; (2) **a wall is carried under a tree
+  symbol only along the wall** (thickBlack's bridge through a symbol: the bridge must run within 40° of both pieces' direction;
+  two parallel terrace walls with a tree between are not one wall); (3) **a strip of ground colour 1-4 px wide between two thick
+  walls, 3 m long, is a narrow way** (sprintLayers: the metre-wide passage from 14 up to its stairway, printed as two or three
+  yellow pixels the walls' blur took); (4) **an unoutlined small pink area is out of bounds on a scan** from 3 x 3 m (the canopy
+  rule asked a black outline only above 300 m²: Quiberon's best route to 10 crossed a 30 m² square edged in purple). 14 is now
+  reached without the fallback (13-14: 477 m, from the upper terrace). Not read: the short stairway from the terraces down to
+  the shore road — three rungs drawn as a black mass with yellow specks at this resolution — so the choices « down the stairs »
+  to 14 and from 14 to 15 are still missing. Gate (accepted, the previous one `baseline_2026-11-25_before_trees.json`): scan 1
+  olive 19 → 16 m, buildings 11 → 9 m, every route's lines 6 → 9; scan 2 lines 15 → 12, olive 8 → 11 m; scan 3 lines 12 → 10.
+  **The page reads a scanned PDF at the scan's own pixels only when the PDF is dropped** (`readMap`'s `native`); an analysis
+  reopened from a stored map reads the stored 4200 px render, which differs.
 - **Languages: French, English, German and Spanish** (owner, 2026-10-17 French and English, open to everyone since 2026-10-18,
   `i18n.OPEN` true; **German and Spanish since 2026-11-01**: `i18n.LANGS`, catalogues `i18n/de.js`, `es.js`, `tracer.de.js`,
   `tracer.es.js`, long texts `content/<name>.de.js` / `.es.js`, e-mails in `_lib/templates.js`, `manifest.de|es.webmanifest`;
