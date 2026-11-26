@@ -967,14 +967,21 @@ export function classify(rgba0, w, h, mpp, opt = {}, progress = () => {}) {
     for (let i = 0; i < N; i++) {
       if (!inkNear[i] || area[i] !== UNKNOWN || (kind[i] !== I_PURPLE && kind[i] >= 20)) continue;   // a wall beside it stays a line
       const x = i % w, y = (i - x) / w;
-      let best = -1, bd = Infinity;
+      let best = -1, bd = Infinity, cross = Infinity;
       for (const [dx, dy] of sharp ? [[1, 0], [0, 1], [1, 1], [1, -1]] : [[1, 0], [0, 1]]) {
         const a = look(x, y, -dx, -dy), ta = lt;
         if (a < 0) continue;
         const b = look(x, y, dx, dy), tb = lt;
+        if (b >= 0 && b !== a && (a === A.GREY || a === A.BUILDING || b === A.GREY || b === A.BUILDING)) cross = Math.min(cross, ta + tb);
         if (b === a && ta + tb < bd) { bd = ta + tb; best = a; }
         if (!sharp && best >= 0) break;
       }
+      // (on a sharp image, a line lying on a house's edge — a control's circle printed over it, the street beyond its
+      // outline, the house's grey inside — has two grounds across it, near: the same ground far along the line, at both ends of the
+      // arc, is not what lies under it. The nearest then decides: the circle round the Quiberon scan's 10 gave the street's ground
+      // to a strip of the house, and the routes to 11 cut its corner, owner 2026-11-26. A house's edge only: a leg printed along a
+      // stairway between gardens, two grounds across it too, closed the stairway to the Auray scan's 6)
+      if (best >= 0 && sharp && cross < Infinity && bd > 2 * cross + 2) best = -1;
       if (best >= 0) fill.push(i, best);
     }
     for (let j = 0; j < fill.length; j += 2) area[fill[j]] = fill[j + 1];

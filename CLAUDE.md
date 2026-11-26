@@ -4547,6 +4547,12 @@ Every multiple-choice game was played through to its score page at phone size, w
   **A restored calibration without the map's order offers « Refaire le calage automatique » at once** (2026-11-26, owner: map 1's
   « Inter-postes » still hidden, no way back in sight): the button was shown only for a calibration of an older reading, else only
   under « Corriger à la main ». A fresh automatic calibration reads the order of the printed legs, which shows the tab.
+  **A line printed on a house's edge** (the same day, owner: map 1's route to 11 still through a building): the overprint's
+  pixels take the ground found on both sides of them, the shortest of four ways; along control 10's circle, over the edge of a
+  house, the way along the arc found the street at both ends, and the circle's strip of the house became street. Now, on a sharp
+  image, when a short way across the line finds a house on one side and other ground on the other, a same-ground way more than
+  twice as long does not count, and the nearest ground decides (a house's edge only: with any two grounds, the leg printed along
+  the stairway to the Auray scan's 6 closed it). Gate passed and accepted: scan 2 olive on every route 7 → 5 m, grey 4 → 1 m.
 - **Languages: French, English, German and Spanish** (owner, 2026-10-17 French and English, open to everyone since 2026-10-18,
   `i18n.OPEN` true; **German and Spanish since 2026-11-01**: `i18n.LANGS`, catalogues `i18n/de.js`, `es.js`, `tracer.de.js`,
   `tracer.es.js`, long texts `content/<name>.de.js` / `.es.js`, e-mails in `_lib/templates.js`, `manifest.de|es.webmanifest`;
