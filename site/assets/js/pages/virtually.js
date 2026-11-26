@@ -389,10 +389,11 @@ export async function render(main, { query }) {
     if (!list.some((r) => r.id === sel.race)) sel.race = list[0].id;
     const drawIt = () => {
       const race = list.find((r) => r.id === sel.race);
-      const runs = all.runs.filter((r) => r.race === race.id);
+      // a forest's « Orange court » left out of the results too (owner, 2026-11-26: « remove Orange court from results »)
+      const runs = all.runs.filter((r) => r.race === race.id && r.course !== "orange_md");
       // the circuits: each course of the map as a training, and every (event, course, kind) a run names
       const circ = new Map();
-      for (const c of race.race.courses) circ.set(`${race.id}||${c.id}|t`, { course: c.id, event: "", kind: "training" });
+      for (const c of offered(race.race.courses)) circ.set(`${race.id}||${c.id}|t`, { course: c.id, event: "", kind: "training" });
       for (const r of runs) { const k = all.circuitKey(r); if (!circ.has(k)) circ.set(k, { course: r.course, event: r.event || "", kind: r.kind }); }
       const keys = [...circ.keys()];
       let cur = keys.find((k) => circ.get(k).course === sel.course && (sel.event == null || circ.get(k).event === sel.event)) || keys[0];

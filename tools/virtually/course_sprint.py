@@ -9,7 +9,11 @@ side of something one cannot cross. Legs 60-260 m, no dog-leg, no leg through an
 near each other only when they follow each other, or when the legs between them are short (the owner, 2026-11-14: « otherwise one
 passes the same place many times »); a leg does not run again along an earlier leg's route; flags and the start in open ground. Four courses
 (blue, yellow, orange short and orange long — a sprint has no violet, nor middle and long distances; few to many controls,
-short to long legs, route choice weighed more and more) into pkg/race.json `courses`; a review picture per course beside the package."""
+short to long legs, route choice weighed more and more) into pkg/race.json `courses`; a review picture per course beside the package.
+The last control is easy whatever the level and near the finish (owner, 2026-11-26: « there is always a last control very close to the
+arrival, easy to find for all categories… and a balisage from that last control to the arrival »): a building's corner, a monument or
+a fountain within LAST_FROM_START m of the start, the finish LAST_FIN m from it on a straight way clear of every obstacle by 1.5 m
+(the game tapes it and the map draws it as a marked route)."""
 import json, math, os, sys
 from pathlib import Path
 
@@ -247,6 +251,16 @@ LEVELS = {"blue": dict(n=6, km=1.0, lo=50, hi=170, rc=0.0, sep=70), "yellow": di
           "orange_s": dict(n=10, km=1.8, lo=60, hi=220, rc=1.0, sep=90), "orange_l": dict(n=14, km=2.8, lo=80, hi=280, rc=2.0, sep=90)}
 
 
+LAST_FROM_START, LAST_FIN, LAST_EASY = 220, (40, 100), {"corner", "monument", "fountain"}
+
+
+def clear_line(a, b, m=1.5):
+    """Is the straight way from a to b at least m metres from every obstacle (the corridor's tape on both sides)?"""
+    n = int(math.hypot(*(b - a)) * 2) + 2
+    xs = np.linspace(a[0], b[0], n).astype(int).clip(0, W - 1); zs = np.linspace(a[1], b[1], n).astype(int).clip(0, H - 1)
+    return bool((CLEAR[zs, xs] >= m).all())
+
+
 def apart(q, seq, L):
     """May a point q follow the course seq? Not near an earlier control but the last, unless the legs between them are short:
     `sep` metres, or half the way along the course between them when that is less."""
@@ -280,6 +294,11 @@ def make(level, tries=60):
             last = seq[-1]
             d = np.hypot(xy[:, 0] - xy[last, 0], xy[:, 1] - xy[last, 1])
             cand = [int(c) for c in np.nonzero((d > L["lo"]) & (d < L["hi"]))[0] if c not in seq]
+            final = len(seq) == L["n"]                          # the last control: easy, near the start (the finish beside it)
+            if final:
+                cand = [c for c in cand if math.hypot(*(xy[c] - xy[s])) <= LAST_FROM_START]
+                easy = [c for c in cand if kinds[c] in LAST_EASY]
+                cand = easy or cand
             rng.shuffle(cand)
             goods = []
             for c in cand[:40]:
@@ -302,12 +321,12 @@ def make(level, tries=60):
                 pa = np.array(p1)
                 if any(np.min(np.hypot(pa[:, 1] - xy[q][0], pa[:, 0] - xy[q][1])) < 15 for q in seq[:-1]):
                     continue
-                if L["rc"] > 0:
+                if L["rc"] > 0 and not final:
                     r2, p2, blk = choice(last, c)
                 choice_ = max(0.0, 1.15 - r2) / 0.12 if blk >= 150 else 0.0
                 goods.append((c, choice_, t1))
                 # the levels that want route choices look at a few legs and take the one with the best (the first otherwise)
-                if len(goods) >= (4 if L["rc"] >= 1 else 1):
+                if len(goods) >= (4 if L["rc"] >= 1 and not final else 1):
                     break
             got = max(goods, key=lambda g_: g_[1]) if goods else None
             if got is None:
@@ -318,13 +337,14 @@ def make(level, tries=60):
             seq.append(got[0]); legs_.append(got); score += L["rc"] * got[1] + 0.2 * (got[2] / d[got[0]] > 1.25)
         if len(seq) < L["n"] + 1:
             continue
-        # the finish: a free cell 30-120 m from the last control, toward the start
+        # the finish: a free cell LAST_FIN m from the last control, near the start, the straight way to it clear (taped)
         fin = None
-        for _ in range(200):
-            a = rng.uniform(0, 2 * math.pi); r = rng.uniform(40, 140)
+        for _ in range(300):
+            a = rng.uniform(0, 2 * math.pi); r = rng.uniform(*LAST_FIN)
             q = xy[seq[-1]] + r * np.array([math.cos(a), math.sin(a)])
-            if inbox(*q) and ok_ground[int(q[1]), int(q[0])] and not near_block[int(q[1]), int(q[0])] and math.hypot(*(q - xy[s])) < 200 \
-                    and all(math.hypot(*(q - xy[k])) >= min(L["sep"], 60) for k in seq[1:-1]):
+            if inbox(*q) and ok_ground[int(q[1]), int(q[0])] and not near_block[int(q[1]), int(q[0])] \
+                    and math.hypot(*(q - xy[s])) < LAST_FROM_START \
+                    and all(math.hypot(*(q - xy[k])) >= min(L["sep"], 60) for k in seq[1:-1]) and clear_line(xy[seq[-1]], q):
                 fin = q; break
         if fin is None:
             continue

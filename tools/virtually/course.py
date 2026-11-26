@@ -9,7 +9,10 @@ The levels follow FFCO's and the IOF's course-setting habits, measured on the pa
 - Violet court (MD): many short legs on detailed ground, the sites away from the paths rewarded;
 - Violet long (LD): long legs, the ones whose straight line crosses slow or impassable ground (a route choice) rewarded.
 Everywhere: no dog-legs, no legs crossing or running close, controls 60 m apart at least, nothing in impassable or very slow
-ground, the finish near the start. A course's length is its straight legs', its climb the ground's rises along them."""
+ground, the finish near the start. The last control is easy whatever the level (owner, 2026-11-26: « there is always a last
+control very close to the arrival, easy to find for all categories, usually on a trail, and a balisage from it to the arrival »):
+a path junction, else a site within 5 m of a path, within LAST_FROM_START m of the start; the finish LAST_FIN m from it, the
+straight way between them runnable (the game tapes it and the map draws it as a marked route). games/vcourse.js has the same rule. A course's length is its straight legs', its climb the ground's rises along them."""
 import json, math, os, sys, time
 from pathlib import Path
 import numpy as np
@@ -45,6 +48,8 @@ LEVELS = [
     {"id": "violet_md", "n": 15, "km": 4.0, "leg": (140, 450), "site": None, "line": None, "reward": "hard"},
     {"id": "violet_ld", "n": 13, "km": 7.0, "leg": (300, 1150), "site": None, "line": None, "reward": "choice"},
 ]
+
+LAST_FROM_START, LAST_FIN = 350, (60, 150)            # games/vcourse.js LAST
 
 # ---- the control sites ---------------------------------------------------------------------------------------------------
 GOOD = {"boulder": 1.0, "bigboulder": 1.3, "cluster": 1.0, "knoll": 1.2, "eknoll": 1.1, "depression": 1.2, "pit": 1.0,
@@ -128,7 +133,7 @@ def make(L, rng):
         return None
     i0 = rng.integers(len(pr)); pts = [(float(pc[i0]), float(pr[i0]))]
     used = set(); kinds = []; score = 0.0; legs = []
-    for _ in range(L["n"]):
+    for _ in range(L["n"] - 1):
         last = pts[-1]
         d = np.hypot(XY[:, 0] - last[0], XY[:, 1] - last[1])
         ok = (d > lo) & (d < hi)
@@ -167,16 +172,45 @@ def make(L, rng):
             score += GOOD.get(KIND[i], 0.7) + 0.3 * min(SITE_HAND[i], 120) / 120 - (0.6 if KIND[i] == "junction" else 0)
         else:                                                         # choice: long legs across slow or blocked ground
             score += GOOD.get(KIND[i], 0.7) + 1.2 * min(slow, 0.5) + 1.5 * min(imp, 0.2) + 0.6 * (legs[-1] > 0.6 * hi)
-    # the finish: near the start, after the last control, crossing nothing
-    fin = None
-    for _ in range(80):
-        a = rng.uniform(0, 2 * math.pi); r = rng.uniform(40, 140)
-        q = (pts[0][0] + r * math.cos(a), pts[0][1] + r * math.sin(a))
-        if not (0 < q[0] < W and 0 < q[1] < H) or speed[int(q[1]), int(q[0])] < 0.6:
+    # the last control: a path junction, else a site within 5 m of a path, near the start, its leg a usual one
+    prev = pts[-1]
+    d_prev = np.hypot(XY[:, 0] - prev[0], XY[:, 1] - prev[1]); d_start = np.hypot(XY[:, 0] - pts[0][0], XY[:, 1] - pts[0][1])
+    base_ok = (d_prev >= max(60, lo * 0.4)) & (d_prev <= hi) & (d_start <= LAST_FROM_START)
+    junc = np.nonzero(base_ok & (np.array(KIND) == "junction"))[0]; nearp = np.nonzero(base_ok & (np.array(KIND) != "junction") & (SITE_HAND <= 5))[0]
+    rng.shuffle(junc); rng.shuffle(nearp)
+    last_c = None
+    for i in list(junc) + list(nearp):
+        if i in used:
             continue
-        Lf = math.hypot(q[0] - pts[-1][0], q[1] - pts[-1][1])
-        if 80 < Lf < max(450, hi) and not any(seg_dist(pts[-1], q, pts[j], pts[j + 1]) < 30 for j in range(1, len(pts) - 2)) \
-                and (L["line"] is None or line_stats(pts[-1], q)[2] <= L["line"][0] * 1.5):
+        p = (XY[i, 0], XY[i, 1])
+        if any(math.hypot(p[0] - q[0], p[1] - q[1]) < 60 for q in pts[1:]):
+            continue
+        if len(pts) >= 2:
+            a1 = math.atan2(prev[1] - pts[-2][1], prev[0] - pts[-2][0]); a2 = math.atan2(p[1] - prev[1], p[0] - prev[0])
+            if abs((a2 - a1 + math.pi) % (2 * math.pi) - math.pi) > math.radians(150):
+                continue
+        if any(seg_dist(prev, p, pts[j], pts[j + 1]) < 40 for j in range(len(pts) - 2)) or line_stats(prev, p)[0] > 0.25:
+            continue
+        last_c = i; break
+    if last_c is None:
+        return None
+    p = (XY[last_c, 0], XY[last_c, 1])
+    used.add(last_c); pts.append(p); kinds.append(KIND[last_c]); legs.append(math.hypot(p[0] - prev[0], p[1] - prev[1]))
+    # the finish: LAST_FIN m from the last control, the straight way between them runnable (taped), near the start
+    fin = None
+    lc = pts[-1]
+    for _ in range(80):
+        a = rng.uniform(0, 2 * math.pi); r = rng.uniform(*LAST_FIN)
+        q = (lc[0] + r * math.cos(a), lc[1] + r * math.sin(a))
+        if not (60 < q[0] < W - 60 and 60 < q[1] < H - 60) or speed[int(q[1]), int(q[0])] < 0.6:
+            continue
+        ds = math.hypot(q[0] - pts[0][0], q[1] - pts[0][1])
+        if ds < 30 or ds > LAST_FROM_START:
+            continue
+        if any(seg_dist(lc, q, pts[j], pts[j + 1]) < 30 for j in range(1, len(pts) - 2)):
+            continue
+        imp, slow, _, _ = line_stats(lc, q)
+        if imp == 0 and slow <= 0.15:
             fin = q; break
     if fin is None:
         return None

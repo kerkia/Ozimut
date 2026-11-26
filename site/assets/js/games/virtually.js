@@ -10,7 +10,7 @@
 import { html, raw, $, pct } from "../util.js";
 import { t, tn, loadArea, lang } from "../i18n.js";
 import { THREE as THREE_URL } from "../vendor.js";
-import { loadRace, World, runnerFigure } from "./vworld.js";
+import { loadRace, World, runnerFigure, FIN_TAPE } from "./vworld.js";
 import { loadAvatar } from "./vavatar.js";
 import { applyEnv, envOf, envText } from "./vweather.js";
 import { mapOptOf, plainMap, imageMap, usable, mapOptText, moCode, MEM_R, MEM_S } from "./vmapopt.js";
@@ -59,7 +59,7 @@ function briefSheet(course, title, cd) {
   const cs = course.controls, sym = (id) => (cd && id ? cd.symbol(id, "2018") : null);
   const cell = (id) => { const s = sym(id); return s ? html`<td title="${cd.name(s)}">${cd.svg(s, 40, "vt-cds")}</td>` : html`<td></td>`; };
   const fin = cs[cs.length - 1], before = cs[cs.length - 2], toFin = Math.round(Math.hypot(fin.x - before.x, fin.z - before.z) / 10) * 10;
-  const finSym = sym("14.3");
+  const finSym = sym(toFin <= FIN_TAPE ? "14.1" : "14.3");           // a taped route to the finish (vworld finishTape), else none
   return html`<table class="vt-cd"><tbody>
     <tr class="vt-cdtitle"><td colspan="8">${title}</td></tr>
     <tr class="vt-cdtitle"><td colspan="4">${num((course.length || 0) / 1000)} km</td><td colspan="4">${course.climb ? `${Math.round(course.climb)} m` : ""}</td></tr>
@@ -336,7 +336,7 @@ export function mount(root, raceId, opts = {}) {
         g.restore();
       }
     }
-    function overprint(g) { drawOverprint(g, course, mPer, ppm, world.startPos); }
+    function overprint(g) { drawOverprint(g, course, mPer, ppm, world.startPos, !!world.finTape); }
     // The compass's line (owner, 2026-11-14: « la ligne de la boussole… ça permet aux autres manières d'orienter la carte d'être
     // utile »): a black line across the map panel through its middle in the direction the runner faces, as the compass laid on
     // the map gives it — never the runner's position: one pans the map to put the line where one thinks one is. Its arrow at a
@@ -399,7 +399,7 @@ export function mount(root, raceId, opts = {}) {
         return html`<tr class="${cls}" title="${tip}"><td class="vt-cdn">${k}</td><td class="vt-cdc">${c.code || ""}</td><td></td>${cd && s.d
           ? html`${cell(s.d)}${cell(s.e)}${cell(s.f)}${cell(s.g)}` : html`<td colspan="4" class="vt-cdw">${words}</td>`}<td></td></tr>`;
       });
-      const finSym = cdSym("14.3");
+      const finSym = cdSym(world.finTape ? "14.1" : "14.3");       // « taped route from the last control to the finish »
       const climb = race.course.climb ? `${Math.round(race.course.climb)} m` : "";
       sheet.innerHTML = html`<div class="vt-sheet-h"><span>${next >= last ? t("vt.sheet.finish") : t("vt.sheet.next", { n: next, of: nC })}</span>
         <button type="button" class="vt-sheet-tog" title="${t(open ? "vt.sheet.close" : touch ? "vt.view.desc" : "vt.sheet.open")}" aria-label="${t(open ? "vt.sheet.close" : touch ? "vt.view.desc" : "vt.sheet.open")}">${open ? "▾" : "▴"}</button></div>
@@ -1031,7 +1031,7 @@ function sideOf(town, x, z, buildingsOnly) {
  *  numbered circles, the legs, the finish's double circle). Shared with Coach › Virtually's analysis. `corridor` (vworld's
  *  startPos { x, z }) adds the taped way to the start triangle as ISOM's marked route 705 (owner, 2026-11-26: « le couloir de
  *  départ devrait être indiqué sur la carte »): a dashed line 0.35 mm, dashes 2 mm, gaps 1 mm, stopping at the triangle. */
-export function drawOverprint(g, course, mPer, mm, corridor = null) {
+export function drawOverprint(g, course, mPer, mm, corridor = null, finTape = false) {
   const r = 3 * mm, lw = 0.35 * mm;
   g.strokeStyle = PURPLE; g.fillStyle = PURPLE; g.lineWidth = lw; g.lineCap = "round";
   const P = course.map((c) => [c.x * mPer, c.z * mPer]);
@@ -1047,7 +1047,11 @@ export function drawOverprint(g, course, mPer, mm, corridor = null) {
     const ra = (i === 0 ? 4 * mm : r) + 0.5 * mm, rb = (i + 1 === P.length - 1 ? 3.6 * mm : r) + 0.5 * mm;
     if (L <= ra + rb) continue;
     const ux = (bx - ax) / L, uy = (by - ay) / L;
+    // the last leg taped to the finish: a marked route 705, dashed, as the start's corridor (owner, 2026-11-26)
+    const taped = finTape && i === P.length - 2;
+    if (taped) { g.save(); g.lineCap = "butt"; g.setLineDash([2 * mm, 1 * mm]); }
     g.beginPath(); g.moveTo(ax + ux * ra, ay + uy * ra); g.lineTo(bx - ux * rb, by - uy * rb); g.stroke();
+    if (taped) g.restore();
   }
   P.forEach(([x, y], i) => {
     g.beginPath();

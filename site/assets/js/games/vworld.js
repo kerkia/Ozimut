@@ -83,6 +83,7 @@ export async function loadRace(base, onFile = () => {}, opts = {}) {
     ocd: map.ocd || null, mapImage: map.mapImage || null, town };
 }
 
+export const FIN_TAPE = 200;       // m: a last leg this short or shorter is taped to the finish (finishTape)
 const DETAIL = 95;                 // m: chunks nearer than this draw the trees whole, the others as impostors
 const LOW_R = 85;                  // m: the low vegetation (grass, ferns) only nearer than this
 const SHADOW_R = 80;               // m: and only those cast shadows (the shadow's box is 100 m)
@@ -630,6 +631,23 @@ export class World {
     }
     return null;
   }
+  /** The taped way from the last control to the finish (owner, 2026-11-26: « there is always a last control very close to the
+   *  arrival… and a balisage from that last control to the arrival control, in reality and indicated on the map »): when the last
+   *  leg is FIN_TAPE m or shorter and its straight way runnable, tape on both sides from a few metres after the control to the
+   *  finish's banner. The courses set since that day always have one (tools/virtually/course.py, course_sprint.py,
+   *  games/vcourse.js); an older course's last leg gets it where it fits. Returns { len } or null; the map draws it dashed
+   *  (games/virtually.js drawOverprint) and the description's last line says « taped route » (14.1). */
+  finishTape(course) {
+    const n = course.length; if (n < 3) return null;
+    const A = course[n - 2], F = course[n - 1], L = Math.hypot(F.x - A.x, F.z - A.z);
+    if (L > FIN_TAPE || L < 20) return null;
+    const ux = (F.x - A.x) / L, uz = (F.z - A.z) / L, len = L - Math.min(8, L * 0.2);
+    const ok = (x, z) => this.terrainSpeed(x, z) > 0 && !this.hits(x, z, 0.3);
+    for (let d = 0; d <= len; d += 1.5)
+      for (const s of [0, 1.4, -1.4]) if (!ok(F.x - ux * d + uz * s, F.z - uz * d - ux * s)) return null;
+    this.drawCorridor(F, ux, uz, len);
+    return { len: L, yaw: Math.atan2(ux, -uz) };
+  }
   /** Orange and white tape on stakes along both sides of the corridor, 1.4 m from its axis, at 0.85 m. */
   drawCorridor(S, ux, uz, len) {
     const T = this.T, c = document.createElement("canvas"); c.width = 64; c.height = 8;
@@ -658,7 +676,7 @@ export class World {
     const M = new T.Matrix4();
     stakes.forEach(([x, y, z], i) => im.setMatrixAt(i, M.makeTranslation(x, y - 0.05, z)));
     this.scene.add(tape, im);
-    this.corridorMeshes = [tape, im];
+    (this.corridorMeshes ||= []).push(tape, im);
   }
 
   // ---- the course's flags -----------------------------------------------------------------------------------------------------
@@ -697,6 +715,7 @@ export class World {
     };
     this.flags = [];
     this.startPos = this.corridor(course);
+    this.finTape = this.finishTape(course);
     const ROCKY = new Set(["boulder", "bigboulder", "cluster", "rockface", "cave"]);
     course.forEach((c, i) => { if (ROCKY.has(c.feature)) this.footOf(c, course[i - 1]); });
     for (const c of course) {
@@ -723,6 +742,7 @@ export class World {
         const stake = new T.Mesh(new T.CylinderGeometry(0.012, 0.012, 1.0, 5), new T.MeshLambertMaterial({ color: 0xdddddd })); stake.position.y = 0.5;
         g.add(prism, stake);
         if (c.kind === "finish") {
+          if (this.finTape) g.rotation.y = -this.finTape.yaw;       // the banner across the taped way, the runner coming through it
           const pole = (dx) => { const p = new T.Mesh(new T.CylinderGeometry(0.04, 0.04, 2.6, 6), new T.MeshLambertMaterial({ color: 0xeeeeee })); p.position.set(dx, 1.3, 0); return p; };
           const ban = new T.Mesh(new T.PlaneGeometry(3, 0.5), new T.MeshLambertMaterial({ map: tex, side: T.DoubleSide })); ban.position.set(0, 2.45, 0);
           g.add(pole(-1.5), pole(1.5), ban);

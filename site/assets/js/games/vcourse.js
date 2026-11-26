@@ -16,6 +16,9 @@ export const LEVELS = [
 // an invented forest's paths are sparser than a real forest's: the Bleu's legs may run a little farther from them (measured on the
 // five terrain types, 2026-11-12: 35 / 90 m found no Bleu on three of them, 45 / 110 m on all)
 export const GEN_LEVELS = LEVELS.map((L) => (L.id === "blue" ? { ...L, line: [45, 110] } : L));
+// the last control and the finish (owner, 2026-11-26): the last control within `fromStart` m of the start, the finish `fin` m from it
+// and within `fromStart` m of the start too; tools/virtually/course.py has the same numbers
+export const LAST = { fromStart: 350, fin: [60, 150] };
 const GOOD = { boulder: 1.0, bigboulder: 1.3, cluster: 1.0, knoll: 1.2, eknoll: 1.1, depression: 1.2, pit: 1.0, rockface: 1.2, junction: 1.0 };
 const COS150 = -0.8660254037844387;
 // the climb a course should keep under, a share of its length (IOF's guidance: little for beginners, 4-5 % at most for the others)
@@ -86,7 +89,7 @@ export function setCourses(pkg, { seed = 7, tries = 260, levels = LEVELS } = {})
     const [lo, hi] = L.leg;
     const pts = [starts[Math.floor(rnd() * starts.length)]], used = new Set(), kinds = [], legs = [];
     let score = 0;
-    for (let c = 0; c < L.n; c++) {
+    for (let c = 0; c < L.n - 1; c++) {
       const last = pts[pts.length - 1], ok = [];
       for (let i = 0; i < XY.length; i++) { const d = dist(XY[i], last); if (d > lo && d < hi && (L.site == null || siteHand[i] <= L.site)) ok.push(i); }
       for (let k = ok.length - 1; k > 0; k--) { const r = Math.floor(rnd() * (k + 1)); [ok[k], ok[r]] = [ok[r], ok[k]]; }
@@ -115,15 +118,41 @@ export function setCourses(pkg, { seed = 7, tries = 260, levels = LEVELS } = {})
       else if (L.reward === "hard") score += g + (0.3 * Math.min(siteHand[i], 120)) / 120 - (KIND[i] === "junction" ? 0.6 : 0);
       else score += g + 1.2 * Math.min(slow, 0.5) + 1.5 * Math.min(imp, 0.2) + (legs[legs.length - 1] > 0.6 * hi ? 0.6 : 0);
     }
-    // the finish: near the start, after the last control, crossing nothing
+    // the last control, easy for every level (owner, 2026-11-26: « there is always a last control very close to the arrival… easy to
+    // find for all categories, usually on a trail, and a balisage from that last control to the arrival »): a path junction, else a
+    // site within 5 m of a path, near the start (the finish is beside it), its leg from the course's last control a usual one
+    const prev = pts[pts.length - 1], lastOk = [], lastNear = [];
+    for (let i = 0; i < XY.length; i++) {
+      if (used.has(i) || dist(XY[i], pts[0]) > LAST.fromStart) continue;
+      const d = dist(XY[i], prev); if (d < Math.max(60, lo * 0.4) || d > hi) continue;
+      if (KIND[i] === "junction") lastOk.push(i); else if (siteHand[i] <= 5) lastNear.push(i);
+    }
+    for (const arr of [lastOk, lastNear]) for (let k = arr.length - 1; k > 0; k--) { const r = Math.floor(rnd() * (k + 1)); [arr[k], arr[r]] = [arr[r], arr[k]]; }
+    let lastC = null;
+    for (const i of [...lastOk, ...lastNear].slice(0, 120)) {
+      const p = XY[i];
+      if (pts.slice(1).some((q) => dist(p, q) < 60)) continue;
+      if (pts.length >= 2) {
+        const a = pts[pts.length - 2], ux = prev[0] - a[0], uz = prev[1] - a[1], vx = p[0] - prev[0], vz = p[1] - prev[1];
+        if ((ux * vx + uz * vz) / (Math.sqrt(ux * ux + uz * uz) * Math.sqrt(vx * vx + vz * vz) || 1) < COS150) continue;
+      }
+      let near = false; for (let j = 0; j < pts.length - 2; j++) if (segDist(prev, p, pts[j], pts[j + 1]) < 40) { near = true; break; }
+      if (near || lineStats(prev, p)[0] > 0.25) continue;
+      lastC = i; break;
+    }
+    if (lastC == null) return null;
+    used.add(lastC); pts.push(XY[lastC]); kinds.push(KIND[lastC]); legs.push(dist(XY[lastC], prev));
+    // the finish: LAST.fin m from the last control, the straight way between them runnable (it is taped), near the start
     let fin = null;
+    const lc = pts[pts.length - 1];
     for (let t = 0; t < 80 && !fin; t++) {
       const u = rnd() * 2 - 1, v = rnd() * 2 - 1, l = Math.sqrt(u * u + v * v); if (l < 0.2 || l > 1) continue;
-      const r = 40 + rnd() * 100, q = [pts[0][0] + (u / l) * r, pts[0][1] + (v / l) * r];
-      if (!(q[0] > 0 && q[0] < W && q[1] > 0 && q[1] < H) || speedAt(q[0], q[1]) < 0.6) continue;
-      const Lf = dist(q, pts[pts.length - 1]);
-      let near = false; for (let j = 1; j < pts.length - 2; j++) if (segDist(pts[pts.length - 1], q, pts[j], pts[j + 1]) < 30) { near = true; break; }
-      if (80 < Lf && Lf < Math.max(450, hi) && !near && (L.line == null || lineStats(pts[pts.length - 1], q)[2] <= L.line[0] * 1.5)) fin = q;
+      const r = LAST.fin[0] + rnd() * (LAST.fin[1] - LAST.fin[0]), q = [lc[0] + (u / l) * r, lc[1] + (v / l) * r];
+      if (!(q[0] > M && q[0] < W - M && q[1] > M && q[1] < H - M) || speedAt(q[0], q[1]) < 0.6) continue;
+      const ds = dist(q, pts[0]); if (ds < 30 || ds > LAST.fromStart) continue;
+      let near = false; for (let j = 1; j < pts.length - 2; j++) if (segDist(lc, q, pts[j], pts[j + 1]) < 30) { near = true; break; }
+      const [imp, slow] = lineStats(lc, q);
+      if (!near && imp === 0 && slow <= 0.15) fin = q;
     }
     if (!fin) return null;
     const all = [...pts, fin];
