@@ -1540,7 +1540,7 @@ Every multiple-choice game was played through to its score page at phone size, w
   building is drawn on until it comes out (10 m at most: porches, the station); a ring that turns back on itself (over 170°, a
   triangle under 0.5 m²) loses that point, again until none is left (needles after the overlays); the check joins again two
   contour ends facing each other under 8 m apart with no stairway left between them (a stairway an earlier pass dropped); building
-  outlines (521.9) stay in the olive as their buildings do; `build.py` opens the railway's 3 m stroke within 2 m of a passage (a
+  outlines (521.9) stay in the olive as their buildings do; `build.py` draws the railway's 3 m stroke as « oob », never « block » (2026-11-26: a town race runs « block » as paving, its walls stopping the runner by their 3D outlines, and the owner walked onto Gif's tracks from an underpass and was trapped there; Gif's cls.png patched in place), and opens it within 2 m of a passage (a
   road under the RER had the track's block across its mouth in the game); `src/olive_origin.json` says which rule made each piece
   of olive (parcel, school, private or railway; enclosure; island; no way reaches; hedge). The test of remark 5 leaves schools out (520 by design) and looks
   only at olive on the block's own parcel that lies against open ground with no wall between (the enclosed and island ground of

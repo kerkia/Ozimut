@@ -78,14 +78,16 @@ SPEED = {"forest": 0.82, "open": 1.0, "open_t": 0.95, "rough": 0.78, "rough_t": 
          "bfield": 0.42, "track": 1.02, "marsh": 0.5, "shallow": 0.3, "cultivated": 0.8, "stream": 0.55, "rockstep": 0.3,
          "small_path": 0.95, "stairs": 0.55, "building": 0, "water": 0, "marsh_x": 0, "cliff": 0, "oob": 0, "outside": 0, "block": 0}
 if SPRINT:
-    # ISSprOM 2019-2: 520 (olive) and 709/714 shall not be entered, 411 impassable vegetation, 522 canopies run as paving
+    # ISSprOM 2019-2: 520 (olive) and 709/714 shall not be entered, 411 impassable vegetation, 522 canopies run as paving;
+    # the railway 509 « oob », never « block » (2026-11-26, the owner trapped on Gif's tracks): a town race runs « block » as paving
+    # (vtown.js: its walls, fences and hedges stop the runner by their 3D outlines), and a railway has no outline
     AREA = {401: "open", 402: "open_t", 403: "rough", 404: "rough_t", 405: "forest", 406: "slow", 407: "slow_vis", 408: "walk",
             409: "walk_vis", 410: "fight", 411: "block", 412: "cultivated", 413: "cultivated", 414: "cultivated", 113: "rough",
             206: "cliff", 208: "bfield", 210: "stony", 213: "open", 214: "rock", 301: "water", 302: "shallow", 307: "marsh_x",
             308: "marsh", 310: "marsh", 501: "paved", 512: "paved", 520: "oob", 521: "building", 522: "paved", 533: "slow",
             709: "oob", 714: "oob"}
     LINE = {505: ("path", 1.6), 506: ("small_path", 1.0), 507: ("small_path", 0.7), 508: ("small_path", 0.7), 201: ("cliff", 1.4),
-            202: ("rockstep", 1.0), 305: ("stream", 1.2), 306: ("stream", 0.7), 309: ("marsh", 2.5), 509: ("block", 3.0),
+            202: ("rockstep", 1.0), 305: ("stream", 1.2), 306: ("stream", 0.7), 309: ("marsh", 2.5), 509: ("oob", 3.0),
             515: ("block", 0.8), 518: ("block", 0.6), 529: ("block", 1.0), 532: ("stairs", 2.5), 708: ("block", 0.8)}
     WALL = {201: ("cliff", 3.0), 202: ("rockface", 1.6), 513: ("stonewall", 0.9), 515: ("stonewall", 2.0), 516: ("fence", 1.1),
             518: ("fence", 2.0), 510: ("powerline", 9), 511: ("powerline", 12), 104: ("bank", 1.2)}
@@ -264,7 +266,7 @@ if SPRINT:
             if rr and len(rr[0]) >= 3:
                 _dn.polygon(rr[0], fill=1)
     _near = binary_dilation(np.array(_near, bool), iterations=2)
-    cls[_near & np.array(_rail, bool) & (cls == C["block"])] = C["paved"]
+    cls[_near & np.array(_rail, bool) & (cls == C["oob"])] = C["paved"]
 # stony ground and boulder fields as ground patches; buildings drawn as points
 img = Image.fromarray(cls); dr = ImageDraw.Draw(img)
 for p in points:
