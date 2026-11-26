@@ -1118,6 +1118,9 @@ export async function render(main, { query = {}, route } = {}) {
         const same = a.length >= 3 && a.length === b.length && a.every((p, i) => p === b[i]);
         if (same) { mapOrdered = true; recompute({ geometry: fit }); } else notes.length = n0;
       }
+      // still without the map's order: « Refaire le calage automatique » offered at once (it was only under « Corriger à la
+      // main » unless the reading was older — map 1's « Inter-postes » stayed hidden with no way back in sight, owner 2026-11-26)
+      if (!mapOrdered && !taus && !files.iof && !files.orga && !drawnHere()) olderReading = true;
       cur = nextTarget(0);
       side(); draw();
       // ready, not played: the page opens on the files and the calibration (« Voir la course » plays it), so that new

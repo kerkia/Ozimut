@@ -4519,6 +4519,9 @@ Every multiple-choice game was played through to its score page at phone size, w
   (accepted, the previous one `baseline_2026-11-25_before_passage.json`): no leg by the fallback anywhere (4 before); scan 1
   tracks laid 22 → 24 of 24, olive on every route 35 → 28 m; scan 2 laid 15 → 16, lines 12 → 7, grey 10 → 4 m, olive 11 → 7 m;
   scan 3 lines 10 → 13 on every route (a fence's end at control 9, a lane's mouth on 16-17).
+  **A restored calibration without the map's order offers « Refaire le calage automatique » at once** (2026-11-26, owner: map 1's
+  « Inter-postes » still hidden, no way back in sight): the button was shown only for a calibration of an older reading, else only
+  under « Corriger à la main ». A fresh automatic calibration reads the order of the printed legs, which shows the tab.
 - **Languages: French, English, German and Spanish** (owner, 2026-10-17 French and English, open to everyone since 2026-10-18,
   `i18n.OPEN` true; **German and Spanish since 2026-11-01**: `i18n.LANGS`, catalogues `i18n/de.js`, `es.js`, `tracer.de.js`,
   `tracer.es.js`, long texts `content/<name>.de.js` / `.es.js`, e-mails in `_lib/templates.js`, `manifest.de|es.webmanifest`;
