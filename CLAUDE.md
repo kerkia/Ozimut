@@ -1757,7 +1757,7 @@ Every multiple-choice game was played through to its score page at phone size, w
   Commons photos of the Trois Pignons (medians of the floor, the white sand, the sandstone, the pines' bark; only colours, nothing
   kept), more Scots pines (`pineShare` 0.95 over `pineMinH` 7 m) with their reddish trunks (`trunkPine`); vgen's « sandrock »
   takes the same set. Only CC0 libraries, or Commons / Panoramax photos under their licences with credits — never ordinary web
-  photos. The live Trois Pignons event (`ecavha6hyc`) was updated in place (race.json's biome and ground.jpg made again from its
+  photos. The live Trois Pignons event (`ecavha6hyc`, a training like the others: owner, 2026-11-26 — its courses set again that day by `course.py` on a copy of its package, the last control shared, its `race.json` and its record `virtual-events/ecavha6hyc.json` put back with wrangler, which drops the record's custom metadata until its next change; the files of before in `DATA/ecavha6hyc/_before_20261126/`) was updated in place (race.json's biome and ground.jpg made again from its
   own cls.png and h.png by build.py's formula: its courses and runs kept; a CI rebuild would set new courses, course.py searching
   by time). Measured in headless Edge: 60 fps at 1400 × 860 and 390 × 844, as before. **The trees' shapes** (owner, the same day:
   young pines as dark spikes, pines spruce-shaped, harsh shadows under the bushes): a Scots pine (`pine2`) is an irregular
