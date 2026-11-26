@@ -8,6 +8,10 @@ Nothing here is a secret: the secrets are typed into the tools (GitHub's form, w
 commit or a chat. Keep the files Apple and Google let you download **once** (the `.p8` keys, the keystore, the service
 account) in `C:\Kerkia\Ozimut\data\secrets\` — Kopia backs it up, git never sees it.
 
+**The whole setup, both apps and the tracking, in one ordered path, is `docs/track/setup.md`** (2026-11-26): the accounts
+(Google Play, Apple, Firebase), the keys and every secret are made once there for Folloz and this app together. This file
+keeps what is this app's alone (its tests, its App Store and Play forms, the replies to App Review).
+
 **Order.** Step 0 first (the server). Then **step 9, the Android app on your phone in 15 minutes**: it tests the site in the
 app, the bridge and the files before anything costs money or waits on Apple. Then Apple, steps 1 to 8 (start step 1 early:
 enrolment takes days). Then Google Play, steps 10 to 13.
@@ -17,16 +21,17 @@ own page: their consoles are redesigned often, the meaning of each step rarely.
 
 ## Already done for Folloz?
 
-Folloz (`docs/track/setup.md`) needs some of the same things. Whatever you already did there is reused:
+`docs/track/setup.md` makes the shared parts for both apps at once. Whatever is done there is reused here:
 
-| Done for Folloz | For this app |
+| Done there | For this app |
 |---|---|
-| Firebase project, `FCM_SERVICE_ACCOUNT` set (its step 5) | Only add an Android app `com.ozimut.app` to **the same** Firebase project (step 10): the server has one service account for both apps. |
-| Apple Developer Program, Team ID (its step 6.1) | Skip step 1. |
-| APNs key, `APNS_KEY`, `APNS_KEY_ID`, `APNS_TEAM_ID` (its step 6.3) | One APNs key serves every app of the team: only set `APNS_TOPIC` (step 3). |
-| App Store Connect API key and the four GitHub secrets (its step 6.4) | Reused as they are, **if the key's role is Admin** (step 4); Folloz's guide said App Manager, which is not enough here. |
-| Release keystore and `ANDROID_KEYSTORE_*` secrets (its step 8) | Reused as they are: both workflows read the same secret names (step 11). |
-| Play Console developer account (its step 8.1) | Skip step 10's account part. |
+| Firebase project with both Android apps, `APP_GOOGLE_SERVICES_JSON` and `FCM_SERVICE_ACCOUNT` set (its phase 2) | Step 10 is done. |
+| Apple Developer Program, Team ID (its 5.1) | Skip step 1. |
+| App ID `com.ozimut.app` (its 5.2) | Skip step 2. |
+| APNs key, `APNS_KEY`, `APNS_KEY_ID`, `APNS_TEAM_ID`, `APNS_TOPIC` on Pages (its 5.3) | Skip step 3. |
+| App Store Connect API key (Admin) and its four GitHub secrets on kerkia/Ozimut (its 5.4) | Skip step 4. |
+| The upload key and the `ANDROID_KEYSTORE_*` secrets on kerkia/Ozimut (its phase 3) | Skip step 11. |
+| Play Console developer account (its 4.1) | Skip step 12's account part. |
 
 To see which Pages secrets already exist:
 
@@ -400,8 +405,8 @@ in **the same Firebase project**.
 2. Project overview › « Add app » › Android › package name **`com.ozimut.app`** (exactly), nickname « Ozimut » › Register ›
    download **`google-services.json`** (it now holds both apps), into `C:\Kerkia\Ozimut\data\secrets\`. Skip the SDK steps.
 3. Project settings › Cloud Messaging: « Firebase Cloud Messaging API (V1) » must say Enabled.
-4. GitHub secret **`APP_GOOGLE_SERVICES_JSON`** = the file **in base64** (this workflow decodes it; Folloz's secret was the raw
-   text):
+4. GitHub secret **`APP_GOOGLE_SERVICES_JSON`** = the file **in base64** (this workflow decodes it; Folloz's repository takes
+   the same, as `GOOGLE_SERVICES_JSON`):
 
    ```powershell
    [Convert]::ToBase64String([IO.File]::ReadAllBytes("C:\Kerkia\Ozimut\data\secrets\google-services.json")) | Set-Clipboard
@@ -409,7 +414,7 @@ in **the same Firebase project**.
 
    then github.com/kerkia/Ozimut › Settings › Secrets and variables › Actions › New repository secret › paste.
 5. **Only if `FCM_SERVICE_ACCOUNT` is not set yet**: Firebase › Project settings › Service accounts › « Generate new private
-   key » › a JSON file into `data\secrets`, then:
+   key » › a JSON file into `data\secrets`, then (and the same to Folloz's relay, `docs/track/setup.md` 2.3):
 
    ```powershell
    cd C:\Kerkia\Ozimut\Ozimut; Get-Content -Raw C:\Kerkia\Ozimut\data\secrets\<the file>.json | npx wrangler pages secret put FCM_SERVICE_ACCOUNT --project-name observatoire-cn
@@ -419,8 +424,9 @@ in **the same Firebase project**.
 
 ## 11. The release keystore (10 minutes; once, kept for good)
 
-Both Android workflows read the same secrets (`ANDROID_KEYSTORE_BASE64`, `ANDROID_KEYSTORE_PASSWORD`, `ANDROID_KEY_ALIAS`,
-`ANDROID_KEY_PASSWORD`): **if Folloz's are set, they sign this app too** — nothing to do. With Play App Signing (the default)
+This app's workflow and Folloz's (in its own repository) read the same secret names (`ANDROID_KEYSTORE_BASE64`,
+`ANDROID_KEYSTORE_PASSWORD`, `ANDROID_KEY_ALIAS`, `ANDROID_KEY_PASSWORD`), set in each repository: `docs/track/setup.md`
+phase 3 makes one upload key (`ozimut-upload.jks`, alias `upload`) for both. With Play App Signing (the default)
 this key is only your *upload* key: Google keeps the key the phones see, and one upload key may serve several apps; a lost
 upload key can be replaced through Play's support.
 
@@ -499,13 +505,13 @@ The next « app-android » run then also keeps **`ozimut-app-aab`**, the signed 
 | `APP_STORE_CONNECT_ISSUER_ID` | GitHub repository | the Issuer ID | 4 |
 | `APP_STORE_CONNECT_KEY` | GitHub repository | the API `.p8` key's text (role Admin) | 4 |
 | `APP_GOOGLE_SERVICES_JSON` | GitHub repository | `google-services.json` in base64 | 10 |
-| `ANDROID_KEYSTORE_BASE64` | GitHub repository | the release keystore in base64 (shared with Folloz) | 11 |
+| `ANDROID_KEYSTORE_BASE64` | GitHub repository | the upload keystore in base64 (the same key as Folloz's, set in each repository) | 11 |
 | `ANDROID_KEYSTORE_PASSWORD`, `ANDROID_KEY_ALIAS`, `ANDROID_KEY_PASSWORD` | GitHub repository | its password, alias, key password | 11 |
-| `APNS_KEY` | Cloudflare Pages (`observatoire-cn`) | the APNs `.p8` key's text (shared with Folloz) | 3 |
+| `APNS_KEY` | Cloudflare Pages (`observatoire-cn`) | the APNs `.p8` key's text (also given to Folloz's relay) | 3 |
 | `APNS_KEY_ID` | Cloudflare Pages | the APNs key's Key ID | 3 |
 | `APNS_TEAM_ID` | Cloudflare Pages | Apple's Team ID | 3 |
 | `APNS_TOPIC` | Cloudflare Pages | `com.ozimut.app` | 3 |
-| `FCM_SERVICE_ACCOUNT` | Cloudflare Pages | Firebase's service account JSON (shared with Folloz) | 10 |
+| `FCM_SERVICE_ACCOUNT` | Cloudflare Pages | Firebase's service account JSON (also given to Folloz's relay) | 10 |
 
 GitHub: github.com/kerkia/Ozimut › Settings › Secrets and variables › Actions. Cloudflare Pages:
 `npx wrangler pages secret put <NAME> --project-name observatoire-cn`, run in `C:\Kerkia\Ozimut\Ozimut`, effective at the
