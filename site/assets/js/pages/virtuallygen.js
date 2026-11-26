@@ -67,7 +67,7 @@ export async function renderGen(el, ctx) {
     if (b === false) return html`<p class="vtg-err">${t("vtg.err")}</p><button type="button" class="btn btn-primary" data-make="${k}">${t(k === "day" ? "vtg.day.make" : "vtg.make")}</button>`;
     if (!m || (k === "free" && m.key !== freeKey())) return html`<button type="button" class="btn btn-primary" data-make="${k}">${t(k === "day" ? "vtg.day.make" : "vtg.make")}</button>
       ${m && k === "free" ? html` <span class="muted">${t("vtg.changed")}</span>` : ""}`;
-    const cs = m.race.race.courses, sel = state.sel[k];
+    const cs = V.ctx.offered(m.race.race.courses), sel = state.sel[k];
     if (!cs.length) return html`<p class="muted">${t("vtg.noCourse")}</p>`;
     return html`<p class="muted vtg-made">${t("vtg.made", { s: fmt(m.ms / 1000, 1), km: fmt(m.size / 1000, 1) })}</p>
       ${checkLine(m.chk)}
@@ -137,7 +137,8 @@ export async function renderGen(el, ctx) {
       const sig = P.courseSig(res.courses);
       state.made[k] = { key: k === "free" ? freeKey() : dayKey, ms: res.ms, size: res.world.W, chk: res.world.check,
         race: { id, name, gen: true, day: k === "day", sig, noSave: k === "free", race: raceJ, load } };
-      state.sel[k] = state.sel[k] && res.courses.some((c) => c.id === state.sel[k]) ? state.sel[k] : res.courses[2]?.id || res.courses[0]?.id || null;
+      const cs = V.ctx.offered(res.courses);
+      state.sel[k] = state.sel[k] && cs.some((c) => c.id === state.sel[k]) ? state.sel[k] : cs[2]?.id || cs[0]?.id || null;
       state.busy[k] = null;
     } catch (e) {
       console.error(e); state.busy[k] = false;

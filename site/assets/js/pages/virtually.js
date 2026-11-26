@@ -32,6 +32,10 @@ import { courseSig } from "./virtuallysrc.js";
 const API = "/api/virtual/";
 // a sprint has no violet nor middle and long distances: its orange courses are short and long (orange_s, orange_l)
 export const LEVELS = ["blue", "yellow", "orange_s", "orange_l", "orange_md", "orange_ld", "violet_md", "violet_ld"];
+// the courses offered to run: a forest's « Orange court » (orange_md) no longer (owner, 2026-11-26: « le circuit orange court peut être
+// supprimé sur les cartes forêt »); the packages and the invented terrain still set it (the « Carte du jour »'s signature, its runs
+// of before), and the runs on it stay in Résultats and the analysis
+export const offered = (cs) => (cs || []).filter((c) => c.id !== "orange_md");
 const LEVEL_COLOUR = { blue: "#2b6fd6", yellow: "#e2bd12", orange_s: "#f08a1c", orange_l: "#f08a1c", orange_md: "#f08a1c", orange_ld: "#f08a1c", violet_md: "#8e3fbf", violet_ld: "#8e3fbf" };
 
 export const clock = (s) => {
@@ -224,7 +228,7 @@ export async function render(main, { query }) {
     const list = await races();
     if (!list.some((r) => r.id === sel.race)) sel.race = null;
     const drawChooser = () => {
-      const race = list.find((r) => r.id === sel.race), courses = race?.race.courses || [];
+      const race = list.find((r) => r.id === sel.race), courses = offered(race?.race.courses);
       if (!courses.some((c) => c.id === sel.course)) sel.course = null;
       // on a phone the chosen map's circuits and « Commencer » come right under that map, not under the whole list (owner, 2026-11-12)
       // the invented forests (pages/virtuallygen.js) as two tiles among the maps (owner, 2026-11-14: hidden at the page's bottom,
@@ -235,7 +239,7 @@ export async function render(main, { query }) {
         <h2 class="vtp-h">${t("vt.tr.maps")}</h2>
         <div class="vtp-maps">${list.map((r) => html`<button type="button" class="vtp-map card" data-race="${r.id}" aria-pressed="${r.id === sel.race}">
           ${r.thumb ? html`<img src="${r.event ? `${API}events/${r.id}/pkg/` : `${API}${r.id}/`}thumb.webp" alt="" loading="lazy">` : html`<span class="vtp-nothumb"></span>`}
-          <b>${mapName(r.id)}</b><span class="muted">${t("vt.tr.mapLine", { scale: fmt(r.race.scale), std: r.race.std || "", n: r.race.courses.length })}</span>
+          <b>${mapName(r.id)}</b><span class="muted">${t("vt.tr.mapLine", { scale: fmt(r.race.scale), std: r.race.std || "", n: offered(r.race.courses).length })}</span>
           ${/* a map card names no organiser, and a training says nothing: this is the training page (owner, 2026-11-12); a
               competition, played once, keeps its tag */ ""}
           ${r.event?.type === "competition" ? html`<span><span class="tag vo-comp">${t("vo.type.competition")}</span></span>` : ""}
@@ -266,7 +270,7 @@ export async function render(main, { query }) {
       // invented terrain (pages/virtuallygen.js): the « Carte du jour » and the « Terrain libre », played by `play` as any map
       const genHost = $("#vtp-gen", el);
       const into = (q) => requestAnimationFrame(() => $(q, el)?.scrollIntoView({ block: "nearest", behavior: "smooth" }));
-      if (gen) import("./virtuallygen.js").then(async (m) => { if (genHost.isConnected) { await m.renderGen(genHost, { play, runsOf, courseName, swatch }); into(`#vtp-gen [data-k="${gen}"]`); } })
+      if (gen) import("./virtuallygen.js").then(async (m) => { if (genHost.isConnected) { await m.renderGen(genHost, { play, runsOf, courseName, swatch, offered }); into(`#vtp-gen [data-k="${gen}"]`); } })
         .catch((e) => console.error(e));
       if (inline) $(".vtp-inline", el).append(gen ? genHost : $(".vtp-below", el));
       $$(".vtp-map", el).forEach((b) => b.addEventListener("click", () => {
@@ -345,7 +349,7 @@ export async function render(main, { query }) {
   /** A map's training palmarès (owner, 2026-11-12: beside its circuits, a pop-up as the games' palmarès): for one circuit, the 20
    *  best training times, each runner's best; the circuit chosen above the table. */
   async function palmares(race, courseId) {
-    const courses = race.race.courses || [];
+    const courses = offered(race.race.courses);
     let cur = courses.find((c) => c.id === courseId)?.id || courses[0]?.id;
     const dlg = document.createElement("dialog");
     dlg.className = "g-palm vtp-palm";

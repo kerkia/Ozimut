@@ -606,7 +606,8 @@ export class World {
    *  de 90° de la direction du premier poste… c'est chelou de toujours regarder vers le nord au début »): ~50 m, its bearing drawn
    *  within ±60° of the start's to the first control by a seed of the course's own (everyone gets the same), on runnable ground -
    *  another bearing, else shorter. Drawn in the 3D only (the map unchanged); the runner starts at its far end facing the
-   *  triangle. Returns { x, z, yaw, len } or null. */
+   *  triangle. Returns { x, z, yaw, len } or null. The map draws it too, as ISOM's marked route 705 (owner, 2026-11-26: games/virtually.js
+   *  drawOverprint), and it ends at the start's flag (addCourse). */
   corridor(course) {
     const S = course[0], C1 = course[1];
     if (!S || !C1) return null;
@@ -615,7 +616,11 @@ export class World {
     // runnable ground, and no rock of the package's features on it (the chunks, and their trunks, are not built yet)
     const rockAt = (x, z) => (this.fb.get(`${Math.floor(x / CH)},${Math.floor(z / CH)}`)?.rocks || []).some((q) => Math.hypot(q[0] - x, q[1] - z) < (q[2] || 1) * 0.62 + 0.4);
     const ok = (x, z) => x > 2 && z > 2 && x < this.W - 2 && z < this.H - 2 && this.terrainSpeed(x, z) > 0 && !this.hits(x, z, 0.5) && !rockAt(x, z);
-    for (const len of [50, 40, 30, 20]) for (let k = 0; k < 14; k++) {
+    // long enough to show on the map past the start triangle (owner, 2026-11-26): ~12 mm on paper, 50 to 150 m (50 m at 1:4000,
+    // 120 m at 1:10 000, 150 m at 1:15 000), else shorter where the ground does not allow it
+    const want = Math.max(50, Math.min(150, Math.round((this.race.scale || 4000) * 0.012 / 10) * 10));
+    const lens = [want, ...[120, 90, 70, 50, 40, 30, 20].filter((l) => l < want)];
+    for (const len of lens) for (let k = 0; k < 14; k++) {
       const th = base + (r() * 2 - 1) * (Math.PI / 3), ux = Math.sin(th), uz = -Math.cos(th);
       let fine = true;
       for (let d = 2; d <= len && fine; d += 2) fine = ok(S.x - ux * d, S.z - uz * d) && ok(S.x - ux * d + uz * 1.4, S.z - uz * d - ux * 1.4) && ok(S.x - ux * d - uz * 1.4, S.z - uz * d + ux * 1.4);
@@ -699,10 +704,19 @@ export class World {
       const g = new T.Group(), y = this.heightAt(fx, fz);
       g.position.set(fx, y, fz);
       if (c.kind === "start") {
-        const tri = new T.Mesh(new T.CircleGeometry(0.45, 3), new T.MeshLambertMaterial({ color: 0xb5179e, side: T.DoubleSide }));
-        tri.position.y = 1.4; tri.rotation.z = Math.PI / 2;
-        const post = new T.Mesh(new T.CylinderGeometry(0.03, 0.03, 1.5, 5), new T.MeshLambertMaterial({ color: 0xdddddd })); post.position.y = 0.75;
-        g.add(tri, post);
+        // the start's flag (owner, 2026-11-26: « le couloir de départ devrait aboutir à la balise départ, qui est une balise classique
+        // mais en général de très grande taille »): an orange and white flag about three times a control's, high on its pole at the
+        // corridor's end, beside its axis (on the tape's line) so that the runner runs out past it; the purple triangle of before gone
+        const sp = this.startPos;
+        if (sp) {
+          const ux = Math.sin(sp.yaw), uz = -Math.cos(sp.yaw), fx2 = c.x + uz * 1.4 + ux * 0.4, fz2 = c.z - ux * 1.4 + uz * 0.4;
+          g.position.set(fx2, this.heightAt(fx2, fz2), fz2);
+          g.rotation.y = -sp.yaw;                                     // a face toward the runner coming up the corridor
+        }
+        const big = new T.Mesh(new T.CylinderGeometry(0.55, 0.55, 0.8, 3, 1, true), new T.MeshLambertMaterial({ map: tex, side: T.DoubleSide }));
+        big.position.y = 1.95;
+        const pole = new T.Mesh(new T.CylinderGeometry(0.035, 0.04, 2.45, 6), new T.MeshLambertMaterial({ color: 0xdddddd })); pole.position.y = 1.22;
+        g.add(big, pole);
       } else {
         const mat = new T.MeshLambertMaterial({ map: tex, side: T.DoubleSide, emissive: 0x000000 });
         const prism = new T.Mesh(new T.CylinderGeometry(0.21, 0.21, 0.3, 3, 1, true), mat); prism.position.y = 0.75;

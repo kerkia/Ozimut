@@ -336,7 +336,7 @@ export function mount(root, raceId, opts = {}) {
         g.restore();
       }
     }
-    function overprint(g) { drawOverprint(g, course, mPer, ppm); }
+    function overprint(g) { drawOverprint(g, course, mPer, ppm, world.startPos); }
     // The compass's line (owner, 2026-11-14: « la ligne de la boussole… ça permet aux autres manières d'orienter la carte d'être
     // utile »): a black line across the map panel through its middle in the direction the runner faces, as the compass laid on
     // the map gives it — never the runner's position: one pans the map to put the line where one thinks one is. Its arrow at a
@@ -1028,11 +1028,20 @@ function sideOf(town, x, z, buildingsOnly) {
 }
 
 /** The course's overprint on a map canvas: `mPer` canvas px per world metre, `mm` canvas px per map mm (start triangle,
- *  numbered circles, the legs, the finish's double circle). Shared with Coach › Virtually's analysis. */
-export function drawOverprint(g, course, mPer, mm) {
+ *  numbered circles, the legs, the finish's double circle). Shared with Coach › Virtually's analysis. `corridor` (vworld's
+ *  startPos { x, z }) adds the taped way to the start triangle as ISOM's marked route 705 (owner, 2026-11-26: « le couloir de
+ *  départ devrait être indiqué sur la carte »): a dashed line 0.35 mm, dashes 2 mm, gaps 1 mm, stopping at the triangle. */
+export function drawOverprint(g, course, mPer, mm, corridor = null) {
   const r = 3 * mm, lw = 0.35 * mm;
   g.strokeStyle = PURPLE; g.fillStyle = PURPLE; g.lineWidth = lw; g.lineCap = "round";
   const P = course.map((c) => [c.x * mPer, c.z * mPer]);
+  if (corridor && P.length) {
+    const [sx, sy] = P[0], cx = corridor.x * mPer, cy = corridor.z * mPer, L = Math.hypot(sx - cx, sy - cy), stop = 4.5 * mm;
+    if (L > stop + mm) {
+      g.save(); g.lineCap = "butt"; g.setLineDash([2 * mm, 1 * mm]);
+      g.beginPath(); g.moveTo(cx, cy); g.lineTo(sx - ((sx - cx) / L) * stop, sy - ((sy - cy) / L) * stop); g.stroke(); g.restore();
+    }
+  }
   for (let i = 0; i < P.length - 1; i++) {
     const [ax, ay] = P[i], [bx, by] = P[i + 1], L = Math.hypot(bx - ax, by - ay);
     const ra = (i === 0 ? 4 * mm : r) + 0.5 * mm, rb = (i + 1 === P.length - 1 ? 3.6 * mm : r) + 0.5 * mm;
