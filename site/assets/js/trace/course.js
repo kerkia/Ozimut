@@ -667,6 +667,25 @@ async function readCourse(image, { maxSide = 1800, debug = false, dark = false, 
   // without a start (the colour-blind reading): back from the finish along the legs, each time to a control not placed
   // yet that a leg joins; the controls in the course's order, then the finish. It stops where no leg leads on: the
   // controls before are left to the page, which places them by the trace
+  // a circle touching `from` (no leg is printed between two symbols that all but touch), unread, faint: the best ring round it
+  // that a printed leg joins to a control read — that leg is the proof a ring alone is not (the Quiberon scan's 24 beside its
+  // finish, at the reading's threshold, lost in Firefox's drawing of the scan, owner 2026-11-26)
+  function touching(from, placed, left) {
+    let best = null;
+    for (let deg = 0; deg < 360; deg += 4) {
+      const ux = Math.cos((deg * Math.PI) / 180), uy = Math.sin((deg * Math.PI) / 180);
+      for (let d = from.r + 0.7 * rStar; d <= from.r + 1.7 * rStar; d += 2) {
+        const x = from.x + d * ux, y = from.y + d * uy, q = ridgeRing(ink, w, h, x, y, rStar, tInk), v = q.score + q.arcs;
+        if (!best || v > best.v) best = { x, y, v };
+      }
+    }
+    if (!best) return null;
+    const c = bestRidge(ink, w, h, Math.round(best.x), Math.round(best.y), rStar, tInk);
+    if (c.score + c.arcs < 0.7 || c.score < 0.4 || !coloured({ x: c.x, y: c.y, r: c.r })
+      || placed.concat(controls).some((q) => Math.hypot(q.x - c.x, q.y - c.y) < 1.2 * rStar)) return null;
+    const leg = left.some((q) => legIn(c.x, c.y, q.x, q.y, 1.3 * rStar, 1.3 * q.r) >= LEG);
+    return leg ? { x: c.x, y: c.y, r: c.r, score: c.score, raw: c.arcs, touching: true } : null;
+  }
   function chainBack(fin) {
     if (!fin) return null;
     const left = controls.map((c) => ({ kind: "control", x: c.x, y: c.y, r: rStar }));
@@ -685,7 +704,7 @@ async function readCourse(image, { maxSide = 1800, debug = false, dark = false, 
       // no leg joins a circle read: a circle missed at the end of an inked leg leaving it, as the way from the start looks for
       // one (the Quiberon scan's 24, beside its finish, unread in one browser's drawing: no order, owner 2026-11-26)
       if (!joined.length) {
-        const c = alongLeg(p, seq, left);
+        const c = alongLeg(p, seq, left) || touching(p, seq, left);
         if (!c) break;
         if (c.sym) joined.push(c.sym);
         else { controls.push(c); const q = { kind: "control", x: c.x, y: c.y, r: rStar }; left.push(q); joined.push(q); }

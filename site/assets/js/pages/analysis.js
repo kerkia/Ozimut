@@ -318,7 +318,12 @@ export async function render(main, { query = {}, route } = {}) {
    *  read on the map alone may miss controls, and legs numbered from what was found would mislead. */
   // the controls' order is known: published splits, an IOF course, the organiser's, a drawing, or the course's legs followed on
   // the map (course.js `order`, since 2026-11-01; owner 2026-11-04: « Inter-postes » for the trainings read on their map too)
-  const sequenceKnown = () => !!officialTaus() || !!(files.iof?.data?.courses[iofIndex]) || !!files.orga || drawnHere() || mapOrdered;
+  const sequenceKnown = () => !!officialTaus() || !!(files.iof?.data?.courses[iofIndex]) || !!files.orga || drawnHere() || mapOrdered || trackOrdered();
+  // without them, the track's own order when it passes every control placed, one after the other (owner, 2026-11-26: map 1 read
+  // in Firefox missed a circle, no order was read and « Inter-postes » stayed hidden while « Itinéraires » listed every leg; a
+  // control missed then merges two legs, which the table says)
+  const trackOrdered = () => legs.length >= 3 && legs.every((l) => l.t0 != null && l.t1 != null && l.t1 > l.t0);
+  const orderFromTrack = () => !officialTaus() && !files.iof?.data?.courses[iofIndex] && !files.orga && !drawnHere() && !mapOrdered;
   let legs = [], total = 0, pre = 0, post = 0, raf = 0, last = 0, pxs = null, pys = null, fullPath = null, scrubbing = false;
   // a leg opened from « Inter-postes » (owner, 2026-11-07: as « Analyse de carte »): the time line and the playback on it alone,
   // ⏮ ⏭ from leg to leg, the way back to the whole course beside the leg's name on the map; -1 = the whole course
@@ -2308,7 +2313,7 @@ export async function render(main, { query = {}, route } = {}) {
     const k = klass(), r = runner(), est = !officialTaus();
     const hasHr = !!track.ch.hr, hasCad = !!track.ch.cad;
     const sum = legs.reduce((a, l) => ({ dist: a.dist + (l.dist || 0), straight: a.straight + (l.straight || 0), lost: a.lost + (l.mistake ? l.lost : 0), n: a.n + (l.mistake ? 1 : 0) }), { dist: 0, straight: 0, lost: 0, n: 0 });
-    $("#an-legs").innerHTML = html`<div class="table-wrap" title="${t(est ? "an.legs.hint.est" : "an.legs.hint")}"><table class="data compact"><thead><tr><th>${t("an.col.leg")}</th><th class="r">${t("an.col.time")}${est ? html`<div class="th-sub">${t("an.col.est")}</div>` : ""}</th>${est ? "" : html`<th class="r">${t("an.col.best")}</th>
+    $("#an-legs").innerHTML = html`${orderFromTrack() ? html`<p class="muted small">${t("an.legs.trackOrder")}</p>` : ""}<div class="table-wrap" title="${t(est ? "an.legs.hint.est" : "an.legs.hint")}"><table class="data compact"><thead><tr><th>${t("an.col.leg")}</th><th class="r">${t("an.col.time")}${est ? html`<div class="th-sub">${t("an.col.est")}</div>` : ""}</th>${est ? "" : html`<th class="r">${t("an.col.best")}</th>
         <th class="r">${t("an.col.rank")}</th><th class="r">${t("an.col.lost")}</th>`}<th class="r">${t("an.col.trace")}</th><th class="r">${t("an.col.straight")}</th><th class="r">${t("an.col.detour")}</th><th class="r">${t("an.col.pace")}</th>
         ${hasHr ? html`<th class="r">${t("an.col.hr")}</th>` : ""}${hasCad ? html`<th class="r" title="${unitOf("cad")}">${t("an.col.cad")} <span class="muted">${unitOf("cad")}</span></th>` : ""}</tr></thead>
       <tbody><tr data-leg="-1" class="an-legs-all${legSel < 0 ? " cur" : ""}" style="cursor:pointer"><td colspan="${(est ? 6 : 9) + (hasHr ? 1 : 0) + (hasCad ? 1 : 0)}">${t("sh.leg.all")}</td></tr>

@@ -5665,6 +5665,7 @@ export default {
   "an.tab.compute.tip": "The computed routes' settings: map type, speeds, relief, caution.",
   "an.tab.graphs.tip": "Pace and the file's channels (heart rate, altitude, cadence…) over the race time.",
   "an.tab.legs.tip": "Your legs: time, best time and rank, time lost, detour and pace. Click a row to see the leg on the map.",
+  "an.legs.trackOrder": "Control order taken from your track: it could not be read on the map. A control the map reading missed merges two legs.",
   "sh.tab.settings.tip": "The settings of the chosen view.",
   "sh.col.follow": "Follow",
   "sh.fresh.added.one": "{n} new track",

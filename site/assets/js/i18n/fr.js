@@ -4832,6 +4832,7 @@ export default {
   "an.tab.compute.tip": "Les réglages des itinéraires calculés : type de carte, vitesses, relief, prudence.",
   "an.tab.graphs.tip": "Allure et canaux du fichier (fréquence cardiaque, altitude, cadence…) sur le temps de course.",
   "an.tab.legs.tip": "Vos inter-postes : temps, meilleur temps et rang, temps perdu, détour et allure. Cliquez une ligne pour voir l'inter-poste sur la carte.",
+  "an.legs.trackOrder": "Ordre des postes pris sur votre trace : la carte n'a pas permis de le lire. Un poste non lu sur la carte réunit deux inter-postes.",
   "sh.tab.settings.tip": "Les réglages de la vue choisie.",
   "sh.col.follow": "Suivre",
   "sh.fresh.added.one": "{n} nouvelle trace",

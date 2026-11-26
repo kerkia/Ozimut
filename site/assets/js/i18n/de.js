@@ -5880,6 +5880,7 @@ export default {
   "an.tab.compute.tip": "Die Einstellungen der berechneten Routen: Kartentyp, Geschwindigkeiten, Relief, Vorsicht.",
   "an.tab.graphs.tip": "Tempo und die Kanäle der Datei (Herzfrequenz, Höhe, Kadenz…) über die Laufzeit.",
   "an.tab.legs.tip": "Deine Teilstrecken: Zeit, Bestzeit und Rang, verlorene Zeit, Umweg und Tempo. Klicke eine Zeile, um die Teilstrecke auf der Karte zu sehen.",
+  "an.legs.trackOrder": "Postenreihenfolge aus deinem Track: Sie ließ sich nicht von der Karte lesen. Ein nicht erkannter Posten fasst zwei Teilstrecken zusammen.",
   "sh.tab.settings.tip": "Die Einstellungen der gewählten Ansicht.",
   "sh.col.follow": "Folgen",
   "sh.fresh.added.one": "{n} neuer Track",

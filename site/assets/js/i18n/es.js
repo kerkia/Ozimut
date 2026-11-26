@@ -5880,6 +5880,7 @@ export default {
   "an.tab.compute.tip": "Los ajustes de las rutas calculadas: tipo de mapa, velocidades, relieve, prudencia.",
   "an.tab.graphs.tip": "Ritmo y canales del archivo (frecuencia cardíaca, altitud, cadencia…) a lo largo del tiempo de carrera.",
   "an.tab.legs.tip": "Tus tramos: tiempo, mejor tiempo y puesto, tiempo perdido, rodeo y ritmo. Haz clic en una fila para ver el tramo en el mapa.",
+  "an.legs.trackOrder": "Orden de los controles tomado de tu track: no se pudo leer en el mapa. Un control que la lectura del mapa no encontró une dos tramos.",
   "sh.tab.settings.tip": "Los ajustes de la vista elegida.",
   "sh.col.follow": "Seguir",
   "sh.fresh.added.one": "{n} track nuevo",

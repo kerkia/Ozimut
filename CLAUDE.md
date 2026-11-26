@@ -4559,6 +4559,15 @@ Every multiple-choice game was played through to its score page at phone size, w
   reading), and `chainBack` looks for a circle missed at the end of an inked leg as `followCourse` does (`alongLeg`). The course
   bench (`route-bench/course/ceval.mjs`): no case changed but hard_worse, which no longer fails; nothing out of order. Which
   circle a browser's drawing of a scan loses varies (the bench's scan 1 loses 16): the reading is at its limit on a few circles.
+  **Firefox** (the owner's browser, 2026-11-26): its drawing of the scanned PDF differs from Chrome's and Edge's by a few levels
+  (mean 3.5 of 255 round control 24), enough to lose 24 — faint, over a brown ring and olive, touching the finish, so no leg
+  between them. Reproduced with headless Firefox through puppeteer-core (`workoute-bench\gpuf.mjs`, the PDF served by
+  `serve.py` on 8801 with CORS; `crop.mjs ff|edge` compares the two drawings). `chainBack` now also looks for a circle touching
+  the symbol it stands on (`touching`: the best ring at 0.7-1.7 r* from its edge) and takes it only when a printed leg joins it to
+  a control read — on a scan a ring alone is never taken (`legRing`). Firefox's map 1: order F ← 24 ← 23, the rest by the passes.
+  The course bench unchanged. **« Inter-postes » also from the track** (owner's choice the same day, against the rule of
+  2026-11-01): when no order is known but every placed control is passed one after the other (`trackOrdered`), with a line above
+  the table (`an.legs.trackOrder`) saying a control the reading missed merges two legs.
 - **Languages: French, English, German and Spanish** (owner, 2026-10-17 French and English, open to everyone since 2026-10-18,
   `i18n.OPEN` true; **German and Spanish since 2026-11-01**: `i18n.LANGS`, catalogues `i18n/de.js`, `es.js`, `tracer.de.js`,
   `tracer.es.js`, long texts `content/<name>.de.js` / `.es.js`, e-mails in `_lib/templates.js`, `manifest.de|es.webmanifest`;
