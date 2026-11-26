@@ -1,7 +1,7 @@
 /* This Source Code Form is subject to the terms of the Mozilla Public License, v. 2.0. If a copy of the MPL was not
    distributed with this file, You can obtain one at https://mozilla.org/MPL/2.0/. */
 
-/* Ozimut Chrono (src/ui/): the timing window — bar, rail of posts, ribbon, post, status line.
+/* Chronoz (src/ui/): the timing window — bar, rail of posts, ribbon, post, status line.
    Built on the tokens and the few shared parts (buttons, tables) its page gives: base.css in Chrono's own page (the desktop
    app's window and the pages it serves), the site's stylesheet where a site hosts Chrono in one of its pages.
    Made for laptops (1366 × 768 and up, often 1920 × 1080 at 125-150 %): the height is what is short, so the frame — bar,

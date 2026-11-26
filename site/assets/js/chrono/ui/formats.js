@@ -85,7 +85,7 @@ export const hasKnockout = (ctx) => Object.values(ctx.st().classes).some((k) => 
 
 async function stageFromFile(f) {
   const bytes = new Uint8Array(await f.arrayBuffer()), text = decodeText(bytes), head = text.slice(0, 600).toLowerCase();
-  if (/\.(ozchrono|jsonl)$/i.test(f.name) || head.startsWith('{"format":"ozimut-chrono"')) { const d = fromFile(text); return stageFromOps(d.ops, { name: d.event?.name || f.name.replace(/\.\w+$/, ""), date: d.event?.date || "" }); }
+  if (/\.(chronoz|jsonl)$/i.test(f.name) || head.startsWith('{"format":"chronoz"')) { const d = fromFile(text); return stageFromOps(d.ops, { name: d.event?.name || f.name.replace(/\.\w+$/, ""), date: d.event?.date || "" }); }
   let set = null;
   if (head.includes("<meosdata")) set = (await import("../io/meosxml.js")).readMeos(text).set;
   else if (head.includes("<?xml") || /<resultlist\b/.test(head)) set = readIof(text)?.set;
@@ -130,7 +130,7 @@ export function seriesDialog(ctx) {
           else if (a === "screen") openPage(page());
           else if (a === "csv") download("general.csv", `﻿${totalsCsv(totals(ctx.st(), ctx.view()), L())}`, "text/csv");
           else if (a === "file") {
-            for (const f of await pickFiles(".xml,.csv,.txt,.meosxml,.ozchrono,.jsonl", true)) { if (add(await stageFromFile(f))) ctx.toast(t("chr.ser.added", { name: f.name }), "ok"); else await alertBox(t("chr.ser.noResults", { name: f.name })); }
+            for (const f of await pickFiles(".xml,.csv,.txt,.meosxml,.chronoz,.jsonl", true)) { if (add(await stageFromFile(f))) ctx.toast(t("chr.ser.added", { name: f.name }), "ok"); else await alertBox(t("chr.ser.noResults", { name: f.name })); }
           } else if (a === "local") {
             const list = (await listEvents().catch(() => [])).filter((e) => e.ev !== ctx.ev);
             if (!list.length) { await alertBox(t("chr.ser.noLocal")); return; }

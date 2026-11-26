@@ -1,4 +1,4 @@
-// An event's Chrono log in R2 (Ozimut Chrono's cloud copy: functions/api/chrono/[[path]].js; github.com/kerkia/ChronOzimut
+// An event's Chrono log in R2 (Chronoz's cloud copy: functions/api/chrono/[[path]].js; github.com/kerkia/Chronoz
 // docs/design.md): `chrono/<event>/meta.json` (what is held of each station, the batches) and `chrono/<event>/b/<key>.json`
 // (batches of operations, appended as they come). Shared by the API (a station's sync) and the server station `ozimut`
 // (_lib/entrychrono.js: the entries written to the log, the desk's operations read back), which appends and reads here

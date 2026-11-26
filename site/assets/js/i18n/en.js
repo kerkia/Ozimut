@@ -1503,7 +1503,7 @@ export default {
   "ad.bill.cap.analysisExport": "Image export of the analyses",
   "ad.bill.cap.pixelOwnMap": "Pixel: an event on one's own map",
   "ad.bill.cap.orgmapsMB": "The club's maps: storage",
-  "ad.bill.cap.chronoCompetition": "Chrono for a competition",
+  "ad.bill.cap.chronoCompetition": "Chronoz for a competition",
   "ad.bill.p.title": "Prices",
   "ad.bill.p.hint": "In euros, stored in cents. An empty Stripe id: that price cannot be paid by card.",
   "ad.bill.p.year": "Yearly price (€)",

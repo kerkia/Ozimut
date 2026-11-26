@@ -166,7 +166,7 @@ export async function mountChrono(root, opt) {
       if (b.dataset.act === "update") {
         const u = N.hub.info?.update || {};
         if (u.status === "ready") { if (await confirmBox(t("chr.upd.ask", { v: u.version }), { ok: t("chr.upd.restart"), cancel: t("chr.upd.later") })) window.chronoApp?.installUpdate?.(); }
-        else if (await confirmBox(t("chr.upd.get", { v: u.version }), { ok: t("chr.upd.open"), cancel: t("chr.upd.later") })) window.open("https://github.com/kerkia/ChronOzimut/releases/latest", "_blank", "noopener");
+        else if (await confirmBox(t("chr.upd.get", { v: u.version }), { ok: t("chr.upd.open"), cancel: t("chr.upd.later") })) window.open("https://github.com/kerkia/Chronoz/releases/latest", "_blank", "noopener");
         return;
       }
       ui.prepStep = b.dataset.act === "kit" ? "kit" : "net"; show(posts.some((p) => p.id === "prepare") ? "prepare" : cur, true); }));

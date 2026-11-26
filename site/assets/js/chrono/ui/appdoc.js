@@ -25,7 +25,7 @@ async function load() {
 export async function renderDoc(root) {
   if (!root) return null;
   const doc = await load();
-  if (!doc) { root.textContent = "Ozimut Chrono"; return null; }
+  if (!doc) { root.textContent = "Chronoz"; return null; }
   document.title = doc.title;
   // the name's O in the control flag's orange, as everywhere it is written
   const title = esc(doc.title).replace("Ozimut", '<span class="brand-o">O</span>zimut');

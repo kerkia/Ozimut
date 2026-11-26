@@ -1,7 +1,7 @@
 // This Source Code Form is subject to the terms of the Mozilla Public License, v. 2.0. If a copy of the MPL was not
 // distributed with this file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-// The documentation of Ozimut Chrono's desktop application (app/), in French — the reference: app.en.js, .de.js
+// The documentation of Chronoz's desktop application (app/), in French — the reference: app.en.js, .de.js
 // and .es.js in step, the same sections under the same ids. Plain data, so that both readers render it without helpers of
 // their own: the application's own page (src/ui/appdoc.js, app/www/doc.html) and Orga's documentation on the site
 // (content/guide.*.js, chapter « chrono-app »). `html` is static markup: h3, p, ul, ol, table, code, kbd, b, and plain
@@ -9,11 +9,11 @@
 // script, no link to another page of the site. Every statement was checked against app/main.mjs, hub.mjs, peers.mjs,
 // update.mjs and strings.mjs: when the application changes (a port, a menu, a folder), change the four files.
 export default {
-  title: "L'application Ozimut Chrono",
+  title: "L'application Chronoz",
   lede: "Le chronométrage d'Ozimut installé sur un ordinateur : sans Internet, les ordinateurs de l'arène reliés entre eux, tickets imprimés sans fenêtre. Ce mode d'emploi est le même dans l'application (Aide › Documentation) et dans la documentation d'Orga sur ozimut.com.",
   sections: [
     { id: "what", title: "À quoi sert l'application", html: `
-      <p>L'application Ozimut Chrono montre les mêmes écrans que l'onglet « Chrono » d'un événement d'Orga, sur ozimut.com. Elle fait en plus
+      <p>L'application Chronoz montre les mêmes écrans que l'onglet « Chrono » d'un événement d'Orga, sur ozimut.com. Elle fait en plus
         ce qu'un onglet de navigateur ne peut pas faire :</p>
       <ul>
         <li>elle marche <b>sans Internet</b> ;</li>
@@ -27,28 +27,28 @@ export default {
         par la copie sur Ozimut. Il faut Chrome ou Edge pour brancher un lecteur de puces. <b>Sans Internet</b>, installez l'application sur
         chaque ordinateur qui lit des puces ou imprime des tickets (voir « Relier les ordinateurs de l'arène »).</p>
       <p><b>Un logiciel libre.</b> L'application est publiée sous la licence publique Mozilla 2.0 (MPL 2.0) ; son code source est sur
-        <a href="https://github.com/kerkia/ChronOzimut" target="_blank" rel="noopener">github.com/kerkia/ChronOzimut</a>. Elle fonctionne
+        <a href="https://github.com/kerkia/Chronoz" target="_blank" rel="noopener">github.com/kerkia/Chronoz</a>. Elle fonctionne
         sans ozimut.com : ses liens avec Ozimut — la copie de l'événement sur Ozimut, la publication des résultats, les résultats en direct —
-        sont facultatifs. « Ozimut » et « Ozimut Chrono » restent les noms de leur auteur : une version modifiée distribuée à d'autres doit
+        sont facultatifs. « Ozimut » et « Chronoz » restent les noms de leur auteur : une version modifiée distribuée à d'autres doit
         porter un autre nom.</p>
-      <p><b>En test.</b> Comme Chrono lui-même, l'application n'a encore jamais servi avec de vraies stations SPORTident ou Emit, ni avec une
+      <p><b>En test.</b> Comme l'onglet « Chrono » d'Ozimut, l'application n'a encore jamais servi avec de vraies stations SPORTident ou Emit, ni avec une
         imprimante à tickets, ni sur une vraie compétition, et ses liaisons n'ont pas encore été essayées entre de vrais ordinateurs sur le
         réseau d'une arène. Essayez-la sur un entraînement, ou à côté de votre logiciel habituel.</p>` },
     { id: "install", title: "Télécharger, installer, désinstaller", html: `
       <p>Les fichiers se téléchargent sur la page des versions du projet :
-        <a href="https://github.com/kerkia/ChronOzimut/releases/latest" target="_blank" rel="noopener">github.com/kerkia/ChronOzimut/releases/latest</a>.
+        <a href="https://github.com/kerkia/Chronoz/releases/latest" target="_blank" rel="noopener">github.com/kerkia/Chronoz/releases/latest</a>.
         Le bouton « Télécharger l'application » de l'onglet « Chrono » d'Ozimut (Préparer › Liaisons) mène aux mêmes fichiers.</p>
       <table>
         <thead><tr><th>Système</th><th>Fichier</th><th>Ce que c'est</th></tr></thead>
         <tbody>
-          <tr><td>Windows</td><td><code>Ozimut-Chrono-Setup.exe</code></td><td>L'installateur, recommandé (environ 100 Mo). Il installe l'application pour votre
+          <tr><td>Windows</td><td><code>Chronoz-Setup.exe</code></td><td>L'installateur, recommandé (environ 100 Mo). Il installe l'application pour votre
             compte, sans droits d'administrateur, et <b>elle se tient ensuite à jour toute seule</b>.</td></tr>
-          <tr><td>Windows</td><td><code>Ozimut-Chrono-Portable.exe</code></td><td>La version portable : un seul programme, rien n'est installé. À
+          <tr><td>Windows</td><td><code>Chronoz-Portable.exe</code></td><td>La version portable : un seul programme, rien n'est installé. À
             lancer d'où l'on veut, d'une clé USB par exemple. Elle signale les nouvelles versions, mais ne se met pas à jour toute seule.</td></tr>
-          <tr><td>macOS</td><td><code>Ozimut-Chrono.dmg</code></td><td>Une seule image disque pour tous les Mac, à puce Apple comme Intel : ouvrez-la et
+          <tr><td>macOS</td><td><code>Chronoz.dmg</code></td><td>Une seule image disque pour tous les Mac, à puce Apple comme Intel : ouvrez-la et
             glissez l'application dans Applications. Elle signale les nouvelles versions, à installer à la main.</td></tr>
-          <tr><td>Linux</td><td><code>Ozimut-Chrono.AppImage</code></td><td>Un seul fichier (64 bits). Rendez-le exécutable — Propriétés ›
-            Permissions, ou <code>chmod +x Ozimut-Chrono.AppImage</code> —, puis lancez-le. Il se tient à jour tout seul.</td></tr>
+          <tr><td>Linux</td><td><code>Chronoz.AppImage</code></td><td>Un seul fichier (64 bits). Rendez-le exécutable — Propriétés ›
+            Permissions, ou <code>chmod +x Chronoz.AppImage</code> —, puis lancez-le. Il se tient à jour tout seul.</td></tr>
         </tbody>
       </table>
       <p><b>Tant que l'application n'est pas signée</b>, le système s'en méfie au premier lancement :</p>
@@ -60,12 +60,12 @@ export default {
       </ul>
       <h3>Désinstaller</h3>
       <ul>
-        <li><b>Windows</b> (installateur) : Paramètres › Applications › Ozimut Chrono › Désinstaller. <b>Version portable</b> : supprimez le
+        <li><b>Windows</b> (installateur) : Paramètres › Applications › Chronoz › Désinstaller. <b>Version portable</b> : supprimez le
           fichier.</li>
         <li><b>macOS</b> : mettez l'application à la corbeille.</li>
         <li><b>Linux</b> : supprimez le fichier AppImage.</li>
       </ul>
-      <p>Les événements restent dans leur dossier (Documents › « Ozimut Chrono », voir « Où sont les données »), et les réglages dans le
+      <p>Les événements restent dans leur dossier (Documents › « Chronoz », voir « Où sont les données »), et les réglages dans le
         dossier de réglages de l'application, jusqu'à ce que vous les supprimiez à la main.</p>` },
     { id: "first", title: "Premier lancement", html: `
       <p>La fenêtre s'ouvre sur l'accueil : la liste « Événements », la carte « Nouvel événement » (un nom, une date, les règles du pays —
@@ -81,16 +81,16 @@ export default {
           téléphone ou un écran peut prendre un autre thème que l'ordinateur.</li>
         <li><b>Un ordinateur portable</b> : les écrans de l'application sont faits pour la taille d'un portable. Les téléphones et les tablettes
           servent aux pages que l'application leur sert (speaker, résultats, arbitre ; voir « Téléphones et écrans »).</li>
-        <li><b>Le dossier des événements</b> est « Ozimut Chrono », dans vos Documents ; l'application le crée. Fichier › « Ouvrir le dossier
+        <li><b>Le dossier des événements</b> est « Chronoz », dans vos Documents ; l'application le crée. Fichier › « Ouvrir le dossier
           des données » le montre.</li>
-        <li><b>Un fichier d'événement</b> (.ozchrono) s'ouvre par un double-clic (avec la version installée), ou par Fichier › « Ouvrir un
+        <li><b>Un fichier d'événement</b> (.chronoz) s'ouvre par un double-clic (avec la version installée), ou par Fichier › « Ouvrir un
           fichier d'événement… » : ses opérations rejoignent cet événement dans l'application, sans rien doubler, et l'événement s'ouvre.</li>
         <li><b>Une seule application à la fois</b> : la lancer une seconde fois ramène la fenêtre déjà ouverte.</li>
-        <li><b>Le pare-feu</b> : au premier lancement, Windows demande s'il laisse Ozimut Chrono communiquer sur le réseau. Acceptez pour les
+        <li><b>Le pare-feu</b> : au premier lancement, Windows demande s'il laisse Chronoz communiquer sur le réseau. Acceptez pour les
           réseaux privés : sinon les autres ordinateurs de l'arène ne le trouvent pas, et les téléphones ne l'ouvrent pas.</li>
         <li><b>Le menu</b> : Fichier (ouvrir un fichier, ouvrir le dossier, quitter), Édition, Affichage (recharger, zoom, plein écran), Aide ›
-          « Documentation » (<kbd>F1</kbd>), « Rechercher les mises à jour… » et « Garder Ozimut Chrono à jour » (voir « Mettre à jour »), et
-          « À propos d'Ozimut Chrono », qui donne la version, l'adresse à ouvrir depuis les téléphones et les autres ordinateurs (avec la clé
+          « Documentation » (<kbd>F1</kbd>), « Rechercher les mises à jour… » et « Garder Chronoz à jour » (voir « Mettre à jour »), et
+          « À propos de Chronoz », qui donne la version, l'adresse à ouvrir depuis les téléphones et les autres ordinateurs (avec la clé
           de l'application), le port des poinçons radio et le dossier des données.</li>
       </ul>` },
     { id: "hub", title: "Relier les ordinateurs de l'arène", html: `
@@ -129,13 +129,13 @@ export default {
       <h3>Un ordinateur n'apparaît pas ?</h3>
       <p>Certains réseaux (Wi-Fi public, réseau d'école) empêchent les ordinateurs de se trouver. Dans Préparer › Liaisons, ouvrez « Un
         ordinateur n'apparaît pas ? », donnez l'adresse et la clé de l'application de l'autre ordinateur, puis « Se relier ». Son menu Aide ›
-        « À propos d'Ozimut Chrono » donne une adresse de la forme <code>http://192.168.1.20:8377/?k=…</code> : l'adresse est
+        « À propos de Chronoz » donne une adresse de la forme <code>http://192.168.1.20:8377/?k=…</code> : l'adresse est
         <code>192.168.1.20:8377</code>, la clé ce qui suit <code>?k=</code>. Cette liaison est gardée elle aussi d'un lancement à l'autre.</p>
       <h3>Téléphones et écrans</h3>
       <p>Un téléphone, une tablette ou un écran (speaker, résultats, arbitre, liste de départ) n'a rien à installer : son navigateur ouvre
         l'adresse de n'importe quel ordinateur où l'application tourne. Préparer › Liaisons la donne (« Téléphones et écrans sans
-        l'application (speaker, résultats, arbitre) : ouvrez <code>http://192.168.1.20:8377/?k=…</code> »), Aide › « À propos d'Ozimut
-        Chrono » aussi. Ce qui suit <code>?k=</code> est la <b>clé</b> de cette application ; sans elle, la page la demande dans un champ marqué
+        l'application (speaker, résultats, arbitre) : ouvrez <code>http://192.168.1.20:8377/?k=…</code> »), Aide › « À propos de Chronoz »
+        aussi. Ce qui suit <code>?k=</code> est la <b>clé</b> de cette application ; sans elle, la page la demande dans un champ marqué
         d'une clé. Choisissez l'événement dans la liste : ce poste voit la course en quelques instants et y écrit comme les autres. Un poste
         qui perd le réseau continue seul et se relie de lui-même au retour ; rien n'est perdu.</p>
       <h3>Un poste, un rôle</h3>
@@ -186,7 +186,7 @@ export default {
         « Publier sur Ozimut » —, et l'application relie les ordinateurs de l'arène sans Internet. Dans l'onglet, « Donner l'accès aux autres
         postes » crée une clé qui voyage avec la course : les ordinateurs de l'application échangent alors eux aussi avec Ozimut quand ils ont
         Internet.</p>
-      <p>Si l'onglet répond « L'application Ozimut Chrono n'a pas été trouvée sur cet ordinateur. » : vérifiez qu'elle est lancée, et, si le
+      <p>Si l'onglet répond « L'application Chronoz n'a pas été trouvée sur cet ordinateur. » : vérifiez qu'elle est lancée, et, si le
         navigateur demande l'autorisation d'accéder aux appareils du réseau local, accordez-la.</p>` },
     { id: "print", title: "Imprimer les tickets sans fenêtre", html: `
       <p>Dans Préparer › Matériel › « Imprimante des tickets », l'application ajoute un choix à « Imprimer sur » : « L'imprimante choisie, sans
@@ -220,18 +220,18 @@ export default {
       </ul>` },
     { id: "data", title: "Où sont les données", html: `
       <ul>
-        <li><b>Les événements</b> : dans Documents › « Ozimut Chrono », un journal par événement,
-          <code>&lt;événement&gt;.ozchrono.jsonl</code>. Chaque opération y est ajoutée et écrite sur le disque à l'instant où elle a lieu ; le
+        <li><b>Les événements</b> : dans Documents › « Chronoz », un journal par événement,
+          <code>&lt;événement&gt;.chronoz.jsonl</code>. Chaque opération y est ajoutée et écrite sur le disque à l'instant où elle a lieu ; le
           fichier n'est jamais réécrit. Il est relu à la réouverture de l'événement (une dernière ligne coupée par une panne de courant est
           ignorée). Chaque ordinateur de l'arène a le sien, complet.</li>
         <li><b>Le fichier <code>hub.json</code></b>, à côté, retient l'identité de cet ordinateur sur le réseau, le dernier événement ouvert,
           les codes d'événement tapés pour rejoindre un événement et les adresses ajoutées à la main (« Un ordinateur n'apparaît pas ? »).</li>
         <li><b>Sauvegarder</b>, c'est copier ce dossier. Un journal s'ouvre sur un autre ordinateur par Fichier › « Ouvrir un fichier
           d'événement… ».</li>
-        <li><b>Les réglages</b> : <code>settings.json</code>, dans le dossier de réglages de l'application — <code>%APPDATA%\\Ozimut Chrono</code>
-          sous Windows, <code>~/Library/Application Support/Ozimut Chrono</code> sous macOS, <code>~/.config/Ozimut Chrono</code> sous
+        <li><b>Les réglages</b> : <code>settings.json</code>, dans le dossier de réglages de l'application — <code>%APPDATA%\\Chronoz</code>
+          sous Windows, <code>~/Library/Application Support/Chronoz</code> sous macOS, <code>~/.config/Chronoz</code> sous
           Linux : la clé de l'application (celle que demandent les téléphones et les liaisons ajoutées à la main), le dernier dossier
-          d'enregistrement et, si vous l'avez décoché, le choix « Garder Ozimut Chrono à jour ». Une ligne <code>"folder"</code>, ajoutée à la
+          d'enregistrement et, si vous l'avez décoché, le choix « Garder Chronoz à jour ». Une ligne <code>"folder"</code>, ajoutée à la
           main, application fermée, place les événements dans un autre dossier.</li>
         <li>Le journal contient des noms, des clubs, des numéros de licence et de puce, et le code de l'événement : gardez ce dossier comme vous
           gardez vos fichiers de résultats.</li>
@@ -248,16 +248,16 @@ export default {
         l'ordinateur, sur vous ni sur vos événements ; sans Internet, il ne se passe rien. La suite dépend de la façon dont l'application a été
         installée :</p>
       <ul>
-        <li><b>Windows, installée avec <code>Ozimut-Chrono-Setup.exe</code>, et Linux (AppImage)</b> : la nouvelle version se télécharge en
+        <li><b>Windows, installée avec <code>Chronoz-Setup.exe</code>, et Linux (AppImage)</b> : la nouvelle version se télécharge en
           arrière-plan et s'installe <b>à la fermeture de l'application</b>. Une pastille « Mise à jour x prête » paraît alors dans la barre du
           haut d'un événement, et le menu Aide propose « Redémarrer et installer la version x ». Redémarrer tout de suite n'est jamais imposé ;
           ne le faites pas pendant la lecture des puces, car l'application se ferme une minute.</li>
         <li><b>macOS et la version portable de Windows</b> : l'application dit seulement qu'une nouvelle version existe — pastille « Version x
           disponible », et Aide › « Télécharger la version x… », qui ouvre la page de téléchargement. Téléchargez-la et installez-la à la
           main, comme la première fois (voir « Télécharger, installer, désinstaller »).</li>
-        <li>Aide › « Rechercher les mises à jour… » vérifie tout de suite et donne la réponse. Aide › « Garder Ozimut Chrono à jour » (coché
+        <li>Aide › « Rechercher les mises à jour… » vérifie tout de suite et donne la réponse. Aide › « Garder Chronoz à jour » (coché
           par défaut) arrête ou reprend les vérifications.</li>
-        <li><b>La version</b> en cours est dans Aide › « À propos d'Ozimut Chrono ». Les événements et les réglages sont conservés d'une version
+        <li><b>La version</b> en cours est dans Aide › « À propos de Chronoz ». Les événements et les réglages sont conservés d'une version
           à l'autre.</li>
         <li>Un fichier d'événement venu d'une version plus récente est refusé avec un message : mettez l'application à jour pour l'ouvrir.</li>
       </ul>
@@ -272,15 +272,15 @@ export default {
       <table>
         <thead><tr><th>Ce qui se passe</th><th>Que faire</th></tr></thead>
         <tbody>
-          <tr><td>« Ozimut Chrono ne peut pas démarrer » : les ports 8377 à 8387 sont tous pris.</td><td>L'application prend le port 8377 ou,
+          <tr><td>« Chronoz ne peut pas démarrer » : les ports 8377 à 8387 sont tous pris.</td><td>L'application prend le port 8377 ou,
             s'il est pris, le premier libre jusqu'à 8387. Fermez le logiciel qui les occupe. Si le port n'est pas 8377, l'adresse à donner aux
             téléphones change : Préparer › Liaisons et « À propos » donnent la bonne.</td></tr>
-          <tr><td>« Le dossier des données ne peut pas être utilisé ».</td><td>Le dossier « Ozimut Chrono » des Documents n'est pas accessible
+          <tr><td>« Le dossier des données ne peut pas être utilisé ».</td><td>Le dossier « Chronoz » des Documents n'est pas accessible
             en écriture (dossier protégé ou en cours de synchronisation) : libérez-le, ou indiquez un autre dossier dans
             <code>settings.json</code>.</td></tr>
           <tr><td>Un autre ordinateur n'apparaît pas dans « Sur le réseau », la barre dit « Aucun autre ordinateur », ou « L'autre ordinateur
             ne répond pas. »</td><td>Vérifiez qu'il est allumé, que l'application y est lancée et qu'il est sur le même réseau. Au premier
-            lancement, Windows demande une fois d'autoriser Ozimut Chrono sur les réseaux privés : acceptez (sinon, autorisez-le dans le
+            lancement, Windows demande une fois d'autoriser Chronoz sur les réseaux privés : acceptez (sinon, autorisez-le dans le
             pare-feu de Windows). Certains Wi-Fi isolent les appareils les uns des autres ou bloquent les annonces, comme les réseaux publics
             et les réseaux d'école : passez alors par « Un ordinateur n'apparaît pas ? ». Entre les ordinateurs doivent passer le port UDP 8379
             (les annonces) et le port TCP 8377 (les liaisons et les pages).</td></tr>
@@ -292,7 +292,7 @@ export default {
           <tr><td>Aide › « Rechercher les mises à jour… » répond « Le serveur des mises à jour ne répond pas. »</td><td>L'ordinateur n'a pas
             Internet, ou GitHub ne répond pas. Rien ne presse : l'application vérifie à nouveau au lancement et toutes les six heures.</td></tr>
           <tr><td>Un téléphone n'ouvre pas l'adresse.</td><td>Vérifiez qu'il est sur le même réseau que l'ordinateur, que le pare-feu de
-            celui-ci laisse passer « Ozimut Chrono », que le Wi-Fi n'isole pas les appareils entre eux, et que l'adresse est celle de Préparer ›
+            celui-ci laisse passer « Chronoz », que le Wi-Fi n'isole pas les appareils entre eux, et que l'adresse est celle de Préparer ›
             Liaisons ou d'« À propos ».</td></tr>
           <tr><td>La page demande une clé.</td><td>Tapez ce qui suit <code>?k=</code> dans l'adresse donnée par Préparer › Liaisons ou
             « À propos ».</td></tr>
@@ -300,7 +300,7 @@ export default {
             désinstaller ».</td></tr>
           <tr><td>Le lecteur de puces n'est pas vu.</td><td>Vérifiez le câble et le pilote USB du lecteur ; fermez tout autre logiciel qui
             tient son port (un autre logiciel de chronométrage, l'outil de réglage des stations, un onglet Chrono ouvert dans un navigateur) ;
-            débranchez et rebranchez, puis « Débrancher » et rebranchez le lecteur dans Chrono.</td></tr>
+            débranchez et rebranchez, puis « Débrancher » et rebranchez le lecteur dans Chronoz.</td></tr>
           <tr><td>Le ticket ne sort pas.</td><td>Faites un « Ticket d'essai » ; vérifiez l'imprimante choisie, le papier, et que l'imprimante
             imprime depuis un autre programme.</td></tr>
           <tr><td>Les poinçons radio n'arrivent pas.</td><td>« À propos » dit si le port 10000 est pris ; vérifiez l'adresse et le port réglés

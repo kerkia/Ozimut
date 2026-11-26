@@ -17,7 +17,7 @@ export function build(X) {
   const list = (items) => html`<ul class="mx-list">${items.filter(Boolean).map((i) => html`<li><span>${i}</span></li>`)}</ul>`;
   // a chapter of Orga's documentation
   const CHAP = (chapter, label) => html`<a href="#/documentation?module=orga&voir=${chapter}" data-tab-link="orga" data-goto="${chapter}">${label}</a>`;
-  // the desktop application's own documentation (site/assets/js/chrono/doc/app.*.js, Chrono's own, which the application shows too): a slide a section
+  // the desktop application's own documentation (site/assets/js/chrono/doc/app.*.js, Chronoz's own, which the application shows too): a slide a section
   const appDoc = (kicker) => html`<p class="muted" style="margin:0 0 14px">${APP.lede}</p>${APP.sections.map((sec) => slide(kicker, sec.title,
     raw(sec.html.replace(/<table>/g, '<div class="table-wrap"><table class="data compact">').replace(/<\/table>/g, "</table></div>")), `chrono-app-${sec.id}`))}`;
 
@@ -531,8 +531,8 @@ export function build(X) {
   // ======================================================================================================
   const ORGA = [["qui", "Meine Veranstaltungen"], ["evenement", "Eine Veranstaltung anlegen"], ["trace", "Bahnlegung"], ["horaires", "Anmeldungen und Starts"],
     ["direct", "Live"], ["resultats", "Ergebnisse"], ["analyses", "Analyse"],
-    // Chrono, the race timing: its tab is the administrators' only for now (pages/manage.js), and so are its chapters
-    ...(admin ? [["chrono", "Chrono"], ["chrono-app", "Die Chrono-Anwendung"]] : []), ["equipe", "Das Team"]];
+    // Chronoz, the race timing: its tab is the administrators' only for now (pages/manage.js), and so are its chapters
+    ...(admin ? [["chrono", "Chronoz"], ["chrono-app", "Die Anwendung Chronoz"]] : []), ["equipe", "Das Team"]];
   function orga() {
     return chapters(ORGA, {
       qui: () => html`
@@ -679,19 +679,19 @@ export function build(X) {
           <p>Die Läufer finden sie in Coach („Analyse › Mit den anderen vergleichen“). Die Bahnlegung kann ihre Bahnen auch samt Karte in eine Analyse veröffentlichen (bei einem
             Wettkampf nach dem Lauf).</p>`)}`,
       chrono: () => html`
-        ${slide("Chrono", "Einen Lauf mit Ozimut zeitmessen", html`
-          <p>Chrono ist das Zeitmess-Werkzeug von Ozimut: die Teilnehmer, die Auslosung der Startzeiten, das Auslesen der Chips im Ziel, die
+        ${slide("Chronoz", "Einen Lauf mit Ozimut zeitmessen", html`
+          <p>Chronoz ist das Zeitmess-Werkzeug von Ozimut: die Teilnehmer, die Auslosung der Startzeiten, das Auslesen der Chips im Ziel, die
             Belege, die Ergebnisse, die Arbeit des Schiedsrichters. Es steht in ${P("#/orga", "Meine Veranstaltungen")}: Öffne eine
             Veranstaltung, dann ihren Reiter „Chrono“, direkt vor „Team“. Die Reiter „Live“ und „Ergebnisse“ bleiben für alle, die mit einer
-            anderen Software zeitmessen. Chrono gibt es auch als Anwendung zum Installieren, um ohne Internet zu arbeiten und mehrere Computer
-            zu verbinden: siehe ${CHAP("chrono-app", "Die Chrono-Anwendung")}.</p>
+            anderen Software zeitmessen. Chronoz gibt es auch als Anwendung zum Installieren, um ohne Internet zu arbeiten und mehrere Computer
+            zu verbinden: siehe ${CHAP("chrono-app", "Die Anwendung Chronoz")}.</p>
           <div class="mx-callout"><b>In der Testphase, nur für Administratoren.</b> Der Reiter „Chrono“ wird vorerst nur den Administratoren von
-            Ozimut angezeigt. Chrono wurde noch nie mit echten SPORTident- oder Emit-Stationen, einem Belegdrucker oder einem echten MeOS
+            Ozimut angezeigt. Chronoz wurde noch nie mit echten SPORTident- oder Emit-Stationen, einem Belegdrucker oder einem echten MeOS
             ausprobiert, und keine seiner Dateien wurde bisher an einen Verband geschickt. Probiere es bei einem Training oder neben deiner
             gewohnten Software aus; vertraue ihm noch keinen Wettkampf allein an.</div>
-          <p><b>Die Idee in drei Sätzen.</b> Jede Station — ein Computer oder ein Telefon, auf dem Chrono geöffnet ist — schreibt, was sie tut
+          <p><b>Die Idee in drei Sätzen.</b> Jede Station — ein Computer oder ein Telefon, auf dem Chronoz geöffnet ist — schreibt, was sie tut
             (eine Anmeldung, ein ausgelesener Chip, eine Korrektur), als Vorgang in ein gemeinsames Protokoll, das des Laufs. Die Stationen
-            halten sich gegenseitig auf dem Stand: über die Kopie auf Ozimut, wenn es Internet gibt, über die Anwendung Ozimut Chrono im lokalen Netz — jeder Computer, der sie hat, verbindet sich von selbst mit den anderen —, sonst über eine Datei, die man mitnimmt. Ohne Verbindung behält jede Station alles bei sich und arbeitet weiter: Nichts geht
+            halten sich gegenseitig auf dem Stand: über die Kopie auf Ozimut, wenn es Internet gibt, über die Anwendung Chronoz im lokalen Netz — jeder Computer, der sie hat, verbindet sich von selbst mit den anderen —, sonst über eine Datei, die man mitnimmt. Ohne Verbindung behält jede Station alles bei sich und arbeitet weiter: Nichts geht
             verloren, und alles findet wieder zusammen, sobald die Verbindung zurück ist, in beliebiger Reihenfolge.</p>
           <p><b>Der Bildschirm.</b> Oben der Name der Veranstaltung, der Zustand der Geräte und Verbindungen (Lesegeräte, Drucker, Kopie auf Ozimut,
             verbundene Computer) und die Uhrzeit. Links die neun Stationen: Vorbereiten, Anmeldung, Start, Ziel, Übersicht, Sprecher, Schiedsrichter,
@@ -699,7 +699,7 @@ export function build(X) {
             geöffneten Station. Unten die Zähler: Teilnehmer, unterwegs, ausgelesene Chips, gewertet, zu klärende Punkte. Ein Chip, der an
             irgendeiner Station ausgelesen wird, wird behalten, bewertet, mit einem Ton gemeldet (hoch: alles in Ordnung; tief: etwas fehlt)
             und, wenn du es eingestellt hast, gedruckt.</p>`)}
-        ${slide("Chrono", "Vorbereiten: der Assistent in neun Schritten", html`
+        ${slide("Chronoz", "Vorbereiten: der Assistent in neun Schritten", html`
           <p>Die Station „Vorbereiten“ führt die Veranstaltung von null bis startklar. Die Schritte lassen sich in beliebiger Reihenfolge
             erledigen; ein Schritt, in dem etwas den Beginn verhindert, ist markiert.</p>
           <div class="mx-steps">
@@ -727,7 +727,7 @@ export function build(X) {
           ${list([
             html`<b>Importieren</b> nimmt jede Datei und sagt, was sie enthält, bevor sie hinzugefügt wird: IOF XML 3.0 (Teilnehmer,
               Startliste, Bahnen, Kategorien, Ergebnisse), eine CSV-Tabelle — die Datei des Verbands oder von OE, erkannt an ihren
-              Spaltentiteln auf Französisch, Englisch oder Deutsch —, eine MeOS-Datei, eine Ozimut-Chrono-Datei (.ozchrono). Was schon da
+              Spaltentiteln auf Französisch, Englisch oder Deutsch —, eine MeOS-Datei, eine Chronoz-Datei (.chronoz). Was schon da
               ist, wird ergänzt, nie verdoppelt: Ein Läufer wird an seiner Lizenz erkannt, sonst an Name und Verein.`,
             html`<b>Die Verbandsdatei</b> (Schritt „Teilnehmer“, „Datei laden“) ist die Datei der Lizenzinhaber des Verbands, auf diesem
               Computer aufbewahrt: Tippe im Eintrag eines Läufers einen Namen oder eine Lizenznummer, und der Rest füllt sich aus. „Chips
@@ -740,7 +740,7 @@ export function build(X) {
               einem fehlenden Posten oder ohne Ziel, um ihre Klärung zu üben. Nichts wird gespeichert oder gesendet. Ohne Teilnehmer legt er
               einen kleinen erfundenen Lauf an. „Probelauf beenden“ führt zum echten Lauf zurück.`,
           ])}`, "chrono-preparer")}
-        ${slide("Chrono", "Am Lauftag, Station für Station", html`
+        ${slide("Chronoz", "Am Lauftag, Station für Station", html`
           ${list([
             html`<b>Anmeldung</b>: einen Läufer nach Name, Verein, Lizenz, Startnr. oder Chipnummer finden. Ein leerer Chip auf dem Lesegerät
               öffnet den Eintrag seines Trägers oder eine neue Anmeldung mit dieser Nummer. Der Eintrag enthält die Nachmeldung („Neuer
@@ -767,12 +767,12 @@ export function build(X) {
               Hand“ notiert den Durchgang eines Läufers, den ein Postenkontrolleur am Telefon meldet.`,
             html`<b>Abschließen</b>: nach dem Lauf (siehe unten).`,
           ])}`, "chrono-postes")}
-        ${slide("Chrono", "Im Ziel: die Liste „Zu klären“", html`
-          <p>Chrono entscheidet nie an deiner Stelle: Was einen Menschen braucht, wartet in der Liste „Zu klären“ der Station Ziel (ein roter
+        ${slide("Chronoz", "Im Ziel: die Liste „Zu klären“", html`
+          <p>Chronoz entscheidet nie an deiner Stelle: Was einen Menschen braucht, wartet in der Liste „Zu klären“ der Station Ziel (ein roter
             Zähler zeigt es an der Station), jede Zeile mit ihrer Schaltfläche.</p>
           <div class="table-wrap"><table class="data compact"><thead><tr><th>Die Zeile sagt</th><th>Was das bedeutet</th><th>Was zu tun ist</th></tr></thead><tbody>
             <tr><td>Chip n: Niemand trägt ihn</td><td>Ein ausgelesener Chip, den kein Teilnehmer gemeldet hat.</td><td>„Zuteilen“: den Läufer
-              suchen (Chrono sagt, zu welcher Bahn der Chip passt), „Neuer Läufer“ oder „Beiseitelegen“.</td></tr>
+              suchen (Chronoz sagt, zu welcher Bahn der Chip passt), „Neuer Läufer“ oder „Beiseitelegen“.</td></tr>
             <tr><td>Chip n: Mehrere Läufer tragen ihn</td><td>Dieselbe Nummer ist mehreren Teilnehmern zugeteilt.</td><td>Dem richtigen Läufer „Zuteilen“.</td></tr>
             <tr><td>Kein Zielstempel oder kein Startstempel</td><td>Der Läufer hat die Einheit nicht gestempelt, oder sie hat nicht reagiert.</td>
               <td>„Chip ansehen“: die Zeit von Hand eingeben.</td></tr>
@@ -792,7 +792,7 @@ export function build(X) {
             html`<b>Der Eintrag des Läufers</b>, Teil „Schiedsrichter“: Ein von Hand gewählter Status geht dem vor, was der Chip sagt, und
               eine „Zeitkorrektur“ fügt Sekunden hinzu oder zieht sie ab.`,
           ])}`, "chrono-traiter")}
-        ${slide("Chrono", "Die Laufformate", html`
+        ${slide("Chronoz", "Die Laufformate", html`
           ${list([
             html`<b>Einzellauf</b>: der einfache Fall, eine Kategorie, eine Bahn. Eine Kategorie kann „Varianten“ haben (ihre Namen durch „/“
               getrennt): Die gelaufene Variante wird beim Auslesen des Chips erkannt.`,
@@ -808,20 +808,20 @@ export function build(X) {
               gewertet, die nicht neu gestartet wurden. „Massenstart aufheben“ macht es rückgängig.`,
             html`<b>Paare und Patrouillen</b>: in der Kategorie „Teams zu“ (2 für Paare) und „Gewertete Läufer“ — die Zeit des Teams ist die
               dieses Läufers im Ziel; leer zählen alle, und die Zeit ist die des Letzten.`,
-            html`<b>K.-o.-Sprint</b> (Schritt „Starts“, „K.-o.-Läufe“): Aus der Rangliste einer Qualifikation verteilt Chrono die Läufer „in
+            html`<b>K.-o.-Sprint</b> (Schritt „Starts“, „K.-o.-Läufe“): Aus der Rangliste einer Qualifikation verteilt Chronoz die Läufer „in
               Schlangenlinie“ auf Läufe, damit sie gleich stark sind; jeder Lauf ist eine eigene Kategorie mit Massenstart („Anzahl Läufe“,
               „Läufer pro Lauf“, „Start des ersten Laufs“, „Minuten zwischen zwei Läufen“). Die nächste Runde nimmt „Weiter pro Lauf“ und,
               wenn gewünscht, „Zeitschnellste dazu“, die Schnellsten der Ausgeschiedenen. Jeder behält seinen Chip: Das nächste Auslesen
               gehört zu seinem Lauf. Eine Runde, in der schon Chips ausgelesen wurden, lässt sich nicht neu anlegen. Das „Tableau der Läufe“
               druckt jede Runde und dann die Schlussrangliste.`,
             html`<b>Mehrere Tage</b> (Schritt „Starts“ und Station Abschließen): Füge die schon gelaufenen Etappen hinzu, aus einer
-              Ergebnisdatei (IOF XML, OE, MeOS oder Ozimut Chrono) oder aus einer anderen Veranstaltung dieses Computers. Die Gesamtwertung
+              Ergebnisdatei (IOF XML, OE, MeOS oder Chronoz) oder aus einer anderen Veranstaltung dieses Computers. Die Gesamtwertung
               addiert die Zeiten oder zählt Punkte (1000 für den Sieger jeder Etappe), über alle Etappen oder nur die besten („Gewertete
               Etappen“). Läufer werden an ihrer Lizenz erkannt, sonst an Name und Verein. <b>„Jagdstart“</b> für den letzten Tag: Der Führende
               der Gesamtwertung nach Zeit startet zur angegebenen Zeit, die anderen mit ihrem Rückstand; über dem „Größten Rückstand“ und für
               alle, denen eine Etappe fehlt, Start nacheinander in festem Abstand.`,
           ])}`, "chrono-formats")}
-        ${slide("Chrono", "Listen und Abrechnung", html`
+        ${slide("Chronoz", "Listen und Abrechnung", html`
           ${list([
             html`<b>Die fertigen Listen</b>: die Startliste nach Kategorie, nach Bahn, Minute für Minute (für das Startteam) und nach Verein;
               die Ergebnisse, mit oder ohne Zwischenzeiten; der Beleg jedes Läufers.`,
@@ -836,7 +836,7 @@ export function build(X) {
               (Bankverbindung, Zahlungsfrist) ein; du markierst einen Verein als bezahlt; du druckst einen Verein, alle Rechnungen oder nur
               die Vereine mit offenem Betrag; zwei CSV-Exporte, Übersicht und Einzelposten.`,
           ])}`, "chrono-listes")}
-        ${slide("Chrono", "Nach dem Lauf: Abschließen", html`
+        ${slide("Chronoz", "Nach dem Lauf: Abschließen", html`
           ${list([
             html`<b>„Stand des Laufs“</b>: die Läufer, die noch unterwegs sind, die nicht gestarteten Teilnehmer („Nicht Gestartete als nicht
               angetreten markieren“), ausgelesene Chips, die niemandem zugeteilt sind, nicht zurückgegebene Leihchips, offene Beträge.`,
@@ -852,19 +852,19 @@ export function build(X) {
             html`<b>Die Live-Ergebnisse</b> werden vor dem Lauf eingestellt: „Verbindungen“, „Die Ergebnisse live auf Ozimut zeigen“ — die
               Ergebnisse erscheinen in Arena › Live, etwa alle zwanzig Sekunden aktualisiert.`,
             html`<b>„Chips merken“</b> notiert auf diesem Computer den Chip jedes Lizenzinhabers, für die nächsten Läufe. <b>„Datei
-              speichern“</b> bewahrt den ganzen Lauf in einer .ozchrono-Datei auf, zum Archivieren.`,
+              speichern“</b> bewahrt den ganzen Lauf in einer .chronoz-Datei auf, zum Archivieren.`,
             html`<b>Eine Staffel</b> lässt sich noch nicht in „Ergebnisse“ veröffentlichen, und ihre Dateien enthalten die Ergebnisse Strecke
               für Strecke: Eine Datei mit Teamergebnissen gibt es noch nicht. Die Rangliste der Teams steht auf dem Bildschirm und auf den
               gedruckten Listen.`,
           ])}`, "chrono-cloturer")}
-        ${slide("Chrono", "Die Geräte", html`
+        ${slide("Chronoz", "Die Geräte", html`
           ${list([
             html`<b>SPORTident-Lesegerät</b>: Schließe die Hauptstation per USB an, dann „Geräte“, „SPORTident“; der Browser bittet dich,
               ihren Anschluss zu wählen, und merkt ihn sich. „Uhr stellen“ stellt das Lesegerät auf die Zeit des Computers. Nötig ist Chrome
               oder Edge auf einem Computer — nicht Firefox oder Safari, kein Telefon — oder die Anwendung. Die Chips SI5 bis SI11, SIAC und
               pCard sind vorgesehen.`,
             html`<b>Emit</b>: Wähle Emit als „Zeitmesssystem“, dann „Emit“ für ein Lesegerät 250 oder ein MTR4. Von einem eScan oder eScan2
-              („Emit eScan“) empfängt Chrono nur seinen Status und emiTag-Durchgänge, nicht den Inhalt der Chips: Emit veröffentlicht das
+              („Emit eScan“) empfängt Chronoz nur seinen Status und emiTag-Durchgänge, nicht den Inhalt der Chips: Emit veröffentlicht das
               Format nicht. Ein Lauf mit Emit-Chips lässt sich also nicht mit einem eScan auslesen; nötig ist ein 250 oder ein MTR4. Die
               anderen Emit-Einheiten (ECU, ETS) werden nicht unterstützt.`,
             html`<b>Belegdrucker</b>, „Drucken auf“: ein Belegdrucker an seriellem Anschluss, USB oder Bluetooth (die gängigen Modelle, Epson
@@ -874,7 +874,7 @@ export function build(X) {
             html`<b>Funkposten</b>: Setze das Häkchen „Funkposten“ an der Einheit (Station „Posten“). Die Durchgänge kommen über die
               Anwendung, die auf die Funkrelais hört, oder werden mit „Durchgang von Hand“ notiert; der Sprecher zeigt sie an.`,
           ])}`, "chrono-materiel")}
-        ${slide("Chrono", "Mehrere Stationen", html`
+        ${slide("Chronoz", "Mehrere Stationen", html`
           <p>Eine einzelne Station ohne Internet behält alles selbst. Sobald es mehrere gibt, oder um nicht von einem einzigen Computer
             abzuhängen, bietet der Schritt „Verbindungen“ drei Wege, die sich kombinieren lassen; „Prüfen“ warnt, solange der Lauf nur auf
             diesem Computer liegt.</p>
@@ -883,18 +883,18 @@ export function build(X) {
               Ozimut kopiert: Ein anderer Computer, der dieselbe Veranstaltung öffnet, übernimmt den Lauf, und nichts geht verloren, wenn
               dieser ausfällt. „Den anderen Stationen Zugang geben“ erzeugt einen Schlüssel, der mit dem Lauf mitreist: Stationen ohne Konto
               (die Anwendung, ein Telefon) tauschen dann ebenfalls mit Ozimut aus, ohne etwas einzugeben.</p></div>
-            <div class="mx-box" style="--c:var(--s3)"><h3>Die anderen Rechner im Wettkampfzentrum</h3><p>Die Anwendung Ozimut Chrono
+            <div class="mx-box" style="--c:var(--s3)"><h3>Die anderen Rechner im Wettkampfzentrum</h3><p>Die Anwendung Chronoz
               verbindet jeden Computer im Wettkampfzentrum, der sie hat, ohne Internet mit den anderen: alle gleichberechtigt, jeder mit
               seiner vollständigen Kopie. Ein anderer Computer tritt der Veranstaltung einmal bei, mit dem „Code der Veranstaltung“, der hier
               steht; Telefone und Bildschirme öffnen die hier genannte Adresse. Im Reiter, auf einem Computer, auf dem die Anwendung läuft:
-              „Die App auf diesem Computer suchen“ (siehe unten und ${CHAP("chrono-app", "Die Chrono-Anwendung")}).</p></div>
+              „Die App auf diesem Computer suchen“ (siehe unten und ${CHAP("chrono-app", "Die Anwendung Chronoz")}).</p></div>
             <div class="mx-box" style="--c:var(--s2)"><h3>Veranstaltungsdatei</h3><p>„Datei speichern“ legt den ganzen Lauf in eine
-              .ozchrono-Datei, zum Mitnehmen auf einem USB-Stick; „Datei laden“ fügt sie dem geöffneten Lauf hinzu, ohne etwas zu verdoppeln.
+              .chronoz-Datei, zum Mitnehmen auf einem USB-Stick; „Datei laden“ fügt sie dem geöffneten Lauf hinzu, ohne etwas zu verdoppeln.
               In Chrome oder Edge schreibt „Ein Protokoll in einem Ordner führen“ jeden Vorgang zusätzlich in einen Ordner des Computers.</p></div>
           </div>
           <p>Der „Name des Bedieners“ (Schritt „Verbindungen“) wird bei jeder Änderung vermerkt, für das Protokoll des Schiedsrichters.</p>`, "chrono-liaisons")}
-        ${slide("Chrono", "Die Computer im Wettkampfzentrum", html`
-          <p>Mit der Anwendung Ozimut Chrono sind alle Computer im Wettkampfzentrum gleichberechtigt: kein Hauptrechner, kein zentraler
+        ${slide("Chronoz", "Die Computer im Wettkampfzentrum", html`
+          <p>Mit der Anwendung Chronoz sind alle Computer im Wettkampfzentrum gleichberechtigt: kein Hauptrechner, kein zentraler
             Computer, den man wählen müsste. Jede Anwendung meldet im lokalen Netz die Veranstaltungen, die sie hat; zwei Anwendungen mit
             derselben Veranstaltung verbinden sich von selbst, jede behält ihre vollständige Kopie und ihr Protokoll, und ein Computer, der
             zurückkommt, holt nach, was er verpasst hat. Es genügt, dass jeder Computer mindestens einen anderen erreicht.</p>
@@ -920,8 +920,8 @@ export function build(X) {
               Druckdialog — und eine Kopie des Laufs auf der Festplatte des Computers.</p></div>
           </div>
           <p>Diese Verbindungen wurden bisher nur zwischen mehreren Anwendungen auf einem Computer erprobt, noch nicht zwischen echten Computern
-            im Netz eines Wettkampfzentrums. Die Einzelheiten: ${CHAP("chrono-app", "Die Chrono-Anwendung")}.</p>`, "chrono-arene")}
-        ${slide("Chrono", "Die Regeln nach Land und die Grenzen", html`
+            im Netz eines Wettkampfzentrums. Die Einzelheiten: ${CHAP("chrono-app", "Die Anwendung Chronoz")}.</p>`, "chrono-arene")}
+        ${slide("Chronoz", "Die Regeln nach Land und die Grenzen", html`
           <p>Die „Regeln“ der Veranstaltung legen die Alterskategorien, die Gewohnheiten der Auslosung, die Arten der Anmeldung
             (Lizenzinhaber, Tageslizenz, Lizenz eines anderen Verbands, ohne Lizenz) und die Datei des Verbands fest.</p>
           <div class="table-wrap"><table class="data compact"><thead><tr><th>Regeln</th><th>Alterskategorien</th><th>Auslosung</th><th>Ergebnisse und Datei</th></tr></thead><tbody>
@@ -931,7 +931,7 @@ export function build(X) {
           </tbody></table></div>
           <p>Diese Gewohnheiten sind nur die vorgeschlagenen Werte: Die Auslosung und die Übersicht lassen dich nach Bahn oder nach Kategorie
             wählen.</p>
-          <p><b>Was Chrono noch nicht kann oder noch nicht bewiesen hat</b>:</p>
+          <p><b>Was Chronoz noch nicht kann oder noch nicht bewiesen hat</b>:</p>
           ${list([
             html`kein Versuch mit echten Geräten (SPORTident- oder Emit-Stationen, Belegdrucker) oder mit einem echten MeOS;`,
             html`der Inhalt von Emit-Chips, die ein eScan oder eScan2 ausliest;`,
@@ -939,8 +939,8 @@ export function build(X) {
             html`der Reiter für andere als die Administratoren.`,
           ])}
           <p>Die Installation der Anwendung, das Verbinden der Computer im Wettkampfzentrum, der Direktdruck und die Funkposten sind in
-            ${CHAP("chrono-app", "Die Chrono-Anwendung")} beschrieben.</p>`, "chrono-regles")}`,
-      "chrono-app": () => appDoc("Die Chrono-Anwendung"),
+            ${CHAP("chrono-app", "Die Anwendung Chronoz")} beschrieben.</p>`, "chrono-regles")}`,
+      "chrono-app": () => appDoc("Die Anwendung Chronoz"),
     });
   }
 

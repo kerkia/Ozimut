@@ -18,7 +18,7 @@ const THEMES = ["light", "clearing", "forest", "undergrowth", "dark"];
 const theme = () => document.documentElement.dataset.theme || "light";
 
 export async function standalone(root) {
-  document.title = "Ozimut Chrono";
+  document.title = "Chronoz";
   const q = new URLSearchParams(location.search), k = q.get("k") || "", role = q.get("role") || "all";
   const hubUrl = location.protocol.startsWith("http") ? `${location.protocol === "https:" ? "wss" : "ws"}://${location.host}/hub${k ? `?k=${encodeURIComponent(k)}` : ""}` : "";
   const open = (ev, seed = null) => { history.replaceState(null, "", `?${new URLSearchParams({ ...Object.fromEntries(q), ev })}`); return mountChrono(root, { ev, seed, hubUrl, role, user: "" }); };
@@ -40,7 +40,7 @@ export async function standalone(root) {
     <p class="chr-home-doc"><a href="doc.html" target="_blank" rel="noopener">${t("chr.home.doc")}</a>
       <label>${t("chr.home.theme")} <select id="chr-theme">${THEMES.map((th) => html`<option value="${th}" ${th === theme() ? "selected" : ""}>${t(`chr.theme.${th}`)}</option>`)}</select></label>
       <label>${t("chr.home.lang")} <select id="chr-lang">${LANGS.map((l) => html`<option value="${l}" ${l === lang() ? "selected" : ""}>${LANG_NAMES[l]}</option>`)}</select></label></p></div>`.toString();
-  root.querySelector("#chr-theme").addEventListener("change", (e) => { document.documentElement.dataset.theme = e.target.value; try { localStorage.setItem("ozchrono.theme", e.target.value); } catch (err) { /* this visit only */ } });
+  root.querySelector("#chr-theme").addEventListener("change", (e) => { document.documentElement.dataset.theme = e.target.value; try { localStorage.setItem("chronoz.theme", e.target.value); } catch (err) { /* this visit only */ } });
   root.querySelector("#chr-lang").addEventListener("change", (e) => setLang(e.target.value));
   root.querySelectorAll("[data-ev]").forEach((b) => b.addEventListener("click", () => { clearInterval(tick); open(b.dataset.ev); }));
   // the events other computers of the arena hold (their app says so on the network): one is joined with its code, once

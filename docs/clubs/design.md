@@ -223,7 +223,7 @@ once it exists, or after « Envoyer les inscriptions à Chrono » (`POST /api/en
 entries, and read back: the operations of the other stations since
 `chrono_seen` on runners with `oz` (paid, card, rent, class, dns) update the entries; a runner added at the desk becomes an
 entry (origin desk). `/api/chrono/<event>` also opens to the event's team (`isMember` / `canManage`), not only
-administrators. Nothing changes in ChronOzimut unless a field must be shown at the desk; such a change is made in its own
+administrators. Nothing changes in Chronoz unless a field must be shown at the desk; such a change is made in its own
 repository first, then copied by `tools/chrono_sync.mjs`.
 
 ## 6. Pages, texts, files

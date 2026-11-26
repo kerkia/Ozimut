@@ -65,19 +65,19 @@ Notes on bundled sub-components:
 - `site/assets/js/tracer/relay.js` also re-implements .NET's `System.Random` (Knuth's subtractive generator) to draw the
   same relay teams as Purple Pen; its provenance is not stated beyond that comment: to check (the .NET runtime is MIT).
 
-### SPORTident libraries (Ozimut Chrono's card reading)
+### SPORTident libraries (Chronoz's card reading)
 
-Ported into Ozimut Chrono (`site/assets/js/chrono/si/`, a copy of its repository, where the tests are). Licence: MIT. Licence text and
+Ported into Chronoz (`site/assets/js/chrono/si/`, a copy of its repository, where the tests are). Licence: MIT. Licence text and
 the detail of what was ported from each: `site/assets/js/chrono/si/LICENSE-sportident.txt`.
 
 - sportident.js — « Copyright (c) 2018 Simon Hatt » — https://github.com/allestuetsmerweh/sportident.js
 - lool-ing/sportident — « Copyright (c) 2026 Jonas Hagberg and the LooL contributors » — https://github.com/lool-ing/sportident
 - GecoSI — « Copyright (c) 2013 Simon Denier » — https://github.com/sdenier/GecoSI
 
-### Ozimut Chrono
+### Chronoz
 
-`site/assets/js/chrono/`: Ozimut Chrono, © Yann Le Helloco, Mozilla Public License 2.0, a copy of
-https://github.com/kerkia/ChronOzimut, with its own notices. (The SPORTident ports above are part of it.)
+`site/assets/js/chrono/`: Chronoz, © Yann Le Helloco, Mozilla Public License 2.0, a copy of
+https://github.com/kerkia/Chronoz, with its own notices. (The SPORTident ports above are part of it.)
 
 ### Project Nayuki's QR Code generator (Folloz's QR codes on the iPhone and the Apple Watch)
 
@@ -216,10 +216,10 @@ shown are drawn on the map. The countries' outlines that choose the layer (`func
 ### Other software read for facts only (none of its code is here)
 
 - MeOS (AGPL-3.0, https://github.com/melinsoftware/meos): its source was read for file-format and protocol facts
-  (ChronOzimut `docs/meos.md`).
+  (Chronoz `docs/meos.md`).
 - emit-punch-cards-communication (GPL-3.0, https://github.com/mikaello/emit-punch-cards-communication): read for
-  protocol facts only, by Ozimut Chrono; none of its code or data is here
-  (ChronOzimut `docs/emit.md`).
+  protocol facts only, by Chronoz; none of its code or data is here
+  (Chronoz `docs/emit.md`).
 - QuickRoute (GPL): its JPEG format read from the format's description (`site/assets/js/trace/mapjpeg.js`).
 - OpenOrienteering Mapper (GPL): no code; Mapper files are read and written through the Purple Pen ports.
 

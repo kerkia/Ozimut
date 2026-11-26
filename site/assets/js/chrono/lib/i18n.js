@@ -6,14 +6,14 @@
 // `x.one` / `x.other`). A text missing in a language falls back to English, then French.
 //
 // The language: the one the page that hosts Chrono says (<html lang>, set by a site Chrono is part of), else the one
-// chosen here (?lang= in the address, the language menu of Chrono's own page: localStorage ozchrono.lang), else the first
+// chosen here (?lang= in the address, the language menu of Chrono's own page: localStorage chronoz.lang), else the first
 // of the browser's preferred languages Chrono has, English when it has none of them.
 // The catalogues load before any module that imports this one runs (top-level await), so t() is synchronous everywhere.
 
 export const LANGS = ["fr", "en", "de", "es"];
 export const LANG_NAMES = { fr: "Français", en: "English", de: "Deutsch", es: "Español" };     // each in its own language
 const LOCALES = { fr: "fr-FR", en: "en-GB", de: "de-DE", es: "es-ES" };
-const KEY = "ozchrono.lang";
+const KEY = "chronoz.lang";
 
 function chosen() {
   if (typeof document === "undefined") return "en";                        // (tests under Node)

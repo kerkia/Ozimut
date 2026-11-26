@@ -29,8 +29,8 @@ const STEPS = ["event", "courses", "classes", "entries", "teams", "starts", "kit
 const stepsOf = (ctx) => STEPS.filter((s) => s !== "teams" || hasTeams(ctx.st()));
 
 /** Where the desktop application is downloaded: the files the release workflow publishes (.github/workflows/release.yml). */
-const APP_BASE = "https://github.com/kerkia/ChronOzimut/releases/latest/download/";
-const APP_FILES = [["win", "Windows", "Ozimut-Chrono-Setup.exe"], ["winp", "Windows", "Ozimut-Chrono-Portable.exe"], ["mac", "macOS", "Ozimut-Chrono.dmg"], ["linux", "Linux", "Ozimut-Chrono.AppImage"]];
+const APP_BASE = "https://github.com/kerkia/Chronoz/releases/latest/download/";
+const APP_FILES = [["win", "Windows", "Chronoz-Setup.exe"], ["winp", "Windows", "Chronoz-Portable.exe"], ["mac", "macOS", "Chronoz.dmg"], ["linux", "Linux", "Chronoz.AppImage"]];
 export function appDialog() {
   const ua = navigator.userAgent, mine = /Windows/.test(ua) ? "win" : /Mac OS X|Macintosh/.test(ua) ? "mac" : /Linux|X11/.test(ua) && !/Android/.test(ua) ? "linux" : "";
   return formDialog({ title: t("chr.app.title"), ok: "", cancel: t("chr.close"),
@@ -53,7 +53,7 @@ export async function importFiles(ctx, files) {
   for (const f of files) {
     const bytes = new Uint8Array(await f.arrayBuffer()), text = decodeText(bytes), head = text.slice(0, 600).toLowerCase();
     try {
-      if (/\.(ozchrono|jsonl)$/i.test(f.name) || head.startsWith('{"format":"ozimut-chrono"')) {
+      if (/\.(chronoz|jsonl)$/i.test(f.name) || head.startsWith('{"format":"chronoz"')) {
         const d = fromFile(text);
         if (!(await confirmBox(t("chr.imp.fileAsk", { n: d.ops.length, name: d.event?.name || f.name }), { ok: t("chr.imp.take") }))) continue;
         const n = ctx.log.merge(d.ops).length;
@@ -364,9 +364,9 @@ function bindNet(ctx, el, store) {
   el.querySelector("#chr-app-dl")?.addEventListener("click", () => appDialog());
   el.querySelector("#chr-hub-join")?.addEventListener("click", () => { const v = el.querySelector("#chr-hub-url").value.trim().replace(/^(ws|http)s?:\/\//, "").replace(/\/.*$/, ""); const k = el.querySelector("#chr-hub-key").value.trim(); if (v) N.joinHub(`ws://${v}/hub${k ? `?k=${encodeURIComponent(k)}` : ""}`); });
   el.querySelector("#chr-file-out")?.addEventListener("click", () => download(eventFileName(ctx.log, ctx.ev), toFile(ctx.log, ctx.ev), "application/json"));
-  el.querySelector("#chr-file-in")?.addEventListener("click", async () => importFiles(ctx, await pickFiles(".ozchrono,.jsonl")));
+  el.querySelector("#chr-file-in")?.addEventListener("click", async () => importFiles(ctx, await pickFiles(".chronoz,.jsonl")));
   el.querySelector("#chr-journal")?.addEventListener("click", async () => {
-    try { const dir = await window.showDirectoryPicker({ mode: "readwrite", id: "ozchrono" }); ctx.ui.journal = await ctx.journal(dir); ctx.toast(t("chr.net.journalDone"), "ok"); } catch (e) { if (e?.name !== "AbortError") ctx.toast(`${t("chr.failed")} ${e.message}`, "stop"); }
+    try { const dir = await window.showDirectoryPicker({ mode: "readwrite", id: "chronoz" }); ctx.ui.journal = await ctx.journal(dir); ctx.toast(t("chr.net.journalDone"), "ok"); } catch (e) { if (e?.name !== "AbortError") ctx.toast(`${t("chr.failed")} ${e.message}`, "stop"); }
     ctx.refresh();
   });
 }
@@ -402,7 +402,7 @@ function checkPanel(ctx) {
 
 export const post = {
   ribbon(ctx) {
-    const s = ctx.ui.prepStep || "event", imp = { icon: "up", label: t("chr.rb.import"), tip: t("chr.rb.importTip"), primary: true, on: async () => importFiles(ctx, await pickFiles(".xml,.csv,.txt,.meosxml,.ozchrono,.jsonl", true)) };
+    const s = ctx.ui.prepStep || "event", imp = { icon: "up", label: t("chr.rb.import"), tip: t("chr.rb.importTip"), primary: true, on: async () => importFiles(ctx, await pickFiles(".xml,.csv,.txt,.meosxml,.chronoz,.jsonl", true)) };
     const v = () => exportView(ctx.view(), "class");
     const groups = {
       event: [{ label: t("chr.rb.data"), items: [imp] }],

@@ -19,7 +19,7 @@ const list = process.argv.includes("--list");
 // the gate itself: offers.js, the modules of billing/, the area « billing »
 const GATE = [/^offers\.js$/, /^billing\//, /^i18n\/billing\.(fr|en|de|es)\.js$/];
 const inGate = (file) => GATE.some((re) => re.test(file));
-// not the site's interface: other people's code, the deploy's generated copies, Ozimut Chrono's copy (an organiser's desk tool)
+// not the site's interface: other people's code, the deploy's generated copies, Chronoz's copy (an organiser's desk tool)
 const SKIP = [/^vendor\//, /^gen\//, /^i18n\/gen\//, /^chrono\//];
 
 // 1. what only the gate may name

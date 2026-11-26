@@ -1,11 +1,11 @@
 // This Source Code Form is subject to the terms of the Mozilla Public License, v. 2.0. If a copy of the MPL was not
 // distributed with this file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-// Ozimut Chrono's catalogue in English (src/ui/*.js, pages/chrono.js), loaded by loadArea("chrono");
+// Chronoz's catalogue in English (src/ui/*.js, pages/chrono.js), loaded by loadArea("chrono");
 // the keys of chrono.fr.js.
 export default {
-  "chr.adminOnly": "Chrono is still being built: only administrators can open it for now.",
-  "chr.beta": "Chrono is being tested: try it at a training session or alongside your usual software, not yet on its own at a competition.",
+  "chr.adminOnly": "Chronoz is still being built: only administrators can open it for now.",
+  "chr.beta": "Chronoz is being tested: try it at a training session or alongside your usual software, not yet on its own at a competition.",
   "chr.ok": "OK",
   "chr.cancel": "Cancel",
   "chr.close": "Close",
@@ -74,7 +74,7 @@ export default {
   "chr.cnt.warn.other": "{n} to check",
 
   "chr.dev.noReader": "No reader",
-  "chr.dev.noSerial": "This browser cannot talk to card readers. Use Chrome or Edge on a computer, or the Ozimut Chrono app.",
+  "chr.dev.noSerial": "This browser cannot talk to card readers. Use Chrome or Edge on a computer, or the Chronoz app.",
   "chr.dev.readerTip": "Card readers plugged into this station",
   "chr.dev.printerTip": "This station's receipt printer",
   "chr.dev.st.opening": "opening",
@@ -119,16 +119,16 @@ export default {
   "chr.net.liveOk": "Last sent at {at}.",
   "chr.net.liveErr": "The last send failed.",
   "chr.net.hub": "The arena's other computers",
-  "chr.net.hubHint": "Without Internet, the arena's computers link to each other through the Ozimut Chrono application, each its own. This tab can link to the application if it runs on this computer; a browser on another computer opens the address it shows.",
+  "chr.net.hubHint": "Without Internet, the arena's computers link to each other through the Chronoz application, each its own. This tab can link to the application if it runs on this computer; a browser on another computer opens the address it shows.",
   "chr.net.findApp": "Look for the app on this computer",
-  "chr.net.noApp": "The Ozimut Chrono app was not found on this computer.",
+  "chr.net.noApp": "The Chronoz app was not found on this computer.",
   "chr.net.join": "Connect",
   "chr.net.key": "Application key",
   "chr.net.leaveHub": "Disconnect",
   "chr.net.file": "Event file",
   "chr.net.fileOut": "Save the file",
   "chr.net.fileIn": "Load a file",
-  "chr.net.fileHint": "The .ozchrono file holds the whole race: to carry it on a USB stick, carry on with it on another computer or archive it.",
+  "chr.net.fileHint": "The .chronoz file holds the whole race: to carry it on a USB stick, carry on with it on another computer or archive it.",
   "chr.net.journal": "Keep a log in a folder",
   "chr.net.journalOn": "Log kept",
   "chr.net.journalDone": "Every operation is now also written to this folder.",
@@ -138,9 +138,9 @@ export default {
   "chr.hub.lost": "Application lost",
   "chr.hub.refused": "Application: refused",
   "chr.hub.error": "Application: error",
-  "chr.hub.long.off": "This station is linked to no Ozimut Chrono application.",
+  "chr.hub.long.off": "This station is linked to no Chronoz application.",
   "chr.hub.long.connecting": "Connecting to the application…",
-  "chr.hub.long.on": "Linked to the Ozimut Chrono application: the arena's computers exchange with each other, even without Internet.",
+  "chr.hub.long.on": "Linked to the Chronoz application: the arena's computers exchange with each other, even without Internet.",
   "chr.hub.long.lost": "The application no longer answers: this station carries on alone and links again by itself.",
   "chr.hub.long.refused": "The application refuses this station: the key or the event does not match.",
   "chr.hub.long.error": "The application's address is not valid.",
@@ -195,7 +195,7 @@ export default {
   "chr.prep.check": "Check",
   "chr.rb.data": "Data",
   "chr.rb.import": "Import",
-  "chr.rb.importTip": "Import a file: entries, courses, start times or results (IOF XML, the federation's or OE's file, a CSV table, MeOS, an Ozimut Chrono file)",
+  "chr.rb.importTip": "Import a file: entries, courses, start times or results (IOF XML, the federation's or OE's file, a CSV table, MeOS, an Chronoz file)",
   "chr.rb.archive": "Federation file",
   "chr.rb.export": "Export",
   "chr.rb.print": "Print",
@@ -743,7 +743,7 @@ export default {
   "chr.ser.addLocal": "Add an event of this computer",
   "chr.ser.add": "Add",
   "chr.ser.added": "Stage added: {name}.",
-  "chr.ser.noResults": "{name}: no readable results (an IOF XML, OE, MeOS or Ozimut Chrono results file).",
+  "chr.ser.noResults": "{name}: no readable results (an IOF XML, OE, MeOS or Chronoz results file).",
   "chr.ser.noLocal": "No other event is kept on this computer.",
   "chr.ser.none": "No stage added.",
   "chr.ser.nClasses.one": "{n} class",
@@ -776,14 +776,14 @@ export default {
   "chr.cha.done": "Start times set: {chase} in the chase, {late} after it, {none} unknown to the stages.",
   "chr.app.get": "Download the application",
   "chr.app.getHint": "To link several stations without the Internet, print without a dialog and receive radio controls.",
-  "chr.app.title": "The Ozimut Chrono application",
+  "chr.app.title": "The Chronoz application",
   "chr.app.lede": "The same as this tab, installed on the finish computer: it works without the Internet, links the other computers and phones of the local network, keeps the race's journal in a folder and prints receipts without a dialog.",
   "chr.app.f.win": "Installer (recommended)",
   "chr.app.f.winp": "Portable version, no installation (USB stick)",
   "chr.app.f.mac": "Disk image for Mac",
   "chr.app.f.linux": "AppImage (64-bit)",
   "chr.app.warn": "While the application is not signed, Windows shows “Windows protected your PC”: choose “More info”, then “Run anyway”. On a Mac, the first time: System Settings › Privacy & Security › “Open Anyway” (right-click › “Open” on older versions).",
-  "chr.app.doc": "Its guide is in Orga's documentation, “The Chrono application”.",
+  "chr.app.doc": "Its guide is in Orga's documentation, “The Chronoz application”.",
 
   "chr.dsg.open": "Compose a list",
   "chr.dsg.openTip": "Compose your own lists: rows, grouping, columns, sorting — print them, export them, save them with the event",
@@ -892,7 +892,7 @@ export default {
   "chr.inv.fileSum": "club-invoices",
   "chr.inv.fileLines": "invoice-details",
 
-  "chr.kit.escanTip": "Plug in an eScan or an eScan2: Chrono receives its status and emiTag passings. The cards' content is not read from it yet: Emit does not publish its format.",
+  "chr.kit.escanTip": "Plug in an eScan or an eScan2: Chronoz receives its status and emiTag passings. The cards' content is not read from it yet: Emit does not publish its format.",
 
   "chr.lan.code": "Event code",
   "chr.lan.codeHint": "On every other arena computer that has the application: home screen › “On the network” › this event, then this code, once. After that everything links by itself.",
@@ -915,7 +915,7 @@ export default {
   "chr.home.codeAsk": "Type the event code shown on {from} under Prepare › Connections. It is asked once only: after that this station links by itself.",
   "chr.home.joining": "Connecting…",
   "chr.home.codeBad": "That is not this event's code.",
-  "chr.home.unreachable": "The other computer does not answer. Check that it is on, on the same network, and that its firewall lets Ozimut Chrono through.",
+  "chr.home.unreachable": "The other computer does not answer. Check that it is on, on the same network, and that its firewall lets Chronoz through.",
 
   "chr.lan.solo": "No other computer",
 
@@ -930,7 +930,7 @@ export default {
   "chr.upd.ask": "Version {v} is downloaded. It will install by itself when you close the app.\n\nRestart now? Not while cards are being read: the app closes for a minute.",
   "chr.upd.restart": "Restart now",
   "chr.upd.later": "Later",
-  "chr.upd.get": "Version {v} of Ozimut Chrono is available. This copy of the app cannot update itself: download the new version and install it, preferably before the race.",
+  "chr.upd.get": "Version {v} of Chronoz is available. This copy of the app cannot update itself: download the new version and install it, preferably before the race.",
   "chr.upd.open": "Open the download page",
   "chr.lan.versions": "Different versions: {list} (this computer: {mine}). Update every computer before the race.",
   "chr.home.theme": "Theme",

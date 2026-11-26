@@ -3,12 +3,12 @@
 
 // Where a station keeps its log: the browser's database (IndexedDB, written with strict durability so that a power cut
 // loses nothing already shown), optionally a journal in a folder the user chose (one line an operation, readable by hand),
-// and the event file `.ozchrono` to carry a race from one computer to another. Browser only.
+// and the event file `.chronoz` to carry a race from one computer to another. Browser only.
 
 import { Log, newStation } from "./log.js";
 
 const DB = "oz-chrono", VERSION = 1;
-export const FILE_FORMAT = "ozimut-chrono", FILE_VERSION = 1;
+export const FILE_FORMAT = "chronoz", FILE_VERSION = 1;
 let dbp = null;
 const open = () => (dbp ||= new Promise((ok, ko) => {
   const r = indexedDB.open(DB, VERSION);
@@ -82,13 +82,13 @@ export async function openEvent(ev, { name = "", date = "" } = {}) {
   return {
     log, get meta() { return meta; }, get failed() { return failed; },
     saved: () => flush(),
-    /** Also append every operation to `<event>.ozchrono.jsonl` in a folder (a File System Access directory handle). */
+    /** Also append every operation to `<event>.chronoz.jsonl` in a folder (a File System Access directory handle). */
     async journal(dir) { jour = dir ? await openJournal(dir, `${fileName(log.state.event, ev)}.jsonl`, log.ops) : null; return !!jour; },
     stop() { off(); return flush(); },
   };
 }
 
-const fileName = (event, ev) => `${String(event?.name || "chrono").normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/[^\w-]+/g, "-").replace(/^-|-$/g, "").slice(0, 60) || "chrono"}-${String(ev).slice(0, 8)}.ozchrono`;
+const fileName = (event, ev) => `${String(event?.name || "chrono").normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/[^\w-]+/g, "-").replace(/^-|-$/g, "").slice(0, 60) || "chrono"}-${String(ev).slice(0, 8)}.chronoz`;
 export const eventFileName = (log, ev) => fileName(log.state.event, ev);
 
 async function openJournal(dir, name, ops) {
@@ -104,7 +104,7 @@ async function openJournal(dir, name, ops) {
 export function toFile(log, ev) {
   return JSON.stringify({ format: FILE_FORMAT, version: FILE_VERSION, ev, saved: new Date().toISOString(), event: log.state.event, ops: log.ops });
 }
-/** A `.ozchrono` file or a journal (`.jsonl`) → `{ ev, ops, event }`; throws "format" or "version". */
+/** A `.chronoz` file or a journal (`.jsonl`) → `{ ev, ops, event }`; throws "format" or "version". */
 export function fromFile(text) {
   const s = String(text).trim();
   if (s.startsWith("{\"s\"") || /^\{"[a-z]+":/.test(s) && !s.startsWith("{\"format\"")) {

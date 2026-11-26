@@ -1,4 +1,4 @@
-Ozimut Chrono — SPORTident support (src/si/, test/t_si.mjs)
+Chronoz — SPORTident support (src/si/, test/t_si.mjs)
 
 The SPORTident protocol codec, the card layouts, the readout flow and the test data were ported from three
 MIT-licensed projects. Their copyright notices and the licence they share follow.

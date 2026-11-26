@@ -39,7 +39,7 @@ Not in git (see `.gitignore`): the database and HTTP cache (`C:\kerkia\Ozimut\da
 `site/data/` and `site/auth/` (generated), `.dev.vars` (local secrets), exports. **The repository is public:** never
 commit results, personal data, secrets or credentials. **Licence** (owner, 2026-11-21): all rights reserved, published for reading and study
 only (`LICENSE`; third-party parts in `THIRD-PARTY-NOTICES.md` — add an entry there whenever something from elsewhere comes in);
-only `site/assets/js/chrono/` is open source (MPL 2.0, see « Ozimut Chrono »). No GPL/AGPL code anywhere.
+only `site/assets/js/chrono/` is open source (MPL 2.0, see « Chronoz »). No GPL/AGPL code anywhere.
 
 ## Hosting and deployment
 
@@ -754,26 +754,32 @@ the points of the controls taken, their number when the controls carry none; lat
 By hand: `python -m ffco_scraper.prov --db <db>
 --out site/data --days 31 --budget 600` (`--build-only` rebuilds the files without fetching).
 
-## Ozimut Chrono (race timing)
+## Chronoz (race timing)
 
-**Ozimut Chrono** (owner, 2026-11-17): the « GEC » — entries, start draw, card reading, results, referee — for a timing team
+**Chronoz** (owner, 2026-11-17): the « GEC » — entries, start draw, card reading, results, referee — for a timing team
 that often has no Internet. **Since 2026-11-21 it is free software with a repository of its own** (owner: open source so that
 clubs can trust and keep it, and so that its installers can be signed for free; Ozimut's paid features stay elsewhere):
-**https://github.com/kerkia/ChronOzimut, Mozilla Public License 2.0**, checked out on the PC at `C:\Kerkia\Ozimut\ChronOzimut`
+**https://github.com/kerkia/Chronoz, Mozilla Public License 2.0**, checked out on the PC at `C:\Kerkia\Ozimut\Chronoz`
 (its own CLAUDE.md, README, `docs/design.md` — the contract —, tests `npm test`, texts `npm run check`). Everything of Chrono
 is developed THERE: the engine and the screens (`src/`), the desktop app and its hub (`app/`: every laptop equal, found on
 the network, an event's six-character code typed once; auto-update through its GitHub releases `v<version>`, a release
 made by bumping `package.json`'s version), the tests, the release workflow. Owner's standing decisions: **compatible with
 MeOS, never derived from it** (no (A)GPL code, not even test data), Emit from the start, every country, nothing of Emit's
-confidential eScan2 specification.
+confidential eScan2 specification. **Named « Ozimut Chrono » until 2026-11-26** (owner: « Chronoz », before any copy was
+installed or SignPath applied for; checked that day: no trademark « Chronoz » in WIPO's Global Brand Database — two dead
+Brazilian « BIO CHRONOZ » —, no software of that name but a hobby stopwatch on GitHub; « Chronos » is a crowded word in
+class 9): the repository `kerkia/Chronoz` (`ChronOzimut` before, GitHub redirects), the installers `Chronoz-Setup.exe`…,
+`appId` `com.ozimut.chronoz`, the events folder Documents › Chronoz, the event file `.chronoz` (journals
+`<event>.chronoz.jsonl`, format `"chronoz"`), the discovery tag `oz: "chronoz"`. **The tab keeps its label « Chrono »**
+(the timing tab of an Orga event, as « Direct » or « Résultats »); every text naming the tool or the app says Chronoz.
 
 **What this repository keeps**:
-- `site/assets/js/chrono/` — **a copy of ChronOzimut's `src/`, never edited here** (its `LICENSE` MPL 2.0 and `UPSTREAM`,
+- `site/assets/js/chrono/` — **a copy of Chronoz's `src/`, never edited here** (its `LICENSE` MPL 2.0 and `UPSTREAM`,
   the commit it came from): `node tools/chrono_sync.mjs` replaces it from the checkout (`--check` fails when the copy
   differs), then commit. It has its own texts (`chrono/i18n/<lang>.js`, read by `chrono/lib/i18n.js`, which takes the page's
   language from `<html lang>`), helpers (`chrono/lib/`), stylesheet (`chrono/css/chrono.css`, built on the site's tokens;
   `css/base.css` is for the app's own page, not loaded here) and the app's documentation (`chrono/doc/app.<lang>.js`, shown
-  in Orga's guide, chapter « L'application Chrono »). `tools/i18n_check.mjs` and the site's catalogues leave it alone.
+  in Orga's guide, chapter « L'application Chronoz »). `tools/i18n_check.mjs` and the site's catalogues leave it alone.
 - `pages/chrono.js` — the site's side (closed): the tab « Chrono » of an Orga event (`pages/manage.js` adds it before
   « Équipe »), **administrators only** for now; it loads the copy for the event (`e<id>`) and stops it when the tab is left.
 - `functions/api/chrono/[[path]].js` — the cloud side (closed; R2 `chrono/<event>/`: `sync`, `token`, `live`), an
@@ -785,10 +791,10 @@ confidential eScan2 specification.
 
 Gone from here (2026-11-21): `chrono-app/`, `tools/chrono/t_*.mjs`, `docs/chrono/`, `i18n/chrono.*.js`,
 `content/chronoapp.*.js`, `site/assets/chrono.css`, the workflow `chrono-app.yml` and its rolling release (the download
-button now gives `https://github.com/kerkia/ChronOzimut/releases/latest/download/<file>`). **Never tried on real
+button now gives `https://github.com/kerkia/Chronoz/releases/latest/download/<file>`). **Never tried on real
 equipment** (SPORTident or Emit stations, a thermal printer, real MeOS, real laptops on an arena's Wi-Fi, an update
 between two installed versions). Installers unsigned until SignPath Foundation accepts the project (applied for by the
-owner; its conditions are in ChronOzimut's README « Code signing policy »).
+owner; its conditions are in Chronoz's README « Code signing policy »).
 
 ## Live GPS tracking (« Suivi GPS »)
 

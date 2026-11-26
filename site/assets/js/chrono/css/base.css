@@ -1,7 +1,7 @@
 /* This Source Code Form is subject to the terms of the Mozilla Public License, v. 2.0. If a copy of the MPL was not
    distributed with this file, You can obtain one at https://mozilla.org/MPL/2.0/. */
 
-/* Ozimut Chrono's own page (the desktop app's window, and the pages it serves to phones and screens): the colours, the
+/* Chronoz's own page (the desktop app's window, and the pages it serves to phones and screens): the colours, the
    type and the few shared parts — buttons, tables, notes — that chrono.css builds on. A site that hosts Chrono in one of
    its pages (ozimut.com's « Chrono » tab) gives these itself and does not load this file.
 

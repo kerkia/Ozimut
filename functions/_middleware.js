@@ -23,7 +23,7 @@ const PUBLIC = [/^\/$/, /^\/index\.html$/, /^\/robots\.txt$/, /^\/assets\//, /^\
   /^\/api\/notify$/, /^\/api\/account\/(status|register|resend|verify|login|forgot|reset|handoff)$/, /^\/api\/guest$/,
   /^\/api\/entries\/[a-z0-9]{6,20}\/guest$/,   // the entry form's registration blended with the entry: Turnstile and limits, checked there (api/entries)
   /^\/api\/live\/mop$/,           // MeOS's online results: no session, the broadcast's MeOS password (api/live/mop.js)
-  /^\/api\/chrono\/[A-Za-z0-9_-]{1,64}(\/(sync|live|token))?$/,   // Ozimut Chrono's stations: an administrator's session or the event's own key, checked there (api/chrono)
+  /^\/api\/chrono\/[A-Za-z0-9_-]{1,64}(\/(sync|live|token))?$/,   // Chronoz's stations: an administrator's session or the event's own key, checked there (api/chrono)
   /^\/api\/phone(\/[a-z2-9]{12}(\/file(\/\d{1,3})?)?)?$/,  // « Depuis mon téléphone »: the link's own keys (api/phone)
   // the tracking's devices (docs/track/design.md): their own key, a pair or claim code, the relay's secret, Polar's signature
   /^\/api\/track\/(pair|push|claim|webtoken|session|pushtoken|alert|polar\/webhook)$/, /^\/api\/track\/osmand\/[A-Za-z0-9_-]{20,80}$/,

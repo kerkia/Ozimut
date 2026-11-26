@@ -1543,7 +1543,7 @@ export default {
   "ad.bill.cap.analysisExport": "Exportar imagen de los análisis",
   "ad.bill.cap.pixelOwnMap": "Pixel: evento en un mapa propio",
   "ad.bill.cap.orgmapsMB": "Mapas del club: almacenamiento",
-  "ad.bill.cap.chronoCompetition": "Chrono para una competición",
+  "ad.bill.cap.chronoCompetition": "Chronoz para una competición",
   "ad.bill.p.title": "Precios",
   "ad.bill.p.hint": "En euros, guardados en céntimos. Un identificador de Stripe vacío: ese precio no se puede pagar con tarjeta.",
   "ad.bill.p.year": "Precio anual (€)",

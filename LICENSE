@@ -28,8 +28,8 @@ It is NOT open-source software: publishing the code grants no right to reuse it.
    This licence does not cover, and does not restrict, what belongs to others or is
    published under another licence:
 
-   - site/assets/js/chrono/ is Ozimut Chrono, a copy of
-     https://github.com/kerkia/ChronOzimut, under the Mozilla Public License 2.0
+   - site/assets/js/chrono/ is Chronoz, a copy of
+     https://github.com/kerkia/Chronoz, under the Mozilla Public License 2.0
      (site/assets/js/chrono/LICENSE). That licence, not this one, applies to it.
    - The third-party components listed in THIRD-PARTY-NOTICES.md keep their own
      licences and copyright notices.
@@ -40,7 +40,7 @@ It is NOT open-source software: publishing the code grants no right to reuse it.
 
 4. Names
 
-   « Ozimut », « Ozimut Chrono » and the Ozimut logo identify this project and its
+   « Ozimut », « Chronoz » and the Ozimut logo identify this project and its
    author. This licence gives no right to use them.
 
 5. No warranty

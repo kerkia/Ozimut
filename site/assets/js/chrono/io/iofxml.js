@@ -123,7 +123,7 @@ export function isoOf(s, day, tz = offsetOf(day)) {
   const d = new Date(Date.parse(`${day || "2000-01-01"}T00:00:00Z`) + Math.floor(s / 86400) * 86400000), r = ((s % 86400) + 86400) % 86400;
   return `${d.toISOString().slice(0, 10)}T${two(Math.floor(r / 3600))}:${two(Math.floor((r % 3600) / 60))}:${two(Math.floor(r % 60))}${tz}`;
 }
-const head = (name, opt, body) => XML_HEAD + x(name, { xmlns: NS, iofVersion: "3.0", createTime: new Date(opt.at || Date.now()).toISOString(), creator: opt.creator || "Ozimut Chrono", ...(opt.attrs || {}) }, body);
+const head = (name, opt, body) => XML_HEAD + x(name, { xmlns: NS, iofVersion: "3.0", createTime: new Date(opt.at || Date.now()).toISOString(), creator: opt.creator || "Chronoz", ...(opt.attrs || {}) }, body);
 const eventX = (ev) => x("Event", [x("Name", ev.name || ""), ev.date ? x("StartTime", [x("Date", ev.date)]) : null]);
 const sexOut = (s) => (/^(f|d|w)/i.test(s || "") ? "F" : s ? "M" : null);
 const personX = (r) => x("Person", { sex: sexOut(r.sex) }, [r.lic ? x("Id", r.lic) : null, x("Name", [x("Family", r.family), x("Given", r.given)]), r.birth ? x("BirthDate", `${String(r.birth).slice(0, 4)}-01-01`) : null]);

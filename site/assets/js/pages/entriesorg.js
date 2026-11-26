@@ -4,7 +4,7 @@
 // rule, the note), the entries (filters, counts by class and club, changes, cancellations, payments marked one by one, by
 // reference or in bulk), an import read in the browser (any CSV with a heading row, OE's, IOF XML EntryList, a Google Sheet),
 // entries by hand and the exports; 2. Horaires — none, booked by the runners on a grid (the booking of 2026-11-03), drawn here
-// (Ozimut Chrono's draw run on the entries, checked by startchecks.js) or a start-list file matched to the entries; 3. Liste de
+// (Chronoz's draw run on the entries, checked by startchecks.js) or a start-list file matched to the entries; 3. Liste de
 // départ — publication (an organiser's deposit, then the results run), the start's O Checklist file, the exports; and, for a
 // competition without entries on Ozimut, the start-list deposit of before (pages/orgstarts.js).
 

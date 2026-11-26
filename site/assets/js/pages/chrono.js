@@ -1,5 +1,5 @@
 // Orga › an event › « Chrono » (owner, 2026-11-17; administrators only for now): Ozimut's race timing, in the event's
-// tab. Chrono itself is free software with a repository of its own (github.com/kerkia/ChronOzimut, MPL 2.0); the site
+// tab. Chrono itself is free software with a repository of its own (github.com/kerkia/Chronoz, MPL 2.0); the site
 // carries a copy of it, site/assets/js/chrono/ (tools/chrono_sync.mjs — never edited here), with its own texts, helpers
 // and stylesheet. This page is the site's side: it loads that copy for the event shown and stops it when the tab is left.
 // Chrono takes its language from the page (<html lang>, which i18n.js sets) and its colours from the site's tokens.

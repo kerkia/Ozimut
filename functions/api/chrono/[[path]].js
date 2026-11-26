@@ -1,7 +1,7 @@
-// /api/chrono/<event>/… — Ozimut Chrono's cloud side (owner, 2026-11-17; administrators only while it is being tried):
+// /api/chrono/<event>/… — Chronoz's cloud side (owner, 2026-11-17; administrators only while it is being tried):
 // the copy of a timed race's operations, so that another computer can take the race over and nothing is lost if the
 // timing computer dies. R2 only (no D1 table): `chrono/<event>/meta.json` (what is held of each station, the batches) and
-// `chrono/<event>/b/<key>.json` (batches of operations, appended as they come). github.com/kerkia/ChronOzimut docs/design.md.
+// `chrono/<event>/b/<key>.json` (batches of operations, appended as they come). github.com/kerkia/Chronoz docs/design.md.
 //   POST …/sync   { station, have: { station: n }, ops: […] } → { ops (what the caller lacks), have, more }
 //   POST …/token  → { token }: a key for the event's stations that are not signed in (the desktop app, a phone); it is
 //                 an HMAC of the event's id, so nothing is stored, and it only opens this event's sync and live

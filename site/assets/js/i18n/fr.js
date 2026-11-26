@@ -1135,7 +1135,7 @@ export default {
   "ad.bill.cap.analysisExport": "Export d'image des analyses",
   "ad.bill.cap.pixelOwnMap": "Pixel : événement sur sa propre carte",
   "ad.bill.cap.orgmapsMB": "Cartes du club : stockage",
-  "ad.bill.cap.chronoCompetition": "Chrono pour une compétition",
+  "ad.bill.cap.chronoCompetition": "Chronoz pour une compétition",
   "ad.bill.p.title": "Prix",
   "ad.bill.p.hint": "En euros, enregistrés en centimes. Un identifiant Stripe vide : ce prix ne peut pas être payé par carte.",
   "ad.bill.p.year": "Prix annuel (€)",
