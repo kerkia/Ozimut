@@ -12,8 +12,10 @@ passes the same place many times »); a leg does not run again along an earlier 
 short to long legs, route choice weighed more and more) into pkg/race.json `courses`; a review picture per course beside the package.
 The last control is easy whatever the level and near the finish (owner, 2026-11-26: « there is always a last control very close to the
 arrival, easy to find for all categories… and a balisage from that last control to the arrival »): a building's corner, a monument or
-a fountain within LAST_FROM_START m of the start, the finish LAST_FIN m from it on a straight way clear of every obstacle by 1.8 m
-(the game tapes it and the map draws it as a marked route)."""
+a fountain near the map's middle, the finish LAST_FIN m from it on a straight way clear of every obstacle by 1.8 m (the game tapes
+it and the map draws it as a marked route). One last control (code LAST_CODE) and one finish for all the map's courses (owner, the
+same day: « that last control, hence last leg, is always the same for all courses »); every course's start within LAST_FROM_START m
+of that finish."""
 import json, math, os, sys
 from pathlib import Path
 
@@ -251,7 +253,7 @@ LEVELS = {"blue": dict(n=6, km=1.0, lo=50, hi=170, rc=0.0, sep=70), "yellow": di
           "orange_s": dict(n=10, km=1.8, lo=60, hi=220, rc=1.0, sep=90), "orange_l": dict(n=14, km=2.8, lo=80, hi=280, rc=2.0, sep=90)}
 
 
-LAST_FROM_START, LAST_FIN, LAST_EASY = 220, (40, 100), {"corner", "monument", "fountain"}
+LAST_FROM_START, LAST_FIN, LAST_EASY, LAST_CODE = 220, (40, 100), {"corner", "monument", "fountain"}, 100
 
 
 def clear_line(a, b, m=1.8):
@@ -285,10 +287,33 @@ def route_mask(pth, r=6):
     return m
 
 
+def pick_end():
+    """The map's last control and finish, shared by all its courses: an easy site (LAST_EASY) near the course area's middle, the
+    finish LAST_FIN m from it on free open ground, the straight way clear (clear_line). Deterministic: every process finds the same."""
+    r = np.random.default_rng(SEED * 100 + 99)
+    cx, cz = (X0 + X1) / 2, (Z0 + Z1) / 2
+    dc = np.hypot(xy[:, 0] - cx, xy[:, 1] - cz) * r.uniform(0.75, 1.25, len(xy))
+    for i in [int(i) for i in np.argsort(dc) if kinds[i] in LAST_EASY][:150]:
+        for _ in range(80):
+            a = r.uniform(0, 2 * math.pi); rr = r.uniform(*LAST_FIN)
+            q = xy[i] + rr * np.array([math.cos(a), math.sin(a)])
+            if inbox(*q) and ok_ground[int(q[1]), int(q[0])] and not near_block[int(q[1]), int(q[0])] and clear_line(xy[i], q):
+                return i, q
+    return None
+
+
+END = pick_end()
+if END is None:
+    sys.exit("no last control and finish found")
+END_I, END_FIN = END
+END_LC = xy[END_I]
+
+
 def make(level, tries=60):
     L = LEVELS[level]; best = None
-    # the start: a site near the box's middle-south (the map's bottom), the finish near it
-    starts = [k for k in range(len(xy)) if CLEAR[int(xy[k][1]), int(xy[k][0])] >= 2.5] or list(range(len(xy)))
+    # the start: a site in the open, within LAST_FROM_START m of the map's shared finish
+    starts = [k for k in range(len(xy)) if CLEAR[int(xy[k][1]), int(xy[k][0])] >= 2.5 and k != END_I
+              and 30 <= math.hypot(*(xy[k] - END_FIN)) <= LAST_FROM_START and math.hypot(*(xy[k] - END_LC)) >= 40] or list(range(len(xy)))
     for t in range(tries):
         s = int(starts[int(rng.integers(len(starts)))])          # the start in the open: a runner sees where to go
         seq = [s]; score = 0.0; legs_ = []
@@ -297,11 +322,15 @@ def make(level, tries=60):
             last = seq[-1]
             d = np.hypot(xy[:, 0] - xy[last, 0], xy[:, 1] - xy[last, 1])
             cand = [int(c) for c in np.nonzero((d > L["lo"]) & (d < L["hi"]))[0] if c not in seq]
-            final = len(seq) == L["n"]                          # the last control: easy, near the start (the finish beside it)
+            final = len(seq) == L["n"]                          # the last control: the map's shared one
             if final:
-                cand = [c for c in cand if math.hypot(*(xy[c] - xy[s])) <= LAST_FROM_START]
-                easy = [c for c in cand if kinds[c] in LAST_EASY]
-                cand = easy or cand
+                cand = [END_I] if END_I in cand else []
+            else:
+                cand = [c for c in cand if c != END_I and math.hypot(*(xy[c] - END_LC)) >= 25 and math.hypot(*(xy[c] - END_FIN)) >= 25
+                        and not seg_cross(xy[last], xy[c], END_LC, END_FIN)]
+                if len(seq) == L["n"] - 1:                      # the control before it: within a leg of it
+                    e = np.hypot(*(END_LC - xy[np.array(cand, int)]).T) if cand else np.array([])
+                    cand = [c for c, e_ in zip(cand, e) if L["lo"] < e_ < L["hi"]]
             rng.shuffle(cand)
             goods = []
             for c in cand[:40]:
@@ -340,15 +369,7 @@ def make(level, tries=60):
             seq.append(got[0]); legs_.append(got); score += L["rc"] * got[1] + 0.2 * (got[2] / d[got[0]] > 1.25)
         if len(seq) < L["n"] + 1:
             continue
-        # the finish: a free cell LAST_FIN m from the last control, near the start, the straight way to it clear (taped)
-        fin = None
-        for _ in range(300):
-            a = rng.uniform(0, 2 * math.pi); r = rng.uniform(*LAST_FIN)
-            q = xy[seq[-1]] + r * np.array([math.cos(a), math.sin(a)])
-            if inbox(*q) and ok_ground[int(q[1]), int(q[0])] and not near_block[int(q[1]), int(q[0])] \
-                    and math.hypot(*(q - xy[s])) < LAST_FROM_START \
-                    and all(math.hypot(*(q - xy[k])) >= min(L["sep"], 60) for k in seq[1:-1]) and clear_line(xy[seq[-1]], q):
-                fin = q; break
+        fin = END_FIN                                           # the map's shared finish
         if fin is None:
             continue
         pts = [xy[k] for k in seq] + [fin]
@@ -373,7 +394,7 @@ def do_level(level):
     if b is None:
         print(level, "no course found", flush=True); return None
     score, seq, fin, length, legs_ = b
-    codes = list(range(31, 31 + len(seq) - 1)); rng.shuffle(codes)
+    codes = list(range(31, 31 + len(seq) - 2)); rng.shuffle(codes); codes.append(LAST_CODE)   # the shared last control's code
     ctl = [{"kind": "start", "x": round(float(xy[seq[0]][0]), 1), "z": round(float(xy[seq[0]][1]), 1)}]
     for k, code in zip(seq[1:], codes):
         ctl.append({"kind": "control", "x": round(float(xy[k][0]), 1), "z": round(float(xy[k][1]), 1), "code": str(code), "feature": kinds[k]})

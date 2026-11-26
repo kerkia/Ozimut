@@ -16,9 +16,9 @@ export const LEVELS = [
 // an invented forest's paths are sparser than a real forest's: the Bleu's legs may run a little farther from them (measured on the
 // five terrain types, 2026-11-12: 35 / 90 m found no Bleu on three of them, 45 / 110 m on all)
 export const GEN_LEVELS = LEVELS.map((L) => (L.id === "blue" ? { ...L, line: [45, 110] } : L));
-// the last control and the finish (owner, 2026-11-26): the last control within `fromStart` m of the start, the finish `fin` m from it
-// and within `fromStart` m of the start too; tools/virtually/course.py has the same numbers
-export const LAST = { fromStart: 350, fin: [60, 150] };
+// the last control and the finish (owner, 2026-11-26), one pair a map: the finish `fin` m from the last control, every course's start
+// within `fromStart` m of the finish; tools/virtually/course.py has the same numbers
+export const LAST = { fromStart: 350, fin: [60, 150], code: 100 };
 const GOOD = { boulder: 1.0, bigboulder: 1.3, cluster: 1.0, knoll: 1.2, eknoll: 1.1, depression: 1.2, pit: 1.0, rockface: 1.2, junction: 1.0 };
 const COS150 = -0.8660254037844387;
 // the climb a course should keep under, a share of its length (IOF's guidance: little for beginners, 4-5 % at most for the others)
@@ -47,7 +47,7 @@ function distance(src, W, H) {
  * The courses of a package: { W, H, h (Float32, m), cls, classes (names), speed (by class), features [{ k, x, z }] }; seed;
  * tries a level (course.py's time budget made a count). Returns race.json's `courses`.
  */
-export function setCourses(pkg, { seed = 7, tries = 260, levels = LEVELS } = {}) {
+export function setCourses(pkg, { seed = 7, tries = 260, levels = LEVELS, ends = 3 } = {}) {
   const { W, H, h, cls, classes, speed: SP, features } = pkg;
   const C = Object.fromEntries(classes.map((n, i) => [n, i]));
   const speedAt = (x, z) => SP[cls[Math.floor(z) * W + Math.floor(x)]];
@@ -85,19 +85,54 @@ export function setCourses(pkg, { seed = 7, tries = 260, levels = LEVELS } = {})
   const segDist = (a, b, c, d) => (cross(a, b, c, d) ? 0 : Math.min(pd(a, c, d), pd(b, c, d), pd(c, a, b), pd(d, a, b)));
   const dist = (a, b) => { const dx = a[0] - b[0], dz = a[1] - b[1]; return Math.sqrt(dx * dx + dz * dz); };
 
+  // the last control and the finish, one pair for the whole map (owner, 2026-11-26: « that last control, hence last leg, is always
+  // the same for all courses »): a path junction (else a site within 5 m of a path) near the map's middle, the finish LAST.fin m
+  // from it on a runnable straight way (it is taped); every course's start within LAST.fromStart m of that finish
+  // up to ENDS candidate pairs, their last controls 150 m apart at least: the courses are set with the first, and with the next while
+  // a level finds none (the Bleu, held near the handrails, may need another)
+  const ENDS = (() => {
+    const rnd = prng(seed * 100 + 99), cx = W / 2, cz = H / 2, found = [];
+    // where the Bleu has room: the most sites within 15 m of a path within 400 m, the map's middle breaking ties
+    const easy = XY.map((_, i) => i).filter((i) => siteHand[i] <= 15);
+    const room = (i) => easy.reduce((n, j) => n + (dist(XY[i], XY[j]) <= 400 ? 1 : 0), 0);
+    const order = (arr) => arr.map((i) => [i, -room(i) * (0.9 + 0.2 * rnd()) + dist(XY[i], [cx, cz]) / 50]).sort((a, b) => a[1] - b[1]).map((a) => a[0]);
+    const junc = [], nearp = [];
+    for (let i = 0; i < XY.length; i++) { if (KIND[i] === "junction") junc.push(i); else if (siteHand[i] <= 5) nearp.push(i); }
+    for (const i of [...order(junc), ...order(nearp)].slice(0, 400)) {
+      const lc = XY[i];
+      if (found.some((e) => dist(e.lc, lc) < 150)) continue;
+      for (let t = 0; t < 60; t++) {
+        const u = rnd() * 2 - 1, v = rnd() * 2 - 1, l = Math.sqrt(u * u + v * v); if (l < 0.2 || l > 1) continue;
+        const r = LAST.fin[0] + rnd() * (LAST.fin[1] - LAST.fin[0]), q = [lc[0] + (u / l) * r, lc[1] + (v / l) * r];
+        if (!(q[0] > M && q[0] < W - M && q[1] > M && q[1] < H - M) || speedAt(q[0], q[1]) < 0.6) continue;
+        const [imp, slow] = lineStats(lc, q);
+        if (imp === 0 && slow <= 0.15) { found.push({ i, lc, fin: q }); break; }
+      }
+      if (found.length >= ends) break;
+    }
+    return found;
+  })();
+  let END = null, near = [];
+
   function make(L, rnd) {
     const [lo, hi] = L.leg;
-    const pts = [starts[Math.floor(rnd() * starts.length)]], used = new Set(), kinds = [], legs = [];
+    const pts = [near[Math.floor(rnd() * near.length)]], used = new Set([END.i]), kinds = [], legs = [];
     let score = 0;
     for (let c = 0; c < L.n - 1; c++) {
       const last = pts[pts.length - 1], ok = [];
-      for (let i = 0; i < XY.length; i++) { const d = dist(XY[i], last); if (d > lo && d < hi && (L.site == null || siteHand[i] <= L.site)) ok.push(i); }
+      const toEnd = c === L.n - 2;                          // the course's last control before the shared one: within a leg of it
+      for (let i = 0; i < XY.length; i++) {
+        const d = dist(XY[i], last); if (!(d > lo && d < hi && (L.site == null || siteHand[i] <= L.site))) continue;
+        if (toEnd) { const e = dist(XY[i], END.lc); if (e < Math.max(60, lo * 0.4) || e > hi) continue; }
+        ok.push(i);
+      }
       for (let k = ok.length - 1; k > 0; k--) { const r = Math.floor(rnd() * (k + 1)); [ok[k], ok[r]] = [ok[r], ok[k]]; }
       let chosen = null;
       for (const i of ok.slice(0, 150)) {
         if (used.has(i)) continue;
         const p = XY[i];
-        if (pts.slice(1).some((q) => dist(p, q) < 60)) continue;
+        if (pts.slice(1).some((q) => dist(p, q) < 60) || dist(p, END.lc) < 60 || dist(p, END.fin) < 40) continue;
+        if (segDist(last, p, END.lc, END.fin) < 30) continue;   // nor across the taped last leg
         if (pts.length >= 2) {                              // a dog-leg: turning back by more than 150°
           const a = pts[pts.length - 2], ux = last[0] - a[0], uz = last[1] - a[1], vx = p[0] - last[0], vz = p[1] - last[1];
           if ((ux * vx + uz * vz) / (Math.sqrt(ux * ux + uz * uz) * Math.sqrt(vx * vx + vz * vz) || 1) < COS150) continue;
@@ -118,42 +153,17 @@ export function setCourses(pkg, { seed = 7, tries = 260, levels = LEVELS } = {})
       else if (L.reward === "hard") score += g + (0.3 * Math.min(siteHand[i], 120)) / 120 - (KIND[i] === "junction" ? 0.6 : 0);
       else score += g + 1.2 * Math.min(slow, 0.5) + 1.5 * Math.min(imp, 0.2) + (legs[legs.length - 1] > 0.6 * hi ? 0.6 : 0);
     }
-    // the last control, easy for every level (owner, 2026-11-26: « there is always a last control very close to the arrival… easy to
-    // find for all categories, usually on a trail, and a balisage from that last control to the arrival »): a path junction, else a
-    // site within 5 m of a path, near the start (the finish is beside it), its leg from the course's last control a usual one
-    const prev = pts[pts.length - 1], lastOk = [], lastNear = [];
-    for (let i = 0; i < XY.length; i++) {
-      if (used.has(i) || dist(XY[i], pts[0]) > LAST.fromStart) continue;
-      const d = dist(XY[i], prev); if (d < Math.max(60, lo * 0.4) || d > hi) continue;
-      if (KIND[i] === "junction") lastOk.push(i); else if (siteHand[i] <= 5) lastNear.push(i);
+    // the last control: the map's own (END), reached by a usual leg from the course's last control
+    const prev = pts[pts.length - 1], lcp = END.lc, dl = dist(lcp, prev);
+    if (dl < Math.max(60, lo * 0.4) || dl > hi) return null;
+    if (pts.length >= 2) {
+      const a = pts[pts.length - 2], ux = prev[0] - a[0], uz = prev[1] - a[1], vx = lcp[0] - prev[0], vz = lcp[1] - prev[1];
+      if ((ux * vx + uz * vz) / (Math.sqrt(ux * ux + uz * uz) * Math.sqrt(vx * vx + vz * vz) || 1) < COS150) return null;
     }
-    for (const arr of [lastOk, lastNear]) for (let k = arr.length - 1; k > 0; k--) { const r = Math.floor(rnd() * (k + 1)); [arr[k], arr[r]] = [arr[r], arr[k]]; }
-    let lastC = null;
-    for (const i of [...lastOk, ...lastNear].slice(0, 120)) {
-      const p = XY[i];
-      if (pts.slice(1).some((q) => dist(p, q) < 60)) continue;
-      if (pts.length >= 2) {
-        const a = pts[pts.length - 2], ux = prev[0] - a[0], uz = prev[1] - a[1], vx = p[0] - prev[0], vz = p[1] - prev[1];
-        if ((ux * vx + uz * vz) / (Math.sqrt(ux * ux + uz * uz) * Math.sqrt(vx * vx + vz * vz) || 1) < COS150) continue;
-      }
-      let near = false; for (let j = 0; j < pts.length - 2; j++) if (segDist(prev, p, pts[j], pts[j + 1]) < 40) { near = true; break; }
-      if (near || lineStats(prev, p)[0] > 0.25) continue;
-      lastC = i; break;
-    }
-    if (lastC == null) return null;
-    used.add(lastC); pts.push(XY[lastC]); kinds.push(KIND[lastC]); legs.push(dist(XY[lastC], prev));
-    // the finish: LAST.fin m from the last control, the straight way between them runnable (it is taped), near the start
-    let fin = null;
-    const lc = pts[pts.length - 1];
-    for (let t = 0; t < 80 && !fin; t++) {
-      const u = rnd() * 2 - 1, v = rnd() * 2 - 1, l = Math.sqrt(u * u + v * v); if (l < 0.2 || l > 1) continue;
-      const r = LAST.fin[0] + rnd() * (LAST.fin[1] - LAST.fin[0]), q = [lc[0] + (u / l) * r, lc[1] + (v / l) * r];
-      if (!(q[0] > M && q[0] < W - M && q[1] > M && q[1] < H - M) || speedAt(q[0], q[1]) < 0.6) continue;
-      const ds = dist(q, pts[0]); if (ds < 30 || ds > LAST.fromStart) continue;
-      let near = false; for (let j = 1; j < pts.length - 2; j++) if (segDist(lc, q, pts[j], pts[j + 1]) < 30) { near = true; break; }
-      const [imp, slow] = lineStats(lc, q);
-      if (!near && imp === 0 && slow <= 0.15) fin = q;
-    }
+    for (let j = 0; j < pts.length - 2; j++) if (segDist(prev, lcp, pts[j], pts[j + 1]) < 40) return null;
+    if (lineStats(prev, lcp)[0] > 0.25) return null;
+    pts.push(lcp); kinds.push(KIND[END.i]); legs.push(dl);
+    const fin = END.fin;
     if (!fin) return null;
     const all = [...pts, fin];
     let length = 0; for (let k = 1; k < all.length; k++) length += dist(all[k - 1], all[k]);
@@ -167,6 +177,7 @@ export function setCourses(pkg, { seed = 7, tries = 260, levels = LEVELS } = {})
     return { score, all, kinds, length };
   }
 
+  const setAll = () => {
   const out = [];
   levels.forEach((L, k) => {
     const rnd = prng(seed * 100 + k + 1);
@@ -175,8 +186,10 @@ export function setCourses(pkg, { seed = 7, tries = 260, levels = LEVELS } = {})
     for (let t = 0, n = L.id === "blue" ? tries * 3 : tries; t < n; t++) { const r = make(L, rnd); if (r && (!best || r.score > best.score)) best = r; }
     if (!best) return;
     let up = 0; for (let j = 1; j < best.all.length; j++) up += climb(best.all[j - 1], best.all[j]);
-    const codes = best.kinds.map((_, i) => 31 + i);
+    // the codes shuffled, but the shared last control's: LAST.code on every course
+    const codes = best.kinds.slice(0, -1).map((_, i) => 31 + i);
     for (let i = codes.length - 1; i > 0; i--) { const r = Math.floor(rnd() * (i + 1)); [codes[i], codes[r]] = [codes[r], codes[i]]; }
+    codes.push(LAST.code);
     const r1 = (v) => Math.round(v * 10) / 10;
     const controls = [{ kind: "start", x: r1(best.all[0][0]), z: r1(best.all[0][1]) },
       ...best.all.slice(1, -1).map(([x, z], i) => ({ kind: "control", x: r1(x), z: r1(z), code: String(codes[i]), feature: best.kinds[i] })),
@@ -184,4 +197,15 @@ export function setCourses(pkg, { seed = 7, tries = 260, levels = LEVELS } = {})
     out.push({ id: L.id, controls, length: Math.round(best.length), climb: Math.round(up / 5) * 5 });
   });
   return out;
+  };
+  let best = [];
+  for (const e of ENDS) {
+    END = e;
+    near = starts.filter((p) => { const d = dist(p, END.fin); return d >= 40 && d <= LAST.fromStart && dist(p, END.lc) >= 60; });
+    if (!near.length) continue;
+    const out = setAll();
+    if (out.length > best.length) best = out;
+    if (best.length === levels.length) break;
+  }
+  return best;
 }
