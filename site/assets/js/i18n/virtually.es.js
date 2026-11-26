@@ -80,6 +80,7 @@ export default {
   "vt.pen.done.other": "Posición mostrada {n} veces: +{s} s de penalización contados en el tiempo",
   "vt.col.pen": "Penalización",
   "vt.palm.pos": "posición {n}× (+{s} s)",
+  "vt.exit": "‹ Volver a Pixel",
   "vt.go": "Salir",
   "vt.credit": "Mapa {std}. Las balizas se pican en orden; el cronómetro arranca en la salida.",
   "vt.started": "¡Buena carrera!",

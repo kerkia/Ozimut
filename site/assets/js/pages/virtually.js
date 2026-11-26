@@ -334,6 +334,7 @@ export async function render(main, { query }) {
           if (ev?.type === "competition" && !ev.mine && hasTab("resultats")) return goTab("resultats");
           game?.stop(); game = null; drawChooser(); palmares(race, course.id);
         },
+        onExit: () => { game?.stop(); game = null; drawChooser(); },   // « Retour à Pixel »: the maps and their courses again
       });
       $("#vtp-back", el).addEventListener("click", () => { game?.stop(); game = null; drawChooser(); });
     };

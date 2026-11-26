@@ -80,6 +80,7 @@ export default {
   "vt.pen.done.other": "Position {n}-mal gezeigt: +{s} s Strafe in der Zeit",
   "vt.col.pen": "Strafe",
   "vt.palm.pos": "Position {n}× (+{s} s)",
+  "vt.exit": "‹ Zurück zu Pixel",
   "vt.go": "Start",
   "vt.credit": "Karte {std}. Die Posten werden in der Reihenfolge gestempelt; die Uhr läuft ab dem Start.",
   "vt.started": "Guten Lauf!",

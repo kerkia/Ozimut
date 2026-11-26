@@ -73,7 +73,7 @@ function briefSheet(course, title, cd) {
 
 /** The card before the start (owner, 2026-11-12: shown while the race loads): the course, its descriptions, the commands, « Partir »
  *  once everything is ready. `race`/`course` null while unknown, `sheet` null while the symbols load. */
-function briefCard({ race, course, title, sheet, ready, env, mapOpt, msg = "", ghosts = 0, ghostsOther = 0 }) {
+function briefCard({ race, course, title, sheet, ready, env, mapOpt, msg = "", ghosts = 0, ghostsOther = 0, exit = false }) {
   const cond = envText(t, env), night = envOf(env).time === "night";
   return html`<div class="vt-card vt-brief"><h2>${title}</h2>
     ${cond ? html`<p class="vt-env"><b>${t("vt.env.label")}</b> ${cond}${night ? html`<br><span class="muted">${t("vt.env.nightRule")}</span>` : ""}</p>` : ""}
@@ -88,7 +88,8 @@ function briefCard({ race, course, title, sheet, ready, env, mapOpt, msg = "", g
       <section><h3>${t("vt.brief.keys")}</h3>${keysHtml()}</section>
     </div>
     <div class="vt-brief-go"><button type="button" class="btn btn-primary" id="vt-go" ${raw(ready ? "" : "disabled")}>${t("vt.go")}</button>
-      <span class="vt-brief-msg">${ready ? "" : html`<span class="spinner vt-spin" id="vt-wait"></span>`}<span id="vt-msg">${msg}</span></span></div>
+      <span class="vt-brief-msg">${ready ? "" : html`<span class="spinner vt-spin" id="vt-wait"></span>`}<span id="vt-msg">${msg}</span></span>
+      ${exit ? html`<button type="button" class="btn vt-exit" data-exit>${t("vt.exit")}</button>` : ""}</div>
     ${race?.std ? html`<p class="muted vt-credit">${t("vt.credit", { std: race.std })}</p>` : ""}</div>`;
 }
 
@@ -124,10 +125,14 @@ export function mount(root, raceId, opts = {}) {
   let stopped = false, raf = 0, cleanup = [];
   // the briefing at once, over the game's dark box: the course, its descriptions, the commands; « Partir » once all is loaded
   const courseIn = (r) => { const cs = coursesOf(r || {}); return cs.find((c) => c.id === opts.course) || cs[0] || null; };
-  const brief = { race: opts.race || null, course: courseIn(opts.race), sheet: null, env: opts.env || null, mapOpt: mapOptOf(opts.map) };
+  const brief = { race: opts.race || null, course: courseIn(opts.race), sheet: null, env: opts.env || null, mapOpt: mapOptOf(opts.map), exit: !!opts.onExit };
   brief.title = opts.title || brief.course?.name || raceId;
   root.innerHTML = html`<div class="vt" tabindex="0" data-view="scene"><div class="vt-over" id="vt-over">${briefCard({ ...brief, msg: t("vt.loading") })}</div></div>`;
   const say = (k, v) => { const m = $("#vt-msg", root); if (m) m.textContent = t(k, v); };
+  // « Retour à Pixel » (owner, 2026-11-26: after « Abandonner » the briefing offered only to start again): on the briefing and the
+  // finish card, the page then stops the game (its full screen left with it) and shows its maps again
+  const onExit = (e) => { if (e.target.closest("[data-exit]")) opts.onExit?.(); };
+  root.addEventListener("click", onExit);
   const cdLoaded = loadDescriptions();
   const fillSheet = async () => {
     if (!brief.course) return;
@@ -160,7 +165,7 @@ export function mount(root, raceId, opts = {}) {
       root.innerHTML = html`<div class="empty">${t(e.status === 404 ? "vt.noData" : e.status === 403 ? "vt.forbidden" : "vt.error")}<br><span class="muted">${String(e.message || e)}</span></div>`;
     }
   })();
-  return { stop: () => { stopped = true; cancelAnimationFrame(raf); cleanup.forEach((f) => f()); } };
+  return { stop: () => { stopped = true; cancelAnimationFrame(raf); root.removeEventListener("click", onExit); cleanup.forEach((f) => f()); } };
 
   // ---- the game ----------------------------------------------------------------------------------------------------------
   function start(root, T, data, mapImg, raceId, ghostRuns = []) {
@@ -784,7 +789,8 @@ export function mount(root, raceId, opts = {}) {
         ${ghostTable(T)}
         <div class="vt-btns"><button type="button" class="btn btn-primary" id="vt-again">${t("vt.again")}</button>
           ${opts.onNav && (opts.navs || ["results"]).includes("results") ? html`<button type="button" class="btn" id="vt-to-res">${opts.resultsLabel || t("vt.toResults")}</button>` : ""}
-          ${opts.onNav && (opts.navs || ["analysis"]).includes("analysis") ? html`<button type="button" class="btn" id="vt-to-an">${t("vt.toAnalysis")}</button>` : ""}</div>
+          ${opts.onNav && (opts.navs || ["analysis"]).includes("analysis") ? html`<button type="button" class="btn" id="vt-to-an">${t("vt.toAnalysis")}</button>` : ""}
+          ${opts.onExit ? html`<button type="button" class="btn" data-exit>${t("vt.exit")}</button>` : ""}</div>
         <p class="muted" id="vt-saved">${opts.onFinish ? t("vt.saving") : ""}</p></div>`);
       $("#vt-again", root).addEventListener("click", () => { $("#vt-over", root).classList.remove("side"); reset(); startScreen(); });
       $("#vt-to-res", root)?.addEventListener("click", () => opts.onNav("results"));
@@ -879,35 +885,20 @@ export function mount(root, raceId, opts = {}) {
       if (st.t - st.lastTrack >= 1) { st.track.push([st.t, st.x, st.z]); st.lastTrack = st.t; }
     }
     let last = performance.now(), camPos = null, mapTick = 0, freeTick = 0;
-    // The third-person camera keeps the runner in sight (owner, 2026-11-25: at Gif's start a street tree's trunk stood between
-    // the camera and the runner): CAM_D m behind them when nothing is in the way, else swung round them (up to ±69°) to the side
-    // where the line of sight is clear of trunks, low crowns, tall rocks (world.sight) and a town's buildings (town.clear), the
-    // side kept while it stays clear; when none is, brought in front of what is in the way. Behind and clear (the usual case):
-    // one test a frame, as the walls' alone before; the other sides are looked at every third frame while something is in the
-    // way, the town's walls (the dearer test, ~0.1 ms) only for a side the trees leave better than the best found. Nothing
-    // allocated.
-    const CAM_D = 4.6, CAM_H = 2.5, SWINGS = [0.3, -0.3, 0.6, -0.6, 0.9, -0.9, 1.2, -1.2], want = new T.Vector3();
-    let swing = 0, swingGoal = 0, swingTick = 0, camX = 0, camY = 0, camZ = 0;
-    /** The camera swung by `a` round the runner (ground y): its place in camX/Y/Z, and how far toward it the sight is clear of
-     *  trees and rocks (0-1) and, when that is above `walls` (always by default), of a town's buildings too. */
-    function camSight(y, a, walls = -1) {
-      const yaw = st.yaw + a;
-      camX = st.x - Math.sin(yaw) * CAM_D; camZ = st.z + Math.cos(yaw) * CAM_D;
+    // The third-person camera stays straight behind the runner, always (owner, 2026-11-26: the swing of 2026-11-25 — the camera
+    // turned up to ±69° round the runner when a tree hid them — made the runner seem to run to the right, off the screen's centre
+    // from the start, and to turn by itself at obstacles: nobody could steer by it). When a trunk, a low crown, a tall rock
+    // (world.sight) or a town's building (town.clear) stands between them, the camera comes in along that same line, in front of
+    // it (CAM_MIN m behind at the least), so the view never turns. Nothing allocated.
+    const CAM_D = 4.6, CAM_H = 2.5, CAM_MIN = 0.7, want = new T.Vector3();
+    let camX = 0, camY = 0, camZ = 0;
+    /** The camera CAM_D m behind the runner (ground y): its place in camX/Y/Z, and how far toward it the sight is clear (0-1). */
+    function camSight(y) {
+      camX = st.x - Math.sin(st.yaw) * CAM_D; camZ = st.z + Math.cos(st.yaw) * CAM_D;
       camY = Math.max(y + CAM_H, world.heightAt(camX, camZ) + 1.2);
       let f = world.sight(st.x, y + 1.2, st.z, camX, camY, camZ);
-      if (f > walls && world.town) f = Math.min(f, world.town.clear(st.x, st.z, camX, camZ));
-      return f;
-    }
-    /** The side to swing to: behind when clear, else the clearest, a wider swing a little less liked, the side held a little more. */
-    function swingFor(y) {
-      const f0 = camSight(y, 0); if (f0 >= 1) return 0;
-      let best = 0, bestS = f0 + (swingGoal === 0 ? 0.08 : 0);
-      for (let i = 0; i < SWINGS.length; i++) {
-        const a = SWINGS[i], k = -0.05 * Math.abs(a) + (a === swingGoal ? 0.08 : 0);
-        const s = camSight(y, a, bestS - k) + k;
-        if (s > bestS) { bestS = s; best = a; }
-      }
-      return best;
+      if (f > 0 && world.town) f = Math.min(f, world.town.clear(st.x, st.z, camX, camZ));
+      return Math.max(CAM_MIN / CAM_D, f);
     }
     const step = (now) => {
       raf = requestAnimationFrame(step);
@@ -935,20 +926,16 @@ export function mount(root, raceId, opts = {}) {
         gh.fig.visible = Math.hypot(p[0] - st.x, p[1] - st.z) < 220;
       }
       const dx = Math.sin(st.yaw), dz = -Math.cos(st.yaw);
-      if (st.view === "first") { want.set(st.x, y + 1.7, st.z); swing = swingGoal = 0; }
+      if (st.view === "first") want.set(st.x, y + 1.7, st.z);
       else {
-        // behind the runner, swung round them to where nothing hides them (camSight), then brought in front of what is still in
-        // the way — a town's walls, a trunk —, as the walls alone did before
-        swing += (swingGoal - swing) * Math.min(1, dt * 5); if (Math.abs(swingGoal - swing) < 0.002) swing = swingGoal;
-        const f = camSight(y, swing), wx = st.x + (camX - st.x) * f, wy = camY, wz = st.z + (camZ - st.z) * f;
-        if ((f < 1 || swing !== 0) && swingTick++ % 3 === 0) swingGoal = swingFor(y);   // something in the way, or swung: look round
-        want.set(wx, wy, wz);
+        // straight behind the runner, brought in front of what is in the way — a town's walls, a trunk — along the same line
+        const f = camSight(y);
+        want.set(st.x + (camX - st.x) * f, camY, st.z + (camZ - st.z) * f);
       }
       camPos = camPos && st.view === "third" ? camPos.lerp(want, Math.min(1, dt * 8)) : want.clone();
       camera.position.copy(camPos);
-      // the third-person camera looks over the runner along its own way round them, so that a swung camera keeps them centred
-      const look = st.view === "first" ? 10 : 4, lx = swing ? Math.sin(st.yaw + swing) : dx, lz = swing ? -Math.cos(st.yaw + swing) : dz;
-      camera.lookAt(st.x + lx * look, y + (st.view === "first" ? 1.7 : 1.1) + Math.tan(st.pitch) * look, st.z + lz * look);
+      const look = st.view === "first" ? 10 : 4;
+      camera.lookAt(st.x + dx * look, y + (st.view === "first" ? 1.7 : 1.1) + Math.tan(st.pitch) * look, st.z + dz * look);
       sun.position.set(st.x + SUN.x * 120, y + SUN.y * 120, st.z + SUN.z * 120); sun.target.position.set(st.x, y, st.z);
       ENV?.update(now, st.x, y, st.z, st.yaw, st.pitch);
       // the controls' cues: the glow and « Espace pour poinçonner » only for the control that can be punched (the next one, the
@@ -989,7 +976,7 @@ export function mount(root, raceId, opts = {}) {
       }
     };
     reset(); resize();
-    window.vtDebug = { st, mv, course, world, ghosts, cam: () => ({ swing, goal: swingGoal, x: camX, z: camZ }) };          // for support and scripted tests (the console)
+    window.vtDebug = { st, mv, course, world, ghosts, cam: () => ({ x: camPos?.x, z: camPos?.z }) };          // for support and scripted tests (the console)
     // build the chunks around the start before the first frame (within NEAR_START: the farther ones, in the haze, come during the
     // briefing), the shaders compiled in parallel (KHR_parallel_shader_compile: the first frame no longer waits for them one by
     // one), then « Partir »

@@ -80,6 +80,7 @@ export default {
   "vt.pen.done.other": "Position shown {n} times: +{s} s of penalty counted in the time",
   "vt.col.pen": "Penalty",
   "vt.palm.pos": "position {n}× (+{s} s)",
+  "vt.exit": "‹ Back to Pixel",
   "vt.go": "Start",
   "vt.credit": "Map {std}. Controls are punched in order; the clock starts at the start.",
   "vt.started": "Have a good run!",
