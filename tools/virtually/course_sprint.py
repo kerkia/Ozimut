@@ -12,7 +12,7 @@ passes the same place many times »); a leg does not run again along an earlier 
 short to long legs, route choice weighed more and more) into pkg/race.json `courses`; a review picture per course beside the package.
 The last control is easy whatever the level and near the finish (owner, 2026-11-26: « there is always a last control very close to the
 arrival, easy to find for all categories… and a balisage from that last control to the arrival »): a building's corner, a monument or
-a fountain within LAST_FROM_START m of the start, the finish LAST_FIN m from it on a straight way clear of every obstacle by 1.5 m
+a fountain within LAST_FROM_START m of the start, the finish LAST_FIN m from it on a straight way clear of every obstacle by 1.8 m
 (the game tapes it and the map draws it as a marked route)."""
 import json, math, os, sys
 from pathlib import Path
@@ -254,8 +254,11 @@ LEVELS = {"blue": dict(n=6, km=1.0, lo=50, hi=170, rc=0.0, sep=70), "yellow": di
 LAST_FROM_START, LAST_FIN, LAST_EASY = 220, (40, 100), {"corner", "monument", "fountain"}
 
 
-def clear_line(a, b, m=1.5):
-    """Is the straight way from a to b at least m metres from every obstacle (the corridor's tape on both sides)?"""
+def clear_line(a, b, m=1.8):
+    """Is the straight way from a to b at least m metres from every obstacle, from where the game's tape starts (min(8 m, a fifth of
+    the way) after the control: its flag stands a metre from a wall) to b? The tape runs 1.4 m each side, a body of 0.3 m from it
+    (vworld.js finishTape)."""
+    L = math.hypot(*(b - a)); a = a + (b - a) * (min(8.0, 0.2 * L) / L)
     n = int(math.hypot(*(b - a)) * 2) + 2
     xs = np.linspace(a[0], b[0], n).astype(int).clip(0, W - 1); zs = np.linspace(a[1], b[1], n).astype(int).clip(0, H - 1)
     return bool((CLEAR[zs, xs] >= m).all())
