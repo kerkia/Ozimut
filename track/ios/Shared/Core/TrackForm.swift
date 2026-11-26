@@ -3,7 +3,7 @@ import Foundation
 import Security
 
 /*
- * Ozitrac's pure parts (docs/track/ozitrac.md), as Android's TrackForm.kt: random numbers and keys, base64url, the
+ * Folloz's pure parts (docs/track/folloz.md), as Android's TrackForm.kt: random numbers and keys, base64url, the
  * sealing of a batch for one watcher (AES-256-GCM, CryptoKit), the batch's delta form, the code a watcher scans, a GPX
  * file, the length of a run. Compiled into the iPhone app, the watch app and the tests.
  */
@@ -166,7 +166,7 @@ enum Codes {
         s.count == 16 && s.allSatisfy { alpha.contains($0) }
     }
 
-    /// A code read from a link or a QR code (`https://…/z/<c>#…` or `ozitrac://z/<c>#…`); nil when it is not one.
+    /// A code read from a link or a QR code (`https://…/z/<c>#…` or `folloz://z/<c>#…`); nil when it is not one.
     static func parse(_ raw: String?) -> Link? {
         guard let raw else { return nil }
         let s = raw.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -201,7 +201,7 @@ enum Gpx {
 
     static func write(name: String, fixes: [TrackFix]) -> String {
         var s = "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n"
-        s += "<gpx version=\"1.1\" creator=\"Ozitrac\" xmlns=\"http://www.topografix.com/GPX/1/1\">\n"
+        s += "<gpx version=\"1.1\" creator=\"Folloz\" xmlns=\"http://www.topografix.com/GPX/1/1\">\n"
         s += "<metadata><name>" + esc(name) + "</name>"
         if let f = fixes.first { s += "<time>" + time(f.t) + "</time>" }
         s += "</metadata>\n<trk><name>" + esc(name) + "</name><trkseg>\n"

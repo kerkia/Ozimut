@@ -1,7 +1,7 @@
 import Foundation
 
 /*
- * The people this device follows (docs/track/ozitrac.md), as Android's Follows.kt: for each, its channel, this device's
+ * The people this device follows (docs/track/folloz.md), as Android's Follows.kt: for each, its channel, this device's
  * number and secret there, the key of the code scanned and the name the code gave (the list in the Keychain). What was
  * received of their run under way is kept in a file of its own, so that the map and the GPX survive the app being closed.
  * The names alone also go to the App Group, for the notification extension (« Tom a besoin d'aide »).
@@ -63,7 +63,7 @@ final class FollowStore {
     }
 
     private let lock = NSLock()
-    private let account = "ozitrac.follows"
+    private let account = "folloz.follows"
     private var cache: [Follow]?
 
     /// Told (on the main thread) when the list changes.
@@ -157,7 +157,7 @@ final class FollowStore {
         return true
     }
 
-    /// Asks the person's phone for Direct for `minutes` (1-60), or for its long pace again (0) (docs/track/ozitrac.md
+    /// Asks the person's phone for Direct for `minutes` (1-60), or for its long pace again (0) (docs/track/folloz.md
     /// « Pace »). -> the relay's request kept, or an error: "pace" (no long run allowing it under way), "slow" (asked under
     /// 15 s ago), "gone", "network".
     func askPace(_ f: Follow, minutes: Int) async -> (Boost?, String?) {

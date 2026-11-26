@@ -7,7 +7,7 @@ import org.json.JSONArray
 import org.json.JSONObject
 
 /*
- * Ozitrac's relay, the followed phone's side (docs/track/ozitrac.md): its first name, the relay's settings, its channel and
+ * Folloz's relay, the followed phone's side (docs/track/folloz.md): its first name, the relay's settings, its channel and
  * watchers, the alerts it sees itself, its zone, and the sender of its runs to the relay. Shared with the Wear OS app.
  */
 
@@ -18,9 +18,9 @@ object Me {
     fun setName(c: Context, n: String) { p(c).edit().putString("name", n.trim().take(40)).apply() }
 }
 
-/** The relay's settings (`GET /api/ozitrac/config`), kept a day. */
+/** The relay's settings (`GET /api/folloz/config`), kept a day. */
 object RelayConfig {
-    const val PATH = "/api/ozitrac"
+    const val PATH = "/api/folloz"
     const val OSM = "https://tile.openstreetmap.org/{z}/{x}/{y}.png"
     const val OSM_CREDIT = "© OpenStreetMap contributors"
 
@@ -163,7 +163,7 @@ object Channel {
 
     /**
      * Gives the relay this phone's push token (`PUT /<c>/token`), or drops it with `{}` when [token] is null: how a watcher's
-     * request for Direct wakes the phone during a long run (docs/track/ozitrac.md « Pace »). Sent again only when it changed
+     * request for Direct wakes the phone during a long run (docs/track/folloz.md « Pace »). Sent again only when it changed
      * (blocking). -> false without network.
      */
     @Synchronized fun setToken(c: Context, token: String?): Boolean {
@@ -284,7 +284,7 @@ object Zone {
 
 /**
  * Standing still and leaving the zone, from the fixes (each said once until it is no longer so). Still is « under 15 m in
- * 5 minutes », 30 in a long run (docs/track/ozitrac.md rule 5), whatever a watcher's request for Direct does meanwhile.
+ * 5 minutes », 30 in a long run (docs/track/folloz.md rule 5), whatever a watcher's request for Direct does meanwhile.
  */
 class AlertWatch(private val ctx: Context, private val onAlert: () -> Unit) {
     private val still = PaceState.choice(ctx).let { StillDetector(PaceRules.stillWindow(it), PaceRules.stillSlack(it)) }
@@ -311,7 +311,7 @@ class AlertWatch(private val ctx: Context, private val onAlert: () -> Unit) {
 }
 
 /**
- * Ozitrac's destination: sends the run to the relay (POST /api/ozitrac/<c>/push), each batch sealed for each watcher whose key
+ * Folloz's destination: sends the run to the relay (POST /api/folloz/<c>/push), each batch sealed for each watcher whose key
  * this phone holds, from the queue « z: » + run that TrackerService fills beside Ozimut's. Without a watcher it waits (the
  * fixes kept, sent once one joins); at the end with still none the queue is dropped. Each batch says the pace kept; the
  * answer's `boost` (a watcher's request for Direct) goes to [onBoost].
@@ -322,7 +322,7 @@ class RelaySender(
     private val events: Uploader.Events,
     private val onBoost: (Boost) -> Unit = {},
 ) {
-    private val thread = HandlerThread("ozitrac-relay").apply { start() }
+    private val thread = HandlerThread("folloz-relay").apply { start() }
     private val h = Handler(thread.looper)
     private val batcher = Batcher(store)
     private val flushTask = Runnable { flush() }

@@ -18,7 +18,7 @@ import com.journeyapps.barcodescanner.ScanOptions
 import java.util.concurrent.Executors
 
 /**
- * Ozitrac's home (docs/track/ozitrac.md « The apps »): « Ma course » — the runs of this phone, who follows it, its zone, its
+ * Folloz's home (docs/track/folloz.md « The apps »): « Ma course » — the runs of this phone, who follows it, its zone, its
  * link to Ozimut — and « Je suis » — the people this phone follows. Everything native: no web page.
  */
 class HomeActivity : ComponentActivity() {

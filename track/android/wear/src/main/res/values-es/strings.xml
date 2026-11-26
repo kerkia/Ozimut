@@ -1,8 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name">Ozitrac</string>
+    <string name="app_name">Folloz</string>
     <string name="notif_channel_run">Registro de la carrera</string>
-    <string name="notif_run_title">Ozitrac registra tu carrera</string>
+    <string name="notif_run_title">Folloz registra tu carrera</string>
     <string name="notif_run_text">Para parar, mantén Parar en el reloj.</string>
     <string name="notif_sending_title">Enviando tu carrera</string>
     <string name="notif_sending_text">Las posiciones se envían en cuanto hay red.</string>
@@ -39,7 +39,7 @@
     <string name="w_name_text">Se muestra a quienes te siguen.</string>
     <string name="w_name_hint">Nombre</string>
     <string name="w_ok">Aceptar</string>
-    <string name="w_qr_title">Escanea con Ozitrac en el móvil</string>
+    <string name="w_qr_title">Escanea con Folloz en el móvil</string>
     <string name="w_qr_making">Creando el código…</string>
     <string name="w_qr_once">Para una persona, en 24 horas.</string>
     <string name="w_done">Hecho</string>

@@ -1,8 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name">Ozitrac</string>
+    <string name="app_name">Folloz</string>
     <string name="notif_channel_run">Laufaufzeichnung</string>
-    <string name="notif_run_title">Ozitrac zeichnet deinen Lauf auf</string>
+    <string name="notif_run_title">Folloz zeichnet deinen Lauf auf</string>
     <string name="notif_run_text">Zum Beenden halte „Stopp“ auf dem Bildschirm gedrückt.</string>
     <string name="notif_stop">Stopp…</string>
     <string name="notif_sending_title">Dein Lauf wird gesendet</string>
@@ -14,7 +14,7 @@
     <string name="tr_followed_by">Verfolgt von %1$s</string>
     <string name="tr_gps_searching">GPS: Suche…</string>
     <string name="tr_gps_acc">GPS: ±%1$d m</string>
-    <string name="tr_gps_need">Ozitrac braucht deinen Standort, um deinen Lauf aufzuzeichnen.</string>
+    <string name="tr_gps_need">Folloz braucht deinen Standort, um deinen Lauf aufzuzeichnen.</string>
     <string name="tr_gps_allow">Standort erlauben</string>
     <string name="tr_gps_off">Der Standort ist aus. Schalte ihn in den Einstellungen ein.</string>
     <string name="tr_net_on">Netz: verbunden</string>
@@ -66,11 +66,11 @@
     <string name="test_battery">Akku-Einstellungen</string>
     <string name="test_app">App-Einstellungen</string>
     <string name="test_busy">Gerade wird ein Lauf aufgezeichnet. Versuche es danach.</string>
-    <string name="advice_samsung">Einstellungen › Apps › Ozitrac › Akku: „Nicht eingeschränkt“ wählen. Dann Einstellungen › Akku › Hintergrundnutzungslimits: Ozitrac darf weder unter „Inaktive Apps“ noch unter „Apps im Tiefschlaf“ stehen.</string>
-    <string name="advice_xiaomi">Einstellungen › Apps › Apps verwalten › Ozitrac: „Autostart“ einschalten und unter „Energiesparen“ „Keine Einschränkungen“ wählen.</string>
-    <string name="advice_huawei">Einstellungen › Akku › App-Start › Ozitrac: „Automatisch verwalten“ ausschalten, dann „Automatischer Start“, „Sekundärer Start“ und „Im Hintergrund ausführen“ einschalten.</string>
-    <string name="advice_oneplus">Einstellungen › Apps › Ozitrac › Akkunutzung: Hintergrundaktivität erlauben („Nicht optimieren“). Bei Oppo und realme zusätzlich „Automatischen Start erlauben“ einschalten.</string>
-    <string name="advice_other">Einstellungen › Apps › Ozitrac › Akku: „Nicht eingeschränkt“ oder „Nicht optimiert“ wählen und Hintergrundaktivität erlauben.</string>
+    <string name="advice_samsung">Einstellungen › Apps › Folloz › Akku: „Nicht eingeschränkt“ wählen. Dann Einstellungen › Akku › Hintergrundnutzungslimits: Folloz darf weder unter „Inaktive Apps“ noch unter „Apps im Tiefschlaf“ stehen.</string>
+    <string name="advice_xiaomi">Einstellungen › Apps › Apps verwalten › Folloz: „Autostart“ einschalten und unter „Energiesparen“ „Keine Einschränkungen“ wählen.</string>
+    <string name="advice_huawei">Einstellungen › Akku › App-Start › Folloz: „Automatisch verwalten“ ausschalten, dann „Automatischer Start“, „Sekundärer Start“ und „Im Hintergrund ausführen“ einschalten.</string>
+    <string name="advice_oneplus">Einstellungen › Apps › Folloz › Akkunutzung: Hintergrundaktivität erlauben („Nicht optimieren“). Bei Oppo und realme zusätzlich „Automatischen Start erlauben“ einschalten.</string>
+    <string name="advice_other">Einstellungen › Apps › Folloz › Akku: „Nicht eingeschränkt“ oder „Nicht optimiert“ wählen und Hintergrundaktivität erlauben.</string>
     <string name="notif_channel_alerts">Warnungen</string>
     <string name="notif_channel_help">Hilferufe</string>
     <string name="tr_title">Mein Lauf</string>
@@ -82,7 +82,7 @@
     <string name="tr_err_device">Dieses Handy wurde aus seinem Ozimut-Konto entfernt.</string>
     <string name="pair_title">Mit Ozimut verbinden</string>
     <string name="pair_intro">Erstelle auf ozimut.com unter „GPS-Verfolgung“ einen Code für dein Konto oder das deines Kindes. Scanne seinen QR-Code oder tippe seine 8 Zeichen ein. Deine Läufe gehen dann auch an dieses Konto.</string>
-    <string name="net_error">Ozitrac konnte seinen Server nicht erreichen. Prüfe das Netz und versuche es noch einmal.</string>
+    <string name="net_error">Folloz konnte seinen Server nicht erreichen. Prüfe das Netz und versuche es noch einmal.</string>
     <string name="retry">Erneut versuchen</string>
     <string name="ok">OK</string>
     <string name="cancel">Abbrechen</string>
@@ -98,7 +98,7 @@
     <string name="name_text">Er wird den Personen gezeigt, die dir folgen, und denen, denen du folgst. Sonst wird nichts abgefragt.</string>
     <string name="name_hint">Vorname</string>
     <string name="watchers_title">Wer mir folgt</string>
-    <string name="watchers_none">Noch niemand folgt dir. Füge jemanden hinzu: Die Person scannt deinen Code mit ihrem Ozitrac.</string>
+    <string name="watchers_none">Noch niemand folgt dir. Füge jemanden hinzu: Die Person scannt deinen Code mit ihrem Folloz.</string>
     <string name="watchers_add">Jemanden hinzufügen</string>
     <string name="watchers_unknown">Jemand</string>
     <string name="watchers_remove">Entfernen</string>
@@ -135,13 +135,13 @@
     <string name="oz_unlink_ask">Dieses Handy von Ozimut trennen? Deine Läufe gehen dann nicht mehr an dieses Konto.</string>
     <string name="invite_title">Jemanden hinzufügen</string>
     <string name="invite_making">Code wird erstellt…</string>
-    <string name="invite_text">Bitte die Person, diesen Code mit Ozitrac auf ihrem Handy zu scannen. Sie folgt dann deinen Läufen live.</string>
+    <string name="invite_text">Bitte die Person, diesen Code mit Folloz auf ihrem Handy zu scannen. Sie folgt dann deinen Läufen live.</string>
     <string name="invite_once">Dieser Code gilt einmal und 24 Stunden lang. Erstelle für jede Person einen eigenen.</string>
     <string name="invite_share">Link senden</string>
-    <string name="invite_message">%1$s lädt dich ein, die Läufe live mit Ozitrac zu verfolgen: %2$s</string>
+    <string name="invite_message">%1$s lädt dich ein, die Läufe live mit Folloz zu verfolgen: %2$s</string>
     <string name="invite_done">Fertig</string>
     <string name="join_title">Jemandem folgen</string>
-    <string name="join_bad">Das ist kein Ozitrac-Code.</string>
+    <string name="join_bad">Das ist kein Folloz-Code.</string>
     <string name="join_text">Den Läufen von %1$s live folgen?</string>
     <string name="join_go">Folgen</string>
     <string name="join_working">Verbindung…</string>
@@ -174,9 +174,9 @@
     <string name="ago_min">%1$d min</string>
     <string name="ago_h">%1$d h</string>
     <string name="data_title">Meine Daten</string>
-    <string name="data_text">Ozitrac hat kein Konto. Sein Relais bewahrt deinen Kanal, die Personen, die dir folgen, die, denen du folgst, und den laufenden Lauf (verschlüsselt). Deine Läufe bleiben auf diesem Telefon.</string>
+    <string name="data_text">Folloz hat kein Konto. Sein Relais bewahrt deinen Kanal, die Personen, die dir folgen, die, denen du folgst, und den laufenden Lauf (verschlüsselt). Deine Läufe bleiben auf diesem Telefon.</string>
     <string name="data_erase">Meine Daten löschen</string>
-    <string name="data_erase_ask">Deine Daten auf dem Relais von Ozitrac löschen? Niemand folgt dir mehr, und du folgst niemandem mehr. Deine Läufe bleiben auf diesem Telefon.</string>
+    <string name="data_erase_ask">Deine Daten auf dem Relais von Folloz löschen? Niemand folgt dir mehr, und du folgst niemandem mehr. Deine Läufe bleiben auf diesem Telefon.</string>
     <string name="data_erased">Deine Daten wurden vom Relais gelöscht.</string>
     <string name="pace_long">Langstrecke: alle %1$d s eine Position, Senden alle %2$d min</string>
     <string name="pace_boost">Live bis %1$s</string>

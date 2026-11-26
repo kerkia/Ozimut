@@ -163,7 +163,7 @@ enum Geo {
 }
 
 /// An Ozimut pair code (8 letters or digits; « Relier à Ozimut ») from what was scanned, typed or opened: the code itself,
-/// `https://ozimut.com/t/<code>`, `ozitrac://t/<code>` (or the former `ozimut://t/<code>`, `ozimut://pair/<code>`,
+/// `https://ozimut.com/t/<code>`, `folloz://t/<code>` (or the former `ozimut://t/<code>`, `ozimut://pair/<code>`,
 /// `ozimut://<code>`).
 enum PairCode {
     static func isCode(_ s: String) -> Bool {
@@ -181,7 +181,7 @@ enum PairCode {
         if isCode(s.uppercased()) { return s.uppercased() }
         guard let url = URL(string: s), let scheme = url.scheme?.lowercased() else { return nil }
         var parts = url.pathComponents.filter { $0 != "/" }
-        let own = scheme == "ozimut" || scheme == "ozitrac"
+        let own = scheme == "ozimut" || scheme == "folloz"
         if own, let host = url.host, !host.isEmpty { parts.insert(host, at: 0) }
         if scheme == "https" || scheme == "http" {
             guard parts.count == 2, parts[0] == "t" else { return nil }

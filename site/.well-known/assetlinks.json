@@ -1,5 +1,5 @@
 [{
   "relation": ["delegate_permission/common.handle_all_urls"],
-  "target": { "namespace": "android_app", "package_name": "com.ozimut.ozitrac",
+  "target": { "namespace": "android_app", "package_name": "com.ozimut.folloz",
     "sha256_cert_fingerprints": ["00:00:00:00:00:00:00:00:00:00:00:00:00:00:00:00:00:00:00:00:00:00:00:00:00:00:00:00:00:00:00:00"] }
 }]

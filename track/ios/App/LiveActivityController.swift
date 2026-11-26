@@ -16,7 +16,7 @@ final class LiveActivityController {
 
     /// Shows the run's Live Activity, unless one is already shown (only from the foreground: the system refuses otherwise).
     func start(name: String, started: Date) {
-        let name = name.isEmpty ? "Ozitrac" : name
+        let name = name.isEmpty ? "Folloz" : name
         if let a = activity, !LiveActivityController.alive(a) { activity = nil }
         if activity == nil { activity = Activity<TrackActivityAttributes>.activities.first(where: LiveActivityController.alive) }
         if activity != nil { return }

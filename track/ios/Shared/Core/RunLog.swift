@@ -1,6 +1,6 @@
 import Foundation
 
-/// Every run kept on this device (docs/track/ozitrac.md rule 3), as Android's RunLog.kt: `Application Support/Runs/<run>.csv`,
+/// Every run kept on this device (docs/track/folloz.md rule 3), as Android's RunLog.kt: `Application Support/Runs/<run>.csv`,
 /// a line a fix « t,la,lo,ac,al », written as the fixes come. A run the Apple Watch recorded and sent over
 /// (WatchConnectivity) has a marker `<run>.watch` beside it. A GPX file is made from it when the runner wants one.
 enum RunLog {
@@ -117,7 +117,7 @@ enum RunLog {
         try? FileManager.default.createDirectory(at: d, withIntermediateDirectories: true)
         var safeName = String(name.filter { $0.isLetter || $0.isNumber || $0 == " " || $0 == "_" || $0 == "-" })
             .trimmingCharacters(in: .whitespaces)
-        if safeName.isEmpty { safeName = "ozitrac" }
+        if safeName.isEmpty { safeName = "folloz" }
         let f = d.appendingPathComponent(String(safeName.prefix(60)) + ".gpx")
         do {
             try Data(Gpx.write(name: name, fixes: fixes).utf8).write(to: f, options: .atomic)

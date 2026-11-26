@@ -5,7 +5,7 @@ import org.json.JSONObject
 import java.util.Locale
 
 /**
- * The map's layers by country (docs/track/ozitrac.md « The map »): what `GET /api/ozitrac/config` says — each layer's tile
+ * The map's layers by country (docs/track/folloz.md « The map »): what `GET /api/folloz/config` says — each layer's tile
  * address, credit and last zoom, each area's outline and layers (the first the default), the layers elsewhere — and the
  * layer the person chose for each area. A tile is drawn from an area's layer when its four corners lie inside the area,
  * else from the layer chosen for « elsewhere ».

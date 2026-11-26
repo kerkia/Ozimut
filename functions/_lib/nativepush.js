@@ -82,7 +82,7 @@ export async function sendNative(env, d, msg, { ttl = 4 * 86400, topic } = {}) {
   }
 }
 
-/** An Ozitrac alert (docs/track/ozitrac.md « Notifications »): data only, the app writes the words with the name it holds.
+/** An Folloz alert (docs/track/folloz.md « Notifications »): data only, the app writes the words with the name it holds.
  *  `quiet`: a message to the app itself, never shown (the runner's phone told to change its pace, « Pace »): on the iPhone a
  *  background notification. `p` = { kind: "fcm" | "apns", token, env }. -> "ok" | "gone" | "failed" | "off" */
 export async function sendData(env, p, data, { urgent = false, ttl = 3600, quiet = false } = {}) {
@@ -102,9 +102,9 @@ export async function sendData(env, p, data, { urgent = false, ttl = 3600, quiet
       const exp = String(Math.floor(Date.now() / 1000) + ttl);
       const res = await fetch(`https://${host}/3/device/${p.token}`, { method: "POST",
         headers: quiet
-          ? { authorization: `bearer ${await apnsToken(env)}`, "apns-topic": env.OZITRAC_APNS_TOPIC || "com.ozimut.ozitrac",
+          ? { authorization: `bearer ${await apnsToken(env)}`, "apns-topic": env.FOLLOZ_APNS_TOPIC || "com.ozimut.folloz",
             "apns-push-type": "background", "apns-priority": "5", "apns-expiration": exp }
-          : { authorization: `bearer ${await apnsToken(env)}`, "apns-topic": env.OZITRAC_APNS_TOPIC || "com.ozimut.ozitrac",
+          : { authorization: `bearer ${await apnsToken(env)}`, "apns-topic": env.FOLLOZ_APNS_TOPIC || "com.ozimut.folloz",
             "apns-push-type": "alert", "apns-priority": "10", "apns-expiration": exp },
         body: JSON.stringify(quiet ? { aps: { "content-available": 1 }, ...strings }
           : { aps: { alert: { "loc-key": `OZ_ALERT_${strings.kind.toUpperCase()}` }, sound: "default", "mutable-content": 1,
@@ -136,8 +136,8 @@ export async function appToUser(env, userId, msg, opts) {
   return reached;
 }
 
-/** Every tracking device of an account (track_devices: Ozitrac's phones and watches linked to it, docs/track/ozitrac.md;
- *  an iPhone's token is Ozitrac's, so APNs is asked under Ozitrac's topic). -> number reached */
+/** Every tracking device of an account (track_devices: Folloz's phones and watches linked to it, docs/track/folloz.md;
+ *  an iPhone's token is Folloz's, so APNs is asked under Folloz's topic). -> number reached */
 export async function nativeToUser(env, userId, msg, opts) {
   if (!nativeReady(env)) return 0;
   let rows = [];
@@ -147,7 +147,7 @@ export async function nativeToUser(env, userId, msg, opts) {
   } catch (e) { return 0; }                     // before migration 0029
   let reached = 0;
   for (const d of rows) {
-    const r = await sendNative(env, d, msg, { ...opts, topic: env.OZITRAC_APNS_TOPIC || "com.ozimut.ozitrac" });
+    const r = await sendNative(env, d, msg, { ...opts, topic: env.FOLLOZ_APNS_TOPIC || "com.ozimut.folloz" });
     if (r === "ok") reached++;
     else if (r === "gone") await env.DB.prepare("UPDATE track_devices SET push_token = NULL WHERE id = ?").bind(d.id).run();
   }

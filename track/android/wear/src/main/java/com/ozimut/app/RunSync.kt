@@ -12,13 +12,13 @@ import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicBoolean
 
 /**
- * The watch's runs reach the phone (docs/track/ozitrac.md « The watch »): each finished run's file becomes a data item of
- * the Wear OS Data Layer, `/ozitrac/run/<run>` with the file as an asset. The system keeps it on the watch and hands it to
- * the paired phone whenever the two are connected (Bluetooth, Wi-Fi or through the cloud); the phone's Ozitrac files it in
+ * The watch's runs reach the phone (docs/track/folloz.md « The watch »): each finished run's file becomes a data item of
+ * the Wear OS Data Layer, `/folloz/run/<run>` with the file as an asset. The system keeps it on the watch and hands it to
+ * the paired phone whenever the two are connected (Bluetooth, Wi-Fi or through the cloud); the phone's Folloz files it in
  * « Mes courses » (`WatchRuns` in the phone app) and deletes the item. Nothing goes through Ozimut or the relay.
  */
 object RunSync {
-    const val PREFIX = "/ozitrac/run/"
+    const val PREFIX = "/folloz/run/"
     const val ASSET = "csv"
     /** Items still waiting for a phone, at most: the oldest go first (a watch never meets its phone). */
     private const val MAX_WAITING = 20

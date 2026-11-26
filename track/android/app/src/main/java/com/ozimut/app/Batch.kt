@@ -66,7 +66,7 @@ object BatchEncoder {
     /** Accuracies are plain values, each its own fix's (docs/track/design.md, settled 2026-11-21 as the iPhone and Garmin send them). */
     var accuracyAsDeltas = false
 
-    /** [pace]: the pace kept (docs/track/ozitrac.md « Pace »; design.md « Sending »), left out when null (Direct). */
+    /** [pace]: the pace kept (docs/track/folloz.md « Pace »; design.md « Sending »), left out when null (Direct). */
     fun encode(b: Batch, share: String, battery: Int?, lowPower: Boolean, left: Int, nowSec: Long, pace: PaceNow? = null): String {
         val f = b.fixes
         val sb = StringBuilder(64 + f.size * 24)

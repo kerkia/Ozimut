@@ -1,7 +1,7 @@
 import SwiftUI
 
 @main
-struct OzitracWatchApp: App {
+struct FollozWatchApp: App {
     @StateObject private var model = WatchModel.shared
 
     var body: some Scene {

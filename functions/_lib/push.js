@@ -102,8 +102,8 @@ export async function sendPush(env, sub, msg, { topic = null, ttl = 4 * 86400 } 
 
 /** Send to every device of an account; drop the subscriptions gone, count the failures. -> number of devices reached. */
 export async function pushToUser(env, userId, msg, opts) {
-  // the tracking's alerts also go natively to the account's tracking phones (Ozitrac linked to Ozimut, _lib/nativepush.js);
-  // nothing else of the site goes to the app (owner, 2026-11-23: Ozitrac shows tracking only, docs/track/ozitrac.md)
+  // the tracking's alerts also go natively to the account's tracking phones (Folloz linked to Ozimut, _lib/nativepush.js);
+  // nothing else of the site goes to the app (owner, 2026-11-23: Folloz shows tracking only, docs/track/folloz.md)
   let reached = opts?.native ? await nativeToUser(env, userId, msg, opts) : 0;
   // the Ozimut app (docs/app/design.md): every notification of the account, on the phones where it turned them on
   reached += await appToUser(env, userId, msg, opts);

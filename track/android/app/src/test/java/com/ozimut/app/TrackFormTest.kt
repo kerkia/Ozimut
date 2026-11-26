@@ -11,7 +11,7 @@ import javax.crypto.Cipher
 import javax.crypto.spec.GCMParameterSpec
 import javax.crypto.spec.SecretKeySpec
 
-/** Ozitrac's pure parts (docs/track/ozitrac.md): sealing, the batch's delta form, the code link, the GPX file. */
+/** Folloz's pure parts (docs/track/folloz.md): sealing, the batch's delta form, the code link, the GPX file. */
 class TrackFormTest {
     private val key = ByteArray(32) { (it * 7 + 3).toByte() }
     private val iv = ByteArray(12) { (it + 1).toByte() }
@@ -38,7 +38,7 @@ class TrackFormTest {
         assertArrayEquals(plain, Seal.open(key, aad, sealed))
     }
 
-    /** The vectors made with Node's WebCrypto, which the iPhone's tests check too (track/ios/Tests/OzitracTests.swift). */
+    /** The vectors made with Node's WebCrypto, which the iPhone's tests check too (track/ios/Tests/FollozTests.swift). */
     @Test
     fun sealsAsWebCryptoDoes() {
         assertEquals("AQIDBAUGBwgJCgsMKwAOwgQ8OsM-yW_YKD0AW4hL3rz9Pf9Y",

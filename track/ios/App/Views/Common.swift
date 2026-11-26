@@ -14,7 +14,7 @@ struct ShareSheet: UIViewControllerRepresentable {
 }
 
 extension UTType {
-    /// GPX, declared by its extension (Ozitrac opens no file: it only writes them).
+    /// GPX, declared by its extension (Folloz opens no file: it only writes them).
     static var gpxFile: UTType { UTType(filenameExtension: "gpx", conformingTo: .xml) ?? .xml }
 }
 

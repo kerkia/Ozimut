@@ -39,7 +39,7 @@ object Notifs {
     }
 
     /**
-     * The persistent notification of a run: the elapsed time, the pace of a long run (docs/track/ozitrac.md « Pace ») — in
+     * The persistent notification of a run: the elapsed time, the pace of a long run (docs/track/folloz.md « Pace ») — in
      * Direct for a watcher, until when and who asked ([askedBy], the name this phone holds for them) —, and « Stop… » that
      * only opens the screen (hold to stop). Updated in place when the pace changes: a watcher's request shows nowhere else.
      */
@@ -116,7 +116,7 @@ object Notifs {
         try { nm.notify(ID_RESUME, n) } catch (e: SecurityException) { /* notifications refused */ }
     }
 
-    /** An alert about a person followed (docs/track/ozitrac.md « Notifications »): opens their map. */
+    /** An alert about a person followed (docs/track/folloz.md « Notifications »): opens their map. */
     fun alert(c: Context, ch: String, kind: String) {
         val f = Follows.get(c, ch) ?: return
         val nm = c.getSystemService(NotificationManager::class.java) ?: return

@@ -9,13 +9,13 @@ import java.util.zip.GZIPOutputStream
 
 class HttpResult(val code: Int, val json: JSONObject?)
 
-/** JSON over HTTPS to Ozimut (its tracking API and Ozitrac's relay). Throws on a network failure. */
+/** JSON over HTTPS to Ozimut (its tracking API and Folloz's relay). Throws on a network failure. */
 object Http {
     fun base(): String = BuildConfig.BASE_URL.trimEnd('/')
 
     fun host(): String = Uri.parse(base()).host ?: "ozimut.com"
 
-    fun userAgent(): String = "Ozitrac/${BuildConfig.VERSION_NAME} (android; +https://ozimut.com)"
+    fun userAgent(): String = "Folloz/${BuildConfig.VERSION_NAME} (android; +https://ozimut.com)"
 
     fun post(path: String, body: String, bearer: String? = null, gzip: Boolean = false): HttpResult =
         request("POST", path, body, bearer, gzip)

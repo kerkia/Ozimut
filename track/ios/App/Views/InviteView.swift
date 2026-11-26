@@ -1,7 +1,7 @@
 import SwiftUI
 
-/// A new code for someone who will follow this iPhone (docs/track/ozitrac.md « The code a watcher scans »): its QR code
-/// to scan with their Ozitrac, or the address to send them. A code serves once and lasts 24 hours.
+/// A new code for someone who will follow this iPhone (docs/track/folloz.md « The code a watcher scans »): its QR code
+/// to scan with their Folloz, or the address to send them. A code serves once and lasts 24 hours.
 struct InviteView: View {
     @EnvironmentObject var m: AppModel
     @State private var link: String?

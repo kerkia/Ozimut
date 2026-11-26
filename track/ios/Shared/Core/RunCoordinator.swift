@@ -10,12 +10,12 @@ protocol RunCoordinatorDelegate: AnyObject {
 }
 
 /// A run, as Android's TrackerService: one fix a second written at once to the run's file on the device (RunLog) and to
-/// the queue of each destination — Ozimut's account when the device is linked (« oz »), Ozitrac's relay when someone
+/// the queue of each destination — Ozimut's account when the device is linked (« oz »), Folloz's relay when someone
 /// follows (« z ») —, each with its own engine. The run ends once every destination has sent its last batch. Its state is
 /// kept in the preferences so that a run left open is taken up again after the system ended the app. Used on the main
 /// thread; the position comes from the iPhone's LocationTracker or the watch's WorkoutRecorder.
 ///
-/// Its pace (docs/track/ozitrac.md « Pace », `PaceState`): Direct, or a long run keeping one fix every `fix` seconds and
+/// Its pace (docs/track/folloz.md « Pace », `PaceState`): Direct, or a long run keeping one fix every `fix` seconds and
 /// sending every `send` seconds, switched to Direct for a while when a watcher asks it (`applyBoost`: from a background
 /// notification or a batch's answer) and back by itself when that time is over. The watch only runs Direct.
 final class RunCoordinator {
@@ -279,7 +279,7 @@ final class RunCoordinator {
 
     // MARK: the pace
 
-    /// A watcher's request for Direct (a background notification, or a batch's answer, docs/track/ozitrac.md « Pace »):
+    /// A watcher's request for Direct (a background notification, or a batch's answer, docs/track/folloz.md « Pace »):
     /// looked at once; refused when the runner did not allow it or the battery is under 20 %; else Direct until its
     /// `until`, then the long pace again by itself. A batch reporting the pace kept goes within a few seconds.
     @discardableResult

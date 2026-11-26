@@ -1,7 +1,7 @@
 package com.ozimut.app
 
 /*
- * Ozitrac's pure parts (docs/track/ozitrac.md), in plain Kotlin and the JDK's crypto (no Android class): the sealing of a
+ * Folloz's pure parts (docs/track/folloz.md), in plain Kotlin and the JDK's crypto (no Android class): the sealing of a
  * batch for one watcher, the batch's delta form, the code a watcher scans, a GPX file. Tested by the JVM unit tests, and
  * compiled into the Wear OS app as they are.
  */
@@ -137,7 +137,7 @@ object Codes {
     private val CH = Regex("^[a-z2-7]{16}$")
     private val TOKEN = Regex("^[a-z2-7]{16}$")
 
-    /** A code read from a link or a QR code (`https://…/z/<c>#…` or `ozitrac://z/<c>#…`); null when it is not one. */
+    /** A code read from a link or a QR code (`https://…/z/<c>#…` or `folloz://z/<c>#…`); null when it is not one. */
     fun parse(raw: String?): Link? {
         if (raw == null) return null
         val s = raw.trim()
@@ -164,7 +164,7 @@ object Gpx {
     fun write(name: String, fixes: List<Fix>): String {
         val sb = StringBuilder(200 + fixes.size * 110)
         sb.append("<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n")
-        sb.append("<gpx version=\"1.1\" creator=\"Ozitrac\" xmlns=\"http://www.topografix.com/GPX/1/1\">\n")
+        sb.append("<gpx version=\"1.1\" creator=\"Folloz\" xmlns=\"http://www.topografix.com/GPX/1/1\">\n")
         sb.append("<metadata><name>").append(esc(name)).append("</name>")
         if (fixes.isNotEmpty()) sb.append("<time>").append(Instant.ofEpochSecond(fixes[0].t)).append("</time>")
         sb.append("</metadata>\n<trk><name>").append(esc(name)).append("</name><trkseg>\n")

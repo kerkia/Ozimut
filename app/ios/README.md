@@ -2,7 +2,7 @@
 
 The live site (https://ozimut.com) in a web view, plus what a page cannot do: native notifications, files opened with
 or shared to the app, the document scanner for map photos, the watch's routes from Apple Health, saving a file the site
-makes. **It does not track** (that is Ozitrac, `track/`) and **it never shows anything about buying**. The contract is
+makes. **It does not track** (that is Folloz, `track/`) and **it never shows anything about buying**. The contract is
 [`docs/app/design.md`](../../docs/app/design.md); change it first, then this code. The owner's steps with Apple are in
 `docs/app/setup.md`.
 

@@ -1,4 +1,4 @@
-# Ozitrac for iPhone and Apple Watch (track/ios, docs/track/ozitrac.md): unsigned builds for the simulators — the iPhone
+# Folloz for iPhone and Apple Watch (track/ios, docs/track/folloz.md): unsigned builds for the simulators — the iPhone
 # app with its Live Activity widget, its notification extension and the watch app embedded, then the watch app alone —
 # and the unit tests (sealing, the batch form, the code link, the queue, the engines, the QR codes). Signing and archiving
 # come once the owner has an Apple Developer account and has set the secrets listed in track/ios/README.md.
@@ -61,7 +61,7 @@ jobs:
       - name: Build the iPhone app (and the embedded watch app, widget and notification extension) for the simulator
         run: |
           set +e
-          xcodebuild build -project Ozitrac.xcodeproj -scheme Ozitrac -configuration Debug \
+          xcodebuild build -project Folloz.xcodeproj -scheme Folloz -configuration Debug \
             -destination 'generic/platform=iOS Simulator' -derivedDataPath build/dd \
             CODE_SIGNING_ALLOWED=NO > build-ios.log 2>&1
           status=$?
@@ -69,7 +69,7 @@ jobs:
           grep -E 'warning: ' build-ios.log | grep -v '^ld: ' | sort -u | head -60 || true
           tail -40 build-ios.log
           if [ $status -eq 0 ]; then
-            app=$(find build/dd/Build/Products -name 'Ozitrac.app' -maxdepth 3 | head -1)
+            app=$(find build/dd/Build/Products -name 'Folloz.app' -maxdepth 3 | head -1)
             echo "Built: $app"; ls "$app" "$app/Watch" "$app/PlugIns" 2>/dev/null || true
           fi
           exit $status
@@ -78,7 +78,7 @@ jobs:
         if: always()
         run: |
           set +e
-          xcodebuild build -project Ozitrac.xcodeproj -scheme OzitracWatch -configuration Debug \
+          xcodebuild build -project Folloz.xcodeproj -scheme FollozWatch -configuration Debug \
             -destination 'generic/platform=watchOS Simulator' -derivedDataPath build/ddw \
             CODE_SIGNING_ALLOWED=NO > build-watch.log 2>&1
           status=$?
@@ -100,7 +100,7 @@ jobs:
                       print(dev["udid"]); sys.exit()
           ')
           echo "Simulator: $udid"
-          xcodebuild test -project Ozitrac.xcodeproj -scheme OzitracTests -configuration Debug \
+          xcodebuild test -project Folloz.xcodeproj -scheme FollozTests -configuration Debug \
             -destination "id=$udid" -derivedDataPath build/ddt CODE_SIGNING_ALLOWED=NO > test.log 2>&1
           status=$?
           "$RUNNER_TEMP/annotate.sh" test.log

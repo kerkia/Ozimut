@@ -1,9 +1,9 @@
-# Ozitrac for iPhone and Apple Watch
+# Folloz for iPhone and Apple Watch
 
-Ozitrac, the tracking app of its own (docs/track/ozitrac.md is the contract; change it first, then this code): live GPS
+Folloz, the tracking app of its own (docs/track/folloz.md is the contract; change it first, then this code): live GPS
 tracking between phones without any account, every run kept on the device as GPX, and, when the runner wants, every run
 also sent to an Ozimut account it is linked to (« Relier à Ozimut », docs/track/design.md « Pairing a phone » and
-« Sending »). The twin of `track/android/app` (Ozitrac for Android) and `track/android/wear` (Wear OS). All native: no web
+« Sending »). The twin of `track/android/app` (Folloz for Android) and `track/android/wear` (Wear OS). All native: no web
 view, no page of Ozimut, **nothing to buy, no price, no « subscribe », no link to buying** (App Review 3.1.3).
 
 ## What is here
@@ -14,16 +14,16 @@ view, no page of Ozimut, **nothing to buy, no price, no « subscribe », no link
 | `Shared/Core/` | Compiled into the iPhone app, the watch app and the tests. `MapLayers` (the map's layers by country, the person's choice per area), `TrackForm` (random numbers, base64url, the sealing — AES-256-GCM with CryptoKit —, the batch's delta form, the code link, GPX), `Relay` (the relay's HTTP API, the first name, `/config`, the channel and its watchers in the Keychain, the alerts seen on the device, the zone, the relay's batch body and destination), `Follows` (the people followed, what was received of their runs), `RunLog` (every run kept on the device, `Application Support/Runs/<run>.csv`, a run from the watch marked `<run>.watch`), `RunCoordinator` (a run: its file, one `TrackEngine` per destination — Ozimut, the relay —, the cap, the alerts, the low battery, its pace and a watcher's request for Direct), `Pace` (the pace of a run, pure: the runner's choice, a watcher's request applied once or refused, the batch's `pace`, the watcher's reading of it), `TrackEngine` (the queue and its batches for one destination, `ack`/`next`/`stop`, 401/409/413/429, retries 5 s doubling to 5 min), `FixQueue` (the on-disk queue, plain SQLite), `TrackClient` + `BatchEncoder` + `DeviceStore` (Ozimut's device protocol and the link to Ozimut), `QRCode` (a QR code encoder: the watch has no CoreImage). |
 | `Shared/UI/` | Texts (`L()`), the hold-to-act button, the QR code drawn. |
 | `Shared/Activity/` | The Live Activity's attributes (app and widget). |
-| `App/` | The iPhone app: `AppModel` (state, links, notifications, the background notification of a watcher's request for Direct), `LocationTracker` (one fix a second; a long run's lower accuracy), `LiveActivityController`, `WatchLink` (runs from the watch), `Views/` — « Ma course » (`MeView`), the run (`TrackerViews`: Start with « Direct » or « Course longue », Running and its pace, Ended, the two-minute test, « Relier à Ozimut »), « Je suis » (`FollowViews`: the people followed and their pace, a person's live map, « Passer en direct » / « Revenir au rythme lent », joining from a code), the code to show (`InviteView`), « Mes courses » (`RunsView`), the zone (`ZoneView`), the map (`TileMap`: MapKit with Ozitrac's own tile overlay, never Apple's tiles, its layers by country and « Fond de carte »), the QR scanner. |
+| `App/` | The iPhone app: `AppModel` (state, links, notifications, the background notification of a watcher's request for Direct), `LocationTracker` (one fix a second; a long run's lower accuracy), `LiveActivityController`, `WatchLink` (runs from the watch), `Views/` — « Ma course » (`MeView`), the run (`TrackerViews`: Start with « Direct » or « Course longue », Running and its pace, Ended, the two-minute test, « Relier à Ozimut »), « Je suis » (`FollowViews`: the people followed and their pace, a person's live map, « Passer en direct » / « Revenir au rythme lent », joining from a code), the code to show (`InviteView`), « Mes courses » (`RunsView`), the zone (`ZoneView`), the map (`TileMap`: MapKit with Folloz's own tile overlay, never Apple's tiles, its layers by country and « Fond de carte »), the QR scanner. |
 | `Notify/` | The notification extension: writes the name of the person followed into the relay's alerts (the relay knows no name). |
 | `Widget/` | The Live Activity (lock screen and Dynamic Island): the run's clock, distance, positions waiting, a long run's pace. |
 | `Watch/` | The watchOS app (watchOS 10+, embedded in the iPhone app, also installable alone): a followed device of its own — its channel, its code as a QR code, its watchers, Start / Help held / Stop held, an `HKWorkoutSession` with the position, Ozimut by its claim code —, its finished runs sent to the paired iPhone by `WCSession.transferFile`. |
 | `Tests/` | Unit tests: sealing against WebCrypto's vector (the same as Android's), the batch form, the code link, GPX, the relay's batch body, the alerts, the engines (Ozimut's against a fake server, the relay's waiting for a watcher), the runs kept, the QR codes read back by CoreImage. |
 | `Resources/` | `Localizable.xcstrings` and `<lang>.lproj/InfoPlist.strings`, **written by `tools/strings.py`** (English base, French the reference wording, German « du », Spanish « tú », the Android app's wording). Edit the tables there and run `python3 tools/strings.py`. |
 
-Identifiers: `com.ozimut.ozitrac` (iPhone), `com.ozimut.ozitrac.watchkitapp` (watch), `com.ozimut.ozitrac.widget` (Live
-Activity), `com.ozimut.ozitrac.notify` (notification extension); App Group `group.com.ozimut.ozitrac`; URL scheme `ozitrac`;
-universal links `https://ozimut.com/z/*` (Ozitrac codes) and `/t/*` (Ozimut pair codes).
+Identifiers: `com.ozimut.folloz` (iPhone), `com.ozimut.folloz.watchkitapp` (watch), `com.ozimut.folloz.widget` (Live
+Activity), `com.ozimut.folloz.notify` (notification extension); App Group `group.com.ozimut.folloz`; URL scheme `folloz`;
+universal links `https://ozimut.com/z/*` (Folloz codes) and `/t/*` (Ozimut pair codes).
 
 ## Building
 
@@ -33,7 +33,7 @@ project, builds the iPhone app (with its widget, notification extension and watc
 app alone for the watchOS simulator, and runs the unit tests on an iPhone simulator — all with `CODE_SIGNING_ALLOWED=NO`.
 Compiler errors appear as annotations on the run; the logs are kept as an artifact for a week.
 
-On a Mac: `brew install xcodegen`, `cd track/ios && xcodegen generate`, open `Ozitrac.xcodeproj`. A Debug build may point at
+On a Mac: `brew install xcodegen`, `cd track/ios && xcodegen generate`, open `Folloz.xcodeproj`. A Debug build may point at
 another server: change `OZ_BASE_URL` under `configs: Debug:` in `project.yml` (the base must end with `/`).
 
 ## What the owner must provide to publish
@@ -42,21 +42,21 @@ In this order, once the Apple Developer Program membership (99 USD a year) is ac
 
 1. **The team id**: set `DEVELOPMENT_TEAM` in `project.yml`, and in `site/.well-known/apple-app-site-association` replace
    `TEAMID0000` by it (the universal links of `/z/*` and `/t/*`; deployed with the site).
-2. **The App Group** `group.com.ozimut.ozitrac` (Certificates, Identifiers & Profiles › Identifiers › App Groups).
+2. **The App Group** `group.com.ozimut.folloz` (Certificates, Identifiers & Profiles › Identifiers › App Groups).
 3. **The four App IDs** and their capabilities:
-   - `com.ozimut.ozitrac` — Associated Domains, Push Notifications, App Groups (the group above);
-   - `com.ozimut.ozitrac.notify` — App Groups (the same group);
-   - `com.ozimut.ozitrac.widget` — none;
-   - `com.ozimut.ozitrac.watchkitapp` — HealthKit (the workout keeps the watch app running wrist down).
+   - `com.ozimut.folloz` — Associated Domains, Push Notifications, App Groups (the group above);
+   - `com.ozimut.folloz.notify` — App Groups (the same group);
+   - `com.ozimut.folloz.widget` — none;
+   - `com.ozimut.folloz.watchkitapp` — HealthKit (the workout keeps the watch app running wrist down).
 4. **An APNs key** (Keys › « Apple Push Notifications service »: one .p8 for the team), then the Pages secrets (by
    `npx wrangler pages secret put <NAME> --project-name observatoire-cn`): `APNS_KEY` (the .p8's text), `APNS_KEY_ID`,
-   `APNS_TEAM_ID` (shared with the Ozimut app, `app/ios`) and `OZITRAC_APNS_TOPIC` = `com.ozimut.ozitrac`: the relay's
-   alerts to the people following, and Ozimut's own tracking alerts to an Ozitrac iPhone linked to an account
+   `APNS_TEAM_ID` (shared with the Ozimut app, `app/ios`) and `FOLLOZ_APNS_TOPIC` = `com.ozimut.folloz`: the relay's
+   alerts to the people following, and Ozimut's own tracking alerts to an Folloz iPhone linked to an account
    (`functions/_lib/nativepush.js` sends an account's linked devices under it). `APNS_TOPIC` stays the Ozimut app's
    (`com.ozimut.app`, docs/app/setup.md). The app
    sends `env: "dev"` from Debug builds and `"prod"` from Release builds; the entitlement `aps-environment` is `development`
    in `project.yml` and becomes `production` when exported for the App Store.
-5. **App Store Connect**: an app record « Ozitrac » for `com.ozimut.ozitrac` (the watch app goes with it). Its export
+5. **App Store Connect**: an app record « Folloz » for `com.ozimut.folloz` (the watch app goes with it). Its export
    compliance: the app encrypts the positions end to end with standard AES-GCM from the system (CryptoKit); `project.yml`
    says `ITSAppUsesNonExemptEncryption: false` (standard encryption, mass market) — confirm that answer there, or change it.
 6. **Signing for CI**: a distribution certificate (.p12) and its password, and an App Store Connect API key for automatic
@@ -79,7 +79,7 @@ between Start and Stop ». The app icon is the Ozimut mark (`Resources/Assets.xc
   (`isStationary`) and its cadence is the system's, while the contract asks one fix a second always. « When In Use »
   only; temporary full accuracy is asked when the user gave approximate location. No location outside a run, except the
   Start and zone screens' single position and the explicit two-minute test.
-- **Two paces** (docs/track/ozitrac.md « Pace »): « Direct » (the default, as before) or « Course longue », chosen on the
+- **Two paces** (docs/track/folloz.md « Pace »): « Direct » (the default, as before) or « Course longue », chosen on the
   Start screen with the fix interval (15, 30 or 60 s), the send interval (5, 10 or 15 min) and « Mes suiveurs peuvent passer
   en direct », remembered for the next run (`PaceChoice`, UserDefaults `oz.pace`). A long run keeps the location updates and
   the `CLBackgroundActivitySession` running (stopping them would let iOS suspend the app), asks for
@@ -90,7 +90,7 @@ between Start and Stop ». The app icon is the Ozimut mark (`Resources/Assets.xc
   (Direct: `mode` "live", `fix` 1, `send` the interval in use). The watch only runs Direct.
 - **A watcher's request for Direct** (rule 6b): the iPhone gives the relay its APNs token for its own channel (`PUT
   /<c>/token`, at launch when it has a channel, at each long run's start, when the token changes). The relay wakes it with a
-  background notification (`content-available`, `{ app: "ozitrac", c, kind: "pace", until, at, by }`) handled in
+  background notification (`content-available`, `{ app: "folloz", c, kind: "pace", until, at, by }`) handled in
   `application(_:didReceiveRemoteNotification:fetchCompletionHandler:)` — hence the background mode `remote-notification`
   beside `location` in `project.yml` — and every batch's answer carries the same request (`boost`), so a notification iOS
   delays or drops is made up at the next batch. A request is applied once (by its `at`): refused when the runner did not
@@ -111,10 +111,10 @@ between Start and Stop ». The app icon is the Ozimut mark (`Resources/Assets.xc
   Keychain, readable after the first unlock (a run sends with the screen off). Only the names followed go to the App
   Group, for the notification extension.
 - **The map**: MapKit with an `MKTileOverlay` replacing Apple's content (`OzTileOverlay`), the layers by country from
-  `/api/ozitrac/config` (`MapLayers`, the twin of Android's): each tile from the layer chosen for the area holding its four
+  `/api/folloz/config` (`MapLayers`, the twin of Android's): each tile from the layer chosen for the area holding its four
   corners, else from the layer chosen for « elsewhere »; past a layer's last zoom, its ancestor's part enlarged. « Fond de
   carte » (top left of every map) lists the layers area by area, the one the map's centre lies in first, and keeps the
-  choice on the iPhone (UserDefaults) for every map. Tiles fetched by the iPhone itself with `User-Agent: Ozitrac/<version>
+  choice on the iPhone (UserDefaults) for every map. Tiles fetched by the iPhone itself with `User-Agent: Folloz/<version>
   (+https://ozimut.com)`, kept 30 days per layer (`Caches/tiles/<layer>/<z>/<x>/<y>`); the credits shown are those of the
   layers in view. A layer or a country is added on the server alone.
 - **QR codes**: drawn from our own encoder (byte mode, level M), ported from Project Nayuki's MIT-licensed library: watchOS

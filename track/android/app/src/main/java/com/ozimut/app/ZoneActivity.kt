@@ -22,7 +22,7 @@ import androidx.activity.result.contract.ActivityResultContracts
 import kotlin.math.roundToInt
 
 /**
- * The zone set on this phone (docs/track/ozitrac.md rule 5): its centre is the map's centre (the cross), « Ma position » brings
+ * The zone set on this phone (docs/track/folloz.md rule 5): its centre is the map's centre (the cross), « Ma position » brings
  * the map to where the phone is; a radius; leaving it during a run alerts the watchers.
  */
 class ZoneActivity : ComponentActivity() {

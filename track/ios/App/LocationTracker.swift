@@ -9,7 +9,7 @@ import Foundation
 /// contract's rule 4, and is the long-proven way for workout apps. A `CLBackgroundActivitySession` is held for the
 /// whole run too (iOS 17+): with the « When In Use » authorisation it keeps the session alive in the background.
 ///
-/// A long run (docs/track/ozitrac.md « Pace ») asks the system for less (`setSaving`: 10 m accuracy) and keeps one fix every
+/// A long run (docs/track/folloz.md « Pace ») asks the system for less (`setSaving`: 10 m accuracy) and keeps one fix every
 /// 15-60 s (RunCoordinator drops the others). The updates themselves go on, without a distance filter: stopping them would
 /// let the system suspend the app between fixes, and a runner standing still must still give a fix now and then (standing
 /// still is told from the fixes).

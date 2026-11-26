@@ -30,11 +30,11 @@ import kotlin.math.roundToInt
 /**
  * The run: a foreground service of type « location », started only from the visible Start screen.
  * Each fix is written at once to the run's file on the phone (RunLog) and to the queue of each destination: Ozimut's account
- * when the phone is linked (Uploader), Ozitrac's relay when someone follows (RelaySender; docs/track/ozitrac.md). The run ends
+ * when the phone is linked (Uploader), Folloz's relay when someone follows (RelaySender; docs/track/folloz.md). The run ends
  * once every destination has sent its last batch. START_STICKY and the state in SharedPreferences bring an open run back after
  * the process was killed. Also runs the two-minute self-test (no queue, no sending).
  *
- * Two paces (docs/track/ozitrac.md « Pace »). **Direct**: one GPS fix a second (the platform's GPS provider), the processor
+ * Two paces (docs/track/folloz.md « Pace »). **Direct**: one GPS fix a second (the platform's GPS provider), the processor
  * kept awake, the senders on their own timers. **A long run**: one fix every 15-60 s, delivered together by the location system
  * about when a batch is due ([BatchedFixes], else the platform's batching) so that the processor sleeps in between; no lasting
  * wake lock but a short one around each sending, which the delivery of fixes, an alarm (in case no fix comes), help, the end
@@ -239,7 +239,7 @@ class TrackerService : Service(), LocationListener {
 
     /**
      * A watcher's request waiting, or one over: Direct, or the long pace again, then a batch at once so that the watchers see
-     * the pace kept (docs/track/ozitrac.md « Pace »: within 15 s). A refusal is sent too: its batch says the long pace.
+     * the pace kept (docs/track/folloz.md « Pace »: within 15 s). A refusal is sent too: its batch says the long pace.
      */
     private fun settlePace() {
         if (mode != "run" || RunState.get(this).state != RunState.RUNNING) return

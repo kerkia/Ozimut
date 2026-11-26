@@ -14,7 +14,7 @@ import com.google.android.gms.location.LocationServices
 import com.google.android.gms.location.Priority
 
 /*
- * The phone app's own parts of a long run (docs/track/ozitrac.md « Pace »), not shared with the watch (which is never in long
+ * The phone app's own parts of a long run (docs/track/folloz.md « Pace »), not shared with the watch (which is never in long
  * mode and has no Play services location): the fixes batched by Google Play services' fused location, and this phone's push
  * token given to the relay so that a watcher's request for Direct wakes it.
  */

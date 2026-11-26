@@ -1,7 +1,7 @@
 import Foundation
 
 /*
- * The pace of a run (docs/track/ozitrac.md « Pace »): Direct — one fix a second — or « Course longue » — one fix every 15,
+ * The pace of a run (docs/track/folloz.md « Pace »): Direct — one fix a second — or « Course longue » — one fix every 15,
  * 30 or 60 s, batches every 5, 10 or 15 minutes —, and a watcher's request for Direct for a while. Pure: RunCoordinator keeps
  * the state, the watcher's screens read the phone's, the tests check the rules. Shared by the iPhone, the watch (always
  * Direct) and the tests.

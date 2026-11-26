@@ -3,7 +3,7 @@ import SwiftUI
 import WidgetKit
 
 @main
-struct OzitracWidgetBundle: WidgetBundle {
+struct FollozWidgetBundle: WidgetBundle {
     var body: some Widget {
         TrackLiveActivity()
     }

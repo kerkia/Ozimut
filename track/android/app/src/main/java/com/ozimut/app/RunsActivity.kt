@@ -13,7 +13,7 @@ import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
 import java.util.concurrent.Executors
 
-/** The runs kept on this phone (docs/track/ozitrac.md rule 3): each seen on the map, shared or saved as GPX, deleted. */
+/** The runs kept on this phone (docs/track/folloz.md rule 3): each seen on the map, shared or saved as GPX, deleted. */
 class RunsActivity : ComponentActivity() {
     private lateinit var root: LinearLayout
     private val ui = Handler(Looper.getMainLooper())
@@ -43,7 +43,7 @@ class RunsActivity : ComponentActivity() {
         load()
     }
 
-    private fun title(r: RunLog.Info) = "Ozitrac " + Screens.dateTime(this, r.start)
+    private fun title(r: RunLog.Info) = "Folloz " + Screens.dateTime(this, r.start)
 
     private fun load() {
         root.removeAllViews()

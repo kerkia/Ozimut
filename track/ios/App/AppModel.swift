@@ -33,7 +33,7 @@ enum Page: Identifiable, Equatable {
     }
 }
 
-/// Ozitrac's state on the iPhone (docs/track/ozitrac.md « The apps »): the run (RunCoordinator: Ozimut's account when
+/// Folloz's state on the iPhone (docs/track/folloz.md « The apps »): the run (RunCoordinator: Ozimut's account when
 /// linked, the relay when someone follows), the channel and its watchers, the people followed, the link to Ozimut, the
 /// notifications and the runs the Apple Watch sends over. Used on the main thread.
 final class AppModel: ObservableObject, RunCoordinatorDelegate {
@@ -249,7 +249,7 @@ final class AppModel: ObservableObject, RunCoordinatorDelegate {
         guard runs.start(share: share, linked: linked, cap: cap, pace: p) != nil else { return }
         live.start(name: Me.name, started: Date())
         if p.long && p.remote && share {
-            // the watchers' requests for Direct wake this iPhone through the relay (docs/track/ozitrac.md « Pace »)
+            // the watchers' requests for Direct wake this iPhone through the relay (docs/track/folloz.md « Pace »)
             UIApplication.shared.registerForRemoteNotifications()
             sendRelayToken(force: true)
         }
@@ -423,10 +423,10 @@ final class AppModel: ObservableObject, RunCoordinatorDelegate {
         }
     }
 
-    /// A background notification for this iPhone's own run: a watcher's request for Direct (docs/track/ozitrac.md
+    /// A background notification for this iPhone's own run: a watcher's request for Direct (docs/track/folloz.md
     /// « Pace »), applied once. -> whether it was one (`applied`: it changed the run's pace).
     func handlePace(_ info: [AnyHashable: Any]) -> (pace: Bool, applied: Bool) {
-        guard (info["app"] as? String) == "ozitrac", (info["kind"] as? String) == "pace" else { return (false, false) }
+        guard (info["app"] as? String) == "folloz", (info["kind"] as? String) == "pace" else { return (false, false) }
         guard let c = info["c"] as? String, c == channel.id else { return (true, false) }
         var d: [String: Any] = [:]
         for k in ["until", "at", "by"] {
@@ -450,9 +450,9 @@ final class AppModel: ObservableObject, RunCoordinatorDelegate {
         Task { await self.follows.registerPush(f, token: token, env: env) }
     }
 
-    /// A tapped notification: the person's page (an Ozitrac alert), else the app.
+    /// A tapped notification: the person's page (an Folloz alert), else the app.
     func openNotification(_ info: [AnyHashable: Any]) {
-        if (info["app"] as? String) == "ozitrac", let c = info["c"] as? String, follows.get(c) != nil {
+        if (info["app"] as? String) == "folloz", let c = info["c"] as? String, follows.get(c) != nil {
             tab = .follow
             page = .follow(c)
         }
@@ -460,7 +460,7 @@ final class AppModel: ObservableObject, RunCoordinatorDelegate {
 
     // MARK: links
 
-    /// A URL opened with the app: an Ozitrac code (`/z/…`), an Ozimut pair code (`/t/<code>`).
+    /// A URL opened with the app: an Folloz code (`/z/…`), an Ozimut pair code (`/t/<code>`).
     func handle(url: URL) {
         if let link = Codes.parse(url.absoluteString) {
             open(link: link)

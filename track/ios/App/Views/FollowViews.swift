@@ -15,7 +15,7 @@ func followStateLine(_ r: FollowRun?) -> String {
     return bits.joined(separator: " · ")
 }
 
-/// A followed phone's pace (docs/track/ozitrac.md « Pace »): « Course longue : une position toutes les 30 s, envoi toutes
+/// A followed phone's pace (docs/track/folloz.md « Pace »): « Course longue : une position toutes les 30 s, envoi toutes
 /// les 10 min », « En direct jusqu'à 14:35 » (« , à ta demande » when this iPhone asked it, `me` its number in the channel),
 /// a request not yet kept by the phone; nil in a Direct run or when no run is under way.
 func followPaceLine(_ r: FollowRun?, me w: String, now: Date = Date()) -> String? {
@@ -246,7 +246,7 @@ struct FollowView: View {
             m.notice = L("follow.nothing")
             return
         }
-        let name = (follow?.name.isEmpty == false ? follow!.name : "Ozitrac") + " " + Fmt.dateTime(first.t)
+        let name = (follow?.name.isEmpty == false ? follow!.name : "Folloz") + " " + Fmt.dateTime(first.t)
         if let url = RunLog.gpxFile(name: name, fixes: fixes) { sharing = Shared(items: [url]) }
     }
 

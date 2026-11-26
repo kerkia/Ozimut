@@ -26,8 +26,8 @@ import androidx.activity.result.contract.ActivityResultContracts
 import kotlin.math.roundToInt
 
 /**
- * The run's screens: Start (with the pace, Direct or « Course longue »: docs/track/ozitrac.md « Pace »), Running (hold to
- * stop, help) and Ended. A run is kept on this phone; it goes to the people who follow it (Ozitrac's relay) and to the Ozimut
+ * The run's screens: Start (with the pace, Direct or « Course longue »: docs/track/folloz.md « Pace »), Running (hold to
+ * stop, help) and Ended. A run is kept on this phone; it goes to the people who follow it (Folloz's relay) and to the Ozimut
  * account the phone is linked to, when there are any.
  */
 class TrackerActivity : ComponentActivity() {
@@ -291,7 +291,7 @@ class TrackerActivity : ComponentActivity() {
         return g to buttons
     }
 
-    /** Who follows this phone: Ozitrac's watchers by name, and those of the Ozimut account it is linked to. */
+    /** Who follows this phone: Folloz's watchers by name, and those of the Ozimut account it is linked to. */
     private fun followers(): List<String> {
         val names = Channel.keyed(this).mapNotNull { it.name?.takeIf { n -> n.isNotBlank() } }
         val oz = if (Device.paired(this)) Device.watchers(this) else emptyList()

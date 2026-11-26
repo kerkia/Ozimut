@@ -21,8 +21,8 @@ android {
     compileSdk = 36
 
     defaultConfig {
-        // Ozitrac (docs/track/ozitrac.md); the code's namespace stays com.ozimut.app
-        applicationId = "com.ozimut.ozitrac"
+        // Folloz (docs/track/folloz.md); the code's namespace stays com.ozimut.app
+        applicationId = "com.ozimut.folloz"
         minSdk = 26
         targetSdk = 36
         versionCode = (project.findProperty("versionCode") as String?)?.toInt() ?: 1

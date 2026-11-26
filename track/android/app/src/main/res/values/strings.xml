@@ -1,8 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name">Ozitrac</string>
+    <string name="app_name">Folloz</string>
     <string name="notif_channel_run">Run recording</string>
-    <string name="notif_run_title">Ozitrac is recording your run</string>
+    <string name="notif_run_title">Folloz is recording your run</string>
     <string name="notif_run_text">To stop, hold Stop on the screen.</string>
     <string name="notif_stop">Stop…</string>
     <string name="notif_sending_title">Sending your run</string>
@@ -14,7 +14,7 @@
     <string name="tr_followed_by">Followed by %1$s</string>
     <string name="tr_gps_searching">GPS: searching…</string>
     <string name="tr_gps_acc">GPS: ±%1$d m</string>
-    <string name="tr_gps_need">Ozitrac needs your location to record your run.</string>
+    <string name="tr_gps_need">Folloz needs your location to record your run.</string>
     <string name="tr_gps_allow">Allow location</string>
     <string name="tr_gps_off">Location is off. Turn it on in the settings.</string>
     <string name="tr_net_on">Network: connected</string>
@@ -63,11 +63,11 @@
     <string name="test_battery">Battery settings</string>
     <string name="test_app">App settings</string>
     <string name="test_busy">A run is being recorded. Try again after it.</string>
-    <string name="advice_samsung">Settings › Apps › Ozitrac › Battery: choose « Unrestricted ». Then Settings › Battery › Background usage limits: Ozitrac must not be in « Sleeping apps » or « Deep sleeping apps ».</string>
-    <string name="advice_xiaomi">Settings › Apps › Manage apps › Ozitrac: turn on « Autostart », and under « Battery saver » choose « No restrictions ».</string>
-    <string name="advice_huawei">Settings › Battery › App launch › Ozitrac: turn off « Manage automatically », then turn on « Auto-launch », « Secondary launch » and « Run in background ».</string>
-    <string name="advice_oneplus">Settings › Apps › Ozitrac › Battery usage: allow background activity (« Don\'t optimise »). On Oppo and realme, also turn on « Allow auto launch ».</string>
-    <string name="advice_other">Settings › Apps › Ozitrac › Battery: choose « Unrestricted » or « Not optimised », and allow background activity.</string>
+    <string name="advice_samsung">Settings › Apps › Folloz › Battery: choose « Unrestricted ». Then Settings › Battery › Background usage limits: Folloz must not be in « Sleeping apps » or « Deep sleeping apps ».</string>
+    <string name="advice_xiaomi">Settings › Apps › Manage apps › Folloz: turn on « Autostart », and under « Battery saver » choose « No restrictions ».</string>
+    <string name="advice_huawei">Settings › Battery › App launch › Folloz: turn off « Manage automatically », then turn on « Auto-launch », « Secondary launch » and « Run in background ».</string>
+    <string name="advice_oneplus">Settings › Apps › Folloz › Battery usage: allow background activity (« Don\'t optimise »). On Oppo and realme, also turn on « Allow auto launch ».</string>
+    <string name="advice_other">Settings › Apps › Folloz › Battery: choose « Unrestricted » or « Not optimised », and allow background activity.</string>
     <string name="notif_channel_alerts">Alerts</string>
     <string name="notif_channel_help">Help requests</string>
     <string name="tr_title">My run</string>
@@ -82,7 +82,7 @@
     <string name="pair_go">Link</string>
     <string name="pair_working">Linking…</string>
     <string name="pair_ok">Linked to %1$s</string>
-    <string name="net_error">Ozitrac could not reach its server. Check the network and try again.</string>
+    <string name="net_error">Folloz could not reach its server. Check the network and try again.</string>
     <string name="retry">Try again</string>
     <string name="ok">OK</string>
     <string name="cancel">Cancel</string>
@@ -98,7 +98,7 @@
     <string name="name_text">It is shown to the people who follow you and to those you follow. Nothing else is asked.</string>
     <string name="name_hint">First name</string>
     <string name="watchers_title">Who follows me</string>
-    <string name="watchers_none">Nobody follows you yet. Add someone: they scan your code with their Ozitrac.</string>
+    <string name="watchers_none">Nobody follows you yet. Add someone: they scan your code with their Folloz.</string>
     <string name="watchers_add">Add someone</string>
     <string name="watchers_unknown">Someone</string>
     <string name="watchers_remove">Remove</string>
@@ -135,13 +135,13 @@
     <string name="oz_unlink_ask">Unlink this phone from Ozimut? Your runs will no longer go to that account.</string>
     <string name="invite_title">Add someone</string>
     <string name="invite_making">Making a code…</string>
-    <string name="invite_text">Ask them to scan this code with Ozitrac on their phone. They will follow your runs live.</string>
+    <string name="invite_text">Ask them to scan this code with Folloz on their phone. They will follow your runs live.</string>
     <string name="invite_once">This code works once and lasts 24 hours. Make one for each person.</string>
     <string name="invite_share">Send the link</string>
-    <string name="invite_message">%1$s invites you to follow their runs live with Ozitrac: %2$s</string>
+    <string name="invite_message">%1$s invites you to follow their runs live with Folloz: %2$s</string>
     <string name="invite_done">Done</string>
     <string name="join_title">Follow someone</string>
-    <string name="join_bad">This is not an Ozitrac code.</string>
+    <string name="join_bad">This is not an Folloz code.</string>
     <string name="join_text">Follow %1$s\'s runs live?</string>
     <string name="join_go">Follow</string>
     <string name="join_working">Joining…</string>
@@ -174,9 +174,9 @@
     <string name="ago_min">%1$d min</string>
     <string name="ago_h">%1$d h</string>
     <string name="data_title">My data</string>
-    <string name="data_text">Ozitrac keeps no account. Its relay holds your channel, the people who follow you, those you follow, and the run under way (encrypted). Your runs stay on this phone.</string>
+    <string name="data_text">Folloz keeps no account. Its relay holds your channel, the people who follow you, those you follow, and the run under way (encrypted). Your runs stay on this phone.</string>
     <string name="data_erase">Erase my data</string>
-    <string name="data_erase_ask">Erase your data on Ozitrac\'s relay? Nobody will follow you any more, and you will follow nobody. Your runs stay on this phone.</string>
+    <string name="data_erase_ask">Erase your data on Folloz\'s relay? Nobody will follow you any more, and you will follow nobody. Your runs stay on this phone.</string>
     <string name="data_erased">Your data was erased from the relay.</string>
     <string name="pace_long">Long run: a position every %1$d s, sent every %2$d min</string>
     <string name="pace_boost">Live until %1$s</string>

@@ -2,7 +2,7 @@ import MapKit
 import SwiftUI
 import UIKit
 
-/// The map's raster tiles (docs/track/ozitrac.md « The map »): each tile from the layer of the country it lies in (MapLayers:
+/// The map's raster tiles (docs/track/folloz.md « The map »): each tile from the layer of the country it lies in (MapLayers:
 /// Plan IGN in France, swisstopo in Switzerland, OpenStreetMap elsewhere, or the layer the person chose there), fetched by the
 /// iPhone itself; past a layer's last zoom, its ancestor's part enlarged. Never Apple's tiles, never an orienteering map.
 final class OzTileOverlay: MKTileOverlay {
@@ -56,7 +56,7 @@ final class TileStore {
         c.urlCache = nil
         c.requestCachePolicy = .reloadIgnoringLocalCacheData
         c.timeoutIntervalForRequest = 20
-        c.httpAdditionalHeaders = ["User-Agent": "Ozitrac/\(AppConfig.version) (+https://ozimut.com)"]
+        c.httpAdditionalHeaders = ["User-Agent": "Folloz/\(AppConfig.version) (+https://ozimut.com)"]
         return URLSession(configuration: c)
     }()
     private let mem = NSCache<NSString, NSData>()

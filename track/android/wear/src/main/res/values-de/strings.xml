@@ -1,8 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name">Ozitrac</string>
+    <string name="app_name">Folloz</string>
     <string name="notif_channel_run">Aufzeichnung des Laufs</string>
-    <string name="notif_run_title">Ozitrac zeichnet deinen Lauf auf</string>
+    <string name="notif_run_title">Folloz zeichnet deinen Lauf auf</string>
     <string name="notif_run_text">Zum Beenden halte Beenden auf der Uhr gedrückt.</string>
     <string name="notif_sending_title">Dein Lauf wird gesendet</string>
     <string name="notif_sending_text">Die Positionen gehen, sobald es Netz gibt.</string>
@@ -39,7 +39,7 @@
     <string name="w_name_text">Wird den Personen gezeigt, die dir folgen.</string>
     <string name="w_name_hint">Vorname</string>
     <string name="w_ok">OK</string>
-    <string name="w_qr_title">Mit Ozitrac auf dem Handy scannen</string>
+    <string name="w_qr_title">Mit Folloz auf dem Handy scannen</string>
     <string name="w_qr_making">Code wird erstellt…</string>
     <string name="w_qr_once">Für eine Person, innerhalb von 24 Stunden.</string>
     <string name="w_done">Fertig</string>

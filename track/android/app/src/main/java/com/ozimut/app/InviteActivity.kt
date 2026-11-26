@@ -12,8 +12,8 @@ import com.journeyapps.barcodescanner.BarcodeEncoder
 import java.util.concurrent.Executors
 
 /**
- * A new code for someone who will follow this phone (docs/track/ozitrac.md « The code a watcher scans »): its QR code to scan
- * with their Ozitrac, or the address to send them. A code serves once and lasts 24 hours.
+ * A new code for someone who will follow this phone (docs/track/folloz.md « The code a watcher scans »): its QR code to scan
+ * with their Folloz, or the address to send them. A code serves once and lasts 24 hours.
  */
 class InviteActivity : ComponentActivity() {
     private lateinit var root: LinearLayout

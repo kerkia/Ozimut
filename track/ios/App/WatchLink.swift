@@ -3,7 +3,7 @@ import WatchConnectivity
 
 /// The iPhone's side of WatchConnectivity: the runs the Apple Watch recorded come over by `transferFile` (queued by the
 /// system until the two are connected) and go to « Mes courses », marked « Enregistrée sur la montre »
-/// (docs/track/ozitrac.md « The watch »). Nothing goes through the relay or Ozimut.
+/// (docs/track/folloz.md « The watch »). Nothing goes through the relay or Ozimut.
 final class WatchLink: NSObject, WCSessionDelegate {
     /// A run came from the watch (on the main thread).
     var onRun: (() -> Void)?

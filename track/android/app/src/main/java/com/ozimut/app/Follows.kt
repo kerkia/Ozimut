@@ -6,7 +6,7 @@ import org.json.JSONObject
 import java.io.File
 
 /*
- * The people this phone follows (docs/track/ozitrac.md): for each, its channel, this phone's number and secret there, the key
+ * The people this phone follows (docs/track/folloz.md): for each, its channel, this phone's number and secret there, the key
  * of the code scanned and the name the code gave. What was received of their run under way is kept in a file of its own, so
  * that the map and the GPX survive the app being closed.
  */
@@ -15,7 +15,7 @@ class Follow(val c: String, val w: String, val ws: String, val k: ByteArray, val
 
 /**
  * The state of a person's run as last read, and its fixes. [pace]: the pace their phone keeps (null: Direct, docs/track/
- * ozitrac.md « Pace »); [boost]: the relay's last request for Direct, whether their phone applied it yet or not.
+ * folloz.md « Pace »); [boost]: the relay's last request for Direct, whether their phone applied it yet or not.
  */
 class FollowRun(
     val run: String, val state: String, val started: Long, val last: Long, val bat: Int?,

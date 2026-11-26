@@ -1,21 +1,21 @@
-# Ozitrac — the contract
+# Folloz — the contract
 
 Decided by the owner on 2026-11-23, after the study of paid plans (`C:\Kerkia\Ozimut\work\study\payments`, the session
-« Ozimut subscription and club payments study »): **the tracking app is a product of its own, named Ozitrac**, that anyone uses
+« Ozimut subscription and club payments study »): **the tracking app is a product of its own, named Folloz**, that anyone uses
 without an Ozimut account — live tracking between phones, and every run kept as GPX — and that can also send its runs to an
 Ozimut account, permanently tied to it (oneself or a child), as Traccar Client does. Ozimut's features (the history of runs,
 the analyses, the maps) are Ozimut's: used on the site, in a browser, never inside the app. **The app sells nothing and shows
 no price, no « subscribe » and no link to buying** (Apple 3.1.3, Google Play's payments policy); it holds no web page of Ozimut.
 
-This file is the contract between the relay (`live/src/ozitrac.js`, Durable Object `TracChannel`), the site's Functions
-(`functions/api/ozitrac/[[path]].js`, `functions/z/[[path]].js`) and the apps (`track/android/app` = Ozitrac for Android,
-`track/android/wear` = Ozitrac for Wear OS, `track/ios` = Ozitrac for iPhone and Apple Watch).
+This file is the contract between the relay (`live/src/folloz.js`, Durable Object `TracChannel`), the site's Functions
+(`functions/api/folloz/[[path]].js`, `functions/z/[[path]].js`) and the apps (`track/android/app` = Folloz for Android,
+`track/android/wear` = Folloz for Wear OS, `track/ios` = Folloz for iPhone and Apple Watch).
 Change it first, then the code. What `docs/track/design.md` says of Ozimut's own tracking (accounts, watchers, the watch page,
-Mes traces) stays true for Ozimut's accounts; Ozitrac's link to Ozimut is that file's « Pairing a phone » and « Sending ».
+Mes traces) stays true for Ozimut's accounts; Folloz's link to Ozimut is that file's « Pairing a phone » and « Sending ».
 
 ## The rules
 
-1. **No Ozitrac account.** A phone that is followed (the « watchee ») makes a **channel** on the relay; the phones that follow it
+1. **No Folloz account.** A phone that is followed (the « watchee ») makes a **channel** on the relay; the phones that follow it
    (the « watchers ») join that channel by scanning its code. The relay knows channels and watchers by random numbers only.
 2. **The relay cannot read a position.** Each watcher gets a key of its own at pairing (made by the watchee's phone, carried
    by the code, never sent to the relay); the watchee's phone encrypts every batch for each watcher with that watcher's key
@@ -54,11 +54,11 @@ Mes traces) stays true for Ozimut's accounts; Ozitrac's link to Ozimut is that f
 ## The code a watcher scans: `https://ozimut.com/z/<c>#<i>.<k>.<name>`
 
 `<name>` is the watchee's first name as typed on their phone, UTF-8 then base64url. Everything after `#` stays on the phones
-(a browser never sends it). The QR code holds this address; it can also be sent as a link. Ozitrac opens it (Android App Link
+(a browser never sends it). The QR code holds this address; it can also be sent as a link. Folloz opens it (Android App Link
 on `https://ozimut.com/z/`, iPhone universal link); a browser without the app shows `functions/z/[[path]].js`'s page: what
-Ozitrac is and where to get it (no data of the channel is read).
+Folloz is and where to get it (no data of the channel is read).
 
-## The relay's API, under `https://ozimut.com/api/ozitrac`
+## The relay's API, under `https://ozimut.com/api/folloz`
 
 Every body is JSON. A secret goes as `Authorization: Bearer <secret>`. Errors: 400 `bad request`, 401 `secret`, 404 `channel`
 (gone or unknown), 409 `code` (a code used, expired or unknown), 413 `too large`, 429 `too many`.
@@ -101,7 +101,7 @@ account's cap with it). Standing still is « under 15 m in 30 minutes ». The re
 
 **A watcher's request** (`POST /<c>/w/<w>/pace { min }`): accepted while a long run with `remote` is under way; the relay keeps
 `boost = { until: now + min × 60, at: now, by: w }` (`min` 0: `until` = now, the request to go back) and asks Ozimut's Function
-to wake the runner's phone with a data notification to its token (`PUT /<c>/token`): `{ app: "ozitrac", c, kind: "pace",
+to wake the runner's phone with a data notification to its token (`PUT /<c>/token`): `{ app: "folloz", c, kind: "pace",
 until, at, by }` (FCM high priority; APNs a background notification, `content-available`, priority 5 — it may come late; the
 next batch's answer carries it anyway). The phone applies a request whose `at` it has not applied yet: Direct (one fix a
 second, batches every 15 s) until `until`, then the long pace again; it refuses (keeps the long pace, its `pace.boost` 0)
@@ -118,13 +118,13 @@ millionths of a degree, `dt`, `la`, `lo`, `al` the first value absolute then dif
 `silent`, `battery`, `still`, `zone`, `t` Unix seconds; the run's alerts are kept with it.
 
 **Notifications** (Firebase Cloud Messaging to Android, data only, high priority for `help`, `silent`, `zone`; APNs to the iPhone):
-`{ app: "ozitrac", c, kind, t, run }`. The watcher's app shows them with the name it holds for `c` (« Tom a besoin d'aide »).
-Sent by the site's Function when a batch brings them, by the relay's alarm (`POST <SITE_URL>/api/ozitrac/alert`, header
+`{ app: "folloz", c, kind, t, run }`. The watcher's app shows them with the name it holds for `c` (« Tom a besoin d'aide »).
+Sent by the site's Function when a batch brings them, by the relay's alarm (`POST <SITE_URL>/api/folloz/alert`, header
 `X-Relay: <TRACK_RELAY_SECRET>`) for `silent`. A token Firebase or APNs calls gone is dropped. The runner's own phone gets
 one kind only, `pace` (« Pace »), never shown as a notification of its own. To the iPhone the same data
 goes beside an alert whose `loc-key` is `OZ_ALERT_<KIND>` (the sentence without a name, in the app's languages) and
 `mutable-content: 1`; the app's notification extension then writes the name it holds for `c`, which the app shares with it
-through its App Group (`group.com.ozimut.ozitrac`, the names alone). The relay knows no name, so it can send none.
+through its App Group (`group.com.ozimut.folloz`, the names alone). The relay knows no name, so it can send none.
 
 ## The apps
 
@@ -140,7 +140,7 @@ lent », their alerts, « Enregistrer en GPX » of what was received, « Ne plus
 
 **The map** is drawn by the app itself from raster tiles (Web Mercator, 256 px), never an orienteering map. Each phone fetches
 its own tiles from the providers, never through Ozimut (owner, 2026-11-23: Ozimut must not see where the people followed are, and
-the providers' fair-use limits are per address); every request names the app (`User-Agent: Ozitrac/<version> (+https://ozimut.com)`),
+the providers' fair-use limits are per address); every request names the app (`User-Agent: Folloz/<version> (+https://ozimut.com)`),
 a tile is kept on the phone 30 days, and nothing is fetched ahead of what is shown (OpenStreetMap's tile policy, which allows apps
 on those terms). **The layers by country** (`GET /config`):
 
@@ -155,20 +155,20 @@ A tile is drawn from an area's layer when its four corners lie inside that area'
 area (« Fond de carte » on every map; the area the map's centre is in listed first), kept on the phone for every map. The credits
 shown are those of the layers drawn. Today: France (metropolitan, Corsica) Plan IGN, IGN's aerial photos, OpenStreetMap; Switzerland
 and Liechtenstein swisstopo's national map in colour or grey, SWISSIMAGE, OpenStreetMap; elsewhere OpenStreetMap. A country or a
-layer is added on the server alone (`functions/_lib/ozitracmaps.js`, the outlines made by `tools/ozitrac_areas.py`); the app
+layer is added on the server alone (`functions/_lib/follozmaps.js`, the outlines made by `tools/folloz_areas.py`); the app
 needs no update.
 
-**Identifiers**: Android and Wear OS application id `com.ozimut.ozitrac` (the code's namespace stays `com.ozimut.app`), name
-« Ozitrac »; iPhone `com.ozimut.ozitrac`, its Apple Watch app `com.ozimut.ozitrac.watchkitapp`, its Live Activity
-`com.ozimut.ozitrac.widget` and notification extension `com.ozimut.ozitrac.notify`, URL scheme `ozitrac`, universal links on
+**Identifiers**: Android and Wear OS application id `com.ozimut.folloz` (the code's namespace stays `com.ozimut.app`), name
+« Folloz »; iPhone `com.ozimut.folloz`, its Apple Watch app `com.ozimut.folloz.watchkitapp`, its Live Activity
+`com.ozimut.folloz.widget` and notification extension `com.ozimut.folloz.notify`, URL scheme `folloz`, universal links on
 `/z/*` and `/t/*` (`site/.well-known/apple-app-site-association`). Ozimut's own pair codes and `/t/<code>` links stay as they
 are.
 
 **The watch** (Wear OS) is a watchee only: its channel of its own, its code shown as a QR code on the watch for a watcher's
 phone, its watchers listed and removable, Ozimut by its claim code as before. **Its runs reach the paired phone by
 themselves** whenever the two are connected (Bluetooth, Wi-Fi or the platform's cloud), never through the relay or Ozimut:
-each finished run's file is a Wear OS Data Layer item `/ozitrac/run/<run>` holding it as an asset (`wear` `RunSync`), which
-the phone's Ozitrac files in « Mes courses », marked « Enregistrée sur la montre », and then deletes (`app` `WatchRuns`); the
+each finished run's file is a Wear OS Data Layer item `/folloz/run/<run>` holding it as an asset (`wear` `RunSync`), which
+the phone's Folloz files in « Mes courses », marked « Enregistrée sur la montre », and then deletes (`app` `WatchRuns`); the
 system keeps the item on the watch until then (20 waiting at most, the oldest dropped). Both apps must carry the same
 application id and be signed with the same key (the Data Layer's rule). The Apple Watch does the same with WatchConnectivity's
 `transferFile`.

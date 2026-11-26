@@ -1,6 +1,6 @@
 {
-  "applinks": { "details": [{ "appIDs": ["TEAMID0000.com.ozimut.ozitrac"], "components": [
-    { "/": "/z/*", "comment": "Ozitrac codes: follow someone" },
+  "applinks": { "details": [{ "appIDs": ["TEAMID0000.com.ozimut.folloz"], "components": [
+    { "/": "/z/*", "comment": "Folloz codes: follow someone" },
     { "/": "/t/*", "comment": "Ozimut pair codes: « Relier à Ozimut »" }
   ] }] },
   "webcredentials": { "apps": ["TEAMID0000.com.ozimut.app"] }

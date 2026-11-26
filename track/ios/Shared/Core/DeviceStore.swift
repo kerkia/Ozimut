@@ -35,7 +35,7 @@ enum Keychain {
 }
 
 /// What a device linked to an Ozimut account keeps (« Relier à Ozimut »): its id and key (Keychain), the account, its
-/// watchers there and its settings (preferences). Unlinking is local only (docs/track/ozitrac.md).
+/// watchers there and its settings (preferences). Unlinking is local only (docs/track/folloz.md).
 final class DeviceStore {
     static let shared = DeviceStore()
 
@@ -113,5 +113,5 @@ enum AppConfig {
     }()
 
     /// The App Group the app shares with its notification extension (the names of the people followed).
-    static let group = "group.com.ozimut.ozitrac"
+    static let group = "group.com.ozimut.folloz"
 }

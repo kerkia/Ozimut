@@ -1,8 +1,8 @@
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 
 /*
- * Ozitrac on Wear OS (owner, 2026-11-23; docs/track/ozitrac.md): a watch with its own mobile connection (LTE, eSIM) records
- * and sends alone, as the phone app does — to the people who follow it through Ozitrac's relay, and to an Ozimut account
+ * Folloz on Wear OS (owner, 2026-11-23; docs/track/folloz.md): a watch with its own mobile connection (LTE, eSIM) records
+ * and sends alone, as the phone app does — to the people who follow it through Folloz's relay, and to an Ozimut account
  * when it is linked to one. The recording, the run's file, the relay and the sending are the phone app's own files, compiled
  * here as they are (SHARED below): one tracker, never forked. Only the screen, the notifications and Ozimut's claim code are
  * the watch's.
@@ -17,7 +17,7 @@ val keystorePath: String? = System.getenv("ANDROID_KEYSTORE_PATH")?.takeIf { it.
 
 /**
  * The phone app's files the watch compiles as they are: the queue, the batches, the pairing's storage, the sending to
- * Ozimut, the service, Ozitrac's sealing and codes, the relay (channel, watchers, alerts, sender), the run's file and the
+ * Ozimut, the service, Folloz's sealing and codes, the relay (channel, watchers, alerts, sender), the run's file and the
  * pace (the watch's runs are always Direct; the long run's batched fixes are the phone app's own, LongRun.kt, not shared).
  */
 val SHARED = listOf(
@@ -49,7 +49,7 @@ android {
 
     defaultConfig {
         // the phone's id: Play lists the watch app with the phone app (Wear OS asks for the same package name)
-        applicationId = "com.ozimut.ozitrac"
+        applicationId = "com.ozimut.folloz"
         minSdk = 30
         targetSdk = 36
         // a watch build's numbers never meet the phone's (Play wants each APK's own)

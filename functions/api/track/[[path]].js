@@ -196,7 +196,7 @@ async function push(ctx) {
   if (seq > r.last_seq + 1) return json({ ack: r.last_seq, next: 0, stop: stopped }); // a gap: resend from last_seq + 1
   if (r.state === "end" && !stopped) return json({ error: "closed" }, 409);
   const startedMs = Date.parse(r.started_at);
-  // Ozitrac's long pace (docs/track/ozitrac.md « Pace »): kept 7 days whatever the account's cap, its own batch interval
+  // Folloz's long pace (docs/track/folloz.md « Pace »): kept 7 days whatever the account's cap, its own batch interval
   const pace = longPace(b.pace);
   const cap = pace ? LONG_CAP : s.cap;
   const overCap = Date.now() - startedMs > (cap + 1800) * 1000;
@@ -232,7 +232,7 @@ async function push(ctx) {
 }
 
 const LONG_CAP = 7 * 86400;
-/** A batch's Ozitrac pace when it is the long one: { send, boost } (seconds, Unix second), else null. */
+/** A batch's Folloz pace when it is the long one: { send, boost } (seconds, Unix second), else null. */
 function longPace(p) {
   if (!p || typeof p !== "object" || p.mode !== "long") return null;
   const send = Math.round(Number(p.send));

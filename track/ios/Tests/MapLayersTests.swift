@@ -1,6 +1,6 @@
 import XCTest
 
-/// The map's layers as `GET /api/ozitrac/config` gives them (docs/track/ozitrac.md « The map »), as Android's MapLayersTest.
+/// The map's layers as `GET /api/folloz/config` gives them (docs/track/folloz.md « The map »), as Android's MapLayersTest.
 final class MapLayersTests: XCTestCase {
     private let config = """
     {"tiles":"https://tile.openstreetmap.org/{z}/{x}/{y}.png","attribution":"© OpenStreetMap contributors","maxZoom":19,

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Ozitrac's texts in its four languages (the iPhone app, its notification extension and widget, the watch app), French
+"""Folloz's texts in its four languages (the iPhone app, its notification extension and widget, the watch app), French
 the reference wording (tutoiement, as the Android app), German « du », Spanish « tú »; the wording follows the Android
 app's strings (track/android/app/src/main/res/values*/strings.xml). Writes Resources/Localizable.xcstrings and
 Resources/<lang>.lproj/InfoPlist.strings.
@@ -25,10 +25,10 @@ TEXTS = {
     "common.ok": ("OK", "OK", "OK", "Aceptar"),
     "common.cancel": ("Annuler", "Cancel", "Abbrechen", "Cancelar"),
     "retry": ("Réessayer", "Try again", "Erneut versuchen", "Reintentar"),
-    "net.error": ("Ozitrac n'a pas pu joindre son serveur. Vérifie le réseau et réessaie.",
-                  "Ozitrac could not reach its server. Check the network and try again.",
-                  "Ozitrac konnte seinen Server nicht erreichen. Prüfe das Netz und versuche es noch einmal.",
-                  "Ozitrac no ha podido contactar con su servidor. Revisa la red y vuelve a intentarlo."),
+    "net.error": ("Folloz n'a pas pu joindre son serveur. Vérifie le réseau et réessaie.",
+                  "Folloz could not reach its server. Check the network and try again.",
+                  "Folloz konnte seinen Server nicht erreichen. Prüfe das Netz und versuche es noch einmal.",
+                  "Folloz no ha podido contactar con su servidor. Revisa la red y vuelve a intentarlo."),
 
     "tab.me": ("Ma course", "My run", "Mein Lauf", "Mi carrera"),
     "tab.follow": ("Je suis", "Following", "Ich folge", "Sigo a"),
@@ -50,10 +50,10 @@ TEXTS = {
     "name.hint": ("Prénom", "First name", "Vorname", "Nombre"),
 
     "watchers.title": ("Qui me suit", "Who follows me", "Wer mir folgt", "Quién me sigue"),
-    "watchers.none": ("Personne ne te suit encore. Ajoute quelqu'un : il scanne ton code avec son Ozitrac.",
-                      "Nobody follows you yet. Add someone: they scan your code with their Ozitrac.",
-                      "Noch niemand folgt dir. Füge jemanden hinzu: Die Person scannt deinen Code mit ihrem Ozitrac.",
-                      "Todavía nadie te sigue. Añade a alguien: escanea tu código con su Ozitrac."),
+    "watchers.none": ("Personne ne te suit encore. Ajoute quelqu'un : il scanne ton code avec son Folloz.",
+                      "Nobody follows you yet. Add someone: they scan your code with their Folloz.",
+                      "Noch niemand folgt dir. Füge jemanden hinzu: Die Person scannt deinen Code mit ihrem Folloz.",
+                      "Todavía nadie te sigue. Añade a alguien: escanea tu código con su Folloz."),
     "watchers.add": ("Ajouter quelqu'un", "Add someone", "Jemanden hinzufügen", "Añadir a alguien"),
     "watchers.unknown": ("Quelqu'un", "Someone", "Jemand", "Alguien"),
     "watchers.remove": ("Retirer", "Remove", "Entfernen", "Quitar"),
@@ -128,41 +128,41 @@ TEXTS = {
                      "¿Desvincular este móvil de Ozimut? Tus carreras dejarán de ir a esa cuenta."),
 
     "data.title": ("Mes données", "My data", "Meine Daten", "Mis datos"),
-    "data.text": ("Ozitrac n'a pas de compte. Son relais garde ton canal, ceux qui te suivent, ceux que tu suis et la "
+    "data.text": ("Folloz n'a pas de compte. Son relais garde ton canal, ceux qui te suivent, ceux que tu suis et la "
                   "course en cours (chiffrée). Tes courses restent sur ce téléphone.",
-                  "Ozitrac keeps no account. Its relay holds your channel, the people who follow you, those you follow, and "
+                  "Folloz keeps no account. Its relay holds your channel, the people who follow you, those you follow, and "
                   "the run under way (encrypted). Your runs stay on this phone.",
-                  "Ozitrac hat kein Konto. Sein Relais bewahrt deinen Kanal, die Personen, die dir folgen, die, denen du "
+                  "Folloz hat kein Konto. Sein Relais bewahrt deinen Kanal, die Personen, die dir folgen, die, denen du "
                   "folgst, und den laufenden Lauf (verschlüsselt). Deine Läufe bleiben auf diesem Telefon.",
-                  "Ozitrac no tiene cuenta. Su relé guarda tu canal, quienes te siguen, a quienes sigues y la carrera en "
+                  "Folloz no tiene cuenta. Su relé guarda tu canal, quienes te siguen, a quienes sigues y la carrera en "
                   "curso (cifrada). Tus carreras se quedan en este teléfono."),
     "data.erase": ("Effacer mes données", "Erase my data", "Meine Daten löschen", "Borrar mis datos"),
-    "data.eraseAsk": ("Effacer tes données sur le relais d'Ozitrac ? Plus personne ne te suivra, et tu ne suivras plus "
+    "data.eraseAsk": ("Effacer tes données sur le relais de Folloz ? Plus personne ne te suivra, et tu ne suivras plus "
                       "personne. Tes courses restent sur ce téléphone.",
-                      "Erase your data on Ozitrac's relay? Nobody will follow you any more, and you will follow nobody. "
+                      "Erase your data on Folloz's relay? Nobody will follow you any more, and you will follow nobody. "
                       "Your runs stay on this phone.",
-                      "Deine Daten auf dem Relais von Ozitrac löschen? Niemand folgt dir mehr, und du folgst niemandem "
+                      "Deine Daten auf dem Relais von Folloz löschen? Niemand folgt dir mehr, und du folgst niemandem "
                       "mehr. Deine Läufe bleiben auf diesem Telefon.",
-                      "¿Borrar tus datos del relé de Ozitrac? Nadie te seguirá ya, y tú no seguirás a nadie. Tus carreras "
+                      "¿Borrar tus datos del relé de Folloz? Nadie te seguirá ya, y tú no seguirás a nadie. Tus carreras "
                       "se quedan en este teléfono."),
     "data.erased": ("Tes données ont été effacées du relais.", "Your data was erased from the relay.",
                     "Deine Daten wurden vom Relais gelöscht.", "Tus datos se han borrado del relé."),
 
     "invite.title": ("Ajouter quelqu'un", "Add someone", "Jemanden hinzufügen", "Añadir a alguien"),
     "invite.making": ("Création du code…", "Making a code…", "Code wird erstellt…", "Creando el código…"),
-    "invite.text": ("Demande-lui de scanner ce code avec Ozitrac, sur son téléphone. Il suivra tes courses en direct.",
-                    "Ask them to scan this code with Ozitrac on their phone. They will follow your runs live.",
-                    "Bitte die Person, diesen Code mit Ozitrac auf ihrem Handy zu scannen. Sie folgt dann deinen Läufen live.",
-                    "Pídele que escanee este código con Ozitrac en su móvil. Seguirá tus carreras en directo."),
+    "invite.text": ("Demande-lui de scanner ce code avec Folloz, sur son téléphone. Il suivra tes courses en direct.",
+                    "Ask them to scan this code with Folloz on their phone. They will follow your runs live.",
+                    "Bitte die Person, diesen Code mit Folloz auf ihrem Handy zu scannen. Sie folgt dann deinen Läufen live.",
+                    "Pídele que escanee este código con Folloz en su móvil. Seguirá tus carreras en directo."),
     "invite.once": ("Ce code sert une fois et dure 24 heures. Crées-en un par personne.",
                     "This code works once and lasts 24 hours. Make one for each person.",
                     "Dieser Code gilt einmal und 24 Stunden lang. Erstelle für jede Person einen eigenen.",
                     "Este código sirve una vez y dura 24 horas. Crea uno para cada persona."),
     "invite.share": ("Envoyer le lien", "Send the link", "Link senden", "Enviar el enlace"),
-    "invite.message": ("%@ t'invite à suivre ses courses en direct avec Ozitrac : %@",
-                       "%@ invites you to follow their runs live with Ozitrac: %@",
-                       "%@ lädt dich ein, die Läufe live mit Ozitrac zu verfolgen: %@",
-                       "%@ te invita a seguir sus carreras en directo con Ozitrac: %@"),
+    "invite.message": ("%@ t'invite à suivre ses courses en direct avec Folloz : %@",
+                       "%@ invites you to follow their runs live with Folloz: %@",
+                       "%@ lädt dich ein, die Läufe live mit Folloz zu verfolgen: %@",
+                       "%@ te invita a seguir sus carreras en directo con Folloz: %@"),
     "invite.done": ("Terminé", "Done", "Fertig", "Hecho"),
 
     "join.title": ("Suivre quelqu'un", "Follow someone", "Jemandem folgen", "Seguir a alguien"),
@@ -357,13 +357,13 @@ TEXTS = {
                   "Perfect: %ld positions in 2 minutes. Tracking will work with the phone locked.",
                   "Perfekt: %ld Positionen in 2 Minuten. Die Verfolgung funktioniert bei gesperrtem Telefon.",
                   "Perfecto: %ld posiciones en 2 minutos. El seguimiento funcionará con el teléfono bloqueado."),
-    "test.bad": ("Seulement %ld positions en 2 minutes. Vérifie dans Réglages que la localisation d'Ozitrac est "
+    "test.bad": ("Seulement %ld positions en 2 minutes. Vérifie dans Réglages que la localisation de Folloz est "
                  "« Lorsque l'app est active » avec « Position exacte », et coupe le mode Économie d'énergie.",
-                 "Only %ld positions in 2 minutes. In Settings, check that Ozitrac's location is “While Using the App” with "
+                 "Only %ld positions in 2 minutes. In Settings, check that Folloz's location is “While Using the App” with "
                  "“Precise Location”, and turn Low Power Mode off.",
-                 "Nur %ld Positionen in 2 Minuten. Prüfe in den Einstellungen, dass der Standort von Ozitrac „Beim Verwenden "
+                 "Nur %ld Positionen in 2 Minuten. Prüfe in den Einstellungen, dass der Standort von Folloz „Beim Verwenden "
                  "der App“ mit „Genauer Standort“ ist, und schalte den Stromsparmodus aus.",
-                 "Solo %ld posiciones en 2 minutos. En Ajustes, comprueba que la ubicación de Ozitrac está en «Cuando se use "
+                 "Solo %ld posiciones en 2 minutos. En Ajustes, comprueba que la ubicación de Folloz está en «Cuando se use "
                  "la app» con «Ubicación exacta», y desactiva el modo de bajo consumo."),
     "test.again": ("Recommencer", "Try again", "Noch einmal", "Repetir"),
     "test.back": ("Retour", "Back", "Zurück", "Volver"),
@@ -396,12 +396,12 @@ TEXTS = {
                        "Desvincular de Ozimut (mantener)"),
     "watch.nameText": ("Montré à ceux qui te suivent.", "Shown to the people who follow you.",
                        "Wird den Personen gezeigt, die dir folgen.", "Se muestra a quienes te siguen."),
-    "watch.qrTitle": ("Scanne avec Ozitrac sur le téléphone", "Scan with Ozitrac on the phone",
-                      "Mit Ozitrac auf dem Handy scannen", "Escanea con Ozitrac en el móvil"),
+    "watch.qrTitle": ("Scanne avec Folloz sur le téléphone", "Scan with Folloz on the phone",
+                      "Mit Folloz auf dem Handy scannen", "Escanea con Folloz en el móvil"),
     "watch.qrOnce": ("Pour une personne, dans les 24 heures.", "For one person, within 24 hours.",
                      "Für eine Person, innerhalb von 24 Stunden.", "Para una persona, en 24 horas."),
 
-    # The pace (docs/track/ozitrac.md « Pace »): Direct or a long run, a watcher's request for Direct.
+    # The pace (docs/track/folloz.md « Pace »): Direct or a long run, a watcher's request for Direct.
     "pace.title": ("Rythme", "Pace", "Rhythmus", "Ritmo"),
     "pace.live": ("Direct", "Live", "Live", "Directo"),
     "pace.long": ("Course longue", "Long run", "Langer Lauf", "Carrera larga"),
@@ -460,21 +460,21 @@ TEXTS = {
     "alert.silent.long": ("Plus de nouvelles de %@ depuis %ld minutes", "No news from %@ for %ld minutes",
                           "Keine Nachricht von %@ seit %ld Minuten", "Sin noticias de %@ desde hace %ld minutos"),
 
-    "live.title": ("Ozitrac", "Ozitrac", "Ozitrac", "Ozitrac"),
+    "live.title": ("Folloz", "Folloz", "Folloz", "Folloz"),
     "live.help": ("Aide demandée", "Help requested", "Hilfe angefordert", "Ayuda solicitada"),
     "live.pending": ("%ld en attente", "%ld waiting", "%ld wartend", "%ld en espera"),
 }
 
 # Info.plist's purpose strings (InfoPlist.strings), same order.
 INFO = {
-    "CFBundleDisplayName": ("Ozitrac", "Ozitrac", "Ozitrac", "Ozitrac"),
+    "CFBundleDisplayName": ("Folloz", "Folloz", "Folloz", "Folloz"),
     "NSLocationWhenInUseUsageDescription": (
-        "Ozitrac enregistre ta course et l'envoie, chiffrée, aux personnes que tu as choisies, seulement entre Démarrer et "
+        "Folloz enregistre ta course et l'envoie, chiffrée, aux personnes que tu as choisies, seulement entre Démarrer et "
         "Arrêter.",
-        "Ozitrac records your run and sends it, sealed, to the people you chose, only between Start and Stop.",
-        "Ozitrac zeichnet deinen Lauf auf und sendet ihn verschlüsselt an die Personen, die du gewählt hast, nur zwischen "
+        "Folloz records your run and sends it, sealed, to the people you chose, only between Start and Stop.",
+        "Folloz zeichnet deinen Lauf auf und sendet ihn verschlüsselt an die Personen, die du gewählt hast, nur zwischen "
         "Start und Stopp.",
-        "Ozitrac graba tu carrera y la envía, cifrada, a las personas que has elegido, solo entre Empezar y Parar."),
+        "Folloz graba tu carrera y la envía, cifrada, a las personas que has elegido, solo entre Empezar y Parar."),
     "TrackRun": (
         "Le suivi en direct a besoin de ta position exacte.",
         "Live tracking needs your precise position.",
@@ -486,15 +486,15 @@ INFO = {
         "Die Kamera liest den Code der Person, der du folgst, oder deines Ozimut-Kontos.",
         "La cámara lee el código de la persona a la que sigues, o de tu cuenta de Ozimut."),
     "NSHealthShareUsageDescription": (
-        "Ozitrac enregistre ta course comme un entraînement.",
-        "Ozitrac records your run as a workout.",
-        "Ozitrac zeichnet deinen Lauf als Training auf.",
-        "Ozitrac graba tu carrera como un entrenamiento."),
+        "Folloz enregistre ta course comme un entraînement.",
+        "Folloz records your run as a workout.",
+        "Folloz zeichnet deinen Lauf als Training auf.",
+        "Folloz graba tu carrera como un entrenamiento."),
     "NSHealthUpdateUsageDescription": (
-        "Ozitrac enregistre ta course comme un entraînement, avec son tracé.",
-        "Ozitrac saves your run as a workout with its route.",
-        "Ozitrac speichert deinen Lauf als Training mit seiner Route.",
-        "Ozitrac guarda tu carrera como un entrenamiento con su ruta."),
+        "Folloz enregistre ta course comme un entraînement, avec son tracé.",
+        "Folloz saves your run as a workout with its route.",
+        "Folloz speichert deinen Lauf als Training mit seiner Route.",
+        "Folloz guarda tu carrera como un entrenamiento con su ruta."),
 }
 
 LANGS = ["fr", "en", "de", "es"]

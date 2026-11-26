@@ -15,16 +15,16 @@ enrolment takes days). Then Google Play, steps 10 to 13.
 Where a store's page or rule may have changed since this was written, the text says « check » and names Apple's or Google's
 own page: their consoles are redesigned often, the meaning of each step rarely.
 
-## Already done for Ozitrac?
+## Already done for Folloz?
 
-Ozitrac (`docs/track/setup.md`) needs some of the same things. Whatever you already did there is reused:
+Folloz (`docs/track/setup.md`) needs some of the same things. Whatever you already did there is reused:
 
-| Done for Ozitrac | For this app |
+| Done for Folloz | For this app |
 |---|---|
 | Firebase project, `FCM_SERVICE_ACCOUNT` set (its step 5) | Only add an Android app `com.ozimut.app` to **the same** Firebase project (step 10): the server has one service account for both apps. |
 | Apple Developer Program, Team ID (its step 6.1) | Skip step 1. |
 | APNs key, `APNS_KEY`, `APNS_KEY_ID`, `APNS_TEAM_ID` (its step 6.3) | One APNs key serves every app of the team: only set `APNS_TOPIC` (step 3). |
-| App Store Connect API key and the four GitHub secrets (its step 6.4) | Reused as they are, **if the key's role is Admin** (step 4); Ozitrac's guide said App Manager, which is not enough here. |
+| App Store Connect API key and the four GitHub secrets (its step 6.4) | Reused as they are, **if the key's role is Admin** (step 4); Folloz's guide said App Manager, which is not enough here. |
 | Release keystore and `ANDROID_KEYSTORE_*` secrets (its step 8) | Reused as they are: both workflows read the same secret names (step 11). |
 | Play Console developer account (its step 8.1) | Skip step 10's account part. |
 
@@ -105,11 +105,11 @@ of step 4.
 
 ## 3. The APNs key — notifications (10 minutes)
 
-If Ozitrac's key exists, skip to item 4.
+If Folloz's key exists, skip to item 4.
 
 1. Certificates, Identifiers & Profiles › **Keys** › « + ». Name: `Ozimut APNs`. Tick **Apple Push Notifications service
    (APNs)**. If Apple asks for an environment and a scope, choose **Sandbox & Production** and **Team scoped (all topics)**,
-   so that one key serves this app and Ozitrac.
+   so that one key serves this app and Folloz.
 2. Continue › Register › **Download**: a file `AuthKey_<KEYID>.p8`. **It can be downloaded only once**: move it to
    `C:\Kerkia\Ozimut\data\secrets\`. Note the **Key ID** shown (the ten characters in the file name).
 3. Give the key to the site (the file's whole text, piped so that its line breaks survive; replace `<KEYID>`):
@@ -385,22 +385,22 @@ scanner. (Notifications need step 10.)
    adb install -r C:\Users\<you>\Downloads\ozimut-app-apk\debug\app-debug.apk
    ```
 
-3. Each CI run signs its debug APK with a new key: **uninstall the old one first** to install a newer build. Ozitrac
-   (`com.ozimut.ozitrac`) is another app and stays.
+3. Each CI run signs its debug APK with a new key: **uninstall the old one first** to install a newer build. Folloz
+   (`com.ozimut.folloz`) is another app and stays.
 4. Test as step 6, without Health (iPhone only) and with Android's back button (back in the page's history, then out of the
    app). Also: the scanner exists only where Google Play services are present; a large FIT file (tens of MB) shared to the app.
 
 ## 10. Firebase — notifications on Android (15 minutes)
 
-The server sends to Android through **one** Firebase service account (`FCM_SERVICE_ACCOUNT`), so this app and Ozitrac must be
+The server sends to Android through **one** Firebase service account (`FCM_SERVICE_ACCOUNT`), so this app and Folloz must be
 in **the same Firebase project**.
 
-1. console.firebase.google.com › **Ozitrac's project if it exists** (else « Add project », e.g. « Ozimut », Analytics not needed;
-   Ozitrac will then join this one).
+1. console.firebase.google.com › **Folloz's project if it exists** (else « Add project », e.g. « Ozimut », Analytics not needed;
+   Folloz will then join this one).
 2. Project overview › « Add app » › Android › package name **`com.ozimut.app`** (exactly), nickname « Ozimut » › Register ›
    download **`google-services.json`** (it now holds both apps), into `C:\Kerkia\Ozimut\data\secrets\`. Skip the SDK steps.
 3. Project settings › Cloud Messaging: « Firebase Cloud Messaging API (V1) » must say Enabled.
-4. GitHub secret **`APP_GOOGLE_SERVICES_JSON`** = the file **in base64** (this workflow decodes it; Ozitrac's secret was the raw
+4. GitHub secret **`APP_GOOGLE_SERVICES_JSON`** = the file **in base64** (this workflow decodes it; Folloz's secret was the raw
    text):
 
    ```powershell
@@ -420,7 +420,7 @@ in **the same Firebase project**.
 ## 11. The release keystore (10 minutes; once, kept for good)
 
 Both Android workflows read the same secrets (`ANDROID_KEYSTORE_BASE64`, `ANDROID_KEYSTORE_PASSWORD`, `ANDROID_KEY_ALIAS`,
-`ANDROID_KEY_PASSWORD`): **if Ozitrac's are set, they sign this app too** — nothing to do. With Play App Signing (the default)
+`ANDROID_KEY_PASSWORD`): **if Folloz's are set, they sign this app too** — nothing to do. With Play App Signing (the default)
 this key is only your *upload* key: Google keeps the key the phones see, and one upload key may serve several apps; a lost
 upload key can be replaced through Play's support.
 
@@ -442,12 +442,12 @@ The next « app-android » run then also keeps **`ozimut-app-aab`**, the signed 
 
 ## 12. Google Play Console (an hour, then two weeks of closed testing)
 
-1. **The developer account** (skip if Ozitrac's exists): play.google.com/console, 25 USD once, identity check. Personal or
+1. **The developer account** (skip if Folloz's exists): play.google.com/console, 25 USD once, identity check. Personal or
    organisation, as at step 1 (an organisation needs a D-U-N-S number too). The developer name is shown on Play.
 2. **The rule for new personal accounts** (checked 2026-11-23 on Google's « App testing requirements for new personal
    developer accounts », support.google.com/googleplay/android-developer/answer/14151465): an account created after
    13 November 2023 must run a **closed test with at least 12 testers, opted in continuously for at least 14 days**, before
-   « Apply for production » on the Dashboard. Each app needs its own: run this app's and Ozitrac's closed tests at the same
+   « Apply for production » on the Dashboard. Each app needs its own: run this app's and Folloz's closed tests at the same
    time, with the same people (a Google Group of testers is simplest; each tester opts in to each app).
 3. « Create app »: name **Ozimut**, default language French, App, **Free**; declarations ticked.
 4. **App content** (Policy › App content), each form:
@@ -499,13 +499,13 @@ The next « app-android » run then also keeps **`ozimut-app-aab`**, the signed 
 | `APP_STORE_CONNECT_ISSUER_ID` | GitHub repository | the Issuer ID | 4 |
 | `APP_STORE_CONNECT_KEY` | GitHub repository | the API `.p8` key's text (role Admin) | 4 |
 | `APP_GOOGLE_SERVICES_JSON` | GitHub repository | `google-services.json` in base64 | 10 |
-| `ANDROID_KEYSTORE_BASE64` | GitHub repository | the release keystore in base64 (shared with Ozitrac) | 11 |
+| `ANDROID_KEYSTORE_BASE64` | GitHub repository | the release keystore in base64 (shared with Folloz) | 11 |
 | `ANDROID_KEYSTORE_PASSWORD`, `ANDROID_KEY_ALIAS`, `ANDROID_KEY_PASSWORD` | GitHub repository | its password, alias, key password | 11 |
-| `APNS_KEY` | Cloudflare Pages (`observatoire-cn`) | the APNs `.p8` key's text (shared with Ozitrac) | 3 |
+| `APNS_KEY` | Cloudflare Pages (`observatoire-cn`) | the APNs `.p8` key's text (shared with Folloz) | 3 |
 | `APNS_KEY_ID` | Cloudflare Pages | the APNs key's Key ID | 3 |
 | `APNS_TEAM_ID` | Cloudflare Pages | Apple's Team ID | 3 |
 | `APNS_TOPIC` | Cloudflare Pages | `com.ozimut.app` | 3 |
-| `FCM_SERVICE_ACCOUNT` | Cloudflare Pages | Firebase's service account JSON (shared with Ozitrac) | 10 |
+| `FCM_SERVICE_ACCOUNT` | Cloudflare Pages | Firebase's service account JSON (shared with Folloz) | 10 |
 
 GitHub: github.com/kerkia/Ozimut › Settings › Secrets and variables › Actions. Cloudflare Pages:
 `npx wrangler pages secret put <NAME> --project-name observatoire-cn`, run in `C:\Kerkia\Ozimut\Ozimut`, effective at the

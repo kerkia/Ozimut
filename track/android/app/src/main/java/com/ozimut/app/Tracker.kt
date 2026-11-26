@@ -36,7 +36,7 @@ object RunState {
         val error: String,
         val endedAt: Long,
         val cap: Int,
-        /** Where the run goes: "oz" (the Ozimut account the phone is linked to), "z" (Ozitrac's relay, to the watchers). */
+        /** Where the run goes: "oz" (the Ozimut account the phone is linked to), "z" (Folloz's relay, to the watchers). */
         val dests: Set<String>,
     ) {
         val active get() = state == RUNNING || state == ENDING
@@ -158,7 +158,7 @@ object Tracker {
 
     /**
      * Called from the visible Start screen only. Direct's cap is six hours without Ozimut, the account's with it; a long run
-     * (docs/track/ozitrac.md « Pace ») lasts seven days at most. The watch only ever starts Direct.
+     * (docs/track/folloz.md « Pace ») lasts seven days at most. The watch only ever starts Direct.
      */
     fun start(c: Context, share: String, pace: PaceChoice = PaceChoice.LIVE) {
         FixDb.get(c).dropAllBut(null)

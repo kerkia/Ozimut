@@ -1,6 +1,6 @@
-# Ozitrac for iPhone and Apple Watch (docs/track/ozitrac.md is the contract; docs/track/design.md for « Relier à Ozimut »).
-# Generated into Ozitrac.xcodeproj by XcodeGen: `xcodegen generate` in this folder. Never edit the .xcodeproj by hand.
-name: Ozitrac
+# Folloz for iPhone and Apple Watch (docs/track/folloz.md is the contract; docs/track/design.md for « Relier à Ozimut »).
+# Generated into Folloz.xcodeproj by XcodeGen: `xcodegen generate` in this folder. Never edit the .xcodeproj by hand.
+name: Folloz
 options:
   bundleIdPrefix: com.ozimut
   developmentLanguage: en
@@ -31,7 +31,7 @@ settings:
       OZ_APS_ENV: prod
 
 targets:
-  Ozitrac:
+  Folloz:
     type: application
     platform: iOS
     sources:
@@ -43,7 +43,7 @@ targets:
     info:
       path: App/Info.plist
       properties:
-        CFBundleDisplayName: Ozitrac
+        CFBundleDisplayName: Folloz
         CFBundleShortVersionString: $(MARKETING_VERSION)
         CFBundleVersion: $(CURRENT_PROJECT_VERSION)
         CFBundleDevelopmentRegion: en
@@ -62,38 +62,38 @@ targets:
         NSSupportsLiveActivities: true
         OZBaseURL: $(OZ_BASE_URL)
         OZApsEnvironment: $(OZ_APS_ENV)
-        NSLocationWhenInUseUsageDescription: "Ozitrac records your run and sends it, sealed, to the people you chose, only between Start and Stop."
+        NSLocationWhenInUseUsageDescription: "Folloz records your run and sends it, sealed, to the people you chose, only between Start and Stop."
         NSLocationTemporaryUsageDescriptionDictionary:
           TrackRun: "Live tracking needs your precise position."
         NSCameraUsageDescription: "The camera scans the code of the person you follow, or of your Ozimut account."
         CFBundleURLTypes:
-          - CFBundleURLName: com.ozimut.ozitrac
-            CFBundleURLSchemes: [ozitrac]
+          - CFBundleURLName: com.ozimut.folloz
+            CFBundleURLSchemes: [folloz]
     entitlements:
-      path: App/Ozitrac.entitlements
+      path: App/Folloz.entitlements
       properties:
         com.apple.developer.associated-domains: ["applinks:ozimut.com"]
         aps-environment: development
-        com.apple.security.application-groups: [group.com.ozimut.ozitrac]
+        com.apple.security.application-groups: [group.com.ozimut.folloz]
     settings:
       base:
-        PRODUCT_BUNDLE_IDENTIFIER: com.ozimut.ozitrac
+        PRODUCT_BUNDLE_IDENTIFIER: com.ozimut.folloz
         TARGETED_DEVICE_FAMILY: "1"
-        PRODUCT_NAME: Ozitrac
+        PRODUCT_NAME: Folloz
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
     dependencies:
-      - target: OzitracWidget
+      - target: FollozWidget
         embed: true
-      - target: OzitracNotify
+      - target: FollozNotify
         embed: true
-      - target: OzitracWatch
+      - target: FollozWatch
         embed: true
         codeSign: true
         copy:
           destination: productsDirectory
           subpath: $(CONTENTS_FOLDER_PATH)/Watch
 
-  OzitracWidget:
+  FollozWidget:
     type: app-extension
     platform: iOS
     sources:
@@ -103,19 +103,19 @@ targets:
     info:
       path: Widget/Info.plist
       properties:
-        CFBundleDisplayName: Ozitrac
+        CFBundleDisplayName: Folloz
         CFBundleShortVersionString: $(MARKETING_VERSION)
         CFBundleVersion: $(CURRENT_PROJECT_VERSION)
         NSExtension:
           NSExtensionPointIdentifier: com.apple.widgetkit-extension
     settings:
       base:
-        PRODUCT_BUNDLE_IDENTIFIER: com.ozimut.ozitrac.widget
+        PRODUCT_BUNDLE_IDENTIFIER: com.ozimut.folloz.widget
         TARGETED_DEVICE_FAMILY: "1"
         SKIP_INSTALL: YES
 
   # Words the relay's alerts with the name of the person followed (the relay knows no name).
-  OzitracNotify:
+  FollozNotify:
     type: app-extension
     platform: iOS
     sources:
@@ -125,23 +125,23 @@ targets:
     info:
       path: Notify/Info.plist
       properties:
-        CFBundleDisplayName: Ozitrac
+        CFBundleDisplayName: Folloz
         CFBundleShortVersionString: $(MARKETING_VERSION)
         CFBundleVersion: $(CURRENT_PROJECT_VERSION)
         NSExtension:
           NSExtensionPointIdentifier: com.apple.usernotifications.service
           NSExtensionPrincipalClass: $(PRODUCT_MODULE_NAME).NotificationService
     entitlements:
-      path: Notify/OzitracNotify.entitlements
+      path: Notify/FollozNotify.entitlements
       properties:
-        com.apple.security.application-groups: [group.com.ozimut.ozitrac]
+        com.apple.security.application-groups: [group.com.ozimut.folloz]
     settings:
       base:
-        PRODUCT_BUNDLE_IDENTIFIER: com.ozimut.ozitrac.notify
+        PRODUCT_BUNDLE_IDENTIFIER: com.ozimut.folloz.notify
         TARGETED_DEVICE_FAMILY: "1"
         SKIP_INSTALL: YES
 
-  OzitracWatch:
+  FollozWatch:
     type: application
     platform: watchOS
     sources:
@@ -152,32 +152,32 @@ targets:
     info:
       path: Watch/Info.plist
       properties:
-        CFBundleDisplayName: Ozitrac
+        CFBundleDisplayName: Folloz
         CFBundleShortVersionString: $(MARKETING_VERSION)
         CFBundleVersion: $(CURRENT_PROJECT_VERSION)
         CFBundleDevelopmentRegion: en
         CFBundleLocalizations: [en, fr, de, es]
         WKApplication: true
-        WKCompanionAppBundleIdentifier: com.ozimut.ozitrac
+        WKCompanionAppBundleIdentifier: com.ozimut.folloz
         WKRunsIndependentlyOfCompanionApp: true
         WKBackgroundModes: [workout-processing]
         OZBaseURL: $(OZ_BASE_URL)
-        NSLocationWhenInUseUsageDescription: "Ozitrac records your run and sends it, sealed, to the people you chose, only between Start and Stop."
-        NSHealthShareUsageDescription: "Ozitrac records your run as a workout."
-        NSHealthUpdateUsageDescription: "Ozitrac saves your run as a workout with its route."
+        NSLocationWhenInUseUsageDescription: "Folloz records your run and sends it, sealed, to the people you chose, only between Start and Stop."
+        NSHealthShareUsageDescription: "Folloz records your run as a workout."
+        NSHealthUpdateUsageDescription: "Folloz saves your run as a workout with its route."
     entitlements:
-      path: Watch/OzitracWatch.entitlements
+      path: Watch/FollozWatch.entitlements
       properties:
         com.apple.developer.healthkit: true
         com.apple.developer.healthkit.access: []
     settings:
       base:
-        PRODUCT_BUNDLE_IDENTIFIER: com.ozimut.ozitrac.watchkitapp
-        PRODUCT_NAME: OzitracWatch
+        PRODUCT_BUNDLE_IDENTIFIER: com.ozimut.folloz.watchkitapp
+        PRODUCT_NAME: FollozWatch
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
         SKIP_INSTALL: YES
 
-  OzitracTests:
+  FollozTests:
     type: bundle.unit-test
     platform: iOS
     sources:
@@ -185,28 +185,28 @@ targets:
       - path: Tests
     settings:
       base:
-        PRODUCT_BUNDLE_IDENTIFIER: com.ozimut.ozitrac.tests
+        PRODUCT_BUNDLE_IDENTIFIER: com.ozimut.folloz.tests
         GENERATE_INFOPLIST_FILE: YES
 
 schemes:
-  Ozitrac:
+  Folloz:
     build:
       targets:
-        Ozitrac: all
+        Folloz: all
     run:
       config: Debug
     archive:
       config: Release
-  OzitracWatch:
+  FollozWatch:
     build:
       targets:
-        OzitracWatch: all
+        FollozWatch: all
     run:
       config: Debug
-  OzitracTests:
+  FollozTests:
     build:
       targets:
-        OzitracTests: [test]
+        FollozTests: [test]
     test:
       config: Debug
-      targets: [OzitracTests]
+      targets: [FollozTests]

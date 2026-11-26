@@ -19,7 +19,7 @@ import androidx.activity.enableEdgeToEdge
 import java.util.concurrent.Executors
 
 /**
- * A person followed, live (docs/track/ozitrac.md « The apps »): their run read every `next` seconds while this screen is
+ * A person followed, live (docs/track/folloz.md « The apps »): their run read every `next` seconds while this screen is
  * open, their trail and position on the map, the pace of a long run and, when its runner allowed it, « Passer en direct » /
  * « Revenir au rythme lent » (« Pace »), their alerts, « Enregistrer en GPX » of what was received, « Ne plus suivre ».
  */
@@ -264,7 +264,7 @@ class FollowActivity : ComponentActivity() {
             Toast.makeText(this, R.string.follow_nothing, Toast.LENGTH_LONG).show()
             return
         }
-        val name = follow.name.ifBlank { "Ozitrac" } + " " + Screens.dateTime(this, fixes.first().t)
+        val name = follow.name.ifBlank { "Folloz" } + " " + Screens.dateTime(this, fixes.first().t)
         Screens.shareFile(this, RunLog.gpxFile(this, name, fixes))
     }
 

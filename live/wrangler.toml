@@ -21,10 +21,10 @@ class_name = "Directory"
 name = "TRACK"
 class_name = "LiveTrack"
 
-# Ozitrac (2026-11-23, docs/track/ozitrac.md): one object per channel of the tracking app, no account; its « silent » alert goes
-# back to Ozimut as LiveTrack's do (POST <SITE_URL>/api/ozitrac/alert with TRACK_RELAY_SECRET)
+# Folloz (2026-11-23, docs/track/folloz.md): one object per channel of the tracking app, no account; its « silent » alert goes
+# back to Ozimut as LiveTrack's do (POST <SITE_URL>/api/folloz/alert with TRACK_RELAY_SECRET)
 [[durable_objects.bindings]]
-name = "OZITRAC"
+name = "FOLLOZ"
 class_name = "TracChannel"
 
 # Ozimut's R2 bucket: an organiser's broadcast tied to a competition is saved there (broadcasts/<number>.json) every couple

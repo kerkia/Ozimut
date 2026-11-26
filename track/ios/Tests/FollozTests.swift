@@ -2,7 +2,7 @@ import CoreImage
 import UIKit
 import XCTest
 
-/// Ozitrac's pure parts (docs/track/ozitrac.md), as Android's TrackFormTest: sealing — against a vector made with
+/// Folloz's pure parts (docs/track/folloz.md), as Android's TrackFormTest: sealing — against a vector made with
 /// WebCrypto, so that the relay's readers, Android and the iPhone provably agree —, the batch's delta form, the code link,
 /// the GPX file, the relay's batch body, the alerts seen on the device, the runs kept, the QR codes.
 final class SealTests: XCTestCase {
@@ -84,7 +84,7 @@ final class TrackFormTests: XCTestCase {
     func testACodeIsReadOnlyWhenWhole() {
         let k = B64.enc(Data(count: 32))
         XCTAssertNotNil(Codes.parse("  https://ozimut.com/z/abcdefghijklmn23/#qrstuvwxyz234567.\(k).  "))
-        XCTAssertNotNil(Codes.parse("ozitrac://z/abcdefghijklmn23#qrstuvwxyz234567.\(k).Wm9l"))
+        XCTAssertNotNil(Codes.parse("folloz://z/abcdefghijklmn23#qrstuvwxyz234567.\(k).Wm9l"))
         XCTAssertNil(Codes.parse(nil))
         XCTAssertNil(Codes.parse("https://ozimut.com/z/abcdefghijklmn23"))
         XCTAssertNil(Codes.parse("https://ozimut.com/t/K7QM4TXD"))
@@ -92,9 +92,9 @@ final class TrackFormTests: XCTestCase {
         XCTAssertNil(Codes.parse("https://ozimut.com/z/abcdefghijklmn23#short.\(k).Wm9l"))
         XCTAssertNil(Codes.parse("https://ozimut.com/z/abcdefghijklmn23#qrstuvwxyz234567.AAAA.Wm9l"))
         XCTAssertNil(Codes.parse("https://ozimut.com/z/abcdefghijklmn23#qrstuvwxyz234567.\(k)"))
-        // a pair code is no Ozitrac code, and the other way round
+        // a pair code is no Folloz code, and the other way round
         XCTAssertNil(PairCode.extract("https://ozimut.com/z/abcdefghijklmn23#qrstuvwxyz234567.\(k).Wm9l"))
-        XCTAssertEqual(PairCode.extract("ozitrac://t/K7QM4TXD"), "K7QM4TXD")
+        XCTAssertEqual(PairCode.extract("folloz://t/K7QM4TXD"), "K7QM4TXD")
     }
 
     func testRandomCodesUseTheAlphabet() {
@@ -319,7 +319,7 @@ final class QRCodeTests: XCTestCase {
         let texts = [
             "HELLO WORLD",
             Codes.link(base: "https://ozimut.com/", c: Codes.random(16), i: Codes.random(16), k: Codes.key(), name: "Éloïse-Marie"),
-            String(repeating: "Ozitrac ", count: 30),
+            String(repeating: "Folloz ", count: 30),
         ]
         for t in texts {
             for mask in [nil, 0, 3, 5, 7] as [Int?] {
@@ -337,7 +337,7 @@ private extension CIImage {
     }
 }
 
-/// The pace of a run (docs/track/ozitrac.md « Pace »): Direct or a long run, a watcher's request for Direct applied once,
+/// The pace of a run (docs/track/folloz.md « Pace »): Direct or a long run, a watcher's request for Direct applied once,
 /// refused when not allowed or on a low battery, over by itself; the batch's `pace`; the watcher's reading of it.
 final class PaceTests: XCTestCase {
     private let long = PaceChoice(long: true, fix: 30, send: 600, remote: true)

@@ -1,12 +1,12 @@
 import Foundation
 
 /*
- * Ozitrac's relay, the followed device's side (docs/track/ozitrac.md), as Android's Relay.kt: the person's first name,
+ * Folloz's relay, the followed device's side (docs/track/folloz.md), as Android's Relay.kt: the person's first name,
  * the relay's settings, the channel and its watchers (their keys kept in the Keychain), the alerts this device sees
  * itself, the zone, and the destination that sends a run to the relay. Shared by the iPhone and the Apple Watch.
  */
 
-/// The relay's HTTP API under `<base>api/ozitrac/`. Ordinary requests, no cookies.
+/// The relay's HTTP API under `<base>api/folloz/`. Ordinary requests, no cookies.
 final class RelayHTTP {
     static let shared = RelayHTTP()
 
@@ -26,12 +26,12 @@ final class RelayHTTP {
         c.httpCookieAcceptPolicy = .never
         c.urlCache = nil
         c.requestCachePolicy = .reloadIgnoringLocalCacheData
-        c.httpAdditionalHeaders = ["User-Agent": "Ozitrac/\(AppConfig.version)"]
+        c.httpAdditionalHeaders = ["User-Agent": "Folloz/\(AppConfig.version)"]
         session = URLSession(configuration: c)
     }
 
     static func url(_ path: String) -> URL? {
-        URL(string: "api/ozitrac/" + path, relativeTo: AppConfig.base)?.absoluteURL
+        URL(string: "api/folloz/" + path, relativeTo: AppConfig.base)?.absoluteURL
     }
 
     /// nil: no answer (no network).
@@ -60,7 +60,7 @@ enum Me {
     }
 }
 
-/// The relay's settings (`GET /api/ozitrac/config`), kept a day.
+/// The relay's settings (`GET /api/folloz/config`), kept a day.
 enum RelayConfig {
     static let osm = "https://tile.openstreetmap.org/{z}/{x}/{y}.png"
     static let osmCredit = "© OpenStreetMap contributors"
@@ -142,7 +142,7 @@ final class ChannelStore {
     /// Told (on the main thread) when the watchers or the channel change.
     var onChange: (() -> Void)?
 
-    init(keychainAccount: String = "ozitrac.channel") {
+    init(keychainAccount: String = "folloz.channel") {
         account = keychainAccount
         if let s = Keychain.get(keychainAccount), let st = try? JSONDecoder().decode(State.self, from: Data(s.utf8)) {
             state = st
@@ -436,7 +436,7 @@ enum RelayBody {
     }
 }
 
-/// Ozitrac's destination: sends the run to the relay (`POST /api/ozitrac/<c>/push`), each batch sealed for each watcher
+/// Folloz's destination: sends the run to the relay (`POST /api/folloz/<c>/push`), each batch sealed for each watcher
 /// whose key this device holds. Without a watcher it waits (the fixes kept, sent once one joins); at the end with still
 /// none the run is not sent (it stays on the device).
 final class RelayDestination: TrackDestination {

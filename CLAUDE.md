@@ -834,37 +834,41 @@ banner asking a parent), a child taking the account over from 15 (`POST /api/tra
   a Wear OS watch with LTE and a cellular Apple Watch let an app use the mobile network (`trk.watch.*`). **The Wear OS app**
   (`track/android/wear`, owner 2026-11-23: « Oui, écris-la »): standalone, the same package, pairing by claim code (`kind` "wearos"),
   the phone app's tracker files compiled into it as they are (`SHARED` in its build file); built by `track-android.yml`, artifact
-  `ozitrac-wearos-apks`; installed by hand (`docs/track/setup.md` 3b). **Only
+  `folloz-wearos-apks`; installed by hand (`docs/track/setup.md` 3b). **Only
   built and unit-tested in CI, never run on a device**; signing, stores, icons and the owner's accounts still to come.
-- **Ozitrac** (owner, 2026-11-23, after the session on paid plans: the app holds no page of Ozimut, sells nothing, shows no
-  price): **the tracking app is a product of its own** — contract `docs/track/ozitrac.md`, change it first. No account: a
-  followed phone makes a channel on the relay (`live/src/ozitrac.js` `TracChannel`, migration v4, binding `OZITRAC` in both
+- **Folloz** (« Ozitrac » until 2026-11-26, renamed by the owner everywhere — texts, files, ids `com.ozimut.folloz`, routes
+  `/api/folloz`, binding `FOLLOZ`, env `FOLLOZ_*` —, before any store or device: an Australian company sells « Trac Oz »
+  services; Folloze, a US marketing-software firm, owns folloz.com, and Follo Tracker sells e-bike GPS trackers in New
+  Zealand and Australia — trademark registers not checked, INPI's behind an anti-robot check; owner, 2026-11-23, after the
+  session on paid plans: the app holds no page of Ozimut, sells nothing, shows no
+  price): **the tracking app is a product of its own** — contract `docs/track/folloz.md`, change it first. No account: a
+  followed phone makes a channel on the relay (`live/src/folloz.js` `TracChannel`, migration v4, binding `FOLLOZ` in both
   wrangler.toml), its watchers join by scanning `https://ozimut.com/z/<c>#<code>.<key>.<name>` (a browser gets
   `functions/z/[[path]].js`'s page), every batch sealed per watcher with AES-256-GCM so the relay reads no position; the site's
-  `functions/api/ozitrac/[[path]].js` (public in `_middleware.js`) makes channels, limits the anonymous routes and sends the
+  `functions/api/folloz/[[path]].js` (public in `_middleware.js`) makes channels, limits the anonymous routes and sends the
   watchers' notifications as FCM data (`nativepush.sendData`); « silent » comes from the object's alarm through
-  `/api/ozitrac/alert`. The run under way only, deleted 24 h after it ends; a channel unused 180 days goes; the runs as GPX on
+  `/api/folloz/alert`. The run under way only, deleted 24 h after it ends; a channel unused 180 days goes; the runs as GPX on
   the phone. « Relier à Ozimut » = the pair code of « Associer un téléphone »: the phone then also sends to the account with
-  this section's protocol. Android and Wear OS id `com.ozimut.ozitrac` (namespace `com.ozimut.app`). The Android app (`track/android/app`,
+  this section's protocol. Android and Wear OS id `com.ozimut.folloz` (namespace `com.ozimut.app`). The Android app (`track/android/app`,
   all native, no web view): `HomeActivity` « Ma course » (Start, Qui me suit, Mes courses as GPX, Zone, the two-minute test,
   Relier à Ozimut, « Effacer mes données ») and « Je suis » (`FollowActivity`: the person's live map), `Relay.kt` (channel,
   invites, `RelaySender` beside Ozimut's `Uploader`, device alerts), `TrackForm.kt` (sealing, delta form, code links),
-  `TileMapView` (its own raster map; **its layers by country**, owner 2026-11-23: `/api/ozitrac/config` lists them — `functions/_lib/ozitracmaps.js`, the outlines by `tools/ozitrac_areas.py` from Natural Earth —, Plan IGN or IGN's photos in France, swisstopo's map, grey map or SWISSIMAGE in Switzerland and Liechtenstein, OpenStreetMap everywhere and the default elsewhere; a tile is its area's when its four corners lie inside, the person's choice per area by « Fond de carte » (`MapLayers`), each phone fetching its own tiles, never through Ozimut), `RunLog.kt` (runs as CSV, GPX on demand); the Wear
+  `TileMapView` (its own raster map; **its layers by country**, owner 2026-11-23: `/api/folloz/config` lists them — `functions/_lib/follozmaps.js`, the outlines by `tools/folloz_areas.py` from Natural Earth —, Plan IGN or IGN's photos in France, swisstopo's map, grey map or SWISSIMAGE in Switzerland and Liechtenstein, OpenStreetMap everywhere and the default elsewhere; a tile is its area's when its four corners lie inside, the person's choice per area by « Fond de carte » (`MapLayers`), each phone fetching its own tiles, never through Ozimut), `RunLog.kt` (runs as CSV, GPX on demand); the Wear
   app compiles those files too (`SHARED`); **its runs reach the phone by themselves** when the two are connected (owner,
-  2026-11-23): the Wear OS Data Layer, an item `/ozitrac/run/<run>` with the run's CSV as an asset (`wear` `RunSync`, after
+  2026-11-23): the Wear OS Data Layer, an item `/folloz/run/<run>` with the run's CSV as an asset (`wear` `RunSync`, after
   each run's end), filed in « Mes courses » by the phone (`WatchRuns`, a `WearableListenerService`; « Mes courses » collects
   what a missed wake-up left) — both APKs must be signed with the same key, so from the same CI run until a release keystore
-  exists. Artifacts `ozitrac-android-apks`, `ozitrac-wearos-apks`; never run on a device yet. **Two paces** (owner, 2026-11-25:
-  ultra-trails and raids of a few days, tested on ozimut.com's servers before any site of Ozitrac's own): « Direct » (1 fix a
+  exists. Artifacts `folloz-android-apks`, `folloz-wearos-apks`; never run on a device yet. **Two paces** (owner, 2026-11-25:
+  ultra-trails and raids of a few days, tested on ozimut.com's servers before any site of Folloz's own): « Direct » (1 fix a
   second, as before) or « Course longue » (a fix every 15-60 s, batches every 5-15 min, the battery spared, 7 days at most;
   silent after 3 batches + 2 min, given up after 36 h, still over 30 min), and **a watcher may ask for Direct for 5-60 min**
-  when the runner allowed it (`POST /api/ozitrac/<c>/w/<w>/pace`, the run's `boost`, the runner's phone woken through its own
+  when the runner allowed it (`POST /api/folloz/<c>/w/<w>/pace`, the run's `boost`, the runner's phone woken through its own
   token `PUT <c>/token` and a quiet data push — `nativepush.sendData`'s `quiet`, an APNs background push — else told at its
   next batch; refused under 20 % battery). Linked to Ozimut, a long run keeps 7 days and its own interval there too
-  (`functions/api/track` `longPace`, `LiveTrack` `m.long`). Tests `t_ozitrac_pace.mjs` (19 checks) and the long run in
-  `gps-tracking/t_track.mjs`. The watch is never in long mode. **The iPhone and Apple Watch apps** (`track/ios`, merged 2026-11-23; ids `com.ozimut.ozitrac`, `.watchkitapp`, `.widget`, `.notify`, App Group `group.com.ozimut.ozitrac`): the same two roles in SwiftUI, CryptoKit sealing checked against a WebCrypto vector shared with Android's tests, the map's layers as Android's (`MapLayers.swift`, `TileMap.swift`), a notification extension naming the person followed, the watch a watchee with its own channel and QR code (Nayuki's encoder ported) whose runs reach the iPhone by `transferFile`; built unsigned by `track-ios.yml`, the owner's Apple steps in `track/ios/README.md`. Site notifications no
-  longer go to the native devices: only the tracking's alerts (`pushToUser`'s `native`). Relay test: `C:\Kerkia\Ozimut\work\scratch-scripts\t_ozitrac.mjs`
-  (30 checks), launch configs `ocn-live-track` + `pages-dev-track-open` (binds `OZITRAC=TracChannel@ocn-live`).
+  (`functions/api/track` `longPace`, `LiveTrack` `m.long`). Tests `t_folloz_pace.mjs` (19 checks) and the long run in
+  `gps-tracking/t_track.mjs`. The watch is never in long mode. **The iPhone and Apple Watch apps** (`track/ios`, merged 2026-11-23; ids `com.ozimut.folloz`, `.watchkitapp`, `.widget`, `.notify`, App Group `group.com.ozimut.folloz`): the same two roles in SwiftUI, CryptoKit sealing checked against a WebCrypto vector shared with Android's tests, the map's layers as Android's (`MapLayers.swift`, `TileMap.swift`), a notification extension naming the person followed, the watch a watchee with its own channel and QR code (Nayuki's encoder ported) whose runs reach the iPhone by `transferFile`; built unsigned by `track-ios.yml`, the owner's Apple steps in `track/ios/README.md`. Site notifications no
+  longer go to the native devices: only the tracking's alerts (`pushToUser`'s `native`). Relay test: `C:\Kerkia\Ozimut\work\scratch-scripts\t_folloz.mjs`
+  (30 checks), launch configs `ocn-live-track` + `pages-dev-track-open` (binds `FOLLOZ=TracChannel@ocn-live`).
 - **Administrators only for now** (owner, 2026-11-22: « make all this visible to admin only for now »): while `TRACK_OPEN` is "0" the
   menu entry, the page (`app.trackShown`, the router sends others to the modules page), the Coach guide's chapter « Suivi GPS »
   (`content/guide.*.js` `suivi`, `track` passed by `pages/methods.js`) and the API (`trackAllowed`: administrators and the child accounts
@@ -885,7 +889,7 @@ banner asking a parent), a child taking the account over from 15 (`POST /api/tra
 purchase anything would ever be presented »). **The contract is `docs/app/design.md`: change it first, then the code.** The live
 site in a native web view (Android `app/android`, iPhone `app/ios`; ids `com.ozimut.app`), recognised by its user agent
 (` OzimutApp/<version> (android|ios)`: `appbridge.inApp()` in the page, `_middleware.js fromApp` on the server, `<html
-class="in-app">`). Not Ozitrac: **it does not track** (owner). Its headline, to push in the stores (owner): **the race analysed
+class="in-app">`). Not Folloz: **it does not track** (owner). Its headline, to push in the stores (owner): **the race analysed
 in the arena** — the map scanned, the GPS track taken from the watch (shared from its maker's app; on an iPhone read from Apple
 Health), laid on each other in « Analyse » minutes after the finish.
 
@@ -917,7 +921,7 @@ Health), laid on each other in « Analyse » minutes after the finish.
 - **Native notifications**: migration `0032_app_push.sql` (`app_push`, one row a phone); the page posts the shell's token with
   its session (`POST /api/push/native`, `native-off`; `push.js` in the app); `pushToUser` sends **every** notification of the
   account to those phones (`nativepush.appToUser`: FCM, APNs topic `com.ozimut.app`), and `/api/notify` counts such a phone as
-  a push device. Ozitrac's phones still get the tracking's alerts only.
+  a push device. Folloz's phones still get the tracking's alerts only.
 - **The owner's steps** (Apple developer account, keys, TestFlight, Firebase, Play): `docs/app/setup.md`; the store texts in
   four languages, the review notes and the ready replies to a 3.1.x or 4.2 objection: `docs/app/store.md`.
 - **Never compiled locally nor run on a device** (2026-11-23): the first GitHub builds are the first compilations; iOS's

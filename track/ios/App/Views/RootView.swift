@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// Ozitrac's two roles on one iPhone (docs/track/ozitrac.md « The apps »): « Ma course » (being followed) and « Je suis »
+/// Folloz's two roles on one iPhone (docs/track/folloz.md « The apps »): « Ma course » (being followed) and « Je suis »
 /// (following). The run and the two-minute test cover the screen; the other pages come as sheets.
 struct RootView: View {
     @EnvironmentObject var m: AppModel

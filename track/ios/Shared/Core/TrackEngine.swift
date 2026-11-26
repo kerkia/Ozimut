@@ -14,7 +14,7 @@ enum EndReason: Equatable {
     case cap
     /// 409: the server had closed the run.
     case closed
-    /// Nobody to send the run to (Ozitrac's relay at the end of a run nobody followed).
+    /// Nobody to send the run to (Folloz's relay at the end of a run nobody followed).
     case nobody
 }
 
@@ -30,7 +30,7 @@ struct TrackStatus: Equatable {
     var lastError: String?
     var helpAt: Date?
     var online = true
-    /// Where the run goes (RunCoordinator): "oz" (the Ozimut account), "z" (Ozitrac's relay, the people who follow).
+    /// Where the run goes (RunCoordinator): "oz" (the Ozimut account), "z" (Folloz's relay, the people who follow).
     var dests: [String] = []
     /// The run's pace (RunCoordinator; nil from an engine alone).
     var pace: PaceState?
@@ -43,11 +43,11 @@ protocol TrackEngineDelegate: AnyObject {
     func trackDeviceRemoved()
 }
 
-/// Where an engine sends its batches: Ozimut's `/api/track/push` (`OzimutDestination`) or Ozitrac's relay
-/// (`RelayDestination`, docs/track/ozitrac.md). `done` may be called on any thread.
+/// Where an engine sends its batches: Ozimut's `/api/track/push` (`OzimutDestination`) or Folloz's relay
+/// (`RelayDestination`, docs/track/folloz.md). `done` may be called on any thread.
 protocol TrackDestination: AnyObject {
     func send(_ batch: TrackBatch, battery: Int?, lowPower: Bool, left: Int, done: @escaping (PushResult) -> Void)
-    /// The same with the run's pace (Ozitrac's `pace` of a batch, docs/track/ozitrac.md « Pace »).
+    /// The same with the run's pace (Folloz's `pace` of a batch, docs/track/folloz.md « Pace »).
     func send(_ batch: TrackBatch, battery: Int?, lowPower: Bool, left: Int, pace: [String: Any]?,
               done: @escaping (PushResult) -> Void)
 }
@@ -97,7 +97,7 @@ final class TrackEngine {
     private let store: FixQueue?
     private let destination: TrackDestination
     weak var delegate: TrackEngineDelegate?
-    /// The run's pace for a batch sent every so many seconds (`pace`, Ozitrac); set once, before the first run.
+    /// The run's pace for a batch sent every so many seconds (`pace`, Folloz); set once, before the first run.
     var paceJson: ((Int) -> [String: Any]?)?
 
     private var settings = TrackSettings()
@@ -107,7 +107,7 @@ final class TrackEngine {
     private var inFlight = false
     private var backoff: TimeInterval = 5
     private var interval: TimeInterval = 30
-    /// The bounds of the server's `next` (docs/track/ozitrac.md « Pace »): a long run keeping its own pace sends every `send`
+    /// The bounds of the server's `next` (docs/track/folloz.md « Pace »): a long run keeping its own pace sends every `send`
     /// seconds (a request for Direct it refused never makes it send faster), one a watcher asked to see live every 15 s at
     /// most (a batch answered before the request was known never makes it wait), else 5 s to 15 min.
     private var minInterval: TimeInterval = 5
@@ -335,7 +335,7 @@ final class TrackEngine {
         guard let store, let r = current, r.run == batch.run else { return }
         switch result {
         case let .ok(ack, next, stop):
-            // a long run's batches go every 15 minutes at most (docs/track/ozitrac.md « Pace »)
+            // a long run's batches go every 15 minutes at most (docs/track/folloz.md « Pace »)
             if let next { interval = min(maxInterval, max(minInterval, TimeInterval(next))) }
             if ack < batch.seq && ack <= r.acked {
                 // The server did not take it (a gap): try again a little later.

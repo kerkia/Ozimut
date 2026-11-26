@@ -1,7 +1,7 @@
 import CoreLocation
 import SwiftUI
 
-/// The zone set on this iPhone (docs/track/ozitrac.md rule 5): its centre is the map's centre (the cross), « Ma position »
+/// The zone set on this iPhone (docs/track/folloz.md rule 5): its centre is the map's centre (the cross), « Ma position »
 /// brings the map to where the iPhone is; a radius; leaving it during a run alerts the people who follow.
 struct ZoneView: View {
     @EnvironmentObject var m: AppModel

@@ -79,7 +79,7 @@ the detail of what was ported from each: `site/assets/js/chrono/si/LICENSE-sport
 `site/assets/js/chrono/`: Ozimut Chrono, © Yann Le Helloco, Mozilla Public License 2.0, a copy of
 https://github.com/kerkia/ChronOzimut, with its own notices. (The SPORTident ports above are part of it.)
 
-### Project Nayuki's QR Code generator (Ozitrac's QR codes on the iPhone and the Apple Watch)
+### Project Nayuki's QR Code generator (Folloz's QR codes on the iPhone and the Apple Watch)
 
 - Copyright: « Copyright (c) Project Nayuki. »
 - Licence: MIT.
@@ -195,7 +195,7 @@ Licences as recorded in the lockfiles:
   BSD-2-Clause 5, BSD-3-Clause 2, 0BSD 1).
 - `tools/vendor.py` uses npm and esbuild 0.24.0 (MIT) to build `site/assets/vendor/`.
 
-### Android libraries (the Ozitrac apps, `track/android`; fetched by Gradle at build time, not in the repository)
+### Android libraries (the Folloz apps, `track/android`; fetched by Gradle at build time, not in the repository)
 
 Bundled into the APKs the CI builds, under their own licences:
 
@@ -207,10 +207,10 @@ Bundled into the APKs the CI builds, under their own licences:
 - Google Play services' Wearable library (`play-services-wearable`, Google, under the Android Software Development Kit
   License): the Wear OS watch handing its runs to the phone.
 
-The map's tiles are not bundled: each phone reads them from the providers `/api/ozitrac/config` names — IGN's Plan IGN and aerial
+The map's tiles are not bundled: each phone reads them from the providers `/api/folloz/config` names — IGN's Plan IGN and aerial
 photos in France (© IGN, Licence Ouverte 2.0), swisstopo's national map and SWISSIMAGE in Switzerland and Liechtenstein
 (© swisstopo, open data), OpenStreetMap's standard tiles elsewhere (© OpenStreetMap contributors, ODbL); the credits of the layers
-shown are drawn on the map. The countries' outlines that choose the layer (`functions/_lib/ozitracareas.js`) are Natural Earth's
+shown are drawn on the map. The countries' outlines that choose the layer (`functions/_lib/follozareas.js`) are Natural Earth's
 (public domain), simplified.
 
 ### Other software read for facts only (none of its code is here)

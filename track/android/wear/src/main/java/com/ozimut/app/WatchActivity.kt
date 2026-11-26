@@ -31,7 +31,7 @@ import com.google.zxing.qrcode.QRCodeWriter
 import java.util.Locale
 
 /**
- * Ozitrac on the watch (docs/track/ozitrac.md « The apps »): Start; during a run the time, the distance, the GPS, whether
+ * Folloz on the watch (docs/track/folloz.md « The apps »): Start; during a run the time, the distance, the GPS, whether
  * positions get through, and two buttons held two seconds — Help and Stop — so that a sleeve never presses them. Between
  * runs, the people who follow the watch (their codes shown as QR codes for their phones, each removable) and its link to
  * an Ozimut account (the claim code typed on the site).
@@ -253,7 +253,7 @@ class WatchActivity : ComponentActivity() {
         button(getString(R.string.w_back), filled = false) { go("home") }
     }
 
-    /** A new code for one person, as a QR code their phone's Ozitrac scans. */
+    /** A new code for one person, as a QR code their phone's Folloz scans. */
     private fun buildQr() {
         text(getString(R.string.w_qr_title), 13f, bold = true)
         val wait = text(getString(R.string.w_qr_making), 11f, color = GREY)

@@ -22,9 +22,9 @@ object PushSupport {
 }
 
 /**
- * Receives Ozitrac's alerts — data messages `{ app: "ozitrac", c, kind, t, run }` (docs/track/ozitrac.md « Alerts »), shown
+ * Receives Folloz's alerts — data messages `{ app: "folloz", c, kind, t, run }` (docs/track/folloz.md « Alerts »), shown
  * as « <name> : <alert> » for the person followed on channel c —, a watcher's request for Direct to this phone's own channel
- * — `{ app: "ozitrac", c, kind: "pace", until, at, by }` (« Pace »), never shown as a notification of its own: the run's
+ * — `{ app: "folloz", c, kind: "pace", until, at, by }` (« Pace »), never shown as a notification of its own: the run's
  * notification says it once applied — and the Ozimut account's own notifications `{ title, body }`.
  */
 class OzMessagingService : FirebaseMessagingService() {
@@ -40,7 +40,7 @@ class OzMessagingService : FirebaseMessagingService() {
 
     override fun onMessageReceived(message: RemoteMessage) {
         val d = message.data
-        if (d["app"] == "ozitrac") {
+        if (d["app"] == "folloz") {
             val ch = d["c"] ?: return
             val kind = d["kind"] ?: return
             if (kind == "pace") {

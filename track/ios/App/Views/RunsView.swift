@@ -8,7 +8,7 @@ struct RunsView: View {
     @State private var sharing: Shared?
     @State private var exporting = false
     @State private var document = GPXDocument(text: "")
-    @State private var exportName = "ozitrac"
+    @State private var exportName = "folloz"
     @State private var deleting: RunLog.Info?
     @State private var seeing: RunLog.Info?
 
@@ -85,7 +85,7 @@ struct RunsView: View {
     }
 
     private func name(_ r: RunLog.Info) -> String {
-        (m.myName.isEmpty ? "Ozitrac" : m.myName) + " " + Fmt.dateTime(r.start)
+        (m.myName.isEmpty ? "Folloz" : m.myName) + " " + Fmt.dateTime(r.start)
     }
 
     private func share(_ r: RunLog.Info) {
@@ -94,7 +94,7 @@ struct RunsView: View {
 
     private func save(_ r: RunLog.Info) {
         document = GPXDocument(text: Gpx.write(name: name(r), fixes: RunLog.read(r.url)))
-        exportName = "ozitrac-" + r.run
+        exportName = "folloz-" + r.run
         exporting = true
     }
 }

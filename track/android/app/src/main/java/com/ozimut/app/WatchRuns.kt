@@ -13,14 +13,14 @@ import com.google.android.gms.wearable.WearableListenerService
 import java.util.concurrent.TimeUnit
 
 /**
- * The runs the Wear OS watch hands over (docs/track/ozitrac.md « The watch »; the watch's side is `RunSync`): each data item
- * `/ozitrac/run/<run>` holds a run's file as an asset. The system wakes this service when one arrives, whenever the phone
+ * The runs the Wear OS watch hands over (docs/track/folloz.md « The watch »; the watch's side is `RunSync`): each data item
+ * `/folloz/run/<run>` holds a run's file as an asset. The system wakes this service when one arrives, whenever the phone
  * and the watch are connected; the run is kept in « Mes courses » as the phone's own and the item is deleted, on the watch
  * too. « Mes courses » also collects any item a missed wake-up left (`collect`).
  */
 class WatchRuns : WearableListenerService() {
     companion object {
-        private const val PREFIX = "/ozitrac/run/"
+        private const val PREFIX = "/folloz/run/"
         private const val ASSET = "csv"
 
         /** Every item waiting, filed and deleted (a network thread). -> how many runs were filed */

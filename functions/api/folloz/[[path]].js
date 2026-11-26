@@ -1,9 +1,9 @@
-// Ozitrac's relay API (docs/track/ozitrac.md; 2026-11-23): the tracking app needs no account. Every route but /config and
-// /channel names a channel and goes to its Durable Object (live/src/ozitrac.js TracChannel, binding OZITRAC), which checks the
+// Folloz's relay API (docs/track/folloz.md; 2026-11-23): the tracking app needs no account. Every route but /config and
+// /channel names a channel and goes to its Durable Object (live/src/folloz.js TracChannel, binding FOLLOZ), which checks the
 // secrets itself; this Function makes new channels, limits the anonymous routes by address, and sends the notifications the
 // object asks for (data only, _lib/nativepush.js sendData). Public in _middleware.js: no session, ever.
 //
-//   GET    config                 the map's layers by country (_lib/ozitracmaps.js) and the batch intervals
+//   GET    config                 the map's layers by country (_lib/follozmaps.js) and the batch intervals
 //   POST   channel                a new channel -> { c, cs }
 //   POST   alert                  the relay's own alerts (X-Relay = TRACK_RELAY_SECRET) -> notifications
 //   GET    <c>                    the watchee's view (Bearer cs)
@@ -19,7 +19,7 @@
 
 import { allow, clientIp, json } from "../../_lib/api.js";
 import { sendData } from "../../_lib/nativepush.js";
-import { maps } from "../../_lib/ozitracmaps.js";
+import { maps } from "../../_lib/follozmaps.js";
 
 const A32 = "abcdefghijklmnopqrstuvwxyz234567";
 const MAX_BODY = 512 * 1024;
@@ -39,7 +39,7 @@ async function sha(s) {
   const h = new Uint8Array(await crypto.subtle.digest("SHA-256", new TextEncoder().encode(s)));
   return Array.from(h, (b) => b.toString(16).padStart(2, "0")).join("");
 }
-const stub = (env, c) => env.OZITRAC.get(env.OZITRAC.idFromName(c));
+const stub = (env, c) => env.FOLLOZ.get(env.FOLLOZ.idFromName(c));
 
 /** The notifications a channel's object asked for; tokens gone are told back to it. */
 async function notify(env, c, list) {
@@ -48,7 +48,7 @@ async function notify(env, c, list) {
     const r = await sendData(env, n.push, n.data, { urgent: !!n.urgent, ttl: n.quiet ? 600 : n.urgent ? 3600 : 1800, quiet: !!n.quiet });
     if (r === "gone") gone.push(n.w);
   }
-  if (gone.length) await stub(env, c).fetch("https://ozitrac/_gone", { method: "POST", body: JSON.stringify({ w: gone }) });
+  if (gone.length) await stub(env, c).fetch("https://folloz/_gone", { method: "POST", body: JSON.stringify({ w: gone }) });
 }
 
 export async function onRequest(ctx) {
@@ -60,13 +60,13 @@ export async function onRequest(ctx) {
   if (head === "config" && method === "GET") {
     return json({ ...maps(env), watched: 15, idle: 120 }, 200, { "Cache-Control": "public, max-age=3600" });
   }
-  if (!env.OZITRAC) return json({ error: "off" }, 503);
+  if (!env.FOLLOZ) return json({ error: "off" }, 503);
 
   if (head === "channel" && method === "POST") {
     if (!(await allow(env, `ozc:${clientIp(request)}`, 20, 3600))) return json({ error: "too many" }, 429);
     for (let i = 0; i < 4; i++) {
       const c = rand32(16), cs = randKey();
-      const r = await stub(env, c).fetch("https://ozitrac/init", { method: "POST", body: JSON.stringify({ c, csh: await sha(cs) }) });
+      const r = await stub(env, c).fetch("https://folloz/init", { method: "POST", body: JSON.stringify({ c, csh: await sha(cs) }) });
       if (r.status === 201) return json({ c, cs }, 201);
     }
     return json({ error: "failed" }, 500);
@@ -93,7 +93,7 @@ export async function onRequest(ctx) {
     if (body.length > MAX_BODY) return json({ error: "too large" }, 413);
   }
   const url = new URL(request.url);
-  const res = await stub(env, head).fetch(`https://ozitrac/${rest}${url.search}`, {
+  const res = await stub(env, head).fetch(`https://folloz/${rest}${url.search}`, {
     method, body, headers: { Authorization: request.headers.get("Authorization") || "", "Content-Type": "application/json" },
   });
   const out = await res.json().catch(() => ({ error: "failed" }));

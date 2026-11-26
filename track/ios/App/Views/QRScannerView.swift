@@ -2,7 +2,7 @@ import AVFoundation
 import SwiftUI
 import UIKit
 
-/// Scans a QR code with the camera (AVFoundation): an Ozitrac code to follow someone, or an Ozimut pair code.
+/// Scans a QR code with the camera (AVFoundation): an Folloz code to follow someone, or an Ozimut pair code.
 /// `accept` says which texts are taken; others are passed over.
 struct QRScannerView: UIViewControllerRepresentable {
     let accept: (String) -> Bool

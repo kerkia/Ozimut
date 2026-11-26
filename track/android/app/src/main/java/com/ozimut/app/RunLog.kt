@@ -5,7 +5,7 @@ import java.io.File
 import java.io.FileOutputStream
 
 /**
- * Every run kept on this phone (docs/track/ozitrac.md rule 3): `filesDir/runs/<run>.csv`, a line a fix « t,la,lo,ac,al »,
+ * Every run kept on this phone (docs/track/folloz.md rule 3): `filesDir/runs/<run>.csv`, a line a fix « t,la,lo,ac,al »,
  * written as the fixes come. A GPX file is made from it when the runner wants one. A run recorded on the Wear OS watch and
  * handed over by it (`WatchRuns`) is kept the same way, with an empty `<run>.watch` beside it.
  */
@@ -86,7 +86,7 @@ object RunLog {
     /** A GPX file of the fixes in the cache, ready to be shared (`cacheDir/gpx/`). */
     fun gpxFile(c: Context, name: String, fixes: List<Fix>): File {
         val d = File(c.cacheDir, "gpx").apply { mkdirs() }
-        val safe = name.replace(Regex("[^\\p{L}\\p{N} _-]"), "").trim().ifBlank { "ozitrac" }.take(60)
+        val safe = name.replace(Regex("[^\\p{L}\\p{N} _-]"), "").trim().ifBlank { "folloz" }.take(60)
         val f = File(d, "$safe.gpx")
         f.writeText(Gpx.write(name, fixes), Charsets.UTF_8)
         return f

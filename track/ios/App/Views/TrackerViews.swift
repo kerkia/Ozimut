@@ -47,7 +47,7 @@ func destinationsText(watchers: [ChannelStore.Watcher], share: Bool, linked: Boo
     return lines.joined(separator: "\n")
 }
 
-/// A long run's pace for the runner (docs/track/ozitrac.md « Pace »): « Course longue : une position toutes les 30 s, envoi
+/// A long run's pace for the runner (docs/track/folloz.md « Pace »): « Course longue : une position toutes les 30 s, envoi
 /// toutes les 10 min », « En direct jusqu'à 14:35 (demandé par Tom) », and a request refused; nil in a Direct run.
 func runnerPaceLine(_ p: PaceState?, watchers: [ChannelStore.Watcher], now: Date = Date()) -> String? {
     guard let p, p.choice.long else { return nil }

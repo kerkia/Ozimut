@@ -7,7 +7,7 @@ import android.os.Looper
 import org.json.JSONObject
 
 /*
- * The run's pace (docs/track/ozitrac.md « Pace »): Direct — a fix a second — or « Course longue » — a fix every 15, 30 or
+ * The run's pace (docs/track/folloz.md « Pace »): Direct — a fix a second — or « Course longue » — a fix every 15, 30 or
  * 60 s, a batch every 5, 10 or 15 minutes, the phone left asleep in between — and a watcher's request for Direct for a while.
  * The rules are plain Kotlin, unit-tested; PaceState keeps the run's pace with the run (RunState's preferences, cleared at
  * each Start). Shared with the watch, which is never in long mode (its runs are always PaceChoice.LIVE).

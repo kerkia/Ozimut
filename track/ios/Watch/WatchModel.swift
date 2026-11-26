@@ -8,7 +8,7 @@ enum WatchPage {
     case home, name, invite, watchers, claim
 }
 
-/// Ozitrac on the Apple Watch (docs/track/ozitrac.md « The watch »): a followed device only, standalone on cellular or
+/// Folloz on the Apple Watch (docs/track/folloz.md « The watch »): a followed device only, standalone on cellular or
 /// Wi-Fi. Its own channel on the relay and its code shown as a QR code for a watcher's iPhone; its watchers listed and
 /// removable; « Relier à Ozimut » by its claim code; the run recorded with a workout session (it keeps the app running
 /// wrist down), sent to the relay and Ozimut as the iPhone's, kept on the watch, and sent over to the paired iPhone's
@@ -90,7 +90,7 @@ final class WatchModel: NSObject, ObservableObject, RunCoordinatorDelegate, WCSe
 
     // MARK: who follows me
 
-    /// A code for one person, shown as a QR code (their iPhone's Ozitrac scans it).
+    /// A code for one person, shown as a QR code (their iPhone's Folloz scans it).
     func makeInvite() {
         inviteLink = nil
         inviteFailed = false

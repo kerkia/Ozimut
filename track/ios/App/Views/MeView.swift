@@ -1,7 +1,7 @@
 import SwiftUI
 
 /// « Ma course »: the run, the first name given to the people invited, who follows me, my runs, the zone, the two-minute
-/// test, the link to Ozimut, and « Effacer mes données » (docs/track/ozitrac.md « The apps »).
+/// test, the link to Ozimut, and « Effacer mes données » (docs/track/folloz.md « The apps »).
 struct MeView: View {
     @EnvironmentObject var m: AppModel
     @State private var asking = false
@@ -86,7 +86,7 @@ struct MeView: View {
                 Button(L("data.erase"), role: .destructive) { erasing = true }
             }
         }
-        .navigationTitle("Ozitrac")
+        .navigationTitle("Folloz")
         .refreshable { await m.channel.refresh() }
         .onAppear { m.refreshInBackground() }
         .sheet(isPresented: $asking) {

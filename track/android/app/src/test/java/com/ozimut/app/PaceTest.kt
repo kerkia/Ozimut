@@ -7,7 +7,7 @@ import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
-/** The pace's rules (docs/track/ozitrac.md « Pace »): a long run, a watcher's request for Direct, standing still, the cap. */
+/** The pace's rules (docs/track/folloz.md « Pace »): a long run, a watcher's request for Direct, standing still, the cap. */
 class PaceTest {
     private val now = 1_795_253_712L
     private val long = PaceChoice.long(30, 600, true)

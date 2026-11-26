@@ -1,10 +1,10 @@
-// TracChannel (docs/track/ozitrac.md; 2026-11-23): one Durable Object per Ozitrac channel, `idFromName(<c>)`. Ozitrac needs
+// TracChannel (docs/track/folloz.md; 2026-11-23): one Durable Object per Folloz channel, `idFromName(<c>)`. Folloz needs
 // no account: a followed phone (the watchee) holds the channel's secret, each phone following it (a watcher) a secret of its
 // own, and every batch arrives sealed for each watcher with a key the relay never sees. The object keeps the head (the secrets'
 // hashes, the watchers, the open codes, the run under way) and the run's sealed batches, one key a watcher and batch, deleted
-// 24 h after the run's end or when the next run starts. Ozimut's Function functions/api/ozitrac/[[path]].js hands it every
+// 24 h after the run's end or when the next run starts. Ozimut's Function functions/api/folloz/[[path]].js hands it every
 // request (the secrets as they came: the object hashes and compares them) and sends the notifications it asks for; the
-// object's alarm notices a silent run and posts that alert to Ozimut (POST <SITE_URL>/api/ozitrac/alert, X-Relay).
+// object's alarm notices a silent run and posts that alert to Ozimut (POST <SITE_URL>/api/folloz/alert, X-Relay).
 // A run's pace (Direct or long, « Pace », 2026-11-25) comes with each batch; a watcher's request for Direct is kept as the
 // run's `boost`, given back in every batch's answer and sent to the runner's phone through its own push token.
 
@@ -69,7 +69,7 @@ export class TracChannel extends DurableObject {
       for (const [w, x] of Object.entries(this.m.watchers)) {
         if (!x.push) continue;
         out.push({ w, push: x.push, urgent: ["help", "silent", "zone"].includes(a.kind),
-          data: { app: "ozitrac", c: this.m.c, kind: a.kind, t: String(a.t), run: this.m.run?.id || "" } });
+          data: { app: "folloz", c: this.m.c, kind: a.kind, t: String(a.t), run: this.m.run?.id || "" } });
       }
     }
     return out;
@@ -280,7 +280,7 @@ export class TracChannel extends DurableObject {
     x.seen = t;
     await this.save();
     const notify = this.m.token ? [{ w: "@", push: this.m.token, urgent: true, quiet: true,
-      data: { app: "ozitrac", c: this.m.c, kind: "pace", until: String(run.boost.until), at: String(at), by: w } }] : [];
+      data: { app: "folloz", c: this.m.c, kind: "pace", until: String(run.boost.until), at: String(at), by: w } }] : [];
     return Response.json({ boost: run.boost, notify });
   }
 
@@ -326,7 +326,7 @@ export class TracChannel extends DurableObject {
   async tell(notify) {
     if (!notify.length || !this.env.TRACK_RELAY_SECRET || !this.env.SITE_URL) return;
     try {
-      await fetch(`${this.env.SITE_URL.replace(/\/+$/, "")}/api/ozitrac/alert`, { method: "POST",
+      await fetch(`${this.env.SITE_URL.replace(/\/+$/, "")}/api/folloz/alert`, { method: "POST",
         headers: { "Content-Type": "application/json", "X-Relay": this.env.TRACK_RELAY_SECRET }, body: JSON.stringify({ notify }) });
     } catch (e) { /* the next silence will try again */ }
   }

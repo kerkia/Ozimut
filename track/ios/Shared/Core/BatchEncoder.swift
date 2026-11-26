@@ -6,7 +6,7 @@ enum BatchEncoder {
     /// More than this many fixes in one batch is refused (413): batches are cut before.
     static let maxFixes = 600
 
-    /// `pace`: Ozitrac's pace of the run (`{ mode, fix, send, remote, boost, by }`, design.md « Sending »), left out when nil.
+    /// `pace`: Folloz's pace of the run (`{ mode, fix, send, remote, boost, by }`, design.md « Sending »), left out when nil.
     static func dictionary(_ b: TrackBatch, battery: Int?, lowPower: Bool, left: Int, pace: [String: Any]? = nil,
                            now: Date = Date()) -> [String: Any] {
         var d: [String: Any] = [

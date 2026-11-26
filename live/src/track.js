@@ -9,7 +9,7 @@ import { DurableObject } from "cloudflare:workers";
 const TICK_MS = 30000;
 const SILENT_S = 180, STILL_S = 300, STILL_M = 15, LOW_BAT = 15, BACK_AWAY_S = 600, BACK_M = 50, AWAY_M = 200;
 const RECENT_S = 360;                  // the positions kept for the « still » test
-// Ozitrac's long pace (docs/track/ozitrac.md « Pace »): silent after 3 batches and 2 minutes, still over 30 minutes, a
+// Folloz's long pace (docs/track/folloz.md « Pace »): silent after 3 batches and 2 minutes, still over 30 minutes, a
 // slower alarm (a long run lasts days)
 const LONG_STILL_S = 1800, LONG_RECENT_S = 1900, LONG_TICK_MS = 120000;
 const silentS = (m) => (m.long ? 3 * (m.batch || 600) + 120 : SILENT_S);

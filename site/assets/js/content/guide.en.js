@@ -440,23 +440,23 @@ export function build(X) {
         ${slide("Coach", "2. What records", html`
           <p>A web page cannot record a position with the screen locked. Recording is therefore done with:</p>
           ${list([
-            html`<b>the Ozitrac app</b> on Android or iPhone: live tracking, no account, every run kept as GPX; linked to Ozimut, it also sends its runs to the account. Start, put the phone in a pocket or an armband,
+            html`<b>the Folloz app</b> on Android or iPhone: live tracking, no account, every run kept as GPX; linked to Ozimut, it also sends its runs to the account. Start, put the phone in a pocket or an armband,
               stop by holding the button for two seconds. An « I need help » button warns the followers at once;`,
-            html`<b>a Wear OS watch with 4G</b> (Samsung Galaxy Watch LTE, Google Pixel Watch LTE…) with the Ozitrac app: it records and sends
+            html`<b>a Wear OS watch with 4G</b> (Samsung Galaxy Watch LTE, Google Pixel Watch LTE…) with the Folloz app: it records and sends
               on its own, without a phone, if it has a mobile plan;`,
-            html`<b>an Apple Watch</b> with the Ozitrac app: it records on its own, and sends on its own if it has mobile data;`,
+            html`<b>an Apple Watch</b> with the Folloz app: it records on its own, and sends on its own if it has mobile data;`,
             html`other watches (Garmin, Polar, Suunto, Coros…) give apps no access to the mobile network: they can only send their position
               through a phone, which can then record on its own. Their track is added after the run;`,
-            html`<b>Traccar Client</b>, a free app, to try without Ozitrac.`,
+            html`<b>Traccar Client</b>, a free app, to try without Folloz.`,
           ])}
-          <p>Ozitrac also works on its own, without an Ozimut account: the followed phone shows a code that the following phones scan in Ozitrac; its position, encrypted for them alone, goes through Ozimut without being readable there. An Ozimut account keeps the history of runs and analyses them.</p>
+          <p>Folloz also works on its own, without an Ozimut account: the followed phone shows a code that the following phones scan in Folloz; its position, encrypted for them alone, goes through Ozimut without being readable there. An Ozimut account keeps the history of runs and analyses them.</p>
           <p>Before the first run, do the app's <b>two-minute test</b>: with the screen locked, it checks that the phone records properly. On
             some Android phones the app must be allowed to run in the background in the battery settings; the test says so and opens the
             right screen.</p>`)}
         ${slide("Coach", "3. Pairing a device", html`
           <p>A device always belongs to an account: nothing is recorded without one. In « Family and devices », first choose the person under « For whom? » — yourself or one of your children: each has their own devices, their own followers and their own settings. Then:</p>
           ${list([
-            html`<b>a phone</b>: « Pair a phone » shows a QR code; scan it in the phone's Ozitrac app, « Link to Ozimut » (or type its 8 characters). The code works
+            html`<b>a phone</b>: « Pair a phone » shows a QR code; scan it in the phone's Folloz app, « Link to Ozimut » (or type its 8 characters). The code works
               once and lasts 15 minutes. The phone then sends every run to this account until the account removes it;`,
             html`<b>a watch</b>: the watch shows a 6-character code; type it in « Pair a watch ». An Apple Watch can also be paired by the
               iPhone it goes with;`,

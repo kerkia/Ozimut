@@ -703,25 +703,25 @@
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Effacer tes données sur le relais d'Ozitrac ? Plus personne ne te suivra, et tu ne suivras plus personne. Tes courses restent sur ce téléphone."
+            "value": "Effacer tes données sur le relais de Folloz ? Plus personne ne te suivra, et tu ne suivras plus personne. Tes courses restent sur ce téléphone."
           }
         },
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Erase your data on Ozitrac's relay? Nobody will follow you any more, and you will follow nobody. Your runs stay on this phone."
+            "value": "Erase your data on Folloz's relay? Nobody will follow you any more, and you will follow nobody. Your runs stay on this phone."
           }
         },
         "de": {
           "stringUnit": {
             "state": "translated",
-            "value": "Deine Daten auf dem Relais von Ozitrac löschen? Niemand folgt dir mehr, und du folgst niemandem mehr. Deine Läufe bleiben auf diesem Telefon."
+            "value": "Deine Daten auf dem Relais von Folloz löschen? Niemand folgt dir mehr, und du folgst niemandem mehr. Deine Läufe bleiben auf diesem Telefon."
           }
         },
         "es": {
           "stringUnit": {
             "state": "translated",
-            "value": "¿Borrar tus datos del relé de Ozitrac? Nadie te seguirá ya, y tú no seguirás a nadie. Tus carreras se quedan en este teléfono."
+            "value": "¿Borrar tus datos del relé de Folloz? Nadie te seguirá ya, y tú no seguirás a nadie. Tus carreras se quedan en este teléfono."
           }
         }
       }
@@ -761,25 +761,25 @@
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Ozitrac n'a pas de compte. Son relais garde ton canal, ceux qui te suivent, ceux que tu suis et la course en cours (chiffrée). Tes courses restent sur ce téléphone."
+            "value": "Folloz n'a pas de compte. Son relais garde ton canal, ceux qui te suivent, ceux que tu suis et la course en cours (chiffrée). Tes courses restent sur ce téléphone."
           }
         },
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Ozitrac keeps no account. Its relay holds your channel, the people who follow you, those you follow, and the run under way (encrypted). Your runs stay on this phone."
+            "value": "Folloz keeps no account. Its relay holds your channel, the people who follow you, those you follow, and the run under way (encrypted). Your runs stay on this phone."
           }
         },
         "de": {
           "stringUnit": {
             "state": "translated",
-            "value": "Ozitrac hat kein Konto. Sein Relais bewahrt deinen Kanal, die Personen, die dir folgen, die, denen du folgst, und den laufenden Lauf (verschlüsselt). Deine Läufe bleiben auf diesem Telefon."
+            "value": "Folloz hat kein Konto. Sein Relais bewahrt deinen Kanal, die Personen, die dir folgen, die, denen du folgst, und den laufenden Lauf (verschlüsselt). Deine Läufe bleiben auf diesem Telefon."
           }
         },
         "es": {
           "stringUnit": {
             "state": "translated",
-            "value": "Ozitrac no tiene cuenta. Su relé guarda tu canal, quienes te siguen, a quienes sigues y la carrera en curso (cifrada). Tus carreras se quedan en este teléfono."
+            "value": "Folloz no tiene cuenta. Su relé guarda tu canal, quienes te siguen, a quienes sigues y la carrera en curso (cifrada). Tus carreras se quedan en este teléfono."
           }
         }
       }
@@ -1631,25 +1631,25 @@
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "%@ t'invite à suivre ses courses en direct avec Ozitrac : %@"
+            "value": "%@ t'invite à suivre ses courses en direct avec Folloz : %@"
           }
         },
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "%@ invites you to follow their runs live with Ozitrac: %@"
+            "value": "%@ invites you to follow their runs live with Folloz: %@"
           }
         },
         "de": {
           "stringUnit": {
             "state": "translated",
-            "value": "%@ lädt dich ein, die Läufe live mit Ozitrac zu verfolgen: %@"
+            "value": "%@ lädt dich ein, die Läufe live mit Folloz zu verfolgen: %@"
           }
         },
         "es": {
           "stringUnit": {
             "state": "translated",
-            "value": "%@ te invita a seguir sus carreras en directo con Ozitrac: %@"
+            "value": "%@ te invita a seguir sus carreras en directo con Folloz: %@"
           }
         }
       }
@@ -1718,25 +1718,25 @@
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Demande-lui de scanner ce code avec Ozitrac, sur son téléphone. Il suivra tes courses en direct."
+            "value": "Demande-lui de scanner ce code avec Folloz, sur son téléphone. Il suivra tes courses en direct."
           }
         },
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Ask them to scan this code with Ozitrac on their phone. They will follow your runs live."
+            "value": "Ask them to scan this code with Folloz on their phone. They will follow your runs live."
           }
         },
         "de": {
           "stringUnit": {
             "state": "translated",
-            "value": "Bitte die Person, diesen Code mit Ozitrac auf ihrem Handy zu scannen. Sie folgt dann deinen Läufen live."
+            "value": "Bitte die Person, diesen Code mit Folloz auf ihrem Handy zu scannen. Sie folgt dann deinen Läufen live."
           }
         },
         "es": {
           "stringUnit": {
             "state": "translated",
-            "value": "Pídele que escanee este código con Ozitrac en su móvil. Seguirá tus carreras en directo."
+            "value": "Pídele que escanee este código con Folloz en su móvil. Seguirá tus carreras en directo."
           }
         }
       }
@@ -1979,25 +1979,25 @@
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Ozitrac"
+            "value": "Folloz"
           }
         },
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Ozitrac"
+            "value": "Folloz"
           }
         },
         "de": {
           "stringUnit": {
             "state": "translated",
-            "value": "Ozitrac"
+            "value": "Folloz"
           }
         },
         "es": {
           "stringUnit": {
             "state": "translated",
-            "value": "Ozitrac"
+            "value": "Folloz"
           }
         }
       }
@@ -2211,25 +2211,25 @@
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Ozitrac n'a pas pu joindre son serveur. Vérifie le réseau et réessaie."
+            "value": "Folloz n'a pas pu joindre son serveur. Vérifie le réseau et réessaie."
           }
         },
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Ozitrac could not reach its server. Check the network and try again."
+            "value": "Folloz could not reach its server. Check the network and try again."
           }
         },
         "de": {
           "stringUnit": {
             "state": "translated",
-            "value": "Ozitrac konnte seinen Server nicht erreichen. Prüfe das Netz und versuche es noch einmal."
+            "value": "Folloz konnte seinen Server nicht erreichen. Prüfe das Netz und versuche es noch einmal."
           }
         },
         "es": {
           "stringUnit": {
             "state": "translated",
-            "value": "Ozitrac no ha podido contactar con su servidor. Revisa la red y vuelve a intentarlo."
+            "value": "Folloz no ha podido contactar con su servidor. Revisa la red y vuelve a intentarlo."
           }
         }
       }
@@ -4908,25 +4908,25 @@
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Seulement %ld positions en 2 minutes. Vérifie dans Réglages que la localisation d'Ozitrac est « Lorsque l'app est active » avec « Position exacte », et coupe le mode Économie d'énergie."
+            "value": "Seulement %ld positions en 2 minutes. Vérifie dans Réglages que la localisation de Folloz est « Lorsque l'app est active » avec « Position exacte », et coupe le mode Économie d'énergie."
           }
         },
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Only %ld positions in 2 minutes. In Settings, check that Ozitrac's location is “While Using the App” with “Precise Location”, and turn Low Power Mode off."
+            "value": "Only %ld positions in 2 minutes. In Settings, check that Folloz's location is “While Using the App” with “Precise Location”, and turn Low Power Mode off."
           }
         },
         "de": {
           "stringUnit": {
             "state": "translated",
-            "value": "Nur %ld Positionen in 2 Minuten. Prüfe in den Einstellungen, dass der Standort von Ozitrac „Beim Verwenden der App“ mit „Genauer Standort“ ist, und schalte den Stromsparmodus aus."
+            "value": "Nur %ld Positionen in 2 Minuten. Prüfe in den Einstellungen, dass der Standort von Folloz „Beim Verwenden der App“ mit „Genauer Standort“ ist, und schalte den Stromsparmodus aus."
           }
         },
         "es": {
           "stringUnit": {
             "state": "translated",
-            "value": "Solo %ld posiciones en 2 minutos. En Ajustes, comprueba que la ubicación de Ozitrac está en «Cuando se use la app» con «Ubicación exacta», y desactiva el modo de bajo consumo."
+            "value": "Solo %ld posiciones en 2 minutos. En Ajustes, comprueba que la ubicación de Folloz está en «Cuando se use la app» con «Ubicación exacta», y desactiva el modo de bajo consumo."
           }
         }
       }
@@ -5604,25 +5604,25 @@
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Scanne avec Ozitrac sur le téléphone"
+            "value": "Scanne avec Folloz sur le téléphone"
           }
         },
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Scan with Ozitrac on the phone"
+            "value": "Scan with Folloz on the phone"
           }
         },
         "de": {
           "stringUnit": {
             "state": "translated",
-            "value": "Mit Ozitrac auf dem Handy scannen"
+            "value": "Mit Folloz auf dem Handy scannen"
           }
         },
         "es": {
           "stringUnit": {
             "state": "translated",
-            "value": "Escanea con Ozitrac en el móvil"
+            "value": "Escanea con Folloz en el móvil"
           }
         }
       }
@@ -5691,25 +5691,25 @@
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Personne ne te suit encore. Ajoute quelqu'un : il scanne ton code avec son Ozitrac."
+            "value": "Personne ne te suit encore. Ajoute quelqu'un : il scanne ton code avec son Folloz."
           }
         },
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Nobody follows you yet. Add someone: they scan your code with their Ozitrac."
+            "value": "Nobody follows you yet. Add someone: they scan your code with their Folloz."
           }
         },
         "de": {
           "stringUnit": {
             "state": "translated",
-            "value": "Noch niemand folgt dir. Füge jemanden hinzu: Die Person scannt deinen Code mit ihrem Ozitrac."
+            "value": "Noch niemand folgt dir. Füge jemanden hinzu: Die Person scannt deinen Code mit ihrem Folloz."
           }
         },
         "es": {
           "stringUnit": {
             "state": "translated",
-            "value": "Todavía nadie te sigue. Añade a alguien: escanea tu código con su Ozitrac."
+            "value": "Todavía nadie te sigue. Añade a alguien: escanea tu código con su Folloz."
           }
         }
       }

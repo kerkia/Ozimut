@@ -7,10 +7,10 @@ the owner on 2026-11-21 after the study `C:\Kerkia\Ozimut\work\study\gps-trackin
 (second version). This file is the contract between the server (`functions/api/track`, `live/src/track.js`), the site's
 pages and the native code (`track/android`, `track/ios`, `track/garmin`). Change it first, then the code.
 
-**Since 2026-11-23 the native app is Ozitrac** (`docs/track/ozitrac.md`): a tracking app of its own, used without an account
+**Since 2026-11-23 the native app is Folloz** (`docs/track/folloz.md`): a tracking app of its own, used without an account
 (phones linked to each other by a code, through the relay's `TracChannel`), that can also send its runs to an Ozimut account
 with this file's « Pairing a phone » and « Sending ». It holds no page of the site: « The site ↔ app bridge » below and the web
-view's session describe the app of before 2026-11-23. The rules below are Ozimut's accounts'; Ozitrac's are in its own file.
+view's session describe the app of before 2026-11-23. The rules below are Ozimut's accounts'; Folloz's are in its own file.
 
 ## The rules
 
@@ -107,7 +107,7 @@ Authorization: Bearer <key>      Content-Type: application/json   (Content-Encod
   "ac": [5,5,6],                          // estimated accuracy, metres (integers)
   "al": [87,0,0],                         // optional, metres
   "bat": 71, "lp": false, "left": 0,
-  "pace": { "mode": "long", "fix": 30, "send": 600, "remote": true, "boost": 0, "by": "" } }   // optional: Ozitrac's pace
+  "pace": { "mode": "long", "fix": 30, "send": 600, "remote": true, "boost": 0, "by": "" } }   // optional: Folloz's pace
 200 { "ack": 42, "next": 30, "stop": false }
 401 { error: "device" } — removed: the device stops, forgets its key, says so
 409 { error: "closed" } · 413 (more than 600 fixes: split) · 429 { error: "slow", next }
@@ -120,10 +120,10 @@ Authorization: Bearer <key>      Content-Type: application/json   (Content-Encod
 - An empty batch (`dt: []`) is allowed: a heartbeat with `bat`.
 - A run opens at its first batch, closes with `state: "end"`, the cap (`cap` seconds from its start) or 30 min of silence
   after the cap.
-- `pace` (Ozitrac, 2026-11-25; `docs/track/ozitrac.md` « Pace »): a long run (`mode` "long") is kept up to 7 days whatever
+- `pace` (Folloz, 2026-11-25; `docs/track/folloz.md` « Pace »): a long run (`mode` "long") is kept up to 7 days whatever
   the account's cap, `next` is its `send` (15 while `boost` is ahead), `LiveTrack` calls it silent after 3 × `send` + 120 s
   and still after 30 min within 15 m, and the watch page replays `send` + 10 s behind. Ozimut's watchers cannot ask for
-  Direct (Ozitrac's watchers can).
+  Direct (Folloz's watchers can).
 
 ### Watches: claim codes (`kind` "wearos" | "applewatch" | "garmin")
 A watch has no keyboard: it makes its own key (32 random base64url) and a claim code (6 letters/digits from

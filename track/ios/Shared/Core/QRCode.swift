@@ -27,7 +27,7 @@ import Foundation
 
 /// A QR code of a text: byte mode, error correction level M, the smallest version that holds it, the mask of lowest
 /// penalty. Ported from Project Nayuki's « QR Code generator library » (MIT licence,
-/// https://www.nayuki.io/page/qr-code-generator-library; see THIRD-PARTY-NOTICES.md), reduced to what Ozitrac needs:
+/// https://www.nayuki.io/page/qr-code-generator-library; see THIRD-PARTY-NOTICES.md), reduced to what Folloz needs:
 /// the Apple Watch has no CoreImage, and the iPhone draws its codes the same way.
 struct QRCode {
     let version: Int

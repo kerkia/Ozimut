@@ -3,7 +3,7 @@ import UIKit
 import UserNotifications
 
 @main
-struct OzitracApp: App {
+struct FollozApp: App {
     @UIApplicationDelegateAdaptor(AppDelegate.self) var delegate
     @StateObject private var model = AppModel.shared
 
@@ -34,7 +34,7 @@ final class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCent
     func application(_ application: UIApplication, didFailToRegisterForRemoteNotificationsWithError error: Error) {}
 
     /// A background notification (`content-available`): a watcher's request for Direct for this iPhone's run
-    /// (docs/track/ozitrac.md « Pace »). The batch reporting the pace goes within a few seconds: the app is left that time.
+    /// (docs/track/folloz.md « Pace »). The batch reporting the pace goes within a few seconds: the app is left that time.
     func application(_ application: UIApplication, didReceiveRemoteNotification userInfo: [AnyHashable: Any],
                      fetchCompletionHandler completionHandler: @escaping (UIBackgroundFetchResult) -> Void) {
         let r = AppModel.shared.handlePace(userInfo)

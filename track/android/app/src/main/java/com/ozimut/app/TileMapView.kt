@@ -33,7 +33,7 @@ import kotlin.math.pow
 import kotlin.math.tan
 
 /**
- * A small map of raster tiles (Web Mercator, 256 px; docs/track/ozitrac.md « The map »): each tile from the layer of the
+ * A small map of raster tiles (Web Mercator, 256 px; docs/track/folloz.md « The map »): each tile from the layer of the
  * country it lies in (MapLayers: Plan IGN in France, swisstopo in Switzerland, OpenStreetMap elsewhere, or the layer the
  * person chose there) fetched by the phone itself, a memory cache and a disk cache per layer, two loaders, pan, pinch and
  * double tap; a trail, a position with its accuracy, a zone's circle, the credits of the layers drawn bottom right,
@@ -247,7 +247,7 @@ class TileMapView(c: Context) : View(c) {
             val conn = URL(url).openConnection() as HttpURLConnection
             conn.connectTimeout = 15_000
             conn.readTimeout = 20_000
-            conn.setRequestProperty("User-Agent", "Ozitrac/${BuildConfig.VERSION_NAME} (+https://ozimut.com)")
+            conn.setRequestProperty("User-Agent", "Folloz/${BuildConfig.VERSION_NAME} (+https://ozimut.com)")
             try {
                 if (conn.responseCode != 200) return null
                 val bytes = conn.inputStream.use { it.readBytes() }

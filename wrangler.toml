@@ -42,10 +42,10 @@ name = "LIVE_TRACK"
 class_name = "LiveTrack"
 script_name = "ocn-live"
 
-# Ozitrac (2026-11-23, docs/track/ozitrac.md): the tracking app's channels, one TracChannel object each in the live relay
-# (functions/api/ozitrac/[[path]].js). Without the binding the app's routes answer 503.
+# Folloz (2026-11-23, docs/track/folloz.md): the tracking app's channels, one TracChannel object each in the live relay
+# (functions/api/folloz/[[path]].js). Without the binding the app's routes answer 503.
 [[durable_objects.bindings]]
-name = "OZITRAC"
+name = "FOLLOZ"
 class_name = "TracChannel"
 script_name = "ocn-live"
 

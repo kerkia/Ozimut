@@ -1,7 +1,7 @@
-// Ozitrac's map layers (docs/track/ozitrac.md « The map »): what GET /api/ozitrac/config hands the apps. Each phone fetches its
+// Folloz's map layers (docs/track/folloz.md « The map »): what GET /api/folloz/config hands the apps. Each phone fetches its
 // tiles from the providers itself; a country or a layer is added here alone, the apps need no update. The outlines come from
-// ozitracareas.js (tools/ozitrac_areas.py).
-import { AREAS } from "./ozitracareas.js";
+// follozareas.js (tools/folloz_areas.py).
+import { AREAS } from "./follozareas.js";
 
 const GEOPF = (layer, fmt) =>
   `https://data.geopf.fr/wmts?SERVICE=WMTS&REQUEST=GetTile&VERSION=1.0.0&LAYER=${layer}&STYLE=normal&TILEMATRIXSET=PM` +
@@ -41,13 +41,13 @@ const AREA_LIST = [
 
 const ELSEWHERE = { layers: ["osm"], name: { fr: "Ailleurs", en: "Elsewhere", de: "Anderswo", es: "En otros lugares" } };
 
-/** The config's map part. OZITRAC_TILES (and its credit and zoom) replaces OpenStreetMap as the default elsewhere. */
+/** The config's map part. FOLLOZ_TILES (and its credit and zoom) replaces OpenStreetMap as the default elsewhere. */
 export function maps(env) {
   const layers = LAYERS.slice();
   const elsewhere = { ...ELSEWHERE, layers: ELSEWHERE.layers.slice() };
-  if (env.OZITRAC_TILES && /^https:\/\/.*\{z\}.*/.test(env.OZITRAC_TILES)) {
-    layers.push({ id: "custom", tiles: env.OZITRAC_TILES, credit: env.OZITRAC_TILES_CREDIT || "",
-      maxZoom: Number(env.OZITRAC_MAX_ZOOM) || 19, name: { fr: "Carte", en: "Map", de: "Karte", es: "Mapa" } });
+  if (env.FOLLOZ_TILES && /^https:\/\/.*\{z\}.*/.test(env.FOLLOZ_TILES)) {
+    layers.push({ id: "custom", tiles: env.FOLLOZ_TILES, credit: env.FOLLOZ_TILES_CREDIT || "",
+      maxZoom: Number(env.FOLLOZ_MAX_ZOOM) || 19, name: { fr: "Carte", en: "Map", de: "Karte", es: "Mapa" } });
     elsewhere.layers.unshift("custom");
   }
   const first = layers.find((l) => l.id === elsewhere.layers[0]);
