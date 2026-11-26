@@ -29,7 +29,7 @@ async function inline(opts, onStep) {
   const t0 = performance.now();
   const world = opts.sprint ? generateTown({ ...opts, onStep }) : generate({ ...opts, onStep });
   onStep("courses", 0);
-  const pkg = { W: world.W, H: world.H, h: world.h, cls: world.cls, classes: CL, speed: CL.map((n) => SPEED[n]), features: world.features };
+  const pkg = { W: world.W, H: world.H, h: world.h, cls: world.cls, classes: CL, speed: CL.map((n) => SPEED[n]), features: world.features, obst: world.obst };
   const courses = opts.sprint ? setSprintCourses(pkg, { seed: opts.seed, tries: opts.tries || 160 })
     : setCourses(pkg, { seed: opts.seed, tries: opts.tries || 260, levels: GEN_LEVELS });
   return { world, courses, ms: Math.round(performance.now() - t0) };

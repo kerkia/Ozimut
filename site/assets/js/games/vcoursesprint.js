@@ -4,6 +4,11 @@
 // no leg run along another; the orange courses rewarded for legs whose straight line goes through what cannot be crossed (a route
 // choice round it), the Bleu for legs along the streets. Each course kept is then run on the ground (A* on the 1 m classes): every
 // leg must be reachable and none longer than 2.3 times its straight line. Deterministic (a seeded generator, a fixed number of tries).
+// One last control and one finish for all the town's courses (owner, 2026-11-26: « that last control, hence last leg, is always the
+// same for all courses »; course_sprint.py pick_end): an easy site — a building's corner, a monument, a fountain — near the town's
+// middle, code LAST.code on every course, the finish LAST.fin m from it on a straight way clear of every obstacle by 1.8 m from where
+// the game's tape starts (vworld.js finishTape); every course's start within LAST.fromStart m of that finish, the control before the
+// shared one within a leg of it.
 
 import { prng } from "./vgen.js";
 
@@ -16,13 +21,14 @@ export const SPRINT_LEVELS = [
 const GOOD = { corner: 1.0, wallend: 1.1, stairs: 1.2, monument: 1.2, fountain: 1.2, bigtree: 0.9, bush: 0.7 };
 const EASY = { corner: 0.8, wallend: 0.6, stairs: 1.0, monument: 1.2, fountain: 1.2, bigtree: 0.7, bush: 0.3 };
 const COS150 = -0.8660254037844387;
+export const LAST = { fromStart: 220, fin: [40, 100], code: 100, easy: new Set(["corner", "monument", "fountain"]), clear: 1.8 };
 
 /**
  * The courses of an invented town: { W, H, h, cls, classes, speed, features [{ k, x, z }] } (the flags' places); seed; tries a level.
  * Returns race.json's `courses`.
  */
-export function setSprintCourses(pkg, { seed = 7, tries = 160, levels = SPRINT_LEVELS } = {}) {
-  const { W, H, h, cls, classes, speed: SP, features } = pkg;
+export function setSprintCourses(pkg, { seed = 7, tries = 160, levels = SPRINT_LEVELS, ends = 6 } = {}) {
+  const { W, H, h, cls, classes, speed: SP, features, obst = [] } = pkg;
   const C = Object.fromEntries(classes.map((n, i) => [n, i]));
   const N = W * H, sp = new Float32Array(N);
   for (let q = 0; q < N; q++) sp[q] = SP[cls[q]] || 0;
@@ -48,6 +54,25 @@ export function setSprintCourses(pkg, { seed = 7, tries = 160, levels = SPRINT_L
   for (let z = 60; z < H - 60; z += 6) for (let x = 60; x < W - 60; x += 6) { const q = z * W + x; if ((cls[q] === C.road || cls[q] === C.paved) && main[q] && roomy(x + 0.5, z + 0.5)) starts.push([x + 0.5, z + 0.5]); }
   if (!starts.length || XY.length < 16) return [];
 
+  // the clearance: metres from each cell's centre to the nearest thing that stops the runner (the ground's classes, and the
+  // props, cars and trunks the town places), by a two-pass chamfer distance
+  const CLEAR = new Float32Array(N);
+  for (let q = 0; q < N; q++) CLEAR[q] = go(q) ? 1e9 : 0;
+  for (let k = 0; k + 2 < obst.length; k += 3) {
+    const ox = obst[k], oz = obst[k + 1], r = obst[k + 2];
+    for (let z = Math.max(0, Math.floor(oz - r - 1)); z <= Math.min(H - 1, Math.floor(oz + r + 1)); z++)
+      for (let x = Math.max(0, Math.floor(ox - r - 1)); x <= Math.min(W - 1, Math.floor(ox + r + 1)); x++) {
+        const dx = x + 0.5 - ox, dz = z + 0.5 - oz, d = Math.max(0, Math.sqrt(dx * dx + dz * dz) - r), q = z * W + x; if (d < CLEAR[q]) CLEAR[q] = d;
+      }
+  }
+  { const D = 1.41421356;
+    for (let z = 0; z < H; z++) for (let x = 0; x < W; x++) { const q = z * W + x; let v = CLEAR[q];
+      if (x > 0) v = Math.min(v, CLEAR[q - 1] + 1); if (z > 0) { v = Math.min(v, CLEAR[q - W] + 1); if (x > 0) v = Math.min(v, CLEAR[q - W - 1] + D); if (x < W - 1) v = Math.min(v, CLEAR[q - W + 1] + D); } CLEAR[q] = v; }
+    for (let z = H - 1; z >= 0; z--) for (let x = W - 1; x >= 0; x--) { const q = z * W + x; let v = CLEAR[q];
+      if (x < W - 1) v = Math.min(v, CLEAR[q + 1] + 1); if (z < H - 1) { v = Math.min(v, CLEAR[q + W] + 1); if (x < W - 1) v = Math.min(v, CLEAR[q + W + 1] + D); if (x > 0) v = Math.min(v, CLEAR[q + W - 1] + D); } CLEAR[q] = v; } }
+  // a blocked cell's centre is half a metre inside it: what is left of the clearance from its edge
+  const clearAt = (x, z) => CLEAR[Math.floor(z) * W + Math.floor(x)] - 0.5;
+
   const dist = (a, b) => { const dx = a[0] - b[0], dz = a[1] - b[1]; return Math.sqrt(dx * dx + dz * dz); };
   const along = (a, b) => {
     const m = Math.floor(Math.max(Math.abs(b[0] - a[0]), Math.abs(b[1] - a[1]))) + 1, out = [];
@@ -61,6 +86,34 @@ export function setSprintCourses(pkg, { seed = 7, tries = 160, levels = SPRINT_L
   const pd = (p, q, r) => { const qx = r[0] - q[0], qy = r[1] - q[1], L = qx * qx + qy * qy, t = L === 0 ? 0 : Math.max(0, Math.min(1, ((p[0] - q[0]) * qx + (p[1] - q[1]) * qy) / L));
     const dx = p[0] - q[0] - t * qx, dy = p[1] - q[1] - t * qy; return Math.sqrt(dx * dx + dy * dy); };
   const segDist = (a, b, c, d) => (cross(a, b, c, d) ? 0 : Math.min(pd(a, c, d), pd(b, c, d), pd(c, a, b), pd(d, a, b)));
+  // the straight way from a to b clear by LAST.clear m from where the game's tape starts (min(8 m, a fifth of the way) after a)
+  const clearLine = (a, b) => {
+    const L = dist(a, b), s0 = Math.min(8, 0.2 * L), n = Math.ceil((L - s0) * 2) + 1;
+    for (let k = 0; k <= n; k++) { const t = (s0 + ((L - s0) * k) / n) / L; if (clearAt(a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t) < LAST.clear) return false; }
+    return true;
+  };
+
+  // the town's last control and finish, up to `ends` candidate pairs whose last controls lie 120 m apart: the courses are set with
+  // the first, and with the next while a level finds none; the pair where the most levels find a course is kept
+  const ENDS = (() => {
+    const rnd = prng(seed * 100 + 99), cx = W / 2, cz = H / 2, found = [];
+    const order = XY.map((p, i) => [i, dist(p, [cx, cz]) * (0.75 + 0.5 * rnd())]).filter(([i]) => LAST.easy.has(KIND[i]))
+      .sort((a, b) => a[1] - b[1]).map((a) => a[0]).slice(0, 150);
+    for (const i of order) {
+      const lc = XY[i];
+      if (found.some((e) => dist(e.lc, lc) < 120)) continue;
+      for (let t = 0; t < 80; t++) {
+        // a direction drawn in the unit disc (sqrt only: every browser finds the same, no trigonometry)
+        const u = rnd() * 2 - 1, v = rnd() * 2 - 1, l = Math.sqrt(u * u + v * v); if (l < 0.2 || l > 1) continue;
+        const r = LAST.fin[0] + rnd() * (LAST.fin[1] - LAST.fin[0]), q = [lc[0] + (u / l) * r, lc[1] + (v / l) * r];
+        if (!ok(q[0], q[1]) || clearAt(q[0], q[1]) < 2 || !clearLine(lc, q)) continue;
+        found.push({ i, lc, fin: q }); break;
+      }
+      if (found.length >= ends) break;
+    }
+    return found;
+  })();
+  let END = null, near = [];
 
   // ---- the run on the ground: A* on the 1 m cells (8 neighbours, a diagonal only past two free sides) ----
   const gScore = new Float32Array(N), seen = new Int32Array(N), heapA = new Int32Array(N * 4), heapK = new Float32Array(N * 4);
@@ -91,11 +144,15 @@ export function setSprintCourses(pkg, { seed = 7, tries = 160, levels = SPRINT_L
   };
 
   function make(L, rnd) {
-    const pts = [starts[Math.floor(rnd() * starts.length)]], used = new Set(), kinds = [], legs = [];
+    const pts = [near[Math.floor(rnd() * near.length)]], used = new Set([END.i]), kinds = [], legs = [];
     let score = 0;
-    for (let c = 0; c < L.n; c++) {
-      const last = pts[pts.length - 1], cand = [];
-      for (let i = 0; i < XY.length; i++) { const d = dist(XY[i], last); if (d > L.lo && d < L.hi) cand.push(i); }
+    for (let c = 0; c < L.n - 1; c++) {
+      const last = pts[pts.length - 1], cand = [], toEnd = c === L.n - 2;     // the control before the shared one: within a leg of it
+      for (let i = 0; i < XY.length; i++) {
+        const d = dist(XY[i], last); if (!(d > L.lo && d < L.hi)) continue;
+        if (toEnd) { const e = dist(XY[i], END.lc); if (e <= L.lo || e >= L.hi) continue; }
+        cand.push(i);
+      }
       for (let k = cand.length - 1; k > 0; k--) { const r = Math.floor(rnd() * (k + 1)); [cand[k], cand[r]] = [cand[r], cand[k]]; }
       let chosen = null;
       for (const i of cand.slice(0, 120)) {
@@ -104,7 +161,8 @@ export function setSprintCourses(pkg, { seed = 7, tries = 160, levels = SPRINT_L
         // two controls not consecutive: `sep` apart, or half the way between them along the course
         let ok_ = true, way = dist(p, last);
         for (let j = pts.length - 2; j >= 1 && ok_; j--) { way += legs[j]; if (dist(p, pts[j]) < Math.min(L.sep, 0.5 * way)) ok_ = false; }
-        if (!ok_ || dist(p, pts[0]) < 30) continue;
+        if (!ok_ || dist(p, pts[0]) < 30 || dist(p, END.lc) < 25 || dist(p, END.fin) < 25) continue;
+        if (segDist(last, p, END.lc, END.fin) < 15) continue;             // nor across the taped last leg
         if (pts.length >= 2) {                              // a dog-leg: turning back by more than 150°
           const a = pts[pts.length - 2], ux = last[0] - a[0], uz = last[1] - a[1], vx = p[0] - last[0], vz = p[1] - last[1];
           if ((ux * vx + uz * vz) / (Math.sqrt(ux * ux + uz * uz) * Math.sqrt(vx * vx + vz * vz) || 1) < COS150) continue;
@@ -119,17 +177,18 @@ export function setSprintCourses(pkg, { seed = 7, tries = 160, levels = SPRINT_L
       score += (L.easy ? EASY : GOOD)[KIND[i]] ?? 0.6;
       score += L.rc * Math.min(blk, 0.5);
     }
-    // the finish: near the start, after the last control
-    let fin = null;
-    for (let t = 0; t < 80 && !fin; t++) {
-      const u = rnd() * 2 - 1, v = rnd() * 2 - 1, l = Math.sqrt(u * u + v * v); if (l < 0.2 || l > 1) continue;
-      const r = 30 + rnd() * 90, q = [pts[0][0] + (u / l) * r, pts[0][1] + (v / l) * r];
-      if (!ok(q[0], q[1]) || !roomy(q[0], q[1])) continue;
-      const Lf = dist(q, pts[pts.length - 1]);
-      let near = false; for (let j = 1; j < pts.length - 2; j++) if (segDist(pts[pts.length - 1], q, pts[j], pts[j + 1]) < 15) { near = true; break; }
-      if (Lf > 40 && Lf < L.hi * 1.2 && !near) fin = q;
+    // the last control: the town's own (END), by a usual leg from the course's last one; then the shared finish
+    const prev = pts[pts.length - 1], lc = END.lc, dl = dist(lc, prev);
+    { let way = dl; for (let j = pts.length - 2; j >= 1; j--) { way += legs[j]; if (dist(lc, pts[j]) < Math.min(L.sep, 0.5 * way)) return null; } }
+    if (pts.length >= 2) {
+      const a = pts[pts.length - 2], ux = prev[0] - a[0], uz = prev[1] - a[1], vx = lc[0] - prev[0], vz = lc[1] - prev[1];
+      if ((ux * vx + uz * vz) / (Math.sqrt(ux * ux + uz * uz) * Math.sqrt(vx * vx + vz * vz) || 1) < COS150) return null;
     }
-    if (!fin) return null;
+    for (let j = 0; j < pts.length - 2; j++) if (segDist(prev, lc, pts[j], pts[j + 1]) < 20) return null;
+    pts.push(lc); kinds.push(KIND[END.i]); legs.push(dl);
+    score += (L.easy ? EASY : GOOD)[KIND[END.i]] ?? 0.6;
+    score += L.rc * Math.min(blocked(prev, lc), 0.5);
+    const fin = END.fin;
     const all = [...pts, fin];
     let length = 0; for (let k = 1; k < all.length; k++) length += dist(all[k - 1], all[k]);
     let x0 = Infinity, x1 = -Infinity, z0 = Infinity, z1 = -Infinity; for (const [x, z] of all) { x0 = Math.min(x0, x); x1 = Math.max(x1, x); z0 = Math.min(z0, z); z1 = Math.max(z1, z); }
@@ -137,11 +196,13 @@ export function setSprintCourses(pkg, { seed = 7, tries = 160, levels = SPRINT_L
     return { score, all, kinds, length };
   }
 
+  const setAll = () => {
   const out = [];
   levels.forEach((L, k) => {
     const rnd = prng(seed * 100 + k + 1);
     const found = [];
-    for (let t = 0; t < tries; t++) { const r = make(L, rnd); if (r) found.push(r); }
+    // the orange courses twice the tries (course_sprint.py: 40 and 80): their 10-14 controls must end at the shared last control
+    for (let t = 0, n = L.easy ? tries : tries * 2; t < n; t++) { const r = make(L, rnd); if (r) found.push(r); }
     found.sort((a, b) => b.score - a.score);
     // the best that runs: each leg reachable and not over 2.3 × its straight line; the orange courses a bonus for the detours
     let best = null;
@@ -157,8 +218,10 @@ export function setSprintCourses(pkg, { seed = 7, tries = 160, levels = SPRINT_L
     }
     if (!best) return;
     let up = 0; for (let j = 1; j < best.all.length; j++) up += climb(best.all[j - 1], best.all[j]);
-    const codes = best.kinds.map((_, i) => 31 + i);
+    // the codes shuffled, but the shared last control's: LAST.code on every course
+    const codes = best.kinds.slice(0, -1).map((_, i) => 31 + i);
     for (let i = codes.length - 1; i > 0; i--) { const r = Math.floor(rnd() * (i + 1)); [codes[i], codes[r]] = [codes[r], codes[i]]; }
+    codes.push(LAST.code);
     const r1 = (v) => Math.round(v * 10) / 10;
     const controls = [{ kind: "start", x: r1(best.all[0][0]), z: r1(best.all[0][1]) },
       ...best.all.slice(1, -1).map(([x, z], i) => ({ kind: "control", x: r1(x), z: r1(z), code: String(codes[i]), feature: best.kinds[i] })),
@@ -166,4 +229,15 @@ export function setSprintCourses(pkg, { seed = 7, tries = 160, levels = SPRINT_L
     out.push({ id: L.id, controls, length: Math.round(best.length), climb: Math.round(up / 5) * 5 });
   });
   return out;
+  };
+  let best = [];
+  for (const e of ENDS) {
+    END = e;
+    near = starts.filter((p) => { const d = dist(p, END.fin); return d >= 30 && d <= LAST.fromStart && dist(p, END.lc) >= 40; });
+    if (!near.length) continue;
+    const out = setAll();
+    if (out.length > best.length) best = out;
+    if (best.length === levels.length) break;
+  }
+  return best;
 }

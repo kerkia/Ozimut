@@ -13,7 +13,7 @@ self.onmessage = (e) => {
     // an invented town (a sprint), else a forest
     const world = opts.sprint ? generateTown({ ...opts, onStep }) : generate({ ...opts, onStep });
     self.postMessage({ step: "courses", f: 0 });
-    const pkg = { W: world.W, H: world.H, h: world.h, cls: world.cls, classes: CL, speed: CL.map((n) => SPEED[n]), features: world.features };
+    const pkg = { W: world.W, H: world.H, h: world.h, cls: world.cls, classes: CL, speed: CL.map((n) => SPEED[n]), features: world.features, obst: world.obst };
     const courses = opts.sprint ? setSprintCourses(pkg, { seed: opts.seed, tries: opts.tries || 160 })
       : setCourses(pkg, { seed: opts.seed, tries: opts.tries || 260, levels: GEN_LEVELS });
     const moved = [world.h.buffer, world.cls.buffer, world.veg.buffer, world.ground.buffer];

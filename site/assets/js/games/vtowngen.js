@@ -767,8 +767,14 @@ export function generateTown({ seed = 1, size = 700, buildings = 0.5, gardens = 
   const tb = new Uint8Array(keptTrees.length * 6), tv = new DataView(tb.buffer);
   keptTrees.forEach(([x, z, h, cr], i) => { tv.setUint16(i * 6, Math.round(x * 10), true); tv.setUint16(i * 6 + 2, Math.round(z * 10), true); tv.setUint8(i * 6 + 4, Math.min(255, Math.round(h * 4))); tv.setUint8(i * 6 + 5, Math.min(255, Math.round(cr * 10))); });
   onStep("town", 1);
+  // what stops the runner besides the ground's classes (vtown.js hits, vworld's trunks), [x, z, r] flat: the course setter keeps the
+  // taped last leg clear of them
+  const PR = { lamp: 0.12, bollard: 0.12, bin: 0.25, postbox: 0.3, fountain: 1.2, memorial: 0.7 }, obst = [];
+  for (const [k, x, z] of props) if (PR[k]) obst.push(x, z, PR[k]);
+  for (const [x, z, , L] of cars) obst.push(x, z, L / 2);       // a car as the disc round it (no trigonometry: the same everywhere)
+  for (const [x, z, h, cr] of keptTrees) obst.push(x, z, h > 5 ? 0.45 : cr * 0.6);
 
-  return { W, H, base, h: hm, cls, veg, ground: img, gres, surf, trees: tb, objects, features: feats, interval: IV, biome: TOWN_BIOME,
+  return { W, H, base, h: hm, cls, veg, ground: img, gres, surf, trees: tb, objects, features: feats, interval: IV, biome: TOWN_BIOME, obst,
     feats: { rocks: [], walls: [], points: [], features: feats }, town,
     gen: { sprint: true, seed, size: W, buildings, gardens, parks }, check: null,
     counts: { houses: houses.length, buildings: runs.length, parks: rects.filter((r) => r.type === "park").length, stairs: stairs.length } };

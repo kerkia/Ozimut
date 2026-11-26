@@ -1360,7 +1360,11 @@ Every multiple-choice game was played through to its score page at phone size, w
   `setSprintCourses`, course_sprint.py's four levels and rules (sites at the flags: corners 1.1 m out, wall ends, stairs' feet,
   monuments, fountains, trees; `sep`, no dog-leg, no leg along another; route choice by the share of the straight line that cannot
   be crossed), the best eight checked on the ground by A* (each leg reachable, under 2.3 × its straight line; a detour a bonus for
-  the orange courses, a cost for the easy ones). The sprint's day map is race `day-YYYYMMDD-s` (`vgenpack.dayOpts("YYYYMMDD-s")`:
+  the orange courses, a cost for the easy ones); **one last control and finish for the town's courses** (owner, 2026-11-26, as
+  course_sprint.py `pick_end`: `LAST`, a corner, monument or fountain near the middle, code 100 on every course, the finish 40-100 m
+  away on a straight way clear by 1.8 m of the ground's obstacles and of the town's props, cars and trunks — `world.obst`, a
+  chamfer clearance — from where the tape starts; starts within 220 m of the finish, the control before within a leg; up to 6
+  candidate pairs, the orange courses twice the tries). The sprint's day map is race `day-YYYYMMDD-s` (`vgenpack.dayOpts("YYYYMMDD-s")`:
   seed `pixel-sday-<day>`, 700 m, sliders 0.5; functions/api/virtual `DAY` accepts the suffix, listed with the forest's by
   `runs?race=day`; `mapName` « Sprint du jour du … »; the analysis remakes it as the forest's day map). The free town is
   `gen-sprint-<n>`, never kept. Measured 2026-11-26 (the PC loaded by other sessions' builds: a forest « Terrain libre » took
