@@ -4553,6 +4553,12 @@ Every multiple-choice game was played through to its score page at phone size, w
   image, when a short way across the line finds a house on one side and other ground on the other, a same-ground way more than
   twice as long does not count, and the nearest ground decides (a house's edge only: with any two grounds, the leg printed along
   the stairway to the Auray scan's 6 closed it). Gate passed and accepted: scan 2 olive on every route 7 → 5 m, grey 4 → 1 m.
+  **The course's order with a circle unread** (2026-11-26, owner's screenshot: map 1 read with 23 circles in his browser, 24 in
+  ours — control 24 unread, no « Ordre des postes lu sur la carte », so no « Inter-postes »): `course.js` `order` now follows the
+  printed legs back from the finish the page placed whatever the reading (it needed the start read, or a « solid » or colour-blind
+  reading), and `chainBack` looks for a circle missed at the end of an inked leg as `followCourse` does (`alongLeg`). The course
+  bench (`route-bench/course/ceval.mjs`): no case changed but hard_worse, which no longer fails; nothing out of order. Which
+  circle a browser's drawing of a scan loses varies (the bench's scan 1 loses 16): the reading is at its limit on a few circles.
 - **Languages: French, English, German and Spanish** (owner, 2026-10-17 French and English, open to everyone since 2026-10-18,
   `i18n.OPEN` true; **German and Spanish since 2026-11-01**: `i18n.LANGS`, catalogues `i18n/de.js`, `es.js`, `tracer.de.js`,
   `tracer.es.js`, long texts `content/<name>.de.js` / `.es.js`, e-mails in `_lib/templates.js`, `manifest.de|es.webmanifest`;

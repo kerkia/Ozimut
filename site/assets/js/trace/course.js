@@ -657,7 +657,10 @@ async function readCourse(image, { maxSide = 1800, debug = false, dark = false, 
   /** The course's order again, with a finish placed by the page (where the trace ends: a finish over water is not read
    *  from the map) — `finish` [x, y] in the image's pixels. */
   const order = ({ finish: F = null } = {}) => {
-    if (!rStar || controls.length < 2 || (!start && !dark && !solid)) return null;
+    // (with a finish the page placed, the legs back from it whatever the reading: a browser drawing the scan a little otherwise left
+    // the Quiberon scan's reading without its start and not « solid », no order at all, and « Inter-postes » hidden; the chain
+    // follows printed legs only, owner 2026-11-26)
+    if (!rStar || controls.length < 2 || (!start && !dark && !solid && !F)) return null;
     const q = (start ? followCourse : chainBack)(F ? { x: F[0] * s, y: F[1] * s, r2: finish?.r2 ?? 1.4 * rStar } : finish);
     return q ? { ...q, points: q.points.map(back) } : null;
   };
@@ -679,7 +682,14 @@ async function readCourse(image, { maxSide = 1800, debug = false, dark = false, 
         .map((z) => (z.d < 2.2 * rStar + p.r ? { ...z, v: 1 } : z)).filter((z) => z.v >= LEG);
       const top = Math.max(0, ...joined.map((z) => z.v));
       joined.splice(0, joined.length, ...joined.filter((z) => z.v >= top - 0.08).sort((a, b) => a.d - b.d).map((z) => z.q));
-      if (!joined.length) break;
+      // no leg joins a circle read: a circle missed at the end of an inked leg leaving it, as the way from the start looks for
+      // one (the Quiberon scan's 24, beside its finish, unread in one browser's drawing: no order, owner 2026-11-26)
+      if (!joined.length) {
+        const c = alongLeg(p, seq, left);
+        if (!c) break;
+        if (c.sym) joined.push(c.sym);
+        else { controls.push(c); const q = { kind: "control", x: c.x, y: c.y, r: rStar }; left.push(q); joined.push(q); }
+      }
       const q = joined[0];
       left.splice(left.indexOf(q), 1); seq.push(q); p = q;
     }
