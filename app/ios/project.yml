@@ -1,5 +1,5 @@
 # The Ozimut companion app for iPhone (docs/app/design.md is the contract): the live site in a web view, plus what a
-# page cannot do. It does not track (that is Folloz, track/).
+# page cannot do. It does not track (that is Folloz, github.com/kerkia/Folloz).
 # Generated into Ozimut.xcodeproj by XcodeGen: `xcodegen generate` in this folder. Never edit the .xcodeproj by hand.
 name: Ozimut
 options:

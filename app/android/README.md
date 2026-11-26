@@ -4,7 +4,7 @@ The live site (https://ozimut.com) in a web view, plus what a page cannot do: na
 shared to the app, the camera and the document scanner for map photos, handing a file the site made to the share sheet.
 The contract with the site and the server is [`docs/app/design.md`](../../docs/app/design.md): change it first, then this code.
 
-**It does not track** (that is Folloz, `track/android`), **creates no account, and shows nothing about buying**: a checkout
+**It does not track** (that is Folloz, https://github.com/kerkia/Folloz), **creates no account, and shows nothing about buying**: a checkout
 host is neither loaded nor handed to the browser, whatever a page asks.
 
 Application id `com.ozimut.app`, code namespace `com.ozimut.web`, name « Ozimut », minSdk 26, targetSdk 36.

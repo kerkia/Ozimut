@@ -21,12 +21,6 @@ class_name = "Directory"
 name = "TRACK"
 class_name = "LiveTrack"
 
-# Folloz (2026-11-23, docs/track/folloz.md): one object per channel of the tracking app, no account; its « silent » alert goes
-# back to Ozimut as LiveTrack's do (POST <SITE_URL>/api/folloz/alert with TRACK_RELAY_SECRET)
-[[durable_objects.bindings]]
-name = "FOLLOZ"
-class_name = "TracChannel"
-
 # Ozimut's R2 bucket: an organiser's broadcast tied to a competition is saved there (broadcasts/<number>.json) every couple
 # of minutes, for « Résultats » (the workflow copies the folder; ffco_scraper/prov/sources/broadcast.py)
 # Every 10 minutes: the results runs GitHub's schedule skips, started again (functions/_lib/ciwatch.js; secret GH_DISPATCH_TOKEN,
@@ -53,6 +47,12 @@ new_sqlite_classes = ["LiveTrack"]
 [[migrations]]
 tag = "v4"
 new_sqlite_classes = ["TracChannel"]
+
+# Folloz's channels moved to a Worker of their own on 2026-11-26 (https://github.com/kerkia/Folloz, server/): the class
+# and its test data go
+[[migrations]]
+tag = "v5"
+deleted_classes = ["TracChannel"]
 
 [vars]
 SITE_URL = "https://ozimut.com"

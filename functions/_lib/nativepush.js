@@ -82,43 +82,6 @@ export async function sendNative(env, d, msg, { ttl = 4 * 86400, topic } = {}) {
   }
 }
 
-/** An Folloz alert (docs/track/folloz.md « Notifications »): data only, the app writes the words with the name it holds.
- *  `quiet`: a message to the app itself, never shown (the runner's phone told to change its pace, « Pace »): on the iPhone a
- *  background notification. `p` = { kind: "fcm" | "apns", token, env }. -> "ok" | "gone" | "failed" | "off" */
-export async function sendData(env, p, data, { urgent = false, ttl = 3600, quiet = false } = {}) {
-  const strings = Object.fromEntries(Object.entries(data).map(([k, v]) => [k, String(v ?? "")]));
-  try {
-    if (p.kind === "fcm" && fcmReady(env)) {
-      const sa = JSON.parse(env.FCM_SERVICE_ACCOUNT);
-      const res = await fetch(`https://fcm.googleapis.com/v1/projects/${sa.project_id}/messages:send`, { method: "POST",
-        headers: { Authorization: `Bearer ${await fcmAccess(env)}`, "Content-Type": "application/json" },
-        body: JSON.stringify({ message: { token: p.token, data: strings, android: { priority: urgent ? "high" : "normal", ttl: `${ttl}s` } } }) });
-      if (res.status === 404 || res.status === 400) return /UNREGISTERED|INVALID_ARGUMENT/.test(await res.text()) ? "gone" : "failed";
-      return res.ok ? "ok" : "failed";
-    }
-    if (p.kind === "apns" && apnsReady(env)) {
-      // the iPhone app (to come) localises the words from the key and fills the name in its notification extension
-      const host = p.env === "dev" ? "api.sandbox.push.apple.com" : "api.push.apple.com";
-      const exp = String(Math.floor(Date.now() / 1000) + ttl);
-      const res = await fetch(`https://${host}/3/device/${p.token}`, { method: "POST",
-        headers: quiet
-          ? { authorization: `bearer ${await apnsToken(env)}`, "apns-topic": env.FOLLOZ_APNS_TOPIC || "com.ozimut.folloz",
-            "apns-push-type": "background", "apns-priority": "5", "apns-expiration": exp }
-          : { authorization: `bearer ${await apnsToken(env)}`, "apns-topic": env.FOLLOZ_APNS_TOPIC || "com.ozimut.folloz",
-            "apns-push-type": "alert", "apns-priority": "10", "apns-expiration": exp },
-        body: JSON.stringify(quiet ? { aps: { "content-available": 1 }, ...strings }
-          : { aps: { alert: { "loc-key": `OZ_ALERT_${strings.kind.toUpperCase()}` }, sound: "default", "mutable-content": 1,
-            ...(urgent ? { "interruption-level": "time-sensitive" } : {}) }, ...strings }) });
-      if (res.status === 410) return "gone";
-      if (res.status === 400) return /BadDeviceToken|DeviceTokenNotForTopic/.test(await res.text()) ? "gone" : "failed";
-      return res.ok ? "ok" : "failed";
-    }
-    return "off";
-  } catch (e) {
-    return "failed";
-  }
-}
-
 /** The Ozimut app's devices of an account (docs/app/design.md « Native notifications »; table app_push, migration 0032):
  *  every notification the site sends to the account. -> number reached */
 export async function appToUser(env, userId, msg, opts) {
@@ -136,7 +99,7 @@ export async function appToUser(env, userId, msg, opts) {
   return reached;
 }
 
-/** Every tracking device of an account (track_devices: Folloz's phones and watches linked to it, docs/track/folloz.md;
+/** Every tracking device of an account (track_devices: Folloz's phones and watches linked to it, https://github.com/kerkia/Folloz;
  *  an iPhone's token is Folloz's, so APNs is asked under Folloz's topic). -> number reached */
 export async function nativeToUser(env, userId, msg, opts) {
   if (!nativeReady(env)) return 0;

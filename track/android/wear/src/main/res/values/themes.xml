@@ -1,8 +1,0 @@
-<?xml version="1.0" encoding="utf-8"?>
-<resources>
-    <color name="ic_bg">#FFFFFF</color>
-    <style name="Theme.OzimutWear" parent="android:Theme.DeviceDefault">
-        <item name="android:windowBackground">@android:color/black</item>
-        <item name="android:colorAccent">#E8590C</item>
-    </style>
-</resources>

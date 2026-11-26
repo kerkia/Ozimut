@@ -21,7 +21,7 @@ android {
     compileSdk = 36
 
     defaultConfig {
-        // The Ozimut companion app (docs/app/design.md); Folloz is com.ozimut.folloz (track/android)
+        // The Ozimut companion app (docs/app/design.md); Folloz is com.ozimut.folloz (github.com/kerkia/Folloz)
         applicationId = "com.ozimut.app"
         minSdk = 26
         targetSdk = 36

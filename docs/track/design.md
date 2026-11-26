@@ -5,10 +5,10 @@ the devices that feed them (the Ozimut app on Android and iPhone, the Wear OS ap
 field, set aside on 2026-11-23). Decided by
 the owner on 2026-11-21 after the study `C:\Kerkia\Ozimut\work\study\gps-tracking\ozimut-gps-tracking-from-a-phone.pdf`
 (second version). This file is the contract between the server (`functions/api/track`, `live/src/track.js`), the site's
-pages and the native code (`track/android`, `track/ios`, `track/garmin`). Change it first, then the code.
+pages and the native code (Folloz's apps, https://github.com/kerkia/Folloz; the Garmin data field `track/garmin`). Change it first, then the code.
 
-**Since 2026-11-23 the native app is Folloz** (`docs/track/folloz.md`): a tracking app of its own, used without an account
-(phones linked to each other by a code, through the relay's `TracChannel`), that can also send its runs to an Ozimut account
+**Since 2026-11-23 the native app is Folloz** (a repository of its own since 2026-11-26, https://github.com/kerkia/Folloz, its contract `docs/design.md`):
+a tracking app of its own, used without an account (phones linked to each other by a code, through Folloz's own relay), that can also send its runs to an Ozimut account
 with this file's « Pairing a phone » and « Sending ». It holds no page of the site: « The site ↔ app bridge » below and the web
 view's session describe the app of before 2026-11-23. The rules below are Ozimut's accounts'; Folloz's are in its own file.
 
@@ -120,7 +120,7 @@ Authorization: Bearer <key>      Content-Type: application/json   (Content-Encod
 - An empty batch (`dt: []`) is allowed: a heartbeat with `bat`.
 - A run opens at its first batch, closes with `state: "end"`, the cap (`cap` seconds from its start) or 30 min of silence
   after the cap.
-- `pace` (Folloz, 2026-11-25; `docs/track/folloz.md` « Pace »): a long run (`mode` "long") is kept up to 7 days whatever
+- `pace` (Folloz, 2026-11-25; Folloz's `docs/design.md` « Pace »): a long run (`mode` "long") is kept up to 7 days whatever
   the account's cap, `next` is its `send` (15 while `boost` is ahead), `LiveTrack` calls it silent after 3 × `send` + 120 s
   and still after 30 min within 15 m, and the watch page replays `send` + 10 s behind. Ozimut's watchers cannot ask for
   Direct (Folloz's watchers can).
@@ -131,7 +131,7 @@ A watch has no keyboard: it makes its own key (32 random base64url) and a claim 
 `POST /api/track/claim { claim, key, kind, model, version }` → `202 { paired: false }` until an account claims it on the
 site (« Famille » or « Mes appareils » › « Associer une montre », the code typed) → then `200 { paired: true, account, settings }`.
 It asks again every 10 s while the code is shown. From then on it pushes as a phone does (`Bearer <key>`).
-The Wear OS app (`track/android/wear`, 2026-11-23) pairs only so: a watch with LTE records and sends alone, with the phone
+Folloz's Wear OS app (its `android/wear`, 2026-11-23) pairs only so: a watch with LTE records and sends alone, with the phone
 app's own tracker and queue.
 An iPhone app may pair its own Apple Watch directly: it makes a pair code for its account, the watch posts
 `/api/track/pair` with it (sent over WatchConnectivity).
@@ -203,8 +203,8 @@ PDF): the site takes it as « Analyse solo »'s inbox does; `{ type: "tracker", 
   seconds, Help, the cap, the two-minute self-test, recovery after the system ends the app, no location outside a run.
 - Texts in French, English, German and Spanish (the site's rule), the language from the account (`account.lang`), else the
   system's.
-- Builds: GitHub Actions `.github/workflows/track-android.yml`, `track-ios.yml`, `track-garmin.yml`, on a push touching
-  `track/**` (any branch) and by hand. Unsigned builds unless the signing secrets exist.
+- Builds: GitHub Actions — Folloz's in its own repository (`android.yml`, `ios.yml`), the Garmin field's
+  `.github/workflows/track-garmin.yml` here, on a push touching `track/**` (any branch) and by hand. Unsigned builds unless the signing secrets exist.
 
 ## The registration rule (with `TRACK_OPEN` "1")
 The form asks the year of birth (`birthYear`). Under 15 (this year − year of birth < 15): `422 { error: "under15" }` and

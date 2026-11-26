@@ -79,16 +79,6 @@ the detail of what was ported from each: `site/assets/js/chrono/si/LICENSE-sport
 `site/assets/js/chrono/`: Chronoz, © Yann Le Helloco, Mozilla Public License 2.0, a copy of
 https://github.com/kerkia/Chronoz, with its own notices. (The SPORTident ports above are part of it.)
 
-### Project Nayuki's QR Code generator (Folloz's QR codes on the iPhone and the Apple Watch)
-
-- Copyright: « Copyright (c) Project Nayuki. »
-- Licence: MIT.
-- Upstream: https://www.nayuki.io/page/qr-code-generator-library — https://github.com/nayuki/QR-Code-generator
-- Licence text: in the head of `track/ios/Shared/Core/QRCode.swift`.
-- What in this repository comes from it: `track/ios/Shared/Core/QRCode.swift`, its encoder ported to Swift and reduced to
-  byte mode and error correction level M (watchOS has no QR code generator of its own); the mask penalty is written from
-  the standard's rules.
-
 ### Ozimut's own ports of Ozimut's code
 
 `site/assets/js/localparse.js` and `site/assets/js/localstart.js` port the repository's own Python parsers; they are not
@@ -195,23 +185,11 @@ Licences as recorded in the lockfiles:
   BSD-2-Clause 5, BSD-3-Clause 2, 0BSD 1).
 - `tools/vendor.py` uses npm and esbuild 0.24.0 (MIT) to build `site/assets/vendor/`.
 
-### Android libraries (the Folloz apps, `track/android`; fetched by Gradle at build time, not in the repository)
+### Folloz
 
-Bundled into the APKs the CI builds, under their own licences:
-
-- Kotlin standard library (JetBrains, Apache-2.0); AndroidX core-ktx and activity-ktx (The Android Open Source Project,
-  Apache-2.0).
-- ZXing Android Embedded 4.3.0 (JourneyApps, Apache-2.0) and ZXing core (ZXing authors, Apache-2.0): scanning and drawing
-  QR codes.
-- Firebase Cloud Messaging (Google, Apache-2.0), only in a build made with the owner's `google-services.json`.
-- Google Play services' Wearable library (`play-services-wearable`, Google, under the Android Software Development Kit
-  License): the Wear OS watch handing its runs to the phone.
-
-The map's tiles are not bundled: each phone reads them from the providers `/api/folloz/config` names — IGN's Plan IGN and aerial
-photos in France (© IGN, Licence Ouverte 2.0), swisstopo's national map and SWISSIMAGE in Switzerland and Liechtenstein
-(© swisstopo, open data), OpenStreetMap's standard tiles elsewhere (© OpenStreetMap contributors, ODbL); the credits of the layers
-shown are drawn on the map. The countries' outlines that choose the layer (`functions/_lib/follozareas.js`) are Natural Earth's
-(public domain), simplified.
+The Folloz apps (Android, Wear OS, iPhone, Apple Watch) and their relay, built here until 2026-11-26, are a repository of
+their own under the MPL 2.0, https://github.com/kerkia/Folloz, with their own notices (Project Nayuki's QR Code generator, the Android libraries, the
+map providers).
 
 ### Other software read for facts only (none of its code is here)
 

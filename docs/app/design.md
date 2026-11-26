@@ -3,7 +3,7 @@
 Decided by the owner on 2026-11-23: **a companion app to the website**, for Android and iPhone, that shows a signed-in
 account every feature it may use, and **never shows an invitation to buy anything** — no price, no plan, no « subscribe », no
 link towards buying (Apple's guideline 3.1.3(f), « free stand-alone apps »; Google Play's « consumption-only » apps). It is not
-Folloz (`docs/track/folloz.md`), which tracks and holds no page of Ozimut; **this app does not track** (owner, 2026-11-23).
+Folloz (https://github.com/kerkia/Folloz), which tracks and holds no page of Ozimut; **this app does not track** (owner, 2026-11-23).
 
 This file is the contract between the site (`site/assets/js/appbridge.js`, `offers.js`, the pages), the server
 (`functions/_middleware.js`, `functions/api/push`) and the two shells (`app/android`, `app/ios`). Change it first, then the code.

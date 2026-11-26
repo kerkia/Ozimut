@@ -196,7 +196,7 @@ async function push(ctx) {
   if (seq > r.last_seq + 1) return json({ ack: r.last_seq, next: 0, stop: stopped }); // a gap: resend from last_seq + 1
   if (r.state === "end" && !stopped) return json({ error: "closed" }, 409);
   const startedMs = Date.parse(r.started_at);
-  // Folloz's long pace (docs/track/folloz.md « Pace »): kept 7 days whatever the account's cap, its own batch interval
+  // Folloz's long pace (kerkia/Folloz docs/design.md « Pace »): kept 7 days whatever the account's cap, its own batch interval
   const pace = longPace(b.pace);
   const cap = pace ? LONG_CAP : s.cap;
   const overCap = Date.now() - startedMs > (cap + 1800) * 1000;

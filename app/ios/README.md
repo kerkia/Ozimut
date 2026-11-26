@@ -2,7 +2,7 @@
 
 The live site (https://ozimut.com) in a web view, plus what a page cannot do: native notifications, files opened with
 or shared to the app, the document scanner for map photos, the watch's routes from Apple Health, saving a file the site
-makes. **It does not track** (that is Folloz, `track/`) and **it never shows anything about buying**. The contract is
+makes. **It does not track** (that is Folloz, https://github.com/kerkia/Folloz) and **it never shows anything about buying**. The contract is
 [`docs/app/design.md`](../../docs/app/design.md); change it first, then this code. The owner's steps with Apple are in
 `docs/app/setup.md`.
 
@@ -15,9 +15,9 @@ makes. **It does not track** (that is Folloz, `track/`) and **it never shows any
 | `App/WebController.swift` | The web view: user agent ` OzimutApp/<version> (ios)`, the bridge's entry (`window.webkit.messageHandlers.ozimut`), the navigation policy, `window.open`, downloads to the share sheet, camera / compass permissions of the page, the site's alert and confirm dialogs, events kept until the page's first `info` call. |
 | `App/AppModel.swift` | The bridge's calls (`info`, `pushState`, `pushRegister`, `saveFile`, `scanMap`, `healthRoutes`, `healthRoute`, `openSettings`), the push token, the files opened with the app (gathered 0.7 s, sent as one `files` event), a tapped notification (`push` event). |
 | `App/MapScanner.swift` | `scanMap`: VisionKit's document camera, the first page as a JPEG. |
-| `App/HealthRoutes.swift` | HealthKit workouts with a route, a route as GPX (read only; the same code as `track/ios`). |
+| `App/HealthRoutes.swift` | HealthKit workouts with a route, a route as GPX (read only; the same code as Folloz's `ios/`). |
 | `App/OzimutApp.swift`, `App/Views/RootView.swift` | The app, its delegate (APNs, notification taps), the web view on screen, the no-network screen with « Réessayer ». |
-| `Resources/` | The icon (the Ozimut mark, as `track/ios`), `PrivacyInfo.xcprivacy`, and `Localizable.xcstrings` + `<lang>.lproj/InfoPlist.strings`, **written by `tools/strings.py`** (French the reference, English the base, German « du », Spanish « tú »): edit the tables there, run `python3 tools/strings.py`, commit both. The workflow fails when they differ. |
+| `Resources/` | The icon (the Ozimut mark, as Folloz's `ios/`), `PrivacyInfo.xcprivacy`, and `Localizable.xcstrings` + `<lang>.lproj/InfoPlist.strings`, **written by `tools/strings.py`** (French the reference, English the base, German « du », Spanish « tú »): edit the tables there, run `python3 tools/strings.py`, commit both. The workflow fails when they differ. |
 | `Tests/ShellTests.swift` | Unit tests of `Core/`: allowed / external / blocked addresses, checkout hosts, the bridge's origin rule, message parsing, MIME types, safe file names. |
 
 Identifiers: bundle `com.ozimut.app`, name « Ozimut », iOS 17+, iPhone only. No URL scheme, no universal links, no
@@ -59,10 +59,10 @@ On a Mac: `brew install xcodegen`, `cd app/ios && xcodegen generate`, open `Ozim
   the map editor's offline copies), and WebKit itself refuses any main-frame page of another domain — a second lock
   behind `NavPolicy`. Once the key is in the Info.plist, the script message handler and `evaluateJavaScript` exist
   **only** in a web view limited that way, so the limit is set whenever the base address is one of the bound domains.
-  `track/ios` had left this out for fear that frames of other hosts (Cloudflare's anti-robot check, used by « Entrer
+  Folloz's iPhone app had left this out for fear that frames of other hosts (Cloudflare's anti-robot check, used by « Entrer
   sans compte ») would be refused; WebKit's limit is on the main frame's navigations, and frames are expected to load —
   **to be checked on the first device test**. If the check does not show, remove `WKAppBoundDomains` from `project.yml`
-  (the app then works as `track/ios` did, without the service worker).
+  (the app then works as Folloz's iPhone app did, without the service worker).
 - **A Debug build elsewhere**: set `OZ_BASE_URL` (https, ending with `/`) and `OZ_DEV_HOST` (its host) together under
   `configs: Debug:`. A host that is not bound gets a web view without the limit, hence without the bridge. Plain `http`
   is not allowed (no App Transport Security exception is declared): use a tunnel or a staging address.

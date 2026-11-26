@@ -1,7 +1,7 @@
 # GPS tracking — what the owner does, step by step
 
-Written 2026-11-22, for Folloz since 2026-11-23. The server, the site and the native apps are built (`docs/track/design.md`,
-`docs/track/folloz.md`); what is left needs the
+Written 2026-11-22, for Folloz since 2026-11-23. The server, the site and the native apps are built (`docs/track/design.md`;
+Folloz — its apps and its relay — in its own repository since 2026-11-26, https://github.com/kerkia/Folloz, contract `docs/design.md`); what is left needs the
 owner's accounts, keys and devices. Do the steps in order: each part can be tested before the next. Nothing here is a secret:
 the secrets are typed into the tools, never into this file or a chat.
 
@@ -17,9 +17,10 @@ already in that column, separated by a comma).
 - The site deployed with the tracking (Coach › « Suivi GPS », administrators only).
 - Step 1, the live relay: `TRACK_RELAY_SECRET` set on the site and the relay, `ocn-live` deployed with `LiveTrack`,
   the `LIVE_TRACK` binding uncommented (2026-11-23).
-- **Folloz** (2026-11-23, `docs/track/folloz.md`): the tracking app is now a product of its own, used without an account.
-  Its relay (`TracChannel`) deployed in `ocn-live`, the site's `FOLLOZ` binding and `/api/folloz` live. The steps below
-  are written for it.
+- **Folloz** (2026-11-23): the tracking app is now a product of its own, used without an account. Since 2026-11-26 it is a
+  repository of its own (https://github.com/kerkia/Folloz, checked out at `C:\Kerkia\Ozimut\Folloz`), its relay the Worker `folloz` (its `server/`,
+  deployed by hand: `cd C:\Kerkia\Ozimut\Folloz\server`, `npx wrangler deploy`) on ozimut.com's routes `/api/folloz`
+  and `/z/`. The steps below are written for it.
 
 ## 1. The live relay — live view and alerts (about 10 minutes)
 
@@ -56,7 +57,7 @@ This tests the server, the live page and the alerts with a free app, before the 
 
 ## 3. Folloz on Android, installed by hand (about 20 minutes, two phones)
 
-1. On github.com/kerkia/Ozimut › Actions › « track-android » › the latest green run › « Artifacts » ›
+1. On github.com/kerkia/Folloz › Actions › « android » › the latest green run › « Artifacts » ›
    `folloz-android-apks` (a zip). Inside: `app-debug.apk` (and an unsigned release APK, not installable).
 2. Copy `app-debug.apk` to an Android phone (USB, e-mail to yourself, a cloud drive) and open it. Android asks to allow
    installing apps from that source: allow it for that one app (Files, Gmail…).
@@ -80,7 +81,7 @@ This tests the server, the live page and the alerts with a free app, before the 
 For a Wear OS watch with its own mobile connection (Samsung Galaxy Watch 4 or later in LTE, Google Pixel Watch LTE…).
 A watch without 4G works too on Wi-Fi, which is enough to test at home.
 
-1. On github.com/kerkia/Ozimut › Actions › « track-android » › the latest green run › « Artifacts » ›
+1. On github.com/kerkia/Folloz › Actions › « android » › the latest green run › « Artifacts » ›
    `folloz-wearos-apks` (a zip). Inside: `wear-debug.apk`.
 2. On the PC, install Google's adb once: `winget install Google.PlatformTools`, then open a new PowerShell.
 3. On the watch: Settings › System › About › tap « Build number » (Samsung: « Software information » › « Software
@@ -136,27 +137,29 @@ Without it, a follower sees the alerts only while Folloz is open.
 
 1. console.firebase.google.com › « Add project » (« Folloz », Analytics not needed).
 2. « Add app » › Android › package name `com.ozimut.folloz` › download `google-services.json`.
-3. GitHub secret `GOOGLE_SERVICES_JSON`: the file's content (open it in Notepad, copy all). Then ask Claude to make the
-   workflow write it to `track/android/app/google-services.json` before the build (one line to add).
-4. Firebase › Project settings › Service accounts › « Generate new private key »: a JSON file. In
-   `C:\Kerkia\Ozimut\Ozimut`: `npx wrangler pages secret put FCM_SERVICE_ACCOUNT --project-name observatoire-cn`, paste the
-   whole JSON (one line is fine). Delete the downloaded file afterwards (or keep it in `data\secrets`).
+3. GitHub secret `GOOGLE_SERVICES_JSON` on the Folloz repository: the file's content (open it in Notepad, copy all). Then
+   ask Claude to make its workflow write it to `android/app/google-services.json` before the build (one line to add).
+4. Firebase › Project settings › Service accounts › « Generate new private key »: a JSON file. Give it twice, pasting the
+   whole JSON (one line is fine): to Folloz's relay — in `C:\Kerkia\Ozimut\Folloz\server`: `npx wrangler secret put
+   FCM_SERVICE_ACCOUNT` (the alerts to the people following) — and to the site — in `C:\Kerkia\Ozimut\Ozimut`:
+   `npx wrangler pages secret put FCM_SERVICE_ACCOUNT --project-name observatoire-cn` (Ozimut's tracking alerts to a linked
+   phone, and the Ozimut app). Delete the downloaded file afterwards (or keep it in `data\secrets`).
 5. Reinstall the new APK (step 3) on the following phone: it asks for notifications when it starts following.
 
 ## 5b. The map's tiles, before the public release (about 15 minutes)
 
 Folloz draws its map from OpenStreetMap's own tiles until then, which OpenStreetMap allows only for light use (its tile
 policy forbids an app's heavy use). Before publishing, take a tile provider with a free tier — MapTiler (maptiler.com,
-« Streets » or « Outdoor » raster tiles), Stadia Maps or Thunderforest — and its key, then in `wrangler.toml` `[vars]`:
+« Streets » or « Outdoor » raster tiles), Stadia Maps or Thunderforest — and its key, then in `[vars]`:
 `FOLLOZ_TILES = "https://…/{z}/{x}/{y}.png?key=…"` and `FOLLOZ_TILES_CREDIT = "© MapTiler © OpenStreetMap"` (the
-provider's own credit), push. The apps read them from `/api/folloz/config`: no new app is needed. A key in wrangler.toml
-is public (the repository is): take one the provider restricts to the app or to ozimut.com, or ask Claude to make it a
-Pages secret.
+provider's own credit) in the Folloz repository's `server/wrangler.toml`, then deploy the relay (`npx wrangler deploy` in
+`server/`) and push. The apps read them from `/api/folloz/config`: no new app is needed. A key in wrangler.toml is public
+(the repository is): take one the provider restricts to the app or to ozimut.com, or ask Claude to make it a Worker secret.
 
 ## 6. The iPhone and Apple Watch apps (several days: Apple's account and review)
 
-Folloz for iPhone and Apple Watch is written (`track/ios`, built unsigned by the `track-ios` workflow; its README has the
-details). What it needs from you:
+Folloz for iPhone and Apple Watch is written (the Folloz repository's `ios/`, built unsigned by its `ios` workflow; its
+README has the details). What it needs from you:
 
 1. Join the Apple Developer Program (developer.apple.com/programs, 99 USD a year, needs your Apple ID with two-factor
    authentication; a few days for an individual). Note the **Team ID** (Membership details).
@@ -164,18 +167,21 @@ details). What it needs from you:
    `group.com.ozimut.folloz`. Then Identifiers › App IDs: register `com.ozimut.folloz` (capabilities: Associated Domains,
    Push Notifications, App Groups with that group), `com.ozimut.folloz.notify` (App Groups, the same group),
    `com.ozimut.folloz.widget` (none) and `com.ozimut.folloz.watchkitapp` (HealthKit).
-3. Keys › « + » › Apple Push Notifications service (APNs) › download the `.p8` key, note its Key ID. Then:
-   `npx wrangler pages secret put APNS_KEY --project-name observatoire-cn` (paste the .p8 file's whole text),
-   `APNS_KEY_ID` (the key's id), `APNS_TEAM_ID` (the Team ID) — the same key serves the Ozimut app (docs/app/setup.md) —
-   and `FOLLOZ_APNS_TOPIC` (`com.ozimut.folloz`: the relay's alerts to the people following, and Ozimut's tracking
-   alerts to an Folloz iPhone linked to an account). `APNS_TOPIC` is the Ozimut app's (`com.ozimut.app`).
+3. Keys › « + » › Apple Push Notifications service (APNs) › download the `.p8` key, note its Key ID. Then give
+   `APNS_KEY` (the .p8 file's whole text), `APNS_KEY_ID` (the key's id) and `APNS_TEAM_ID` (the Team ID) twice — the same
+   key serves both and the Ozimut app (docs/app/setup.md):
+   - to Folloz's relay, in `C:\Kerkia\Ozimut\Folloz\server`: `npx wrangler secret put APNS_KEY` (and the two others) —
+     the relay's alerts to the people following;
+   - to the site: `npx wrangler pages secret put APNS_KEY --project-name observatoire-cn` (and the two others), plus
+     `FOLLOZ_APNS_TOPIC` (`com.ozimut.folloz`: Ozimut's tracking alerts to a Folloz iPhone linked to an account).
+     `APNS_TOPIC` is the Ozimut app's (`com.ozimut.app`).
 4. App Store Connect (appstoreconnect.apple.com) › Users and Access › Integrations › App Store Connect API › generate a key
-   (role App Manager): note the Issuer ID and Key ID, download the `.p8`. GitHub secrets `APPLE_TEAM_ID`,
+   (role App Manager): note the Issuer ID and Key ID, download the `.p8`. GitHub secrets, on the Folloz repository, `APPLE_TEAM_ID`,
    `APP_STORE_CONNECT_KEY_ID`, `APP_STORE_CONNECT_ISSUER_ID`, `APP_STORE_CONNECT_KEY` (the .p8's text).
 5. App Store Connect › Apps › « + » › New App: iOS, name « Folloz », bundle `com.ozimut.folloz`. Its export compliance:
    the app encrypts the positions with standard AES-GCM from the system (it says « not non-exempt encryption »); confirm.
-6. Tell Claude the Team ID: it writes it into `project.yml` and `site/.well-known/apple-app-site-association` and adds the
-   signing and TestFlight job to the workflow. Then the build goes to TestFlight; install TestFlight on your iPhone and accept.
+6. Tell Claude the Team ID: it writes it into Folloz's `ios/project.yml` and Ozimut's
+   `site/.well-known/apple-app-site-association` and adds the signing and TestFlight job to Folloz's workflow. Then the build goes to TestFlight; install TestFlight on your iPhone and accept.
 7. Test as in step 3, on two iPhones (or an iPhone and an Android phone): the two-minute test locked, a run followed with its
    notifications, a code sent as a link. On the watch: Start, its code shown as a QR code scanned by an iPhone, a run
    followed, and once ended the run arriving in the iPhone's « Mes courses » (« Enregistrée sur la montre »);
@@ -197,8 +203,9 @@ details). What it needs from you:
 2. Make the release keystore **once, kept for good**: `keytool -genkeypair -v -keystore folloz-release.jks -alias folloz
    -keyalg RSA -keysize 4096 -validity 10000` (keytool comes with any Java; or Android Studio › Build › Generate Signed
    Bundle). Keep it in `data\secrets`.
-3. GitHub secrets `ANDROID_KEYSTORE_BASE64` (base64 of the .jks, as in step 4.3), `ANDROID_KEYSTORE_PASSWORD`,
-   `ANDROID_KEY_ALIAS` (`folloz`), `ANDROID_KEY_PASSWORD`. Ask Claude to add the App Bundle to the workflow.
+3. GitHub secrets on the Folloz repository: `ANDROID_KEYSTORE_BASE64` (base64 of the .jks, as in step 4.3),
+   `ANDROID_KEYSTORE_PASSWORD`, `ANDROID_KEY_ALIAS` (`folloz`), `ANDROID_KEY_PASSWORD`. Ask Claude to add the App Bundle
+   to its workflow.
 4. Tell Claude the key's SHA-256 (`keytool -list -v -keystore folloz-release.jks`, the « SHA256 » line; or Play Console ›
    App integrity once Play signs): it goes into `site/.well-known/assetlinks.json`, so that `ozimut.com/z/…` and
    `ozimut.com/t/<code>` links open the app.

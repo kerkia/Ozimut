@@ -42,13 +42,6 @@ name = "LIVE_TRACK"
 class_name = "LiveTrack"
 script_name = "ocn-live"
 
-# Folloz (2026-11-23, docs/track/folloz.md): the tracking app's channels, one TracChannel object each in the live relay
-# (functions/api/folloz/[[path]].js). Without the binding the app's routes answer 503.
-[[durable_objects.bindings]]
-name = "FOLLOZ"
-class_name = "TracChannel"
-script_name = "ocn-live"
-
 # Workers AI (« IA », functions/api/ask.js): the language model that writes a query for a question; free plan, 10 000
 # neurons a day for the whole account, the calls fail past it (nothing billed)
 [ai]
