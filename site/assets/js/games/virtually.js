@@ -254,30 +254,11 @@ export function mount(root, raceId, opts = {}) {
     const turnRate = (since) => { const h = (performance.now() - since) / 1000 - HOLD_S; return h < 0 ? 0 : (Math.min(110, 45 + 65 * h) * Math.PI) / 180; };
     const heldSince = (codes) => Math.min(...codes.filter((c) => keys.has(c)).map((c) => pressAt.get(c) ?? 0));
     const LEFT = ["ArrowLeft", "KeyA"], RIGHT = ["ArrowRight", "KeyD"], MAPL = ["Comma"], MAPR = ["Period"];
-    const resize = () => { const w = box.clientWidth, h = box.clientHeight; renderer.setSize(w, h, false); camera.aspect = w / Math.max(1, h); camera.updateProjectionMatrix(); applyView(); drawMapPanel(); };
-    // The runner in the middle of the room the enlarged map leaves (owner, 2026-11-14: « quand on agrandit la carte le mec reste
-    // centré, ça serait mieux qu'il soit au centre de l'espace qui reste »): the camera stays where it is, its picture shifted
-    // sideways (a view offset: the projection's centre moved), so that what it looks at — the runner, or the way ahead in the
-    // first-person view — stands in the middle of the width left free, at the runner's height, by the map, the compass and the
-    // pad; eased over a few frames as the map grows or shrinks; none with the small or hidden map, in the map's view or at the finish.
-    let viewOff = 0, viewTarget = 0;
-    function applyView() {
-      const w = box.clientWidth, h = box.clientHeight;
-      if (Math.abs(viewOff) < 0.5 || !w || !h) camera.clearViewOffset(); else camera.setViewOffset(w, h, -viewOff, 0, w, h);
-    }
-    function measureFree() {
-      viewTarget = 0;
-      if (box.dataset.map !== "large" || box.dataset.view !== "scene" || st.phase === "done") return;
-      const b = box.getBoundingClientRect(), y0 = b.top + b.height * 0.4, y1 = b.top + b.height * 0.9, cx = b.left + b.width / 2;
-      let L = b.left, R = b.right;
-      for (const el of [mapEl, comp, $("#vt-pad", root)]) {
-        if (!el || el.offsetParent === null) continue;               // not shown
-        const r = el.getBoundingClientRect();
-        if (!r.width || r.bottom < y0 || r.top > y1) continue;         // above or below the runner
-        if (r.left + r.width / 2 < cx) L = Math.max(L, r.right); else R = Math.min(R, r.left);
-      }
-      if (R > L + 80) viewTarget = (L + R) / 2 - cx;
-    }
+    const resize = () => { const w = box.clientWidth, h = box.clientHeight; renderer.setSize(w, h, false); camera.aspect = w / Math.max(1, h); camera.updateProjectionMatrix(); drawMapPanel(); };
+    // The runner in the middle of the window, whatever the map's size (owner, 2026-11-26: « the runner is still on the right side,
+    // and runs towards the right »): from 2026-11-14 the picture was shifted sideways to centre the runner in the room the large
+    // map left, which also moved the point the scene streams out from off the screen's centre, so running straight looked like
+    // veering right. No shift any more: the camera's picture is centred on the runner.
     const ro = new ResizeObserver(resize); ro.observe(box);
     // ---- the map panel ----
     const ppm = mapImg.ppm, mPer = ppm / race.k;                    // map canvas px per world metre
@@ -956,12 +937,7 @@ export function mount(root, raceId, opts = {}) {
       if (run && ml !== mr) turnBy((mr ? 1 : -1) * turnRate(heldSince(mr ? MAPR : MAPL)) * dt);
       if (blankUntil && now >= blankUntil) { blankUntil = 0; drawMapPanel(); }
       if (freeTick % 15 === 0) showNorth();
-      if (freeTick++ % 8 === 0) measureFree();
-      if (viewTarget !== viewOff) {
-        viewOff += (viewTarget - viewOff) * Math.min(1, dt * 6);
-        if (Math.abs(viewTarget - viewOff) < 0.5) viewOff = viewTarget;
-        applyView();
-      }
+      freeTick++;
       if (box.dataset.view !== "map") renderer.render(scene, camera);   // the map's view hides the scene: nothing to draw
       drawCompass();
       $("#vt-time", root).textContent = fmt(total());
