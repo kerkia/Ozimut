@@ -99,13 +99,13 @@ export function seedOf(s) { let h = 2166136261; for (let i = 0; i < s.length; i+
 const hash2 = (x, y, s) => { let h = Math.imul(x, 374761393) ^ Math.imul(y, 668265263) ^ Math.imul(s, 1442695041); h = Math.imul(h ^ (h >>> 13), 1274126177); return ((h ^ (h >>> 16)) >>> 0) / 2147483648 - 1; };
 const fade = (t) => t * t * t * (t * (t * 6 - 15) + 10);
 /** Value noise in [-1, 1] at (x, y) on a unit lattice, smooth (quintic fade). */
-function vnoise(x, y, s) {
+export function vnoise(x, y, s) {
   const ix = Math.floor(x), iy = Math.floor(y), fx = x - ix, fy = y - iy, u = fade(fx), v = fade(fy);
   const a = hash2(ix, iy, s), b = hash2(ix + 1, iy, s), c = hash2(ix, iy + 1, s), d = hash2(ix + 1, iy + 1, s);
   return a + (b - a) * u + (c - a) * v + (a - b - c + d) * u * v;
 }
 /** A field on a grid of nx × ny nodes `step` m apart: sum of value noises (scale m, amplitude), seeded. */
-function noiseField(nx, ny, step, octaves, seed) {
+export function noiseField(nx, ny, step, octaves, seed) {
   const F = new Float32Array(nx * ny);
   octaves.forEach(([scale, amp], k) => {
     const s = (seed + k * 7919) | 0, f = step / scale, ox = hash2(k, 1, seed) * 97, oy = hash2(k, 2, seed) * 97;
@@ -113,10 +113,10 @@ function noiseField(nx, ny, step, octaves, seed) {
   });
   return F;
 }
-const smoothstep = (e0, e1, x) => { const t = x <= e0 ? 0 : x >= e1 ? 1 : (x - e0) / (e1 - e0); return t * t * (3 - 2 * t); };
+export const smoothstep = (e0, e1, x) => { const t = x <= e0 ? 0 : x >= e1 ? 1 : (x - e0) / (e1 - e0); return t * t * (3 - 2 * t); };
 const bump = (d2, r2) => (d2 >= r2 ? 0 : (1 - d2 / r2) * (1 - d2 / r2));
 /** A box blur of a grid (radius in nodes), three passes ≈ a Gaussian. */
-function blur(F, nx, ny, r) {
+export function blur(F, nx, ny, r) {
   let a = Float32Array.from(F), b = new Float32Array(F.length);
   for (let pass = 0; pass < 3; pass++) {
     for (let j = 0; j < ny; j++) { let s = 0, n = 0; const o = j * nx;
@@ -142,7 +142,7 @@ function sample(F, nx, ny, x, y) {
 }
 
 /** A binary min-heap of node indices keyed by `key` (a Float64Array the caller fills). */
-function heap(key, cap) {
+export function heap(key, cap) {
   const a = new Int32Array(cap); let n = 0;
   return {
     get size() { return n; },
@@ -214,14 +214,14 @@ export function isolines(F, nx, ny, level, cells = null) {
   for (let k = 0; k < segs.length; k++) if (!used[k]) out.push(walk(k, segs[k][0]));              // closed rings
   return out;
 }
-const ringArea = (r) => { let s = 0; for (let k = 0; k < r.length - 1; k++) s += r[k][0] * r[k + 1][1] - r[k + 1][0] * r[k][1]; return s / 2; };
-function inPoly(r, x, y) {
+export const ringArea = (r) => { let s = 0; for (let k = 0; k < r.length - 1; k++) s += r[k][0] * r[k + 1][1] - r[k + 1][0] * r[k][1]; return s / 2; };
+export function inPoly(r, x, y) {
   let c = false;
   for (let i = 0, j = r.length - 1; i < r.length; j = i++) { const [xi, yi] = r[i], [xj, yj] = r[j]; if (yi > y !== yj > y && x < ((xj - xi) * (y - yi)) / (yj - yi) + xi) c = !c; }
   return c;
 }
 /** Douglas-Peucker (tolerance in the line's units); a closed ring is split at its point farthest from its start. */
-function simplify(p, tol) {
+export function simplify(p, tol) {
   if (p.length < 3) return p;
   const n = p.length - 1;
   if (p[0][0] === p[n][0] && p[0][1] === p[n][1]) {
@@ -246,7 +246,7 @@ function dp(p, tol) {
 }
 /** Chaikin's corner cutting, n rounds; a closed ring stays closed. */
 /** A polyline with a point at least every `step` metres (the same line). */
-function densify(p, step) {
+export function densify(p, step) {
   const out = [p[0]];
   for (let k = 1; k < p.length; k++) {
     const [ax, az] = p[k - 1], [bx, bz] = p[k], n = Math.ceil(Math.sqrt((bx - ax) * (bx - ax) + (bz - az) * (bz - az)) / step);
@@ -255,7 +255,7 @@ function densify(p, step) {
   }
   return out;
 }
-function chaikin(p, n = 2) {
+export function chaikin(p, n = 2) {
   const closed = p.length > 3 && p[0][0] === p[p.length - 1][0] && p[0][1] === p[p.length - 1][1];
   for (let r = 0; r < n; r++) {
     const q = closed ? [] : [p[0]];
@@ -268,7 +268,7 @@ function chaikin(p, n = 2) {
   }
   return p;
 }
-const polyLen = (p) => { let s = 0; for (let k = 1; k < p.length; k++) { const dx = p[k][0] - p[k - 1][0], dy = p[k][1] - p[k - 1][1]; s += Math.sqrt(dx * dx + dy * dy); } return s; };
+export const polyLen = (p) => { let s = 0; for (let k = 1; k < p.length; k++) { const dx = p[k][0] - p[k - 1][0], dy = p[k][1] - p[k - 1][1]; s += Math.sqrt(dx * dx + dy * dy); } return s; };
 
 // ---- the generator ------------------------------------------------------------------------------------------------------------
 /**
@@ -1139,7 +1139,7 @@ export function generate({ type = "moraine", seed = 1, size = 1200, detail = 0.5
   return world;
 }
 // a point of the unit circle at a turn's fraction a, by a polynomial (deterministic: no Math.sin)
-function circ(a) {
+export function circ(a) {
   const t = a * 2 * Math.PI - Math.PI;                       // −π … π
   const t2 = t * t, s = t * (1 - t2 / 6 * (1 - t2 / 20 * (1 - t2 / 42 * (1 - t2 / 72)))), c = 1 - t2 / 2 * (1 - t2 / 12 * (1 - t2 / 30 * (1 - t2 / 56 * (1 - t2 / 90))));
   return [-c, -s];

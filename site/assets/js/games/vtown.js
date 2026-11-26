@@ -20,20 +20,23 @@ export async function loadTown(base, town, onFile = () => {}, getter = null) {
     return v;
   });
   const blob = (f) => (f ? get(f, "blob").catch(() => null) : null);
-  const grainOf = (n) => fetch(`/assets/textures/virtually/${n}.webp`).then((r) => (r.ok ? r.blob() : null)).catch(() => null);
-  const [meta, bin, surfBlob, texBlob, gBlob, rBlob] = await Promise.all([get(town.file, "json"), get(town.bin, "buf"), blob(town.surf),
-    blob(town.tex), grainOf("town-ground"), grainOf("town-roof")]);
+  const [meta, bin, surfBlob, texBlob, grain] = await Promise.all([get(town.file, "json"), get(town.bin, "buf"), blob(town.surf),
+    blob(town.tex), townGrains()]);
   const T = { f32: Float32Array, u8: Uint8Array, u16: Uint16Array, u32: Uint32Array }, arrays = {};
   for (const [k, [tp, off, n]] of Object.entries(meta.arrays)) arrays[k] = new T[tp](bin, off, n);
   // the surfaces' codes, read exactly (no colour management): the ground's material reads them by nearest texel
   const surf = surfBlob ? await createImageBitmap(surfBlob, { colorSpaceConversion: "none", premultiplyAlpha: "none" }) : null;
   // the photo façades' atlas (Panoramax's photos rectified, CC BY-SA 4.0: race.json `textures`, `photoCredits`), when there is one
   const tex = texBlob ? await createImageBitmap(texBlob, { colorSpaceConversion: "none", premultiplyAlpha: "none" }).catch(() => null) : null;
-  // the streets' and the roofs' photographed grain (CC0: Poly Haven; tools/virtually/town_textures.py, CREDITS.txt): R asphalt,
-  // G paving stones, B concrete slabs; R clay tiles, G slates — around mid-grey, multiplied by 2
-  const bm = (b) => (b ? createImageBitmap(b, { colorSpaceConversion: "none", premultiplyAlpha: "none" }).catch(() => null) : null);
-  const [gImg, rImg] = await Promise.all([bm(gBlob), bm(rBlob)]);
-  return { meta, arrays, surf, tex, grain: { ground: gImg, roof: rImg } };
+  return { meta, arrays, surf, tex, grain };
+}
+/** The streets' and the roofs' photographed grain (CC0: Poly Haven; tools/virtually/town_textures.py, CREDITS.txt): R asphalt,
+ *  G paving stones, B concrete slabs; R clay tiles, G slates — around mid-grey, multiplied by 2. { ground, roof } (null when missing). */
+export async function townGrains() {
+  const bm = (n) => fetch(`/assets/textures/virtually/${n}.webp`).then((r) => (r.ok ? r.blob() : null))
+    .then((b) => (b ? createImageBitmap(b, { colorSpaceConversion: "none", premultiplyAlpha: "none" }) : null)).catch(() => null);
+  const [ground, roof] = await Promise.all([bm("town-ground"), bm("town-roof")]);
+  return { ground, roof };
 }
 
 const NOISE = /* glsl */`

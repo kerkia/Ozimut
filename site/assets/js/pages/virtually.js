@@ -48,8 +48,8 @@ const EVENTS = new Map();                 // the events' records, by id (an even
 /** A map's name: an event's own, its catalogue entry, else its id. */
 const mapName = (id) => {
   if (EVENTS.has(id)) return EVENTS.get(id).name;
-  const day = /^day-(\d{4})(\d{2})(\d{2})$/.exec(id);              // a « Carte du jour » (pages/virtuallygen.js)
-  if (day) return t("vtg.name.day", { date: fmtDate(`${day[1]}-${day[2]}-${day[3]}`) });
+  const day = /^day-(\d{4})(\d{2})(\d{2})(-s)?$/.exec(id);        // a « Carte du jour » (pages/virtuallygen.js), « -s » the sprint's
+  if (day) return t(day[4] ? "vtg.name.sday" : "vtg.name.day", { date: fmtDate(`${day[1]}-${day[2]}-${day[3]}`) });
   const k = `vt.map.${id}`, v = t(k); return v === k ? id : v;
 };
 /** May this account see another's run of the circuit in the analysis? A training's always (owner, 2026-11-14: every training open
@@ -233,7 +233,7 @@ export async function render(main, { query }) {
       // on a phone the chosen map's circuits and « Commencer » come right under that map, not under the whole list (owner, 2026-11-12)
       // the invented forests (pages/virtuallygen.js) as two tiles among the maps (owner, 2026-11-14: hidden at the page's bottom,
       // nobody saw them): « gen:day » / « gen:free » chosen shows their section right under the maps, in place of a map's courses
-      const gen = /^gen:(day|free)$/.exec(sel.race || "")?.[1] || null;
+      const gen = /^gen:(day|free|sday|sfree)$/.exec(sel.race || "")?.[1] || null;
       const inline = (!!race || !!gen) && matchMedia("(max-width: 640px)").matches;
       el.innerHTML = html`<p class="muted vtp-intro">${t(auth.session()?.admin ? "vt.tr.intro" : "vt.tr.introAll")}</p>
         <h2 class="vtp-h">${t("vt.tr.maps")}</h2>
@@ -246,7 +246,7 @@ export async function render(main, { query }) {
           ${r.event && envText(t, r.event.env) ? html`<span class="vtp-env">${envText(t, r.event.env)}</span>` : ""}
           ${r.event && mapOptText(t, r.event.mapOpt) ? html`<span class="vtp-env">${mapOptText(t, r.event.mapOpt)}</span>` : ""}
           <span class="muted">${t(`vt.src.${r.race.source}`, { authors: (r.race.photoAuthors || []).join(", ") || "—" })}</span></button>${inline && r.id === race?.id ? raw('<div class="vtp-inline"></div>') : ""}`)}
-          ${["day", "free"].map((k) => html`<button type="button" class="vtp-map vtp-genmap card" data-gen="${k}" aria-pressed="${gen === k}">
+          ${["day", "free", "sday", "sfree"].map((k) => html`<button type="button" class="vtp-map vtp-genmap card" data-gen="${k}" aria-pressed="${gen === k}">
             <span class="vtp-genthumb vtp-genthumb-${k}" aria-hidden="true"></span>
             <b>${t(`vtg.${k}.h`)}</b><span class="muted">${t(`vt.tr.gen.${k}`)}</span>
             <span><span class="tag vtg-tag">${t("vtg.tag")}</span></span></button>${inline && gen === k ? raw('<div class="vtp-inline"></div>') : ""}`)}</div>
@@ -270,7 +270,7 @@ export async function render(main, { query }) {
       // invented terrain (pages/virtuallygen.js): the « Carte du jour » and the « Terrain libre », played by `play` as any map
       const genHost = $("#vtp-gen", el);
       const into = (q) => requestAnimationFrame(() => $(q, el)?.scrollIntoView({ block: "nearest", behavior: "smooth" }));
-      if (gen) import("./virtuallygen.js").then(async (m) => { if (genHost.isConnected) { await m.renderGen(genHost, { play, runsOf, courseName, swatch, offered }); into(`#vtp-gen [data-k="${gen}"]`); } })
+      if (gen) import("./virtuallygen.js").then(async (m) => { if (genHost.isConnected) { await m.renderGen(genHost, { play, runsOf, courseName, swatch, offered, kind: gen.startsWith("s") ? "sprint" : "forest" }); into(`#vtp-gen [data-k="${gen}"]`); } })
         .catch((e) => console.error(e));
       if (inline) $(".vtp-inline", el).append(gen ? genHost : $(".vtp-below", el));
       $$(".vtp-map", el).forEach((b) => b.addEventListener("click", () => {

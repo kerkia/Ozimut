@@ -4828,6 +4828,12 @@ html.vt-fs-on, html.vt-fs-on body { overflow: hidden; }
   radial-gradient(circle at 75% 30%, #b8e4a3 0 22%, transparent 23%), radial-gradient(circle at 20% 25%, #fbd38b 0 16%, transparent 17%); }
 .vtp-genthumb-free { background-image: repeating-radial-gradient(circle at 70% 55%, transparent 0 9px, #c46a1d 9px 10.5px, transparent 10.5px 18px),
   radial-gradient(circle at 25% 70%, #b8e4a3 0 26%, transparent 27%), radial-gradient(circle at 80% 20%, #fbd38b 0 14%, transparent 15%); }
+/* the invented towns' tiles (sprint; 2026-11-26): streets, houses as dots, a park */
+.vtp-genthumb-sday, .vtp-genthumb-sfree { background-color: #8fa040; background-size: auto, auto, auto, 8.6px 7.6px;
+  background-image: radial-gradient(circle at 62% 42%, #fbd38b 0 13%, transparent 14%), repeating-linear-gradient(90deg, transparent 0 26px, #dccbab 26px 31px),
+  repeating-linear-gradient(0deg, transparent 0 18px, #dccbab 18px 23px), radial-gradient(#9a9a9a 0 2.6px, transparent 3px); }
+.vtp-genthumb-sfree { background-image: radial-gradient(circle at 25% 70%, #fbd38b 0 15%, transparent 16%), repeating-linear-gradient(80deg, transparent 0 24px, #dccbab 24px 29px),
+  repeating-linear-gradient(-6deg, transparent 0 17px, #dccbab 17px 22px), radial-gradient(#9a9a9a 0 2.6px, transparent 3px); }
 .vtp-courses { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 8px; }
 .vtp-course { display: grid; grid-template-columns: auto 1fr; gap: 2px 8px; align-items: center; padding: 8px 10px; text-align: left; font: inherit; color: inherit;
   background: var(--surface); border: 1px solid var(--border); border-radius: 8px; cursor: pointer; }

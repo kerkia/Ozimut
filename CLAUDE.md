@@ -1335,6 +1335,38 @@ Every multiple-choice game was played through to its score page at phone size, w
   a 1.2 km world and its six courses in 3-5 s (Node 2-3 s; a 1.6 km offline race 5-10 s); 30-43 fps at 1400 × 860 and at a phone's
   390 × 844 viewport, Autrans 33 fps the same way; not yet on a real phone. Local test: launch config `pixel-gen` (8772, its own copy
   of the local state, `.wrangler/state-gen`).
+  **Invented towns, for sprint** (owner, 2026-11-26: « des cartes synthétiques pour le sprint, terrain libre et carte du jour pour
+  sprint »): Training's tiles « Carte du jour — sprint » and « Terrain libre — sprint » beside the forest's two (`gen:sday`,
+  `gen:sfree`; `pages/virtuallygen.js` draws the forest pair or the sprint pair by the tile chosen, `ctx.kind`). `games/vtowngen.js`
+  `generateTown({ seed, size 500-1000 (700), buildings, gardens, parks })` makes, with vgen's rules (deterministic arithmetic, one
+  model for the map and the world; vgen.js now exports its noise, tracing and line helpers), a town: a street lattice turned,
+  jittered and warped (`F`, grid coordinates to metres: streets curve, blocks differ), a main road each way, narrower streets and
+  alleys in the old centre (round the town's middle, smaller the more gardens), blocks merged two by two, passages splitting old
+  blocks, a steep bank across the town whose alleys (and streets over 14 %) become stairways (over 9 %); the streets rasterised
+  once (each cell's nearest street by how far inside it is, and its nearest carriageway), the blocks their connected pieces, each
+  a kind — a square (the one at the middle; its church, ridge down the nave, its monument or fountain, trees), old terraces on the
+  street (shops on the ground floor here and there; the inner court public paving, else private gardens), detached houses in
+  their gardens with a hedge, low wall or fence on the street (fences between the gardens in 3D only), housing estates (blocks of
+  flats on lawns, a footway to the street), parks (lawn, woods, shrubs, a pond, gravel paths to a fountain or monument, often
+  fenced with gates), a school behind its wall with gates (its wall ends: sites). Ground nobody reaches from the streets is 520.
+  The map (ISSprOM 2019-2 at 1:4000, `vgenmap.mapBytes(…, { scale: 4000, setId: "issprom2019-2" })`): the areas traced from the
+  ground (520, 501, 401, 406, 301), hedges as 411 strips, each run of touching houses one 521 polygon, kerbs 501.1, paths 505,
+  stairways 532.2, walls and fences (513.1, 515, 516, 518), trees 417/418, monuments 526, fountains 311, contours every 2.5 m,
+  north lines every 80 m. The 3D: the town's arrays as games/vtown.js reads a package's town.json / town.bin (`buildTown`: walls
+  to the eaves, gables to the ridge, roofs with 0.3 m eaves, flat roofs for schools and flats, chimneys; kerbs, steps, fences,
+  hedges, walls; lamps, benches, bins, fountains, monuments; parked cars), the ground's picture at 2 px a metre (the streets'
+  edges smooth, a dashed line down the main roads), surf codes, the trees as trees.bin (`vtown.townGrains` shared with
+  loadTown); `vgenpack.townPackage`, `raceOfTown` (source `gentown`, `vt.src.gentown`). Courses: `games/vcoursesprint.js`
+  `setSprintCourses`, course_sprint.py's four levels and rules (sites at the flags: corners 1.1 m out, wall ends, stairs' feet,
+  monuments, fountains, trees; `sep`, no dog-leg, no leg along another; route choice by the share of the straight line that cannot
+  be crossed), the best eight checked on the ground by A* (each leg reachable, under 2.3 × its straight line; a detour a bonus for
+  the orange courses, a cost for the easy ones). The sprint's day map is race `day-YYYYMMDD-s` (`vgenpack.dayOpts("YYYYMMDD-s")`:
+  seed `pixel-sday-<day>`, 700 m, sliders 0.5; functions/api/virtual `DAY` accepts the suffix, listed with the forest's by
+  `runs?race=day`; `mapName` « Sprint du jour du … »; the analysis remakes it as the forest's day map). The free town is
+  `gen-sprint-<n>`, never kept. Measured 2026-11-26 (the PC loaded by other sessions' builds: a forest « Terrain libre » took
+  14.2 s against 3-5 s on 2026-11-12): a 700 m town and its four courses in Node 2.5-4.3 s, in headless Edge's worker 6-9 s
+  (the main thread 5-6.7 s); 51-60 fps at 1400 × 860, 60 fps at 390 × 844 (work\vr3d\sprinttest.mjs, sprintprof.mjs); Node
+  and Edge give the same town and course signature. No legibility check of the town's map yet (the forest's vcheck.js is ISOM's).
   **Sprint in a town** (owner, 2026-11-11: « LiDAR + OpenStreetMap, as realistic as possible »; race **Gif-sur-Yvette**, `gif`, its
   centre 600 × 600 m between the RER station and the church until 2026-11-12, then 1 320 × 1 040 m round 48.6989 N 2.1315 E, Lambert 93
   635420-636740 × 6844142-6845182 — the owner's area drawn on IGN's map (0.48 km², the sports grounds, Le Clos, the station and
