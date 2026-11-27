@@ -4568,6 +4568,20 @@ Every multiple-choice game was played through to its score page at phone size, w
   The course bench unchanged. **« Inter-postes » also from the track** (owner's choice the same day, against the rule of
   2026-11-01): when no order is known but every placed control is passed one after the other (`trackOrdered`), with a line above
   the table (`an.legs.trackOrder`) saying a control the reading missed merges two legs.
+  **Firefox's drawing and the stairways of the Auray scan** (owner, 2026-11-27: « the route by the stairs to control 6 on map 2
+  remains missing » in Firefox): the reading of the two drawings differs by a pixel here and there, enough to cut a metre-wide way.
+  The joins between a way's pieces (`sprintLayers`) now also start from the ways read before them — between two houses, between
+  two thick walls, a stairway — when these run between closed ground (`between`; pieces of their own, `known`, 3 m long at least,
+  which carry a join but lend no length to the others: one piece with them, a scrap beside them came to 3 m and was walled);
+  their walk crosses the grey blur on either side of a thin black line straight across it (`ahead`), and the way's own ground
+  colour the fill gave to the house beside it; a walk from a known way or through such grey crosses a metre of black at most (a
+  house's dark corner is no step). A stairway's rungs are any ink but the overprint (`rung`: under a contour or an erased north
+  line they read brown, grey, mixed), and two flights on one line within four steps are one stairway (`flights`, `openAxis`: the
+  wall across the stairway to 6 hid two treads in Firefox's drawing). Both drawings now: 5-6 up the stairway (204 m, best or
+  second), 13-14 down the stairway and the slit (264 m) with the terraces second, 14-15 up the stairway. **The gate reads
+  Firefox's drawing too** (`scans/ffnat<n>.rgba` from `gpu/ffnat.mjs`, keys `scan<n>ff`; baseline of before
+  `baseline_2026-11-27_before_ff.json`); accepted with scan 2's every-route lines 7 → 12 (the terraces route into 14, back as asked:
+  it steps over the terrace edges).
 - **Languages: French, English, German and Spanish** (owner, 2026-10-17 French and English, open to everyone since 2026-10-18,
   `i18n.OPEN` true; **German and Spanish since 2026-11-01**: `i18n.LANGS`, catalogues `i18n/de.js`, `es.js`, `tracer.de.js`,
   `tracer.es.js`, long texts `content/<name>.de.js` / `.es.js`, e-mails in `_lib/templates.js`, `manifest.de|es.webmanifest`;

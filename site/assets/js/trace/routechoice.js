@@ -1974,6 +1974,17 @@ export function sprintLayers(O, P, pts = [], r = 0) {
   // control 14 of the second Auray scan was shut at the top step (owner, 2026-11-23). Opened along its axis and 1.5 m beyond
   // each end, through the line that closes it there (its middle lane 2: the cell is the stair's ground whatever wall shares it)
   const stairs = new Uint8Array(w * h);                   // a stairway's own axis: open through its rungs, however thick
+  const flights = [];
+  const openAxis = (A0, ux, uy, L, ext) => {
+    for (let t = -ext; t <= L + ext; t += 0.5) for (const v of [-1, 0, 1]) {
+      const x = Math.round(A0.x + ux * t - uy * v), y = Math.round(A0.y + uy * t + ux * v);
+      if (x < 0 || y < 0 || x >= w || y >= h) continue;
+      const k = y * w + x;
+      block[k] = 0; stairs[k] = 1;
+      if (ar[k] === A.GREY || ar[k] === A.BUILDING || ar[k] === A.OOB) ar[k] = A.ROUGH;
+      if (!v) lane[k] = 2;
+    }
+  };
   if (O.pale && 1.6 / mpp >= 4) {
     const { comps: pc } = components(O.pale, w, h, true), big = 2.5 / mpp, tr = [];   // (a tread as wide as its stairway: 2 m and more)
     for (let id = 1; id < pc.length; id++) {
@@ -1984,7 +1995,11 @@ export function sprintLayers(O, P, pts = [], r = 0) {
     const B = Math.max(4, Math.round(3 / mpp)), bx = Math.ceil(w / B), cell = new Map();
     tr.forEach((t, i) => { const k = Math.floor(t.y / B) * bx + Math.floor(t.x / B); if (!cell.has(k)) cell.set(k, []); cell.get(k).push(i); });
     const near = (x, y, r) => { const out = []; const cx = Math.floor(x / B), cy = Math.floor(y / B); for (let j = cy - 1; j <= cy + 1; j++) for (let i = cx - 1; i <= cx + 1; i++) for (const q of cell.get(j * bx + i) || []) if (Math.hypot(tr[q].x - x, tr[q].y - y) <= r) out.push(q); return out; };
-    const barBetween = (a, b) => { for (let t = 0.2; t <= 0.8; t += 0.1) { const x = Math.round(a.x + (b.x - a.x) * t), y = Math.round(a.y + (b.y - a.y) * t); if (P.kind[y * w + x] === I_BLACK) return true; } return false; };
+    // (a rung under another line's ink — a contour, a north line taken out — reads brown, grey, mixed or erased: any ink but the
+    // overprint's between two treads, the ground's colour never: the stairway to the second Auray scan's 6 crossed by both, read in
+    // Firefox's drawing with the wall across it whole, owner 2026-11-27)
+    const rung = (v) => v === I_BLACK || v === I_GREY || v === I_BROWN || v === I_MIXED || v === I_ERASED || v === I_BLUE;
+    const barBetween = (a, b) => { for (let t = 0.2; t <= 0.8; t += 0.1) { const x = Math.round(a.x + (b.x - a.x) * t), y = Math.round(a.y + (b.y - a.y) * t); if (rung(P.kind[y * w + x])) return true; } return false; };
     const dMin = 1.2 / mpp, dMax = 2.6 / mpp;
     for (let i = 0; i < tr.length; i++) {
       if (tr[i].used) continue;
@@ -2015,14 +2030,20 @@ export function sprintLayers(O, P, pts = [], r = 0) {
       }
       if (!bestC) continue;
       for (const k of bestC) tr[k].used = true;
-      const A0 = tr[bestC[0]], Z = tr[bestC[bestC.length - 1]], L = Math.hypot(Z.x - A0.x, Z.y - A0.y), ux = (Z.x - A0.x) / L, uy = (Z.y - A0.y) / L, ext = 1.5 / mpp;
-      for (let t = -ext; t <= L + ext; t += 0.5) for (const v of [-1, 0, 1]) {
-        const x = Math.round(A0.x + ux * t - uy * v), y = Math.round(A0.y + uy * t + ux * v);
-        if (x < 0 || y < 0 || x >= w || y >= h) continue;
-        const k = y * w + x;
-        block[k] = 0; stairs[k] = 1;
-        if (ar[k] === A.GREY || ar[k] === A.BUILDING || ar[k] === A.OOB) ar[k] = A.ROUGH;
-        if (!v) lane[k] = 2;
+      const A0 = tr[bestC[0]], Z = tr[bestC[bestC.length - 1]], L = Math.hypot(Z.x - A0.x, Z.y - A0.y), ux = (Z.x - A0.x) / L, uy = (Z.y - A0.y) / L;
+      flights.push({ A0, Z, ux, uy, L, step: L / (bestC.length - 1) });
+      openAxis(A0, ux, uy, L, 1.5 / mpp);
+    }
+    // a stairway through a wall: two flights on one line, end to end, the treads under the wall's ink lost (Firefox's drawing of the
+    // second Auray scan blurs two treads into the wall that crosses the stairway to 6: two flights and a wall between them, owner
+    // 2026-11-27) — joined across a gap of up to four steps
+    for (let i = 0; i < flights.length; i++) for (let j = 0; j < flights.length; j++) {
+      if (i === j) continue;
+      const f = flights[i], g = flights[j], st = Math.max(f.step, g.step);
+      if (Math.abs(f.ux * g.ux + f.uy * g.uy) < 0.97) continue;
+      for (const q of [g.A0, g.Z]) {
+        const dx = q.x - f.Z.x, dy = q.y - f.Z.y, along = dx * f.ux + dy * f.uy, side = Math.abs(dx * f.uy - dy * f.ux);
+        if (along > 0 && along <= 5 * st && side < 0.6 * st) openAxis(f.Z, f.ux, f.uy, along, 0);
       }
     }
   }
@@ -2141,7 +2162,27 @@ export function sprintLayers(O, P, pts = [], r = 0) {
     // scan's lane between 11 and 13): two pieces end to end, in line, 4 m apart at most, with only such ink between them (no
     // wall, no building's grey: a thin black line across a way is a step or a kerb, as everywhere), are one way, and the ink
     // between is the way's ground
-    const { lab, comps } = components(mark, w, h, true), banks = [], nC = comps.length;
+    // (the ways read before — between two houses, between two thick walls — are pieces too, so that the joins below carry them
+    // across the line drawn over their mouth: Firefox's drawing of the second Auray scan lost the last 2 m of the gap between two
+    // houses on the way to 6, a street's edge across it, owner 2026-11-27; bit 4: no bank is drawn beside them here). Pieces of
+    // their own, which carry their joins whatever their length and lend none to the others: as one piece with them, a scrap
+    // of a way beside them came to 3 m and was walled (the third scan's control 12, the same day)
+    // (a way between closed ground only, across or along within 3 m: the axes laid through open ground — a stairway's ends — join
+    // nothing, and crossed the thin walls of the rough land round the third scan's 12)
+    const between = (i) => {
+      for (const st of [1, w]) {
+        let a = 0, b = 0;
+        for (let t = 1; t <= maxW && !a; t++) { const q = i - t * st; if (q < 0) break; if (shut(q)) a = t; }
+        for (let t = 1; t <= maxW && !b; t++) { const q = i + t * st; if (q >= N) break; if (shut(q)) b = t; }
+        if (a && b && a + b <= maxW + 1) return true;
+      }
+      return false;
+    };
+    for (let i = 0; i < N; i++) if (lane[i] === 2 && !mark[i] && !shut(i) && between(i)) mark[i] = 4;
+    const C12 = components(mark.map((v) => (v && v !== 4 ? 1 : 0)), w, h, true), C4 = components(mark.map((v) => (v === 4 ? 1 : 0)), w, h, true);
+    const n12 = C12.comps.length, lab = C12.lab, comps = C12.comps.concat(C4.comps.slice(1)), banks = [], nC = comps.length;
+    for (let i = 0; i < N; i++) if (C4.lab[i]) lab[i] = n12 - 1 + C4.lab[i];
+    const known = (id) => id >= n12;
     const end = comps.map((c) => (c ? { lo: Infinity, hi: -Infinity, a: -1, b: -1 } : null)), axis = comps.map((c) => {
       if (!c) return null;
       const mx = c.sx / c.n, my = c.sy / c.n, xx = c.sxx / c.n - mx * mx, yy = c.syy / c.n - my * my, xy = c.sxy / c.n - mx * my;
@@ -2159,7 +2200,10 @@ export function sprintLayers(O, P, pts = [], r = 0) {
     // (and the pale or greenish fringe a blue line leaves over a street: a ground colour, closed only because the reading gave
     // it its neighbours' — beside a blue or erased pixel)
     const blueBy = (k) => { for (let j = -2; j <= 2; j++) for (let i = -2; i <= 2; i++) { const v = P.kind[k + j * w + i]; if (v === I_BLUE || v === I_ERASED) return true; } return false; };
-    const inkOnly = (k) => { const v = P.kind[k]; return !block[k] && (v === I_BROWN || v === I_PURPLE || v === I_BLUE || v === I_ERASED || v === I_MIXED || v === I_LILAC || v === I_BLACK || ((v < 20 || v === I_GREY) && blueBy(k))); };
+    // (and the paper between two lines, light and neutral: read as a house's grey)
+    // (and the way's own ground the fill gave to the house beside it: a row or two of the metre-wide passage to the second Auray
+    // scan's 14, in Firefox's drawing — 2026-11-27)
+    const inkOnly = (k) => { const v = P.kind[k]; return !block[k] && (v === I_BROWN || v === I_PURPLE || v === I_BLUE || v === I_ERASED || v === I_MIXED || v === I_LILAC || v === I_BLACK || (v === I_GREY && O.light?.[k]) || ((v < 20 || v === I_OLIVE || v === I_MIXED) && (ar[k] === A.GREY || ar[k] === A.BUILDING)) || ((v < 20 || v === I_GREY) && blueBy(k))); };
     const ends = [];
     for (let id = 1; id < nC; id++) {
       if (comps[id].n < 3) continue;
@@ -2174,15 +2218,22 @@ export function sprintLayers(O, P, pts = [], r = 0) {
       let best = null;
       for (const deg of [0, 15, -15, 30, -30]) {
         const c = Math.cos((deg * Math.PI) / 180), sn = Math.sin((deg * Math.PI) / 180), dx = E.dx * c - E.dy * sn, dy = E.dx * sn + E.dy * c, px = [];
-        let ink = 0, hit = -1;
+        let ink = 0, hit = -1, dark = 0, thin = known(E.id);
         for (let t = 1; t <= reach * 2; t++) {
           const x = Math.round(x0 + (dx * t) / 2), y = Math.round(y0 + (dy * t) / 2);
           if (x < 1 || y < 1 || x >= w - 1 || y >= h - 1) { hit = -2; break; }
           const k = y * w + x;
           if (px[px.length - 1] === k) continue;
           if (!shut(k)) { if (ink) { hit = k; break; } px.push(k); continue; }       // still the way's own end
-          if (!inkOnly(k)) { hit = -2; break; }
+          // (the blur of a thin black line across the way, grey just before or after the black, straight ahead or behind: Firefox
+          // draws the second Auray scan's way to the stairway of 5-6 with it, 2026-11-27 — not a grey beside a black line running
+          // along: a house's edge)
+          const ahead = (u) => P.kind[Math.round(y + dy * u) * w + Math.round(x + dx * u)] === I_BLACK;
+          if (!inkOnly(k) && !(P.kind[k] === I_GREY && !block[k] && (ahead(1) || ahead(2) || ahead(-1) || ahead(-2)) && (thin = true))) { hit = -2; break; }
           ink++; px.push(k);
+          // (from a way read before, or through such grey, a thin line only — a metre of black at most: a house's dark corner is no
+          // step, the third scan's 11-12)
+          if (P.kind[k] === I_BLACK && thin && ++dark * mpp > 1.2) { hit = -2; break; }
         }
         // open all the way: the end is the way's mouth on a street or a square, and its last metres — no longer between two
         // banks, so not marked, yet sharing their cells with the walls beside them — are the way's too
@@ -2194,14 +2245,14 @@ export function sprintLayers(O, P, pts = [], r = 0) {
       const hx = best.hit % w, hy = (best.hit - hx) / w;
       for (let j = -2, done = false; j <= 2 && !done; j++) for (let i = -2; i <= 2; i++) {
         const o = lab[(hy + j) * w + hx + i];
-        if (o && root(o) !== root(E.id)) { up[root(E.id)] = root(o); done = true; break; }
+        if (o && !known(o) && !known(E.id) && root(o) !== root(E.id)) { up[root(E.id)] = root(o); done = true; break; }
       }
     }
     const total = new Float64Array(nC);
-    for (let id = 1; id < nC; id++) total[root(id)] += axis[id].len;
-    for (const J of joins) total[root(lab[J.from])] += J.px.length / 2;
+    for (let id = 1; id < nC; id++) if (!known(id)) total[root(id)] += axis[id].len;
+    for (const J of joins) if (!known(lab[J.from])) total[root(lab[J.from])] += J.px.length / 2;
     for (let i = 0; i < N; i++) {
-      if (!mark[i] || total[root(lab[i])] < minLen) continue;
+      if (!mark[i] || known(lab[i]) || total[root(lab[i])] < minLen) continue;
       lane[i] = 2;
       for (const st of [mark[i] & 1 ? 1 : 0, mark[i] & 2 ? w : 0]) {
         if (!st) continue;
@@ -2225,7 +2276,7 @@ export function sprintLayers(O, P, pts = [], r = 0) {
         }
       }
     }
-    for (const J of joins) if (total[root(lab[J.from])] >= minLen) for (const k of J.px) { lane[k] = 2; ar[k] = ar[J.from]; }
+    for (const J of joins) if (known(lab[J.from]) ? axis[lab[J.from]].len >= minLen : total[root(lab[J.from])] >= minLen) for (const k of J.px) { lane[k] = 2; ar[k] = ar[J.from]; }
     // a way running aslant: its middle steps corner to corner, and the route grid never slips between two closed cells that
     // touch by a corner — the corner pixel between two such steps is the way's too
     for (let y = 1; y < h - 1; y++) for (let x = 1; x < w - 1; x++) {
