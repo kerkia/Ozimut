@@ -871,8 +871,9 @@ banner asking a parent), a child taking the account over from 15 (`POST /api/tra
   they create) are the administrators' — and **testers'**, the accounts whose D1 `users.preview` names `track` (owner, 2026-11-23: Alec
   and Nadejda Le Helloco; `_lib/track.js trackTester`, `publicUser.trackOpen`; set by hand: `UPDATE users SET preview = … WHERE id = …`,
   keeping the other features in the list); the registration form asks the year of birth only when it is "1" (`/api/account/status`
-  `track`). **The apps' icons** are the Ozimut mark (`favicon.svg`): Folloz's drawn by its own `tools/make_icons.py`, the
-  Garmin launcher icon (70 px, light ink on black) by `track/tools/make_icons.py` (Pillow). **The owner's steps** (relay, Traccar test, sideloaded Android APK, Garmin beta, Firebase, Apple,
+  `track`). **The apps' icons**: Folloz has its own mark since 2026-11-28 (owner: « Live signal », a white dot and two ink
+  waves each side on the flag's orange — not Ozimut's, which sits beside it on a phone), drawn by Folloz's `tools/make_icons.py`;
+  the Garmin launcher icon (70 px, light ink on black) is the Ozimut mark (`favicon.svg`), by `track/tools/make_icons.py` (Pillow). **The owner's steps** (relay, Traccar test, sideloaded Android APK, Garmin beta, Firebase, Apple,
   Polar, Play, opening): `docs/track/setup.md`.
 - **Local test**: launch configs `ocn-live-track` (8771) then `pages-dev-track` (8774, a copy of the local state with 0029
   applied, the relay bound with `--do LIVE_TRACK=LiveTrack@ocn-live`); scripts `t_track.mjs` (the API, 31 checks) and
