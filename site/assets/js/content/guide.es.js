@@ -966,7 +966,7 @@ export function build(X) {
             html`<b>OpenStreetMap</b>: carreteras, caminos, edificios, agua, muros y vallas, clasificados en los símbolos del mapa.`,
             html`<b>Los datos nacionales</b>: la BD TOPO del IGN en Francia, swissTLM3D en Suiza, las carreteras, el agua y los edificios de The
               National Map en Estados Unidos.`,
-            html`<b>El plano urbano (sprint)</b>, para un mapa de sprint en Francia: el mapa que el generador de las carreras de Pixel hace a partir
+            html`<b>El plano urbano (sprint)</b>, para un mapa de sprint en Francia: el mapa que el generador de las carreras de Virtuoz hace a partir
               del LiDAR del IGN, su BD TOPO, la foto aérea y su infrarrojo, el catastro y OpenStreetMap, según las reglas de un cartógrafo — el
               espacio viario público pavimentado hasta los límites de las parcelas, el borde de las zonas pavimentadas y los bordillos, aceras y
               carriles bici como líneas a su anchura, escaleras a su anchura, la red de caminos conectada, los edificios adosados unidos, la

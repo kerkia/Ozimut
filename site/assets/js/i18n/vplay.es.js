@@ -52,7 +52,7 @@ export default {
   "vk.season.summer": "Verano",
   "vk.season.autumn": "Otoño",
   "vk.season.winter": "Invierno",
-  "vk.intro": "Elige tus teclas para Pixel. Haz clic en una tecla y pulsa la que quieras; Retroceso o Supr vacía la casilla, Esc cancela. Dos teclas como máximo por acción; tu elección se guarda en este navegador.",
+  "vk.intro": "Elige tus teclas para Virtuoz. Haz clic en una tecla y pulsa la que quieras; Retroceso o Supr vacía la casilla, Esc cancela. Dos teclas como máximo por acción; tu elección se guarda en este navegador.",
   "vk.g.run": "La carrera",
   "vk.g.map": "El mapa",
   "vk.g.view": "Las vistas",

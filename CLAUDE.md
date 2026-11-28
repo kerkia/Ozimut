@@ -1847,7 +1847,9 @@ Every multiple-choice game was played through to its score page at phone size, w
 - **Pixel's competitions, the week's race, its menu, its keys** (owner, 2026-11-28; **the contract is `docs/pixel/competitions.md`: change it
   first, then the code**; **the administrators' only for now** — one switch each side: `games/vnext.js pixelNext()` and
   `functions/_lib/virtual.js compAllowed`; everyone else keeps Pixel as described above, « Carte du jour » included). The owner chose
-  the module's new name the same day, **« Virtuoz »** (Pixel read as Google's): the rename follows as its own change. With the switch:
+  the module's new name the same day, **« Virtuoz »** (Pixel read as Google's; virtual + virtuoso, the « oz » of Chronoz and Folloz): **every
+  text in the four languages says Virtuoz, its addresses are `#/virtuoz…` (`#/pixel…` and the older ones still open it)**; the notes
+  above and the code keep « Pixel » / `pixel` (the module's key, `users.hidden_modules`, `mod.pixel`) and `virtually*` (files, routes). With the switch:
   Pixel's tabs are the bar's menu, a route each, all drawn by `pages/virtually.js` — Entraînement `#/pixel` (`virtually`), Compétitions
   `#/pixel/competitions` (`virtuallyComp`, `pages/virtuallycomp.js`), Classement, Analyse, Avatar (two page tabs: « Apparence » and
   « Commandes », `games/vkeys.js` / `vkeysui.js`: every keyboard action of a run bound to keys of one's own, `localStorage ocn.vt.keys`),

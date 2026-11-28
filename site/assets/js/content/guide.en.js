@@ -921,7 +921,7 @@ export function build(X) {
             html`<b>OpenStreetMap</b>: roads, paths, buildings, water, walls and fences, sorted into the map's symbols.`,
             html`<b>National data</b>: IGN's BD TOPO in France, swissTLM3D in Switzerland, The National Map's roads, water and buildings in the
               United States.`,
-            html`<b>The town plan (sprint)</b>, for a sprint map in France: the map the generator Pixel's races use makes from IGN's LiDAR, its BD
+            html`<b>The town plan (sprint)</b>, for a sprint map in France: the map the generator Virtuoz's races use makes from IGN's LiDAR, its BD
               TOPO, the aerial photograph and its infrared, the cadastre and OpenStreetMap, by a mapper's rules — the public road space paved up to
               the property lines, the edge of paved areas and the kerbs, footways and cycle paths as lines at their width, stairways at their width,
               the path network joined, adjoining buildings drawn as one, vegetation and lone trees read from the LiDAR, walls and fences passable or

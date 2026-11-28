@@ -962,7 +962,7 @@ export function build(X) {
             html`<b>OpenStreetMap</b> : routes, chemins, bâtiments, eau, murs et clôtures, rangés dans les symboles de la carte.`,
             html`<b>Les données nationales</b> : la BD TOPO de l'IGN en France, swissTLM3D en Suisse, les routes, l'eau et les bâtiments de The
               National Map aux États-Unis.`,
-            html`<b>Le plan de ville (sprint)</b>, pour une carte sprint en France : la carte que le générateur des courses de Pixel fait d'après le
+            html`<b>Le plan de ville (sprint)</b>, pour une carte sprint en France : la carte que le générateur des courses de Virtuoz fait d'après le
               LiDAR de l'IGN, sa BD TOPO, la photo aérienne et son infrarouge, le cadastre et OpenStreetMap, selon les règles d'un cartographe — la
               voirie publique pavée jusqu'aux limites des parcelles, le bord des zones pavées et les bordures, les trottoirs et pistes cyclables en
               lignes à leur largeur, les escaliers à leur largeur, le réseau de chemins raccordé, les bâtiments accolés réunis, la végétation et les

@@ -208,8 +208,8 @@ export const body = (SITE, { world = false, later = "" } = {}) => `
         guarda con el nombre de tu cuenta si es uno de tus 20 mejores en ese juego, y se muestra a las demás cuentas si está entre los
         20 mejores de todos. Solo el resultado, sus ajustes y la fecha; no se guarda nada de las partidas de un visitante sin cuenta.
         Estos resultados se borran con tu cuenta.</p>
-      <h2 style="font-size:16px">Pixel</h2>
-      <p>Cada carrera que terminas en Pixel se guarda con el nombre de tu cuenta: su tiempo, sus tiempos parciales, la
+      <h2 style="font-size:16px">Virtuoz</h2>
+      <p>Cada carrera que terminas en Virtuoz se guarda con el nombre de tu cuenta: su tiempo, sus tiempos parciales, la
         distancia recorrida y su recorrido por el bosque virtual, mostrados a las demás cuentas en los resultados, la clasificación y el
         análisis de ese recorrido; se te reconoce de una carrera a otra por una huella de tu cuenta, nunca por su número. No se guarda
         nada de las carreras de un visitante sin cuenta. Un organizador que crea un evento envía su mapa OCAD (y, si quiere, sus

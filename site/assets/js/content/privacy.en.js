@@ -193,8 +193,8 @@ export const body = (SITE, { world = false, later = "" } = {}) => `
         account's name if it is one of your 20 best for that game, and shown to the other accounts if it is among everyone's 20 best.
         The result, its settings and the date only; nothing is kept of a visitor's games without an account. These results are
         deleted with your account.</p>
-      <h2 style="font-size:16px">Pixel</h2>
-      <p>Each race you finish in Pixel is kept under your account's name: its time, its split times, the distance run and its
+      <h2 style="font-size:16px">Virtuoz</h2>
+      <p>Each race you finish in Virtuoz is kept under your account's name: its time, its split times, the distance run and its
         route in the virtual forest, shown to the other accounts in that course's results, ranking and analysis; you are told apart
         from one race to the next by a fingerprint of your account, never by its number. Nothing is kept of a visitor's races. An
         organiser who makes an event sends their OCAD map (and, if they wish, their courses): it is kept in the site's storage, shown

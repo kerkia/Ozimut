@@ -52,7 +52,7 @@ export default {
   "vk.season.summer": "Summer",
   "vk.season.autumn": "Autumn",
   "vk.season.winter": "Winter",
-  "vk.intro": "Choose your keys for Pixel. Click a key, then press the one you want; Backspace or Delete empties the slot, Esc cancels. Two keys at most per action; your choices are kept in this browser.",
+  "vk.intro": "Choose your keys for Virtuoz. Click a key, then press the one you want; Backspace or Delete empties the slot, Esc cancels. Two keys at most per action; your choices are kept in this browser.",
   "vk.g.run": "The race",
   "vk.g.map": "The map",
   "vk.g.view": "The views",

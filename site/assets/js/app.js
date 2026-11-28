@@ -94,7 +94,7 @@ const PAGES = {
 // (pages/virtually.js); without the switch (games/vnext.js) a sub-path opens the page on the matching tab of before (route_)
 const PIXEL_SUB = { competitions: "virtuallyComp", classement: "virtuallyRanking", analyse: "virtuallyAnalysis", avatar: "virtuallyAvatar", orga: "virtuallyOrga" };
 const PIXEL_ROUTES = Object.values(PIXEL_SUB);
-const PIXEL_PATH = { virtually: "#/pixel", ...Object.fromEntries(Object.entries(PIXEL_SUB).map(([k, r]) => [r, `#/pixel/${k}`])) };
+const PIXEL_PATH = { virtually: "#/virtuoz", ...Object.fromEntries(Object.entries(PIXEL_SUB).map(([k, r]) => [r, `#/virtuoz/${k}`])) };
 // the page's tabs of before (?onglet=) and the routes they are now; « Résultats » is a competition's card (Compétitions)
 const PIXEL_TAB = { entrainement: "virtually", resultats: "virtuallyComp", classement: "virtuallyRanking", analyse: "virtuallyAnalysis", avatar: "virtuallyAvatar", orga: "virtuallyOrga" };
 /** Pixel's Orga entry: where the page's Orga tab shows (an account with Orga, on a computer). */
@@ -210,7 +210,7 @@ function parseHash(hash = location.hash) {
     : head === "orga-analyses" || head === "orga-competitions" || head === "orga-entrainements" ? "orgAnalyses"     // one list since 2026-11-04 (old addresses)
     : head === "orga" || head === "gerer" || head === "orga-gerer" ? "orgManage"     // Orga is its events (2026-11-12; « Gérer » the day before)
     : head === "carto" ? "orgMapper"     // Ozimut Carto (2026-11-12): « Cartographier », a module of its own
-    : head === "pixel" ? PIXEL_SUB[arg] || "virtually"     // Ozimut Pixel (2026-11-12): « Virtually », a module of its own; its pages (2026-11-28)
+    : head === "virtuoz" || head === "pixel" ? PIXEL_SUB[arg] || "virtually"     // Ozimut Pixel (2026-11-12): « Virtually », a module of its own; its pages (2026-11-28)
     : head === "orga-resultats" ? "orgResults" : head === "orga-horaires" ? "orgStarts" : head === "orga-direct" ? "orgDirect" : head === "orga-tracer" ? "orgTracer" : head === "orga-carto" || head === "cartographier" ? "orgMapper"
     : head === "analyse-club" ? "analysisClub"
     : head === "analyse-competition" ? "analysisRace"
@@ -513,9 +513,9 @@ export function moduleMenus() {
     // are an event's tabs, their addresses lead there), Carto the map editor, Pixel the virtual races
     orga: [], carto: [],
     // Pixel's pages as its menu (owner, 2026-11-28; behind games/vnext.js): the page's own tabs before
-    pixel: pixelNext() ? [["virtually", "#/pixel", t("nav.pixel.training")], ["virtuallyComp", "#/pixel/competitions", t("nav.pixel.comp")],
-      ["virtuallyRanking", "#/pixel/classement", t("nav.pixel.ranking")], ["virtuallyAnalysis", "#/pixel/analyse", t("nav.pixel.analysis")],
-      ["virtuallyAvatar", "#/pixel/avatar", t("nav.pixel.avatar")], ...(pixelOrga() ? [["virtuallyOrga", "#/pixel/orga", t("nav.pixel.orga")]] : [])] : [],
+    pixel: pixelNext() ? [["virtually", "#/virtuoz", t("nav.pixel.training")], ["virtuallyComp", "#/virtuoz/competitions", t("nav.pixel.comp")],
+      ["virtuallyRanking", "#/virtuoz/classement", t("nav.pixel.ranking")], ["virtuallyAnalysis", "#/virtuoz/analyse", t("nav.pixel.analysis")],
+      ["virtuallyAvatar", "#/virtuoz/avatar", t("nav.pixel.avatar")], ...(pixelOrga() ? [["virtuallyOrga", "#/virtuoz/orga", t("nav.pixel.orga")]] : [])] : [],
   };
 }
 // the routes outside the menus, by module (a view of a page in the menu, an address of before)
@@ -527,7 +527,8 @@ const ROUTE_MODULE = { club: "stats", clubcompare: "stats", relays: "stats", ask
 // Stats opens on the ranking (owner, 2026-10-30: the page every visitor has), the others on their menu's first page
 // Coach and Orga open on their pages as tiles, Stats too on a phone (owner, 2026-10-31: every choice in sight at once; a
 // computer's Stats stays on the ranking)
-export const moduleHome = (m) => (["coach", "orga", "carto", "pixel"].includes(m) || (isPhone() && m === "stats") ? `#/${m}`
+export const moduleHome = (m) => (m === "pixel" ? "#/virtuoz"     // the module « Virtuoz » (its key stays « pixel »: users.hidden_modules)
+  : ["coach", "orga", "carto"].includes(m) || (isPhone() && m === "stats") ? `#/${m}`
   : m === "arena" ? "#/agenda" : m === "stats" ? "#/classement" : moduleMenus()[m]?.[0]?.[1] || "#/modules");
 /** The module of a tiles page (#/coach, #/stats, #/orga). */
 export const tilesModule = (r) => ({ stats: "stats" })[r.path.split("/").filter(Boolean)[0]] || "coach";

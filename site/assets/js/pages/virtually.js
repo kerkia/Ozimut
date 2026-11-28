@@ -105,8 +105,8 @@ function dayRace(id, onStep) {
 const courseName = (c) => (LEVELS.includes(c.id) ? t(`vt.lvl.${c.id}`) : c.name || c.id);
 const swatch = (id) => html`<span class="vtp-sw" style="background:${LEVEL_COLOUR[id] || "#888"}"></span>`;
 // the views of Pixel's next layout, their addresses (app.js PIXEL_SUB) and their routes
-const VIEW_PATH = { entrainement: "#/pixel", competitions: "#/pixel/competitions", classement: "#/pixel/classement", analyse: "#/pixel/analyse",
-  avatar: "#/pixel/avatar", orga: "#/pixel/orga" };
+const VIEW_PATH = { entrainement: "#/virtuoz", competitions: "#/virtuoz/competitions", classement: "#/virtuoz/classement", analyse: "#/virtuoz/analyse",
+  avatar: "#/virtuoz/avatar", orga: "#/virtuoz/orga" };
 const VIEW_OF = { virtually: "entrainement", virtuallyComp: "competitions", virtuallyRanking: "classement", virtuallyAnalysis: "analyse",
   virtuallyAvatar: "avatar", virtuallyOrga: "orga" };
 
@@ -274,7 +274,7 @@ export async function render(main, { query, route }) {
   /** The next layout: another view is another address (the router draws it); q its query (run, an, carte…). */
   const goView = (k, q = {}) => {
     const p = new URLSearchParams(Object.entries(q).filter(([, v]) => v != null && v !== ""));
-    location.hash = `${VIEW_PATH[k] || "#/pixel"}${p.toString() ? `?${p}` : ""}`;
+    location.hash = `${VIEW_PATH[k] || "#/virtuoz"}${p.toString() ? `?${p}` : ""}`;
   };
   const show = NEXT ? (k) => { if (k !== VIEW) goView(k, k === "analyse" ? { run: sel.run } : {}); else { drawn.add(k); draw(k); } }
     : bindPageTabs(main, tabs, tab, (k) => { if (!drawn.has(k) || (k !== "entrainement" && k !== "orga")) { drawn.add(k); draw(k); } });

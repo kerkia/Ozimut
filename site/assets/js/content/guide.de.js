@@ -978,7 +978,7 @@ export function build(X) {
             html`<b>OpenStreetMap</b>: Straßen, Wege, Gebäude, Gewässer, Mauern und Zäune, den Symbolen der Karte zugeordnet.`,
             html`<b>Die nationalen Daten</b>: die BD TOPO des IGN in Frankreich, swissTLM3D in der Schweiz, Straßen, Gewässer und Gebäude von The
               National Map in den Vereinigten Staaten.`,
-            html`<b>Der Stadtplan (Sprint)</b> für eine Sprintkarte in Frankreich: die Karte, die der Generator der Pixel-Rennen aus dem LiDAR des IGN,
+            html`<b>Der Stadtplan (Sprint)</b> für eine Sprintkarte in Frankreich: die Karte, die der Generator der Virtuoz-Rennen aus dem LiDAR des IGN,
               seiner BD TOPO, dem Luftbild und seinem Infrarot, dem Kataster und OpenStreetMap nach den Regeln eines Kartografen erstellt — der
               öffentliche Straßenraum befestigt bis zu den Flurstücksgrenzen, der Rand befestigter Flächen und die Bordsteine, Gehwege und Radwege
               als Linien in ihrer Breite, Treppen in ihrer Breite, das Wegenetz verbunden, aneinandergebaute Gebäude als eines, Vegetation und

@@ -211,8 +211,8 @@ export const body = (SITE, { world = false, later = "" } = {}) => `
         gardé sous le nom de votre compte si c'est l'un de vos 20 meilleurs pour ce jeu, et montré aux autres comptes s'il est parmi les
         20 meilleurs de tous. Le résultat, ses réglages et la date seulement ; rien n'est gardé des parties d'un visiteur sans compte.
         Ces résultats sont supprimés avec votre compte.</p>
-      <h2 style="font-size:16px">Pixel</h2>
-      <p>Chaque course terminée dans Pixel est gardée sous le nom de votre compte : son temps, ses temps intermédiaires, la
+      <h2 style="font-size:16px">Virtuoz</h2>
+      <p>Chaque course terminée dans Virtuoz est gardée sous le nom de votre compte : son temps, ses temps intermédiaires, la
         distance courue et son tracé dans la forêt virtuelle, montrés aux autres comptes dans les résultats, le classement et l'analyse
         de ce circuit ; vous êtes reconnu d'une course à l'autre par une empreinte de votre compte, jamais par son numéro. Rien n'est
         gardé des courses d'un visiteur sans compte. Un organisateur qui crée un événement y envoie sa carte OCAD (et, s'il le veut,
