@@ -174,17 +174,114 @@ export const TEXTURE_SETS = {
     "leaves-tree": "oak-leaves" },
 };
 export const PHOTO_GAIN = 2;
-/** The photo textures' pictures (ImageBitmaps by role), fetched together; null for one that fails (the drawn one stands in). */
-export async function loadPhotos(set = "default", base = "/assets/textures/virtually/") {
+const BITMAP = { premultiplyAlpha: "none", colorSpaceConversion: "none" };
+/** The photo textures' pictures (ImageBitmaps by role), fetched together; null for one that fails (the drawn one stands in).
+ *  `tex` { <TEX_ROLES role>: url } an event's own terrain photos laid over the set's (overlayPhotos); a string there is the
+ *  former second argument, the files' folder. */
+export async function loadPhotos(set = "default", tex = null, base = "/assets/textures/virtually/") {
+  if (typeof tex === "string") { base = tex; tex = null; }
   const roles = { ...Object.fromEntries(PHOTOS.map((n) => [n, n])), ...(TEXTURE_SETS[set] || {}) };
   const one = async ([role, n]) => {
     try {
       const r = await fetch(`${base}${n}.webp`);
       if (!r.ok) return [role, null];
-      return [role, await createImageBitmap(await r.blob(), { premultiplyAlpha: "none", colorSpaceConversion: "none" })];
+      return [role, await createImageBitmap(await r.blob(), BITMAP)];
     } catch (e) { return [role, null]; }
   };
-  return Object.fromEntries(await Promise.all(Object.entries(roles).map(one)));
+  const photos = Object.fromEntries(await Promise.all(Object.entries(roles).map(one)));
+  return tex ? overlayPhotos(photos, tex) : photos;
+}
+
+// ---- an event's own terrain photos (owner, 2026-11-28; docs/pixel/competitions.md §3.3, §4) ---------------------------------
+/** The roles an organiser may send a photo for (functions/api/virtual/events: tex-<role>.webp), each laid over the set's: the
+ *  forest floor, the paths' gravel, the rocks, the trunks' bark (the conifers' too), the grass tufts and the broadleaf crowns. */
+export const TEX_ROLES = ["floor", "path", "rock", "bark", "grass", "leaves"];
+// a role's photo roles (PHOTOS, TEXTURE_SETS): the ones it replaces, and the normal maps dropped with them (made for the set's own
+// photo: a drawn one stands in for the floor, none for the others)
+const TEX_MAP = { floor: { to: ["ground-litter"], drop: ["ground-litter-n"] }, path: { to: ["ground-gravel"] },
+  rock: { to: ["stone"], drop: ["stone-n"] }, bark: { to: ["bark", "pine-bark"], drop: ["bark-n", "pine-bark-n"] },
+  grass: { to: ["grass"], card: "grass" }, leaves: { to: ["leaves-a", "leaves-b", "leaves-tree"], card: "leaves" } };
+
+/** A card's photo (grass tufts, a leaf cluster: cut out, with transparency) from a square opaque photo: the card's shape — the set's
+ *  own card, else the drawn one — filled with the photo's colours. */
+function cardFrom(img, shape) {
+  const w = shape.width || 256, h = shape.height || 256, [c, g] = canvas(w, h);
+  g.drawImage(img, 0, 0, w, h);
+  g.globalCompositeOperation = "destination-in"; g.drawImage(shape, 0, 0, w, h);
+  return createImageBitmap(c, BITMAP);
+}
+
+/** Lay an event's photos `tex` { <role>: url } over `photos` (loadPhotos' pictures); a url that fails is left out. */
+export async function overlayPhotos(photos, tex) {
+  const out = { ...(photos || {}) };
+  const got = await Promise.all(Object.entries(tex || {}).filter(([role, url]) => TEX_MAP[role] && typeof url === "string" && url).map(async ([role, url]) => {
+    try {
+      const r = await fetch(url, { credentials: "same-origin" });
+      if (!r.ok) return null;
+      return [role, await createImageBitmap(await r.blob(), BITMAP)];
+    } catch (e) { return null; }
+  }));
+  for (const [role, img] of got.filter(Boolean)) {
+    const m = TEX_MAP[role];
+    for (const d of m.drop || []) out[d] = null;
+    for (const to of m.to) {
+      if (!m.card) { if (to !== "pine-bark" || out[to]) out[to] = img; continue; }   // the conifers' own bark: only a set's that has one
+      if (to === "leaves-tree" && !out[to]) continue;           // only a set that has its own tree leaves
+      const shape = out[to] || (m.card === "grass" ? grassCanvas(13) : leafCanvas(to === "leaves-b" ? 17 : 3));
+      try { out[to] = await cardFrom(img, shape); } catch (e) { /* the set's card stays */ }
+    }
+  }
+  return out;
+}
+
+/**
+ * A photo chosen by an organiser made into an event's terrain texture: its central square at 512 × 512, its colours brought round
+ * mid-grey per channel as the built-in photos are (tools/virtually/textures.py `normalised`: mean 128 a channel, 85 % of the
+ * photo's own colour variation kept, the rest its lightness), made to tile (cross-faded with itself shifted half a tile, first
+ * across, then down), then WebP (JPEG where the browser cannot write WebP). Returns a Blob.
+ */
+export async function prepareTexture(file) {
+  const S = 512, KEEP = 0.85;
+  const img = await createImageBitmap(file);
+  const side = Math.min(img.width, img.height), sx = (img.width - side) / 2, sy = (img.height - side) / 2;
+  // a large photo brought down in halves (one step from 4000 px to 512 aliases)
+  let src = img, sw = side, sxx = sx, syy = sy;
+  while (sw > S * 2) {
+    const n = Math.ceil(sw / 2), [c, g] = canvas(n);
+    g.imageSmoothingQuality = "high"; g.drawImage(src, sxx, syy, sw, sw, 0, 0, n, n);
+    src = c; sw = n; sxx = 0; syy = 0;
+  }
+  const [c0, g0] = canvas(S);
+  g0.imageSmoothingQuality = "high"; g0.drawImage(src, sxx, syy, sw, sw, 0, 0, S, S);
+  img.close?.();
+  const id = g0.getImageData(0, 0, S, S), d = id.data, N = S * S;
+  // round mid-grey
+  const mean = [0, 0, 0];
+  for (let i = 0; i < N; i++) { mean[0] += d[i * 4]; mean[1] += d[i * 4 + 1]; mean[2] += d[i * 4 + 2]; }
+  for (let k = 0; k < 3; k++) mean[k] = Math.max(1, mean[k] / N);
+  const lum = new Float32Array(N); let lm = 0;
+  for (let i = 0; i < N; i++) { lum[i] = (d[i * 4] + d[i * 4 + 1] + d[i * 4 + 2]) / 3; lm += lum[i]; }
+  lm = Math.max(1, lm / N);
+  const a = new Float32Array(N * 3);
+  for (let i = 0; i < N; i++) for (let k = 0; k < 3; k++) a[i * 3 + k] = (lum[i] / lm) * 128 * (1 - KEEP) + (d[i * 4 + k] / mean[k]) * 128 * KEEP;
+  // tiling: across (x), then down (y), each a cross-fade with the picture shifted half a tile, its own weight sin² — 1 in the middle,
+  // where the shifted copy has its seam, 0 at the edges, where the picture has its own
+  const w = new Float32Array(S);
+  for (let i = 0; i < S; i++) w[i] = Math.sin((Math.PI * (i + 0.5)) / S) ** 2;
+  const fade = (across) => {
+    const b = new Float32Array(N * 3), h = S >> 1;
+    for (let y = 0; y < S; y++) for (let x = 0; x < S; x++) {
+      const q = (y * S + x) * 3, xs = across ? (x + h) % S : x, ys = across ? y : (y + h) % S, p = (ys * S + xs) * 3, f = across ? w[x] : w[y];
+      for (let k = 0; k < 3; k++) b[q + k] = a[q + k] * f + a[p + k] * (1 - f);
+    }
+    a.set(b);
+  };
+  fade(true); fade(false);
+  for (let i = 0; i < N; i++) { for (let k = 0; k < 3; k++) d[i * 4 + k] = Math.max(0, Math.min(255, Math.round(a[i * 3 + k]))); d[i * 4 + 3] = 255; }
+  g0.putImageData(id, 0, 0);
+  const blob = (type, q) => new Promise((r) => c0.toBlob(r, type, q));
+  const webp = await blob("image/webp", 0.85);
+  return webp && webp.type === "image/webp" ? webp : blob("image/jpeg", 0.88);
 }
 /** Textures of the photos: linear (they are factors), repeated, mipmapped. */
 export function photoTextures(T, renderer, bm) {

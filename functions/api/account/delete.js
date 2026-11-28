@@ -211,7 +211,7 @@ export const onRequestPost = withUser(async ({ request, env }, user) => {
         const m = /^virtual-events\/(e[a-z0-9]{9})\.json$/.exec(o.key);
         if (!m || String(o.customMetadata?.by) !== String(user.id)) continue;
         const keys = [o.key, `virtual-build/${m[1]}.json`];
-        for (const p of [`virtual-events/${m[1]}/`, `virtual-ev/${m[1]}/`, `virtual-runs/${m[1]}/`]) {
+        for (const p of [`virtual-events/${m[1]}/`, `virtual-ev/${m[1]}/`, `virtual-runs/${m[1]}/`, `virtual-reg/${m[1]}/`]) {
           let c;
           do { const r = await env.BUCKET.list({ prefix: p, cursor: c, limit: 1000 }); keys.push(...r.objects.map((x) => x.key)); c = r.truncated ? r.cursor : undefined; } while (c);
         }
@@ -227,6 +227,13 @@ export const onRequestPost = withUser(async ({ request, env }, user) => {
       do {
         const r = await env.BUCKET.list({ prefix: "virtual-runs/", cursor, limit: 1000 });
         const gone = r.objects.map((o) => o.key).filter((k) => k.split("/").pop().startsWith(`${me}-`));
+        if (gone.length) await env.BUCKET.delete(gone);
+        cursor = r.truncated ? r.cursor : undefined;
+      } while (cursor);
+      // its registrations to Pixel's competitions (api/virtual/comp: virtual-reg/<competition>/<hash>.json)
+      do {
+        const r = await env.BUCKET.list({ prefix: "virtual-reg/", cursor, limit: 1000 });
+        const gone = r.objects.map((o) => o.key).filter((k) => k.endsWith(`/${me}.json`));
         if (gone.length) await env.BUCKET.delete(gone);
         cursor = r.truncated ? r.cursor : undefined;
       } while (cursor);

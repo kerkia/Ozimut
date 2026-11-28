@@ -199,7 +199,9 @@ export const body = (SITE, { world = false, later = "" } = {}) => `
         from one race to the next by a fingerprint of your account, never by its number. Nothing is kept of a visitor's races. An
         organiser who makes an event sends their OCAD map (and, if they wish, their courses): it is kept in the site's storage, shown
         only to the event's runners, in the game, once they have published it, and used to build the race on GitHub, where it is not
-        kept. These races, and the events with their maps and results, are deleted with your account.</p>
+        kept. These races, and the events with their maps and results, are deleted with your account. When you register for a
+        competition, it keeps under your account the course chosen, your start time and whether the run was finished or abandoned;
+        they are shown with your name in its results and deleted with your account.</p>
       <h2 style="font-size:16px">Questions to the AI</h2>
       <p>On the “AI” page, your question is sent to the language model that writes the query, with the description of the site's
         tables, today's date, your licence number and the chosen method and discipline: by default Ozimut's model, run by Cloudflare
@@ -293,5 +295,5 @@ export const body = (SITE, { world = false, later = "" } = {}) => `
       <p><b>Credits:</b> the control description symbols and texts (Coach › Control descriptions, the course setting) come from Purple
         Pen, by Peter Golde (<a href="https://github.com/petergolde/PurplePen" target="_blank" rel="noopener">github.com/petergolde/PurplePen</a>),
         under the <a href="assets/tracer/LICENSE-PurplePen.txt" target="_blank" rel="noopener">BSD licence</a>.</p>
-      <p class="muted">Last updated: 25 November 2026.</p>
+      <p class="muted">Last updated: 28 November 2026.</p>
 `;

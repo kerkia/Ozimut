@@ -7,22 +7,31 @@
 // light falling with the square of the distance, the haze black beyond it) and the control flags' retroreflective tape catching
 // it — a flag in the beam shines from far off, as real ones do, unless the ground hides it. The map panel is drawn apart (2D):
 // it stays readable. The built-in maps are played on a clear day (no env).
+// The season (owner, 2026-11-28, `env.season`; docs/pixel/competitions.md §4): "" (as the biome is: summer) | spring | summer |
+// autumn | winter, drawn with what the scene already has — the trees' and plants' colours (each chunk's instances read them when
+// built), the far trees' impostors, the ground's tint, a colder light in winter, the low plants gone then. Nothing a frame.
+import { loadArea } from "../i18n.js";
+
+await loadArea("vplay");                                   // the seasons' words (vk.season.*), wherever envText is used
 
 export const WEATHERS = ["clear", "overcast", "rain", "fog", "snow"];
 export const TIMES = ["day", "dusk", "night"];
 export const LAMPS = ["normal", "strong"];
+export const SEASONS = ["", "spring", "summer", "autumn", "winter"];
 
-/** An event's conditions, anything unknown taken as a clear day (the server's cleanEnv). */
+/** An event's conditions, anything unknown taken as a clear day (the server's cleanEnv); no season: "" (the biome's own). */
 export function envOf(e) {
   const pick = (v, list) => (list.includes(v) ? v : list[0]);
-  return { weather: pick(e?.weather, WEATHERS), time: pick(e?.time, TIMES), lamp: pick(e?.lamp, LAMPS) };
+  return { weather: pick(e?.weather, WEATHERS), time: pick(e?.time, TIMES), lamp: pick(e?.lamp, LAMPS), season: pick(e?.season, SEASONS) };
 }
+/** A clear day (whatever the season). */
 export const plain = (e) => { const v = envOf(e); return v.weather === "clear" && v.time === "day"; };
-/** The conditions in words (t: the catalogue's), « Pluie · Nuit, frontale puissante »; "" for a clear day. */
+/** The conditions in words (t: the catalogue's), « Automne · Pluie · Nuit, frontale puissante »; "" for a clear day of no season. */
 export function envText(t, e) {
   const v = envOf(e);
-  if (plain(v)) return "";
+  if (plain(v) && !v.season) return "";
   const parts = [];
+  if (v.season) parts.push(t(`vk.season.${v.season}`));
   if (v.weather !== "clear") parts.push(t(`vt.env.w.${v.weather}`));
   if (v.time === "night") parts.push(t(`vt.env.night.${v.lamp}`));
   else if (v.time === "dusk") parts.push(t("vt.env.t.dusk"));
@@ -81,12 +90,60 @@ function falling(T, kind, phone) {
   return pts;
 }
 
+// The seasons over the biome's colours (games/vworld.js: world.leaf the broadleaf crowns, world.pine the conifers', bushC the bushes,
+// lowC the ferns and grass; each a list the chunks pick from): `to` the colours mixed in, `k` how much (0 none, 1 all), `alpha` the
+// broadleaf cards' alpha threshold (winter's crowns thinner), `ground` the ground's tint, `light` the sun's and the sky's colours.
+const SEASON = {
+  spring: { leaf: { to: ["#8fbf4a", "#a3c95a", "#7fb243"], k: 0.5 }, bush: { to: ["#86b84c"], k: 0.4 }, low: { to: ["#8fb64e"], k: 0.45 },
+    pine: { to: ["#4f7a3a"], k: 0.15 }, ground: [1.0, 1.02, 0.97] },
+  summer: {},
+  // the broadleaf crowns and the bushes in yellows and russets, the bracken brown, the litter warmer; the conifers stay green
+  autumn: { leaf: { to: ["#c99a2e", "#b8642a", "#d1b043", "#9c4f24", "#a78a35"], k: 0.78 }, bush: { to: ["#9a7a34", "#a65e2c"], k: 0.6 },
+    low: { to: ["#a0682e", "#8c6a36"], k: 0.65 }, ground: [1.05, 0.97, 0.86] },
+  // the broadleaf trees bare: their crowns grey-brown twigs, thinner; the low plants gone; the ground paler, the light colder
+  winter: { leaf: { to: ["#7d7163", "#6c6255", "#8a7e70"], k: 0.85 }, bush: { to: ["#776c5e"], k: 0.7 }, pine: { to: ["#2c4632"], k: 0.25 },
+    alpha: 0.62, noLow: true, ground: [0.96, 0.98, 1.03], light: { sun: "#e3ebff", hemi: "#dde6f2", ground: "#5c5a58" } },
+};
+
+/** Tint the scene's vegetation, ground and light for the season `E.season` (before the chunks are built). */
+function season(T, E, { scene, world, sun }) {
+  const S = SEASON[E.season];
+  if (!S || !Object.keys(S).length) return;
+  const C = (c) => new T.Color(c);
+  /** A list of the biome's colours, each mixed toward the season's (in turn, so that the list's variety stays), longer when the
+   *  season brings more hues than the biome had. */
+  const mix = (list, m) => {
+    if (!m || !list?.length) return list;
+    const to = m.to.map(C), n = Math.max(list.length, to.length);
+    return Array.from({ length: n }, (_, i) => list[i % list.length].clone().lerp(to[i % to.length], m.k));
+  };
+  const leaf0 = world.leaf?.[0]?.clone(), pine0 = world.pine?.[0]?.clone();
+  if (S.leaf) world.leaf = mix(world.leaf, S.leaf);
+  if (S.pine) world.pine = mix(world.pine, S.pine);
+  if (S.bush) world.bushC = mix(world.bushC, S.bush);
+  if (S.low) world.lowC = mix(world.lowC, S.low);
+  // the far trees, rendered once in the biome's greens (games/vworld.js impostors): brought to the season's by the ratio of the two
+  const ratio = (m, a, b) => { const r = (x, y) => Math.min(1.8, y / Math.max(0.02, x)); if (m && a && b) m.color.multiply(new T.Color(r(a.r, b.r), r(a.g, b.g), r(a.b, b.b))); };
+  if (S.leaf) ratio(world.K?.farLeaf?.mat, leaf0, world.leaf[0]);
+  if (S.pine) for (const k of ["farPine", "farPine2"]) ratio(world.K?.[k]?.mat, pine0, world.pine[0]);
+  if (S.alpha && world.K) for (const k of ["crown", "crown2", "crown3", "crown4", "bush"]) {
+    const m = world.K[k]?.mat; if (m) { m.alphaTest = Math.max(m.alphaTest || 0, S.alpha); m.needsUpdate = true; }
+  }
+  if (S.noLow && world.K) for (const k of ["grass", "low"]) if (world.K[k]) world.K[k].mat.visible = false;
+  if (S.ground && world.groundMat?.color) world.groundMat.color.setRGB(...S.ground);
+  if (S.light) {
+    sun.color.lerp(C(S.light.sun), 0.7);
+    scene.traverse((o) => { if (o.isHemisphereLight) { o.color.lerp(C(S.light.hemi), 0.6); o.groundColor.lerp(C(S.light.ground), 0.5); } });
+  }
+}
+
 /**
  * Lay the conditions over the scene. ctx { scene, renderer, world, sun, camera }. Returns { update(now, x, y, z, yaw, pitch) },
  * to be called each frame after the sun is placed; null for a clear day.
  */
 export function applyEnv(T, env, { scene, renderer, world, sun, camera }) {
   const E = envOf(env);
+  season(T, E, { scene, world, sun });
   if (plain(E)) return null;
   const phone = isPhone();
   const w = W[E.weather], night = E.time === "night", dusk = E.time === "dusk", lamp = LAMP[E.lamp];
@@ -122,7 +179,7 @@ export function applyEnv(T, env, { scene, renderer, world, sun, camera }) {
   sun.intensity = sunI; if (hemi) hemi.intensity = hemiI;
   renderer.toneMappingExposure = exposure;
   // the far trees, rendered once in sunlight: as dim as the scene
-  for (const k of ["farLeaf", "farPine", "farPine2"]) world.K[k]?.mat.color.setScalar(far);
+  for (const k of ["farLeaf", "farPine", "farPine2"]) world.K[k]?.mat.color.multiplyScalar(far);   // over the season's tint
   // snow: the grass and the ferns under it
   if (w.snow) for (const k of ["grass", "low"]) if (world.K[k]) world.K[k].mat.visible = false;
   // the ground: wet (darker) or snowy (white where it faces up, less on the paths)

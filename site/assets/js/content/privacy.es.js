@@ -215,7 +215,9 @@ export const body = (SITE, { world = false, later = "" } = {}) => `
         nada de las carreras de un visitante sin cuenta. Un organizador que crea un evento envía su mapa OCAD (y, si quiere, sus
         recorridos): se guarda en el almacenamiento del sitio, solo se muestra a los corredores del evento, en el juego, una vez que lo
         ha publicado, y sirve para construir la carrera en GitHub, donde no se conserva. Estas carreras, y los eventos con sus mapas y
-        resultados, se borran con tu cuenta.</p>
+        resultados, se borran con tu cuenta. Cuando te inscribes en una competición, esta guarda en tu cuenta el recorrido elegido,
+        tu hora de salida y si la carrera se terminó o se abandonó; se muestran con tu nombre en sus resultados y se borran con tu
+        cuenta.</p>
       <h2 style="font-size:16px">Preguntas a la IA</h2>
       <p>En la página «IA», tu pregunta se envía al modelo de lenguaje que escribe la consulta, junto con la descripción de las tablas del
         sitio, la fecha del día, tu número de licencia y el método y la disciplina elegidos: por defecto el modelo de Ozimut, ejecutado
@@ -319,5 +321,5 @@ export const body = (SITE, { world = false, later = "" } = {}) => `
       <p><b>Créditos:</b> los símbolos y los textos de las descripciones de control (Coach › Descripciones de control, el trazado de recorridos)
         proceden de Purple Pen, de Peter Golde (<a href="https://github.com/petergolde/PurplePen" target="_blank" rel="noopener">github.com/petergolde/PurplePen</a>),
         bajo <a href="assets/tracer/LICENSE-PurplePen.txt" target="_blank" rel="noopener">licencia BSD</a>.</p>
-      <p class="muted">Última actualización: 25 de noviembre de 2026.</p>
+      <p class="muted">Última actualización: 28 de noviembre de 2026.</p>
 `;

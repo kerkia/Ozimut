@@ -218,7 +218,9 @@ export const body = (SITE, { world = false, later = "" } = {}) => `
         gardé des courses d'un visiteur sans compte. Un organisateur qui crée un événement y envoie sa carte OCAD (et, s'il le veut,
         ses circuits) : elle est gardée dans l'espace de stockage du site, n'est montrée qu'aux coureurs de l'événement, dans le jeu,
         une fois qu'il l'a publié, et sert à fabriquer la course sur GitHub, où elle n'est pas conservée. Ces courses, et les événements
-        avec leurs cartes et leurs résultats, sont supprimés avec votre compte.</p>
+        avec leurs cartes et leurs résultats, sont supprimés avec votre compte. Quand vous vous inscrivez à une compétition, elle garde sous
+        votre compte le circuit choisi, l'heure de votre départ et si la course a été terminée ou abandonnée ; ils sont montrés avec
+        votre nom dans ses résultats et supprimés avec votre compte.</p>
       <h2 style="font-size:16px">Questions à l'IA</h2>
       <p>Sur la page « IA », votre question est envoyée au modèle de langage qui écrit la requête, avec la description des tables du
         site, la date du jour, votre numéro de licence et la méthode et la discipline choisies : par défaut le modèle d'Ozimut, exécuté
@@ -322,5 +324,5 @@ export const body = (SITE, { world = false, later = "" } = {}) => `
       <p><b>Crédits :</b> les symboles et les textes des définitions de postes (Coach › Définitions de postes, le tracé des circuits)
         viennent de Purple Pen, de Peter Golde (<a href="https://github.com/petergolde/PurplePen" target="_blank" rel="noopener">github.com/petergolde/PurplePen</a>),
         sous <a href="assets/tracer/LICENSE-PurplePen.txt" target="_blank" rel="noopener">licence BSD</a>.</p>
-      <p class="muted">Dernière mise à jour : 25 novembre 2026.</p>
+      <p class="muted">Dernière mise à jour : 28 novembre 2026.</p>
 `;

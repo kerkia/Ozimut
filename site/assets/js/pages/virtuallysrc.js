@@ -7,7 +7,9 @@
 // - The traces: each runner once a circuit — one's own run chosen in the address, else one's best; the others' best runs, the
 //   100 most recent runners (owner, 2026-11-14) — their routes [[t, x, z]] (world metres, the map's frame) turned into one
 //   position a second in latitude and longitude, from the run's start (its saving time less its race time).
-// - Read only: nothing is added, commented or removed there (the analysis's `readonly`, its runners' switches off).
+// - Read only: nothing is added, commented or removed there (the analysis's `readonly`, its runners' switches off). A finished
+//   competition's analysis (owner, 2026-11-28; docs/pixel/competitions.md §6) offers one's own run to « Mes cartes » (`mymaps`):
+//   an organiser's competition kept there by itself (pages/shared.js autoKeep), the week's by hand only (`autoKeep` false).
 // - Only the runs that completed the circuit as it is now (owner, 2026-11-15): a course set again after a run leaves that run's
 //   route off its controls. A run saved since carries the signature of the course it ran (`cs`, `courseSig`); one saved before
 //   is checked on its route — every control in order within reach (`completes`).
@@ -94,15 +96,17 @@ const notFound = () => Object.assign(new Error("not found"), { status: 404, code
  * The analysis of one Pixel map as shared.js reads one: { id, api(path, { method }) }.
  * race: the page's map ({ id, race: { courses, … }, event?, gen? }); runs: every run of the map the page knows
  * ({ id, race, u, name, course, t, at, kind, help, mine }); pick: one's own run to show (its id), else one's best of each circuit;
- * canSee(run): whether this account may see another's run; mapOf(race) → { canvas, ppm, k, W, H, lonlat }; title, courseName(c).
+ * canSee(run): whether this account may see another's run; mapOf(race) → { canvas, ppm, k, W, H, lonlat }; title, courseName(c);
+ * mymaps: one's own run may be saved in « Mes cartes » (a competition over); autoKeep: false keeps it there by hand only.
+ * A week's competition (race.week) is a competition as an organiser's.
  */
-export function pixelAnalysis({ race, runs, pick, canSee, mapOf, title, courseName }) {
+export function pixelAnalysis({ race, runs, pick, canSee, mapOf, title, courseName, mymaps = false, autoKeep = true }) {
   const id = `px~${race.id}`, courses = race.race.courses || [];
   // runners numbered for the analysis: the same number on every circuit (stable: by their hash)
   const us = [...new Set(runs.map((r) => r.u))].sort(), uidOf = new Map(us.map((u, i) => [u, i + 1]));
   const meU = runs.find((r) => r.mine)?.u;
   // a circuit's runs: a training's (a competition's on an event of that kind; the built-in maps' competitions are tests)
-  const competition = race.event?.type === "competition";
+  const competition = !!race.week || race.event?.type === "competition";
   // only the runs that completed their circuit (`completeRuns`), known once `ready()` has settled
   let done = null, complete = new Set();
   const ready = () => (done ||= completeRuns(race.id, courses, runs.filter((r) => r.t > 0 && (r.mine || canSee(r))))
@@ -134,8 +138,10 @@ export function pixelAnalysis({ race, runs, pick, canSee, mapOf, title, courseNa
     meta = {
       id, kind: "club", readonly: true, via: "pixel", title, date: (latest || new Date().toISOString()).slice(0, 10), vis: "public",
       visitors: false, code: false, draft: false, owner: 0, ownerName: "", orgName: "",
-      // read only: no trace added, no comment, no « Analyse solo » nor Mes cartes; the 3D view only on a real place's relief
-      opts: { upload: false, solo: false, mymaps: false, notes: false, variants: true, view3d: !!m.lonlat, video: true, routes: true },
+      // read only: no trace added, no comment, no « Analyse solo »; « Mes cartes » only for a competition over; the 3D view only
+      // on a real place's relief
+      opts: { upload: false, solo: false, mymaps: !!mymaps, notes: false, variants: true, view3d: !!m.lonlat, video: true, routes: true },
+      autoKeep: !!mymaps && autoKeep !== false,
       courses: courses.map((c, n) => ({
         n, name: courseName(c), circuit: "", r: Math.round(3 * m.ppm), printed: false,
         map: { w: m.canvas.width, h: m.canvas.height, type: "image/webp", v: 1 }, geo,

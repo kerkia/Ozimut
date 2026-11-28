@@ -5389,3 +5389,127 @@ table.bl-inv td { vertical-align: top; }
 .bl-form-model { padding: 10px 14px; border: 1px dashed var(--border-strong); border-radius: 9px; }
 .bl-settings, .bl-club { scroll-margin-top: 80px; }
 .bl-form textarea { width: 100%; min-height: 64px; padding: 6px 10px; border: 1px solid var(--border-strong); border-radius: 8px; background: var(--surface); color: var(--ink); font: inherit; font-size: 14px; }
+
+/* ---- Pixel: the start countdown, no pause, « Commandes » (games/virtually.js, games/vkeysui.js; 2026-11-28) ---- */
+/* Pixel's competitions in the game (owner, 2026-11-28; docs/pixel/competitions.md §4): the start's countdown, large over the scene
+   (games/virtually.js countdown), a competition's « Abandonner » and its card, the briefing's rules, the keys as chips in the
+   commands' lists (games/vkeys.js) */
+.vt-count { position: absolute; inset: 0; display: grid; place-items: center; pointer-events: none; z-index: 4; }
+.vt-count[hidden] { display: none; }
+.vt-count-n { font: 800 clamp(96px, 26vmin, 260px)/1 system-ui, sans-serif; color: #fff; font-variant-numeric: tabular-nums;
+  text-shadow: 0 0 24px rgba(0, 0, 0, 0.55), 0 4px 0 rgba(0, 0, 0, 0.35); -webkit-text-stroke: 3px rgba(15, 20, 25, 0.55);
+  animation: vt-count-in 1s ease-out both; }
+@keyframes vt-count-in { 0% { transform: scale(1.35); opacity: 0; } 12% { transform: scale(1); opacity: 1; } 80% { opacity: 1; } 100% { transform: scale(0.92); opacity: 0.15; } }
+@media (prefers-reduced-motion: reduce) { .vt-count-n { animation: none; } }
+.vt-topbar .btn.vt-abandon { background: rgba(150, 30, 30, 0.78); }
+.vt-topbar .btn.vt-abandon:hover { background: rgba(190, 40, 40, 0.92); }
+.vt-card.vt-out h2 { color: var(--bad); }
+.vt-nopause { margin: 0 0 8px; padding: 8px 10px; border-radius: 8px; background: var(--flag-wash); color: var(--ink); border-left: 3px solid var(--flag); }
+.vt-countrule { margin: 0 0 8px; }
+.vt-brief-msg .vt-brief-err { color: var(--bad); font-weight: 600; }
+.vt-keys-kb { list-style: none; padding-left: 0; }
+.vt-keys-kb li { margin: 2px 0; }
+.vt-keys kbd, .vk-page kbd { display: inline-block; min-width: 1.6em; padding: 0 5px; margin: 0 2px 0 0; text-align: center;
+  font: 600 11.5px/1.55 ui-monospace, "Cascadia Code", Consolas, monospace; border: 1px solid var(--border-strong, var(--border));
+  border-bottom-width: 2px; border-radius: 4px; background: var(--surface-2); color: var(--ink); }
+.vt-help .vt-keys kbd { background: rgba(255, 255, 255, 0.14); color: #fff; border-color: rgba(255, 255, 255, 0.4); }
+.vt-kk { white-space: nowrap; margin-right: 4px; }
+.vt-kk-sep { margin: 0 3px; opacity: 0.6; }
+.vt-kk-none { opacity: 0.5; margin: 0 4px 0 0; }
+.vt-keys-np { font-weight: 600; }
+/* Avatar › « Commandes » (games/vkeysui.js): the actions in three groups, each row its name and words, its key buttons at the right */
+.vk-page { max-width: 980px; }
+.vk-intro { margin: 0 0 12px; }
+.vk-group { margin: 0 0 14px; padding: 12px 16px; }
+.vk-group h3 { margin: 0 0 8px; font-size: 1rem; }
+.vk-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 7px 0; border-top: 1px solid var(--border); }
+.vk-group h3 + .vk-row { border-top: 0; }
+.vk-what { display: flex; flex-direction: column; min-width: 0; }
+.vk-what .muted { font-size: 13px; }
+.vk-keys { display: flex; gap: 6px; flex: none; }
+.vk-slot { min-width: 5.2em; min-height: 32px; padding: 3px 8px; border: 1px solid var(--border); border-radius: 6px; background: var(--surface);
+  color: var(--ink); cursor: pointer; font: inherit; }
+.vk-slot:hover { border-color: var(--flag); }
+.vk-slot:focus-visible { outline: 2px solid var(--flag); outline-offset: 1px; }
+.vk-slot.empty { color: var(--ink-3); border-style: dashed; }
+.vk-slot.wait { border-color: var(--flag); background: var(--flag-wash); font-size: 12px; animation: vk-blink 1s ease-in-out infinite; }
+.vk-slot kbd { margin: 0; }
+@keyframes vk-blink { 50% { box-shadow: 0 0 0 3px var(--flag-wash); } }
+@media (prefers-reduced-motion: reduce) { .vk-slot.wait { animation: none; } }
+.vk-bar { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin: 4px 0 16px; }
+.vk-saved { color: var(--good, #2e7d32); font-weight: 600; }
+.vk-saved[hidden] { display: none; }
+.vk-msg { color: var(--ink-2); }
+.vk-msg.bad { color: var(--bad); font-weight: 600; }
+.vk-fixed, .vk-list { margin: 0; padding-left: 18px; line-height: 1.6; font-size: 14px; }
+.vk-fixed { list-style: none; padding-left: 0; }
+.vk-cols { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+@media (max-width: 720px) {
+  .vk-cols { grid-template-columns: 1fr; }
+  .vk-row { flex-direction: column; align-items: stretch; gap: 6px; }
+  .vk-keys { justify-content: flex-start; }
+}
+
+/* ---- Pixel: the menu views, « Compétitions » (pages/virtuallycomp.js; 2026-11-28) ---- */
+/* ---- Pixel › Compétitions (pages/virtuallycomp.js; 2026-11-28, docs/pixel/competitions.md §6): the competitions as cards (the
+   training maps' .vtp-maps/.vtp-map), a competition's detail under them (on a phone right under its card: .vtp-inline) ---- */
+.vcp-card { min-width: 0; }
+.vcp-card b { overflow-wrap: anywhere; }
+.tag.vcp-week { background: color-mix(in srgb, var(--course, #7c3aed) 16%, var(--surface)); color: var(--text); }
+.vcp-mine { font-size: 0.85rem; font-weight: 600; color: var(--flag); }
+.vcp-detail { margin-top: 14px; }
+.vcp-detail:empty { display: none; }
+.vcp-inline .vcp-detail { margin-top: 0; }
+.vcp-box { padding: 12px 16px; min-width: 0; }
+.vcp-box > .vtp-h:first-child { margin-top: 0; }
+.vcp-line { margin: -4px 0 4px; font-size: 0.9rem; }
+.vcp-state { margin: 4px 0 6px; font-size: 0.92rem; }
+.vcp-course { cursor: pointer; }
+.vcp-course .tag { font-weight: 600; vertical-align: 1px; }
+.vcp-actions { margin: 14px 0 4px; }
+.vcp-actions .vcp-mine { font-size: 0.95rem; }
+.vcp-msg { margin: 4px 0 0; min-height: 1.2em; font-size: 0.9rem; }
+.vcp-msg:empty { min-height: 0; margin: 0; }
+.vcp-rh { display: flex; align-items: center; gap: 6px; font-size: 0.92rem; margin: 14px 0 6px; }
+.vcp-res td, .vcp-res th { white-space: nowrap; }
+.vcp-res td:nth-child(2) { white-space: normal; }
+.vcp-note { font-size: 0.85rem; margin-top: 8px; }
+/* Pixel's next layout: one view a page, no tab row above it */
+.vtp-view { margin-top: 4px; }
+@media (max-width: 640px) {
+  .vcp-box { padding: 10px 12px; }
+  .vcp-actions { gap: 8px; }
+  .vcp-actions .btn { flex: 1 1 auto; }
+  .vcp-actions > .muted { flex-basis: 100%; }
+}
+
+/* ---- Pixel › Orga: creating competitions (pages/virtuallyorga.js; 2026-11-28) ---- */
+/* Pixel › Orga: creating competitions (pages/virtuallyorga.js; 2026-11-28) */
+.vo-form [hidden] { display: none !important; }
+.vo-ev-line { font-size: 0.9rem; }
+.vo-ev-tags { display: flex; flex-wrap: wrap; gap: 4px; }
+.tag.vo-pub { background: color-mix(in srgb, var(--good) 18%, var(--surface)); color: var(--ink); }
+.vo-drop { margin: 0; }
+.vo-drop .btn { margin-top: 6px; pointer-events: none; }
+.vo-pick { display: flex; flex-direction: column; align-items: flex-start; gap: 6px; }
+.vo-pick label.btn { cursor: pointer; }
+.vo-got { border: 1px solid var(--border); border-radius: var(--radius-sm, 6px); padding: 8px 12px; background: var(--surface-2, var(--surface)); }
+.vo-got p { margin: 3px 0; overflow-wrap: anywhere; }
+.vo-ok { color: var(--ink); }
+.vo-miss { color: var(--bad, #c0392b); font-weight: 600; }
+.vo-note { margin: 0; padding: 6px 10px; border-left: 3px solid var(--good); background: color-mix(in srgb, var(--good) 10%, var(--surface)); }
+.vo-check { display: flex; gap: 8px; align-items: flex-start; font-weight: 400; }
+.vo-check input { margin-top: 3px; flex: none; }
+.vo-check > span { display: flex; flex-direction: column; gap: 2px; }
+.vo-check .muted { font-size: 0.85rem; }
+.vo-tex { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 10px; margin-top: 6px; }
+.vo-tex-slot { display: flex; flex-direction: column; gap: 4px; padding: 8px; border: 1px solid var(--border); border-radius: var(--radius-sm, 6px); background: var(--surface); }
+.vo-tex-img { aspect-ratio: 1; border-radius: 4px; overflow: hidden; display: flex; align-items: center; justify-content: center; text-align: center;
+  background: var(--surface-2, var(--surface)); border: 1px dashed var(--border-strong); font-size: 0.8rem; padding: 4px; }
+.vo-tex-img img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.vo-tex-img:has(img) { border-style: solid; padding: 0; }
+.vo-tex-what { font-size: 0.8rem; }
+.vo-tex-btns { display: flex; flex-wrap: wrap; gap: 6px; margin-top: auto; }
+.vo-tex-btns label.btn { cursor: pointer; }
+.vo-tex-st { font-size: 0.8rem; min-height: 1em; }
+@media (max-width: 640px) { .vo-tex { grid-template-columns: repeat(2, 1fr); } }

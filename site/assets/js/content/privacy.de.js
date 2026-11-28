@@ -224,6 +224,8 @@ export const body = (SITE, { world = false, later = "" } = {}) => `
         Veranstaltung erstellt, sendet seine OCAD-Karte (und, wenn er will, seine Bahnen): sie wird im Speicher der Website
         aufbewahrt, nur den Läufern der Veranstaltung gezeigt, im Spiel, sobald er sie veröffentlicht hat, und dient dazu, das Rennen
         auf GitHub zu bauen, wo sie nicht aufbewahrt wird. Diese Rennen und die Veranstaltungen mit ihren Karten und Ergebnissen werden
+        mit deinem Konto gelöscht. Wenn du dich für einen Wettkampf anmeldest, speichert er unter deinem Konto die gewählte Bahn,
+        deine Startzeit und ob der Lauf beendet oder aufgegeben wurde; sie werden mit deinem Namen in seinen Ergebnissen gezeigt und
         mit deinem Konto gelöscht.</p>
       <h2 style="font-size:16px">Die Ozimut-App</h2>
       <p>Die Ozimut-App für Telefone zeigt diese Website und verfolgt deinen Standort nicht. Wenn du dort Benachrichtigungen einschaltest, speichert die Website für dieses Telefon die Sendekennung, die der Benachrichtigungsdienst des Telefons vergibt (Google auf Android, Apple auf dem iPhone), und die Geräteart; sie wird gelöscht, wenn du sie ausschaltest, dich in der App abmeldest oder dein Konto löschst. Die Karte, die du scannst, die Dateien, die du mit der App teilst, und die aus Health gelesenen Routen (iPhone, mit deiner Zustimmung, nur lesend) bleiben auf dem Telefon, wie auf der Website, solange du die Analyse weder speicherst noch teilst. In der App wird kein Konto angelegt oder gelöscht: Das geschieht auf der Website.</p>
@@ -328,5 +330,5 @@ export const body = (SITE, { world = false, later = "" } = {}) => `
       <p><b>Danksagung:</b> Die Symbole und Texte der Postenbeschreibungen (Coach › Postenbeschreibungen, die Bahnlegung)
         stammen aus Purple Pen von Peter Golde (<a href="https://github.com/petergolde/PurplePen" target="_blank" rel="noopener">github.com/petergolde/PurplePen</a>),
         unter der <a href="assets/tracer/LICENSE-PurplePen.txt" target="_blank" rel="noopener">BSD-Lizenz</a>.</p>
-      <p class="muted">Letzte Aktualisierung: 25. November 2026.</p>
+      <p class="muted">Letzte Aktualisierung: 28. November 2026.</p>
 `;

@@ -19,6 +19,117 @@ export const GEN_LEVELS = LEVELS.map((L) => (L.id === "blue" ? { ...L, line: [45
 // the last control and the finish (owner, 2026-11-26), one pair a map: the finish `fin` m from the last control, every course's start
 // within `fromStart` m of the finish; tools/virtually/course.py has the same numbers
 export const LAST = { fromStart: 350, fin: [60, 150], code: 100 };
+// The « compétition de la semaine »'s level sets (owner, 2026-11-28; docs/pixel/competitions.md §5): three courses « a » (the
+// longest and hardest), « b », « c » (a level easier), the fields the six levels above have plus these, read only when present
+// (so the six levels set exactly the courses they set before):
+// - `climb`: the climb's share of the length the course should keep under (else CLIMB by the level's id);
+// - `long: [m, k]`: at least k legs of m metres or more (straight), else the course is not kept;
+// - `cross`: a leg may cross an earlier leg (at 45° or more, away from its controls): a long course crosses the map several times;
+// - `turn`: a reward for changing direction at each control (× (1 − cos of the turn) ÷ 2): a middle distance's legs zigzag;
+// - `judge`: the best courses run on the ground (timer below, cells of 4 m): each leg of `long[0]` m or more scores for a real route
+//   choice — the best route, then the best one kept 25-40 m away from it, the second within 8 / 15 / 25 % of the first;
+// - `min`: the course's target time at the game's ×1 (minutes, the timer's): the best courses ranked closer to it.
+// Their legs' straight lines and features are judged as the six levels' are (reward "choice", "hard", "features").
+export const WEEK_LEVELS = {
+  // long distance on a forest of 1 600 m: few controls, a few very long legs crossing the map, real route choices
+  ld: [
+    { id: "a", n: 11, km: 8.0, leg: [200, 1500], site: null, line: null, reward: "choice", climb: 0.05, long: [900, 3], cross: true, judge: true, min: 70 },
+    { id: "b", n: 10, km: 5.6, leg: [200, 1150], site: null, line: null, reward: "choice", climb: 0.05, long: [800, 2], cross: true, judge: true, min: 50 },
+    { id: "c", n: 9, km: 3.6, leg: [220, 750], site: null, line: null, reward: "choice", climb: 0.04, min: 35 },
+  ],
+  // middle distance on a forest of 1 200 m: many short legs, sites away from the handrails, changes of direction
+  md: [
+    { id: "a", n: 18, km: 4.0, leg: [80, 330], site: null, line: null, reward: "hard", climb: 0.05, turn: 1.2, min: 30 },
+    { id: "b", n: 14, km: 3.0, leg: [80, 330], site: null, line: null, reward: "hard", climb: 0.05, turn: 1.0, min: 23 },
+    { id: "c", n: 11, km: 2.2, leg: [90, 330], site: null, line: null, reward: "features", climb: 0.04, turn: 0.6, min: 17 },
+  ],
+};
+// how far a week's level's km may move to meet its target time (setCourses)
+export const KM_RANGE = [0.7, 1.35];
+/** A terrain's pace (seconds a metre in a straight line, by the router T) on up to n legs of lo-hi m between the points XY drawn by
+ *  a generator of the seed; 0 when none could be run. */
+export function paceOf(T, XY, seed, lo, hi, n = 30) {
+  const rnd = prng(seed * 100 + 77);
+  let tt = 0, dd = 0;
+  for (let k = 0, i = 0; k < n && i < n * 40 && XY.length > 1; i++) {
+    const a = XY[Math.floor(rnd() * XY.length)], b = XY[Math.floor(rnd() * XY.length)], dx = a[0] - b[0], dz = a[1] - b[1], d = Math.sqrt(dx * dx + dz * dz);
+    if (d < lo || d > hi) continue;
+    const t = T(a, b); if (!(t < Infinity)) continue;
+    tt += t; dd += d; k++;
+  }
+  return dd ? tt / dd : 0;
+}
+// the game's speed (games/virtually.js RUN): m/s on flat open ground, a good club runner at ×1
+export const RUN = 3.7;
+
+/**
+ * A shortest-time router on the package's ground, the game's own model (games/virtually.js move): RUN × the class's speed × the
+ * slope's factor (up 1 ÷ (1 + 7 × grade), down beyond 12 % 1 ÷ (1 + 2.5 × (− grade − 0.12))). Cells of `step` m (a cell's time a
+ * metre is the mean over its 1 m cells that can be run; more than half that cannot be run: closed), 8 neighbours, a diagonal only
+ * past two open sides, A*. route(a, b, { block, path, cap }) → seconds (Infinity: no way), or { t, cells } with `path`; `block`
+ * a Uint8Array of closed cells (nx × nz). Deterministic (+ − × ÷ only).
+ */
+export function timer(pkg, step = 2) {
+  const { W, H, h, cls, speed: SP } = pkg, s = step;
+  const nx = Math.ceil(W / s), nz = Math.ceil(H / s), N = nx * nz;
+  const tpm = new Float32Array(N), hc = new Float32Array(N);
+  let fast = 0; for (const v of SP) if (v > fast) fast = v;
+  for (let j = 0; j < nz; j++) for (let i = 0; i < nx; i++) {
+    let n = 0, bad = 0, sum = 0, hs = 0;
+    for (let z = j * s; z < Math.min(H, j * s + s); z++) for (let x = i * s; x < Math.min(W, i * s + s); x++) {
+      const q = z * W + x, v = SP[cls[q]]; n++; hs += h[q];
+      if (v < 0.05) bad++; else sum += 1 / v;
+    }
+    const c = j * nx + i; hc[c] = hs / n; tpm[c] = bad * 2 > n ? 0 : sum / (n - bad) / RUN;
+  }
+  const g = new Float64Array(N), seen = new Int32Array(N), shut = new Int32Array(N), par = new Int32Array(N);
+  let cap4 = Math.max(1024, N), heapA = new Int32Array(cap4), heapK = new Float64Array(cap4), stamp = 0;
+  const hk = s / (RUN * fast);
+  // the neighbours: offsets in x and z, the step's length in cells; a diagonal only past its two sides (SA, SB: their indices)
+  const OX = [-1, 1, 0, 0, -1, 1, -1, 1], OZ = [0, 0, -1, 1, -1, -1, 1, 1], OD = [1, 1, 1, 1, Math.SQRT2, Math.SQRT2, Math.SQRT2, Math.SQRT2];
+  const SA = [0, 0, 0, 0, 0, 1, 0, 1], SB = [0, 0, 0, 0, 2, 2, 3, 3], ok = new Uint8Array(8);
+  const cellOf = (p) => Math.min(nz - 1, Math.max(0, Math.floor(p[1] / s))) * nx + Math.min(nx - 1, Math.max(0, Math.floor(p[0] / s)));
+  return (a, b, { block = null, path = false, cap = Infinity } = {}) => {
+    const s0 = cellOf(a), t0 = cellOf(b), tx = t0 % nx, tz = (t0 - tx) / nx;
+    if (!(tpm[s0] > 0) || !(tpm[t0] > 0)) return path ? { t: Infinity, cells: [] } : Infinity;
+    stamp++;
+    let n = 0;
+    const push = (q, k) => {
+      if (n >= cap4) { cap4 *= 2; const A = new Int32Array(cap4), K = new Float64Array(cap4); A.set(heapA); K.set(heapK); heapA = A; heapK = K; }
+      let i = n++; while (i) { const p = (i - 1) >> 1; if (heapK[p] <= k) break; heapA[i] = heapA[p]; heapK[i] = heapK[p]; i = p; } heapA[i] = q; heapK[i] = k; };
+    const hd = (x, z) => { const dx = x > tx ? x - tx : tx - x, dz = z > tz ? z - tz : tz - z; return (dx > dz ? dx + 0.41421356 * dz : dz + 0.41421356 * dx) * hk; };
+    seen[s0] = stamp; g[s0] = 0; par[s0] = -1; push(s0, hd(s0 % nx, (s0 - (s0 % nx)) / nx));
+    let found = Infinity;
+    while (n) {
+      const q = heapA[0], lq = heapA[--n], lk = heapK[n]; let i = 0;   // the heap's smallest
+      for (;;) { const l = 2 * i + 1, r = l + 1; let m = -1, mk = lk; if (l < n && heapK[l] < mk) { m = l; mk = heapK[l]; } if (r < n && heapK[r] < mk) m = r; if (m < 0) break; heapA[i] = heapA[m]; heapK[i] = heapK[m]; i = m; }
+      heapA[i] = lq; heapK[i] = lk;
+      if (shut[q] === stamp) continue;                     // a stale copy (the heuristic is consistent: a cell shut is done)
+      shut[q] = stamp;
+      const gq = g[q];
+      if (q === t0) { found = gq; break; }
+      const x = q % nx, z = (q - x) / nx;
+      if (gq + hd(x, z) > cap) break;
+      const tq = tpm[q], hq = hc[q];
+      for (let k = 0; k < 8; k++) {
+        ok[k] = 0;
+        const mx = x + OX[k], mz = z + OZ[k];
+        if (mx < 0 || mz < 0 || mx >= nx || mz >= nz || (k >= 4 && !(ok[SA[k]] && ok[SB[k]]))) continue;
+        const m = mz * nx + mx, tm = tpm[m];
+        if (!(tm > 0) || (block !== null && block[m])) continue;
+        ok[k] = 1;
+        if (shut[m] === stamp) continue;
+        const dist = OD[k] * s, gr = (hc[m] - hq) / dist;
+        const sl = gr > 0 ? 1 + 7 * gr : gr < -0.12 ? 1 + 2.5 * (-gr - 0.12) : 1;
+        const ng = gq + dist * 0.5 * (tq + tm) * sl;
+        if (seen[m] !== stamp || ng < g[m]) { seen[m] = stamp; g[m] = ng; par[m] = q; push(m, ng + hd(mx, mz)); }
+      }
+    }
+    if (!path) return found;
+    const cells = []; if (found < Infinity) for (let c = t0; c >= 0; c = par[c]) cells.push(c);
+    return { t: found, cells: cells.reverse(), nx, nz, step: s };
+  };
+}
 const GOOD = { boulder: 1.0, bigboulder: 1.3, cluster: 1.0, knoll: 1.2, eknoll: 1.1, depression: 1.2, pit: 1.0, rockface: 1.2, junction: 1.0 };
 const COS150 = -0.8660254037844387;
 // the climb a course should keep under, a share of its length (IOF's guidance: little for beginners, 4-5 % at most for the others)
@@ -84,6 +195,12 @@ export function setCourses(pkg, { seed = 7, tries = 260, levels = LEVELS, ends =
     const dx = p[0] - q[0] - t * qx, dy = p[1] - q[1] - t * qy; return Math.sqrt(dx * dx + dy * dy); };
   const segDist = (a, b, c, d) => (cross(a, b, c, d) ? 0 : Math.min(pd(a, c, d), pd(b, c, d), pd(c, a, b), pd(d, a, b)));
   const dist = (a, b) => { const dx = a[0] - b[0], dz = a[1] - b[1]; return Math.sqrt(dx * dx + dz * dz); };
+  // the week's long courses (a level's `cross`): a leg may cross an earlier one, at 45° or more and 60 m from that leg's controls
+  const crossing = (a, b, c, d) => {
+    if (!cross(a, b, c, d) || pd(c, a, b) < 60 || pd(d, a, b) < 60 || pd(a, c, d) < 60 || pd(b, c, d) < 60) return false;
+    const ux = b[0] - a[0], uz = b[1] - a[1], vx = d[0] - c[0], vz = d[1] - c[1];
+    return Math.abs(ux * vx + uz * vz) <= 0.7071067811865476 * Math.sqrt(ux * ux + uz * uz) * Math.sqrt(vx * vx + vz * vz);
+  };
 
   // the last control and the finish, one pair for the whole map (owner, 2026-11-26: « that last control, hence last leg, is always
   // the same for all courses »): a path junction (else a site within 5 m of a path) near the map's middle, the finish LAST.fin m
@@ -127,6 +244,10 @@ export function setCourses(pkg, { seed = 7, tries = 260, levels = LEVELS, ends =
         ok.push(i);
       }
       for (let k = ok.length - 1; k > 0; k--) { const r = Math.floor(rnd() * (k + 1)); [ok[k], ok[r]] = [ok[r], ok[k]]; }
+      if (L.long) {                                         // the week's long legs still wanted: offered first, the more the fewer legs left
+        const need = L.long[1] - legs.filter((d) => d >= L.long[0]).length, left = L.n - 1 - c;
+        if (need > 0 && rnd() < (need + 0.5) / left) { const far = ok.filter((i) => dist(XY[i], last) >= L.long[0]); ok.splice(0, ok.length, ...far, ...ok.filter((i) => dist(XY[i], last) < L.long[0])); }
+      }
       let chosen = null;
       for (const i of ok.slice(0, 150)) {
         if (used.has(i)) continue;
@@ -137,7 +258,7 @@ export function setCourses(pkg, { seed = 7, tries = 260, levels = LEVELS, ends =
           const a = pts[pts.length - 2], ux = last[0] - a[0], uz = last[1] - a[1], vx = p[0] - last[0], vz = p[1] - last[1];
           if ((ux * vx + uz * vz) / (Math.sqrt(ux * ux + uz * uz) * Math.sqrt(vx * vx + vz * vz) || 1) < COS150) continue;
         }
-        let near = false; for (let j = 0; j < pts.length - 2; j++) if (segDist(last, p, pts[j], pts[j + 1]) < 40) { near = true; break; }
+        let near = false; for (let j = 0; j < pts.length - 2; j++) if (segDist(last, p, pts[j], pts[j + 1]) < 40 && !(L.cross && crossing(last, p, pts[j], pts[j + 1]))) { near = true; break; }
         if (near) continue;
         const [imp, slow, meanH, maxH] = lineStats(last, p);
         if (imp > 0.25) continue;
@@ -152,6 +273,10 @@ export function setCourses(pkg, { seed = 7, tries = 260, levels = LEVELS, ends =
       else if (L.reward === "features") score += g + 0.4 * Math.min(slow, 0.5);
       else if (L.reward === "hard") score += g + (0.3 * Math.min(siteHand[i], 120)) / 120 - (KIND[i] === "junction" ? 0.6 : 0);
       else score += g + 1.2 * Math.min(slow, 0.5) + 1.5 * Math.min(imp, 0.2) + (legs[legs.length - 1] > 0.6 * hi ? 0.6 : 0);
+      if (L.turn && pts.length >= 3) {                      // the week's levels: a change of direction at the control left
+        const a = pts[pts.length - 3], b = pts[pts.length - 2], ux = b[0] - a[0], uz = b[1] - a[1], vx = p[0] - b[0], vz = p[1] - b[1];
+        score += (L.turn * (1 - (ux * vx + uz * vz) / (Math.sqrt(ux * ux + uz * uz) * Math.sqrt(vx * vx + vz * vz) || 1))) / 2;
+      }
     }
     // the last control: the map's own (END), reached by a usual leg from the course's last control
     const prev = pts[pts.length - 1], lcp = END.lc, dl = dist(lcp, prev);
@@ -160,9 +285,10 @@ export function setCourses(pkg, { seed = 7, tries = 260, levels = LEVELS, ends =
       const a = pts[pts.length - 2], ux = prev[0] - a[0], uz = prev[1] - a[1], vx = lcp[0] - prev[0], vz = lcp[1] - prev[1];
       if ((ux * vx + uz * vz) / (Math.sqrt(ux * ux + uz * uz) * Math.sqrt(vx * vx + vz * vz) || 1) < COS150) return null;
     }
-    for (let j = 0; j < pts.length - 2; j++) if (segDist(prev, lcp, pts[j], pts[j + 1]) < 40) return null;
+    for (let j = 0; j < pts.length - 2; j++) if (segDist(prev, lcp, pts[j], pts[j + 1]) < 40 && !(L.cross && crossing(prev, lcp, pts[j], pts[j + 1]))) return null;
     if (lineStats(prev, lcp)[0] > 0.25) return null;
     pts.push(lcp); kinds.push(KIND[END.i]); legs.push(dl);
+    if (L.long && legs.filter((d) => d >= L.long[0]).length < L.long[1]) return null;   // the week's long legs
     const fin = END.fin;
     if (!fin) return null;
     const all = [...pts, fin];
@@ -172,9 +298,49 @@ export function setCourses(pkg, { seed = 7, tries = 260, levels = LEVELS, ends =
     // the climb kept to the level's (owner, 2026-11-14: more relief, the courses still runnable): beyond its share of the length,
     // the course scores less
     let up = 0; for (let k = 1; k < all.length; k++) up += climb(all[k - 1], all[k]);
-    const cap = CLIMB[L.id] ?? 0.05;
+    const cap = L.climb ?? CLIMB[L.id] ?? 0.05;
     score -= 4 * Math.max(0, up / length / cap - 1);
     return { score, all, kinds, length };
+  }
+
+  // the week's levels (WEEK_LEVELS): a course run on the ground, cells of 4 m. With `judge`, each leg of long[0] m or more: the
+  // best route, then the best one kept clear of it (a corridor of 25-40 m each side blocked, away from the leg's ends) — the
+  // closer the second's time to the first's, the more real the route choice. With `min`, the course's time against the target.
+  let T4 = null;
+  const judge = (L, c) => {
+    T4 ||= timer(pkg, 4);
+    let bonus = 0, t = 0;
+    const longM = L.judge && L.long ? L.long[0] : Infinity;
+    for (let k = 1; k < c.all.length; k++) {
+      const a = c.all[k - 1], b = c.all[k], d = dist(a, b);
+      if (d < longM) { const tt = T4(a, b); if (!(tt < Infinity)) return -100; t += tt; continue; }
+      const r1 = T4(a, b, { path: true });
+      if (!(r1.t < Infinity)) return -100;
+      t += r1.t;
+      const R = Math.max(25, Math.min(40, 0.03 * d)), Rc = Math.ceil(R / 4), block = new Uint8Array(r1.nx * r1.nz), keep = R + 30;
+      for (const cell of r1.cells) {
+        const ci = cell % r1.nx, cj = (cell - ci) / r1.nx, cx = ci * 4 + 2, cz = cj * 4 + 2;
+        if (dist([cx, cz], a) < keep || dist([cx, cz], b) < keep) continue;
+        for (let j = Math.max(0, cj - Rc); j <= Math.min(r1.nz - 1, cj + Rc); j++) for (let i = Math.max(0, ci - Rc); i <= Math.min(r1.nx - 1, ci + Rc); i++)
+          if ((i - ci) * (i - ci) + (j - cj) * (j - cj) <= Rc * Rc) block[j * r1.nx + i] = 1;
+      }
+      const q = T4(a, b, { block, cap: r1.t * 1.25 }) / r1.t;
+      bonus += q <= 1.08 ? 1 : q <= 1.15 ? 0.6 : q <= 1.25 ? 0.25 : 0;
+    }
+    return (L.judge ? (4 * bonus) / L.n : 0) - (L.min ? 8 * Math.abs(t / 60 / L.min - 1) : 0);
+  };
+
+  // the week's levels with a target time: the length from the terrain's own pace (a hilly karst runs at 11-13 min a km, a flat
+  // moraine at 7: one length cannot give one time), measured on legs of the level's lengths between the sites; the km and the legs'
+  // lengths scaled together, by KM_RANGE at most
+  if (levels.some((L) => L.min)) {
+    T4 ||= timer(pkg, 4);
+    levels = levels.map((L) => {
+      const pace = L.min ? paceOf(T4, XY, seed, L.leg[0], Math.min(1200, L.leg[1])) : 0;
+      if (!(pace > 0)) return L;
+      const f = Math.max(KM_RANGE[0], Math.min(KM_RANGE[1], (L.min * 60) / pace / 1000 / L.km)), m = (v) => Math.round(v * f);
+      return { ...L, km: L.km * f, leg: L.leg.map(m), ...(L.long ? { long: [m(L.long[0]), L.long[1]] } : {}) };   // the legs in step
+    });
   }
 
   const setAll = () => {
@@ -183,6 +349,13 @@ export function setCourses(pkg, { seed = 7, tries = 260, levels = LEVELS, ends =
     const rnd = prng(seed * 100 + k + 1);
     let best = null;
     // the Bleu, held near the handrails, is found more rarely: three times the tries
+    if (L.judge || L.min) {
+      // the week's levels: the best courses (by the score above) run on the ground, then ranked again
+      const found = [];
+      for (let t = 0; t < tries; t++) { const r = make(L, rnd); if (r) found.push(r); }
+      found.sort((a, b) => b.score - a.score);
+      for (const c of found.slice(0, L.judge ? 6 : 16)) { const s = c.score + judge(L, c); if (!best || s > best.s) best = { ...c, s }; }
+    } else
     for (let t = 0, n = L.id === "blue" ? tries * 3 : tries; t < n; t++) { const r = make(L, rnd); if (r && (!best || r.score > best.score)) best = r; }
     if (!best) return;
     let up = 0; for (let j = 1; j < best.all.length; j++) up += climb(best.all[j - 1], best.all[j]);

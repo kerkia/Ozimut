@@ -2643,7 +2643,7 @@ async function replay(box, { A, id, course, race, init = {}, traces, allTraces =
         <p class="hint" style="margin:0">${t("sh.shot.hint")}</p>
         <button type="button" class="btn btn-sm btn-primary" id="sh-shot">⤓ ${t("an.shot.save")}</button><span class="muted an-shot-state" id="sh-shot-state"></span></div>
       ${you.visitor || !mymapsOn || !me || me.demo ? "" : mine ? html`<div class="an-opts"><b>${t("nav.myMaps")}</b>
-          <label class="an-keep" title="${t("sh.mmAuto.tip")}"><input type="checkbox" id="sh-mm-auto" ${raw(autoOn() ? "checked" : "")}> ${t("sh.mmAuto")}</label>
+          ${A.autoKeep === false ? "" : html`<label class="an-keep" title="${t("sh.mmAuto.tip")}"><input type="checkbox" id="sh-mm-auto" ${raw(autoOn() ? "checked" : "")}> ${t("sh.mmAuto")}</label>`}
           <span class="muted" id="sh-mm-auto-st"></span></div><div id="sh-mymaps"></div>`
         : html`<div class="an-opts"><b>${t("nav.myMaps")}</b><p class="hint" style="margin:0">${t("sh.mymaps.noRun")}</p></div>`}`;
     const set = () => { shot.zone = $("#sh-shot-zone").value; shot.type = $("#sh-shot-type").value; shot.legend = $("#sh-shot-legend").checked; savePrefs(); };
@@ -2667,7 +2667,8 @@ async function replay(box, { A, id, course, race, init = {}, traces, allTraces =
   // one's run on the organiser's map kept in « Mes cartes » by itself (owner, 2026-11-24: « automatically save my map analyses …
   // whenever the map is allowed to be saved »), where the organisers' « Mes cartes » switch allows it: once a device for that
   // trace (the server keeps one race once on a map, whatever the devices), positions and times only; « Garder automatiquement »
-  // in « Export » turns it off for this browser
+  // in « Export » turns it off for this browser. An analysis may keep it by hand only (`autoKeep` false: a Pixel week's competition,
+  // pages/virtuallysrc.js)
   function autoOn() { try { return localStorage.getItem("ocn.mm.auto") !== "0"; } catch (e) { return true; } }
   function setAutoOn(on) { try { localStorage.setItem("ocn.mm.auto", on ? "1" : "0"); } catch (e) { /* this visit */ } }
   const autoKey = () => `ocn.sh.mmkept.${id}.${course.n}`;
@@ -2683,7 +2684,7 @@ async function replay(box, { A, id, course, race, init = {}, traces, allTraces =
   let autoBusy = false;
   async function autoKeep() {
     const r = myRun(), me = auth.session();
-    if (autoBusy || !r || !image || you.visitor || !mymapsOn || !me || me.demo || !autoOn()) return;
+    if (autoBusy || !r || !image || you.visitor || !mymapsOn || A.autoKeep === false || !me || me.demo || !autoOn()) return;
     try { if (localStorage.getItem(autoKey()) === autoSig()) return; } catch (e) { return; }
     autoBusy = true; autoState = "saving"; autoNote();
     try {

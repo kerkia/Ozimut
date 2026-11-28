@@ -31,7 +31,8 @@ const dateText = (key) => new Date(Date.UTC(+key.slice(0, 4), +key.slice(4, 6) -
 
 /**
  * Draw the section in `el`. ctx: play(race, course) — the page's own (games/virtually.js mounted in place) —, runsOf(raceId),
- * courseName(course), swatch(levelId), offered(courses), kind ("forest" | "sprint": which pair of boxes).
+ * courseName(course), swatch(levelId), offered(courses), kind ("forest" | "sprint": which pair of boxes), noDay (Pixel's next
+ * layout, games/vnext.js: no « Carte du jour », the « Terrain libre » alone — the week's competition takes its place).
  */
 export async function renderGen(el, ctx) {
   V.el = el; V.ctx = ctx;
@@ -44,11 +45,11 @@ export async function renderGen(el, ctx) {
     V.el.innerHTML = html`<h2 class="vtp-h">${t("vtg.h")} <span class="tag vtg-tag">${t("vtg.tag")}</span></h2>
       <p class="muted vtp-intro">${t("vtg.intro")}</p>
       <div class="vtg">
-        <section class="card vtg-box" data-k="day">
+        ${V.ctx.noDay ? "" : html`<section class="card vtg-box" data-k="day">
           <h3>${t("vtg.day.h")} · ${dateText(dayKey)}</h3>
           <p class="muted">${t("vtg.day.line", { type: t(`vtg.type.${dayO.type}`) })}</p>
           ${made("day")}
-        </section>
+        </section>`}
         <section class="card vtg-box" data-k="free">
           <h3>${t("vtg.free.h")}</h3>
           <p class="muted">${t("vtg.free.line")}</p>
@@ -72,11 +73,11 @@ export async function renderGen(el, ctx) {
     V.el.innerHTML = html`<h2 class="vtp-h">${t("vtg.s.h")} <span class="tag vtg-tag">${t("vtg.tag")}</span></h2>
       <p class="muted vtp-intro">${t("vtg.s.intro")}</p>
       <div class="vtg">
-        <section class="card vtg-box" data-k="sday">
+        ${V.ctx.noDay ? "" : html`<section class="card vtg-box" data-k="sday">
           <h3>${t("vtg.sday.h")} · ${dateText(dayKey)}</h3>
           <p class="muted">${t("vtg.sday.line")}</p>
           ${made("sday")}
-        </section>
+        </section>`}
         <section class="card vtg-box" data-k="sfree">
           <h3>${t("vtg.sfree.h")}</h3>
           <p class="muted">${t("vtg.sfree.line")}</p>
@@ -204,6 +205,7 @@ const STEPS = { relief: [0, 0.14], cover: [0.14, 0.28], classes: [0.28, 0.48], p
 // a town's (measured on the PC, 2026-11-26)
 const SSTEPS = { relief: [0, 0.04], streets: [0.04, 0.12], buildings: [0.12, 0.24], classes: [0.24, 0.34], ground: [0.34, 0.47], map: [0.47, 0.66], town: [0.66, 0.68],
   courses: [0.68, 0.95], build: [0.95, 1] };
-const progressOf = (step, f, sprint) => { const [a, b] = (sprint ? SSTEPS : STEPS)[step] || [0, 1]; return a + (b - a) * f; };
+/** The progress bar's share for a step of the generator (also the week's competition's world, pages/virtuallycomp.js). */
+export const progressOf = (step, f, sprint) => { const [a, b] = (sprint ? SSTEPS : STEPS)[step] || [0, 1]; return a + (b - a) * f; };
 const clock = (s) => { s = Math.max(0, Math.round(s)); const h = Math.floor(s / 3600), m = Math.floor((s % 3600) / 60), x = s % 60;
   return (h ? `${h}:${String(m).padStart(2, "0")}` : `${m}`) + `:${String(x).padStart(2, "0")}`; };

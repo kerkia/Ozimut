@@ -17,6 +17,7 @@ import * as country from "./country.js";
 import { watchTables } from "./fit.js";
 import { watch as watchDates } from "./datewords.js";
 import { ensurePass, forgetPass } from "./guestpass.js";
+import { pixelNext } from "./games/vnext.js";
 
 export const SITE = "Ozimut";
 
@@ -72,6 +73,12 @@ const PAGES = {
   relayHistory: () => import("./pages/relayhistory.js"),   // « Relais nationaux »: the CFC's and the CNE's history (2026-10-26)
   games: () => import("./pages/games.js"),         // « Jeux »: training games on generated maps
   virtually: () => import("./pages/virtually.js"), // « Virtually » (Coach, administrators; 2026-11-11): virtual races in 3D forests
+  // Pixel's pages as entries of its menu (owner, 2026-11-28; docs/pixel/competitions.md §2, behind games/vnext.js): one page draws them
+  virtuallyComp: () => import("./pages/virtually.js"),
+  virtuallyRanking: () => import("./pages/virtually.js"),
+  virtuallyAnalysis: () => import("./pages/virtually.js"),
+  virtuallyAvatar: () => import("./pages/virtually.js"),
+  virtuallyOrga: () => import("./pages/virtually.js"),
   vma: () => import("./pages/vma.js"),
   // « Apprendre » (Coach; owner, 2026-11-10): « Définitions de postes », « Symboles de carte » and a test, as three views
   learn: () => import("./pages/learn.js"),
@@ -83,6 +90,15 @@ const PAGES = {
   offer: () => import("./pages/offer.js"),
 };
 
+// Pixel's pages (owner, 2026-11-28; docs/pixel/competitions.md §2): #/pixel/<sub> -> its route, and the route's view of the page
+// (pages/virtually.js); without the switch (games/vnext.js) a sub-path opens the page on the matching tab of before (route_)
+const PIXEL_SUB = { competitions: "virtuallyComp", classement: "virtuallyRanking", analyse: "virtuallyAnalysis", avatar: "virtuallyAvatar", orga: "virtuallyOrga" };
+const PIXEL_ROUTES = Object.values(PIXEL_SUB);
+const PIXEL_PATH = { virtually: "#/pixel", ...Object.fromEntries(Object.entries(PIXEL_SUB).map(([k, r]) => [r, `#/pixel/${k}`])) };
+// the page's tabs of before (?onglet=) and the routes they are now; « Résultats » is a competition's card (Compétitions)
+const PIXEL_TAB = { entrainement: "virtually", resultats: "virtuallyComp", classement: "virtuallyRanking", analyse: "virtuallyAnalysis", avatar: "virtuallyAvatar", orga: "virtuallyOrga" };
+/** Pixel's Orga entry: where the page's Orga tab shows (an account with Orga, on a computer). */
+const pixelOrga = () => auth.session()?.orga !== false && !isPhone();
 // Pages without the runner search of the header: it leads away from what they show.
 // Pages with the runner search, at the right end of their tab row (owner, 2026-10-12): where picking a runner leads
 // somewhere (the Classement scrolls to them); the other pages have none.
@@ -91,7 +107,8 @@ const SEARCH_IN_TABS = new Set(["runner", "ranking", "compare"]);
 // tooltip of its name in the second row (NAV_HINT), its buttons go to the right of the tab row. The runner's, a club's
 // or a race's name stays as a title, and the pages outside the menu keep theirs.
 const NAV_HINT = { runner: "rn.lede.nav", ranking: "rk.lede", categories: "cg.lede", relayHistory: "rh.lede", courses: "cs.lede", compare: "cp.lede", clubs: "cl.lede", network: "nw.lede.nav",
-  agenda: "ag.lede.nav", provisional: "prov.lede", live: "lv.lede", splits: "ra.lede", analysis: "an.lede", games: "g.lede", virtually: "vtp.lede", vma: "vma.lede", learn: "lt.lede",
+  agenda: "ag.lede.nav", provisional: "prov.lede", live: "lv.lede", splits: "ra.lede", analysis: "an.lede", games: "g.lede", virtually: "vtp.lede", virtuallyComp: "nav.pixel.comp.hint", virtuallyRanking: "nav.pixel.ranking.hint", virtuallyAnalysis: "nav.pixel.analysis.hint",
+  virtuallyAvatar: "nav.pixel.avatar.hint", virtuallyOrga: "nav.pixel.orga.hint", vma: "vma.lede", learn: "lt.lede",
   analysisPerso: "an.perso.lede", analysisOrga: "an.orga.lede", analysisClub: "sh.club.lede", analysisRace: "sh.race.lede",
   orgAnalyses: "sh.org.lede", orgResults: "or.lede", orgStarts: "os.hint", orgTracer: "nav.orgTracer.hint", orgMapper: "nav.orgMapper.hint", orgManage: "nav.orgManage.hint" };
 // the tools still in beta (beta.js; owner, 2026-10-16): a small « bêta » after their name in the menus
@@ -130,7 +147,7 @@ const betaMark = (k) => (BETA_ROUTES.has(k) ? raw(`<sup class="nav-beta" title="
 const BETA_MODULES = new Set(["carto", "pixel"]);
 export const betaSup = () => raw(`<sup class="nav-beta" title="${t("beta.mark.tip")}">${t("beta.mark")}</sup>`);
 export const modBeta = (m) => (BETA_MODULES.has(m) ? betaSup() : "");
-const isLean = (r) => ["ranking", "categories", "relayHistory", "courses", "compare", "clubs", "club", "clubcompare", "relays", "network", "agenda", "analysis", "analysisPerso", "analysisOrga", "games", "virtually", "vma", "learn"].includes(r.route)
+const isLean = (r) => ["ranking", "categories", "relayHistory", "courses", "compare", "clubs", "club", "clubcompare", "relays", "network", "agenda", "analysis", "analysisPerso", "analysisOrga", "games", "virtually", ...PIXEL_ROUTES, "vma", "learn"].includes(r.route)
   || (r.route === "provisional" && !r.query.course) || (r.route === "splits" && !r.query.course) || (r.route === "live" && !r.arg) || ((r.route === "analysisClub" || r.route === "analysisRace") && !r.query.id)
   || (r.route === "orgAnalyses" && !r.query.id) || r.route === "orgResults" || (r.route === "orgStarts" && !r.query.course);
 // Réseau views that count every discipline together by default (all but the leaders, who are
@@ -193,7 +210,7 @@ function parseHash(hash = location.hash) {
     : head === "orga-analyses" || head === "orga-competitions" || head === "orga-entrainements" ? "orgAnalyses"     // one list since 2026-11-04 (old addresses)
     : head === "orga" || head === "gerer" || head === "orga-gerer" ? "orgManage"     // Orga is its events (2026-11-12; « Gérer » the day before)
     : head === "carto" ? "orgMapper"     // Ozimut Carto (2026-11-12): « Cartographier », a module of its own
-    : head === "pixel" ? "virtually"     // Ozimut Pixel (2026-11-12): « Virtually », a module of its own
+    : head === "pixel" ? PIXEL_SUB[arg] || "virtually"     // Ozimut Pixel (2026-11-12): « Virtually », a module of its own; its pages (2026-11-28)
     : head === "orga-resultats" ? "orgResults" : head === "orga-horaires" ? "orgStarts" : head === "orga-direct" ? "orgDirect" : head === "orga-tracer" ? "orgTracer" : head === "orga-carto" || head === "cartographier" ? "orgMapper"
     : head === "analyse-club" ? "analysisClub"
     : head === "analyse-competition" ? "analysisRace"
@@ -494,13 +511,17 @@ export function moduleMenus() {
       .filter(([k]) => (!OWNER_ROUTES.has(k) || ownerOnly()) && (!NUTRITION_ROUTES[k] || NUTRITION_ROUTES[k]())),
     // one page each, no menu (owner, 2026-11-12): Orga the organiser's events (the Tracer, Analyses, Résultats, Horaires and Direct
     // are an event's tabs, their addresses lead there), Carto the map editor, Pixel the virtual races
-    orga: [], carto: [], pixel: [],
+    orga: [], carto: [],
+    // Pixel's pages as its menu (owner, 2026-11-28; behind games/vnext.js): the page's own tabs before
+    pixel: pixelNext() ? [["virtually", "#/pixel", t("nav.pixel.training")], ["virtuallyComp", "#/pixel/competitions", t("nav.pixel.comp")],
+      ["virtuallyRanking", "#/pixel/classement", t("nav.pixel.ranking")], ["virtuallyAnalysis", "#/pixel/analyse", t("nav.pixel.analysis")],
+      ["virtuallyAvatar", "#/pixel/avatar", t("nav.pixel.avatar")], ...(pixelOrga() ? [["virtuallyOrga", "#/pixel/orga", t("nav.pixel.orga")]] : [])] : [],
   };
 }
 // the routes outside the menus, by module (a view of a page in the menu, an address of before)
 const ROUTE_MODULE = { club: "stats", clubcompare: "stats", relays: "stats", ask: "stats", deposit: "orga",
   orgManage: "orga", orgTracer: "orga", orgAnalyses: "orga", orgResults: "orga", orgStarts: "orga", orgDirect: "orga",
-  orgMapper: "carto", virtually: "pixel",
+  orgMapper: "carto", virtually: "pixel", ...Object.fromEntries(PIXEL_ROUTES.map((k) => [k, "pixel"])),
   agenda: "arena", provisional: "arena", splits: "arena", live: "arena", entry: "arena", myEntries: "arena", myMaps: "coach", track: "coach" };
 /** Where a module opens: its first page (Arena: the competitions). */
 // Stats opens on the ranking (owner, 2026-10-30: the page every visitor has), the others on their menu's first page
@@ -948,7 +969,7 @@ const NO_RUNNERS = new Set(["hub", "orgaOff", "modtiles", "games", "vma", "learn
   "myMaps", "track", "settings", "myClub", "contact", "orgMapper", "needCountry", "phoneSend", "entry", "myEntries", "offer"]);
 // the pages a text loaded late never draws again (i18n « ocn:i18n-late »): they hold work in hand
 const NO_REDRAW = new Set(["orgTracer", "orgMapper", "analysis", "analysisPerso", "analysisOrga", "analysisClub", "analysisRace",
-  "orgAnalyses", "orgManage", "orgDirect", "deposit", "games", "virtually", "learn", "nutritionWrite", "myMaps", "track"]);
+  "orgAnalyses", "orgManage", "orgDirect", "deposit", "games", "virtually", ...PIXEL_ROUTES, "learn", "nutritionWrite", "myMaps", "track"]);
 let refreshed = false;                    // the account read again from the server, once a visit
 let drawing = false, drawnAt = 0, lateRedraw = false, lateKeys = [];
 
@@ -1020,6 +1041,24 @@ async function route_() {
       renderFooter();
     }
     if (id && id.cc === country.current()) r = { ...r, arg: id.n };
+  }
+  // Pixel (owner, 2026-11-28): with the switch, an address of the page's tabs of before (?onglet=) shows the page it is now, and
+  // an Orga page to an account without the entry the training; without it, a page of the new menu opens the page on its tab
+  if (r.route === "virtually" || PIXEL_ROUTES.includes(r.route)) {
+    const q = { ...r.query };
+    let to = null;
+    if (pixelNext()) {
+      if (r.route === "virtually" && q.onglet) { to = PIXEL_TAB[q.onglet] || "virtually"; delete q.onglet; }
+      if ((to || r.route) === "virtuallyOrga" && !pixelOrga()) to = "virtually";
+    } else if (r.route !== "virtually") {
+      const tab = Object.entries(PIXEL_TAB).find(([, k]) => k === r.route)?.[0];
+      to = "virtually";
+      if (tab && tab !== "resultats") q.onglet = tab; else delete q.onglet;
+    }
+    if (to) {
+      history.replaceState(null, "", `${PIXEL_PATH[to]}${qstr(q)}`);
+      r = parseHash();
+    }
   }
   // the page's modules and texts asked for now, beside what follows (front.js: a deploy's build knows them; the route may
   // still turn below — a few files asked for nothing then)

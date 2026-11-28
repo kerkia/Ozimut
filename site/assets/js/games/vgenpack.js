@@ -6,7 +6,8 @@ import { raceOf, seedOf, TYPES } from "./vgen.js";
 import { mapBytes, isomSet, isprSet } from "./vgenmap.js";
 import { loadPhotos } from "./vforest.js";
 
-/** The world and its courses: { world, courses, ms }. onStep(step, share) while it is made. */
+/** The world and its courses: { world, courses, ms, seed }. onStep(step, share) while it is made. opts: the generator's, and for
+ *  the course setters `levels`, `tries`, `ends`, `retry`, `estimate` (games/vgenworker.js build; structured-cloneable). */
 export function makeWorld(opts, onStep = () => {}) {
   return new Promise((resolve, reject) => {
     let w;
@@ -22,17 +23,11 @@ export function makeWorld(opts, onStep = () => {}) {
     w.postMessage({ opts });
   });
 }
-/** Without a module worker (an old browser): on the page's thread. */
+/** Without a module worker (an old browser): on the page's thread, the worker's own build() (the week's levels, tries, retries
+ *  and estimates passed through `opts` as to the worker). */
 async function inline(opts, onStep) {
-  const [{ generate, CL, SPEED }, { setCourses, GEN_LEVELS }, { generateTown }, { setSprintCourses }] = await Promise.all([import("./vgen.js"),
-    import("./vcourse.js"), import("./vtowngen.js"), import("./vcoursesprint.js")]);
-  const t0 = performance.now();
-  const world = opts.sprint ? generateTown({ ...opts, onStep }) : generate({ ...opts, onStep });
-  onStep("courses", 0);
-  const pkg = { W: world.W, H: world.H, h: world.h, cls: world.cls, classes: CL, speed: CL.map((n) => SPEED[n]), features: world.features, obst: world.obst };
-  const courses = opts.sprint ? setSprintCourses(pkg, { seed: opts.seed, tries: opts.tries || 160 })
-    : setCourses(pkg, { seed: opts.seed, tries: opts.tries || 260, levels: GEN_LEVELS });
-  return { world, courses, ms: Math.round(performance.now() - t0) };
+  const { build } = await import("./vgenworker.js");
+  return build(opts, onStep);
 }
 
 /** What the game plays: { race, W, H, h, cls, veg, groundImg, feats, trees, photos, ocd, mapImage, town }. */

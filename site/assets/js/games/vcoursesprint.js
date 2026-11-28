@@ -11,12 +11,21 @@
 // shared one within a leg of it.
 
 import { prng } from "./vgen.js";
+import { timer, paceOf, KM_RANGE } from "./vcourse.js";
 
 export const SPRINT_LEVELS = [
   { id: "blue", n: 6, km: 1.0, lo: 50, hi: 170, rc: -0.6, sep: 70, easy: true },
   { id: "yellow", n: 8, km: 1.4, lo: 60, hi: 200, rc: 0.3, sep: 70, easy: true },
   { id: "orange_s", n: 10, km: 1.8, lo: 60, hi: 220, rc: 1.0, sep: 90 },
   { id: "orange_l", n: 14, km: 2.8, lo: 80, hi: 280, rc: 2.0, sep: 90 },
+];
+// The « compétition de la semaine »'s sprint (owner, 2026-11-28; docs/pixel/competitions.md §5): « a » the long orange-level
+// sprint, « b » shorter, « c » a level easier, their rules the orange courses'. `min` (read only when present): the course's target
+// time at the game's ×1 (minutes, games/vcourse.js timer on cells of 1 m), the best courses ranked closer to it.
+export const WEEK_SPRINT_LEVELS = [
+  { id: "a", n: 20, km: 2.9, lo: 70, hi: 280, rc: 2.0, sep: 90, min: 14 },
+  { id: "b", n: 15, km: 2.2, lo: 70, hi: 250, rc: 1.6, sep: 90, min: 11 },
+  { id: "c", n: 11, km: 1.6, lo: 60, hi: 220, rc: 1.0, sep: 80, min: 8 },
 ];
 const GOOD = { corner: 1.0, wallend: 1.1, stairs: 1.2, monument: 1.2, fountain: 1.2, bigtree: 0.9, bush: 0.7 };
 const EASY = { corner: 0.8, wallend: 0.6, stairs: 1.0, monument: 1.2, fountain: 1.2, bigtree: 0.7, bush: 0.3 };
@@ -196,6 +205,16 @@ export function setSprintCourses(pkg, { seed = 7, tries = 160, levels = SPRINT_L
     return { score, all, kinds, length };
   }
 
+  let T1 = null;                                           // the week's levels: the game's own time on the ground (vcourse.js timer)
+  // and their length from the town's own pace (vcourse.js setCourses does the same)
+  if (levels.some((L) => L.min)) {
+    levels = levels.map((L) => {
+      const pace = L.min ? paceOf((T1 ||= timer(pkg, 1)), XY, seed, L.lo, L.hi) : 0;
+      if (!(pace > 0)) return L;
+      const f = Math.max(KM_RANGE[0], Math.min(KM_RANGE[1], (L.min * 60) / pace / 1000 / L.km));
+      return { ...L, km: L.km * f, lo: Math.round(L.lo * f), hi: Math.round(L.hi * f) };   // the legs in step
+    });
+  }
   const setAll = () => {
   const out = [];
   levels.forEach((L, k) => {
@@ -206,14 +225,15 @@ export function setSprintCourses(pkg, { seed = 7, tries = 160, levels = SPRINT_L
     found.sort((a, b) => b.score - a.score);
     // the best that runs: each leg reachable and not over 2.3 × its straight line; the orange courses a bonus for the detours
     let best = null;
-    for (const c of found.slice(0, 8)) {
-      let fine = true, extra = 0;
+    for (const c of found.slice(0, L.min ? 12 : 8)) {
+      let fine = true, extra = 0, way = 0;
       for (let j = 1; j < c.all.length && fine; j++) {
         const d = dist(c.all[j - 1], c.all[j]), r = route(c.all[j - 1], c.all[j], d * 2.3 + 20);
-        if (!Number.isFinite(r)) fine = false; else extra += Math.min(0.6, r / Math.max(d, 1) - 1);
+        if (!Number.isFinite(r)) fine = false; else { extra += Math.min(0.6, r / Math.max(d, 1) - 1); if (L.min) way += (T1 ||= timer(pkg, 1))(c.all[j - 1], c.all[j]); }
       }
       if (!fine) continue;
-      const s = c.score + (L.easy ? -1 : 1) * (extra / (c.all.length - 1));
+      let s = c.score + (L.easy ? -1 : 1) * (extra / (c.all.length - 1));
+      if (L.min) s -= 8 * Math.abs(way / 60 / L.min - 1);   // the week's: the time against the target
       if (!best || s > best.s) best = { ...c, s };
     }
     if (!best) return;

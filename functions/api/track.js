@@ -13,7 +13,7 @@ import { soloSweepSoon } from "./mymaps/[[path]].js";
 
 // the site's pages (app.js routes; the Réseau views apart) — anything else is refused
 const PAGES = new Set(["overview", "ranking", "runner", "compare", "clubs", "club", "clubcompare", "courses", "agenda",
-  "methods", "settings", "contact", "admin", "provisional", "splits", "deposit", "live", "relays", "analysis", "analysisPerso", "analysisOrga", "mapAnalysis", "myMaps", "track", "analysisClub", "analysisRace", "orgAnalyses", "orgRace", "orgTraining", "orgResults", "orgStarts", "booking", "entry", "myEntries", "myClub", "orgDirect", "orgTracer", "orgMapper", "orgManage", "needCountry", "orgaOff", "categories", "relayHistory", "games", "virtually", "vma", "descriptions", "mapkey", "learn", "nutrition", "nutritionWrite", "hub", "modtiles", "ask", "offer", "network:ego", "network:leaders", "network:territories", "network:stats"]);
+  "methods", "settings", "contact", "admin", "provisional", "splits", "deposit", "live", "relays", "analysis", "analysisPerso", "analysisOrga", "mapAnalysis", "myMaps", "track", "analysisClub", "analysisRace", "orgAnalyses", "orgRace", "orgTraining", "orgResults", "orgStarts", "booking", "entry", "myEntries", "myClub", "orgDirect", "orgTracer", "orgMapper", "orgManage", "needCountry", "orgaOff", "categories", "relayHistory", "games", "virtually", "virtuallyComp", "virtuallyRanking", "virtuallyAnalysis", "virtuallyAvatar", "virtuallyOrga", "vma", "descriptions", "mapkey", "learn", "nutrition", "nutritionWrite", "hub", "modtiles", "ask", "offer", "network:ego", "network:leaders", "network:territories", "network:stats"]);
 const KEEP_DAYS = 400;
 
 /** Today's date in Paris, YYYY-MM-DD; `plus` days later (negative: earlier). */

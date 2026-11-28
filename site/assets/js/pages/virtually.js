@@ -18,6 +18,11 @@
 //   kept in this browser), shown turning in a small scene.
 // The tab in the address (?onglet=resultats|classement|analyse|avatar|orga), the map and course too (?carte=, ?circuit=, ?run=,
 // the analysis's map ?an=).
+// Pixel's next layout (owner, 2026-11-28; docs/pixel/competitions.md §2 and §6, behind games/vnext.js): no tab row — the page shows
+// the one view its route names (app.js: #/pixel, #/pixel/competitions, /classement, /analyse, /avatar, /orga), the views being
+// entries of the module's menu; « Compétitions » (pages/virtuallycomp.js: the week's competition and the organisers', one attempt,
+// no pause) in place of « Résultats »; Training without the « Carte du jour », a countdown before every start; Avatar with its
+// « Apparence » and « Commandes » (the keys: games/vkeysui.js); the weeks' runs counted in the ranking and analysed once over.
 
 import { html, raw, $, $$, fmt, fmtDate, displayName } from "../util.js";
 import { t, tn, loadArea } from "../i18n.js";
@@ -28,6 +33,8 @@ import * as data from "../data.js";
 import { envText } from "../games/vweather.js";
 import { LAYERS, mapOptOf, mapOptText, imageMap, savedOpt, saveOpt, moOf } from "../games/vmapopt.js";
 import { courseSig } from "./virtuallysrc.js";
+import { pixelNext } from "../games/vnext.js";
+import { WEEK_RE, weekState, weekDays, parisDate } from "../games/vweekid.js";
 
 const API = "/api/virtual/";
 // a sprint has no violet nor middle and long distances: its orange courses are short and long (orange_s, orange_l)
@@ -46,16 +53,41 @@ export const clock = (s) => {
 const gapClock = (s) => (s == null || Math.round(s) <= 0 ? "" : `+${clock(s)}`);
 const EVENTS = new Map();                 // the events' records, by id (an event is played as a map)
 /** A map's name: an event's own, its catalogue entry, else its id. */
+const COMPS = new Map();                  // the competitions of /api/virtual/comp (Pixel's next layout), by id
+/** A week's competition's name: its number (« Compétition de la semaine · semaine 48 »). */
+export const weekName = (id) => (weekDays(id) ? t("vc.weekName", { n: Number(String(id).slice(-2)) }) : id);
 const mapName = (id) => {
   if (EVENTS.has(id)) return EVENTS.get(id).name;
+  if (WEEK_RE.test(id)) return weekName(id);
+  if (COMPS.get(id)?.name) return COMPS.get(id).name;
   const day = /^day-(\d{4})(\d{2})(\d{2})(-s)?$/.exec(id);        // a « Carte du jour » (pages/virtuallygen.js), « -s » the sprint's
   if (day) return t(day[4] ? "vtg.name.sday" : "vtg.name.day", { date: fmtDate(`${day[1]}-${day[2]}-${day[3]}`) });
   const k = `vt.map.${id}`, v = t(k); return v === k ? id : v;
 };
+/** Is a competition over (Paris days)? A week's by its Sunday, an organiser's by its last day. */
+const compOver = (id) => {
+  if (WEEK_RE.test(id)) return weekState(id) === "over";
+  const c = COMPS.get(id), e = EVENTS.get(id), to = c?.to || e?.to;
+  return c?.state === "over" || (!!to && to < parisDate());
+};
 /** May this account see another's run of the circuit in the analysis? A training's always (owner, 2026-11-14: every training open
- *  to analysis); a competition's once its event's last day is past (the server's rule, api/virtual), an administrator always. */
+ *  to analysis); a competition's once its last day is past (the server's rule, api/virtual), an administrator always, its
+ *  organiser too (docs/pixel/competitions.md §6). */
 const canSee = (r) => r.mine || r.kind !== "competition" || !!auth.session()?.admin
-  || (EVENTS.has(r.race) && !!EVENTS.get(r.race).to && EVENTS.get(r.race).to < new Date().toISOString().slice(0, 10));
+  || !!EVENTS.get(r.race)?.mine || !!COMPS.get(r.race)?.mine || compOver(r.race);
+const WEEK_RACES = new Map(), WEEK_STEPS = new Map();
+/** A week's competition's world made in this browser (games/vweek.js, deterministic), once a visit, as the analysis reads a map;
+ *  onStep(step, share) told of the making (each caller's, Compétitions' and Analyse's). */
+function weekWorld(id, onStep) {
+  if (onStep) { if (!WEEK_STEPS.has(id)) WEEK_STEPS.set(id, new Set()); WEEK_STEPS.get(id).add(onStep); }
+  if (!WEEK_RACES.has(id)) WEEK_RACES.set(id, (async () => {
+    const { weekRace } = await import("../games/vweek.js");
+    const step = (k, f) => WEEK_STEPS.get(id)?.forEach((fn) => { try { fn(k, f); } catch (e) { /* its page gone */ } });
+    const w = await weekRace(id, { title: weekName(id), onStep: step });
+    return { ...w, id, gen: true, week: true };
+  })().catch((e) => { WEEK_RACES.delete(id); throw e; }));
+  return WEEK_RACES.get(id);
+}
 const DAY_RACES = new Map();
 /** A « Carte du jour » made again in this browser for its runs' analysis (the generator is deterministic: games/vgenpack.js), as
  *  the analysis reads a map: { id, gen, sig, race: { courses }, load() → the package }. */
@@ -72,6 +104,11 @@ function dayRace(id, onStep) {
 /** A course's name: its level's, else its own. */
 const courseName = (c) => (LEVELS.includes(c.id) ? t(`vt.lvl.${c.id}`) : c.name || c.id);
 const swatch = (id) => html`<span class="vtp-sw" style="background:${LEVEL_COLOUR[id] || "#888"}"></span>`;
+// the views of Pixel's next layout, their addresses (app.js PIXEL_SUB) and their routes
+const VIEW_PATH = { entrainement: "#/pixel", competitions: "#/pixel/competitions", classement: "#/pixel/classement", analyse: "#/pixel/analyse",
+  avatar: "#/pixel/avatar", orga: "#/pixel/orga" };
+const VIEW_OF = { virtually: "entrainement", virtuallyComp: "competitions", virtuallyRanking: "classement", virtuallyAnalysis: "analyse",
+  virtuallyAvatar: "avatar", virtuallyOrga: "orga" };
 
 // ---- the server ---------------------------------------------------------------------------------------------------------
 let RACES = null;
@@ -97,9 +134,40 @@ async function runsOf(race) {
 async function allRuns() {
   const list = await races();
   const runs = (await Promise.all(list.map((r) => runsOf(r.id).catch(() => [])))).flat();
+  if (pixelNext()) {
+    // the weeks' runs, and an organiser's competition the events' list does not hold (its runs under its id all the same)
+    const extra = (await loadComps()).filter((c) => c.kind === "orga" && !list.some((r) => r.id === c.id));
+    runs.push(...(await weekRuns()), ...(await Promise.all(extra.map((c) => runsOf(c.id).catch(() => [])))).flat());
+  }
   const { compute } = await import("../games/vindex.js");
   return compute(runs);
 }
+/** Every week's competition's runs (Pixel's next layout): those of the world most runs were made on, each week (a browser that
+ *  made another world — its signature `ws` — never mixes its runs with the others'). */
+let WEEK_RUNS = null;
+function weekRuns() {
+  return (WEEK_RUNS ||= getJson(`${API}runs?race=week`).then((d) => {
+    const all = (d.runs || []).filter((r) => WEEK_RE.test(r.race || "")), major = new Map();
+    for (const w of new Set(all.map((r) => r.race))) {
+      const n = new Map();
+      for (const r of all) if (r.race === w) n.set(r.ws || "", (n.get(r.ws || "") || 0) + 1);
+      major.set(w, [...n.entries()].sort((a, b) => b[1] - a[1])[0]?.[0] ?? "");
+    }
+    return all.filter((r) => (r.ws || "") === major.get(r.race)).map((r) => ({ ...r, kind: "competition", event: r.event || r.race }));
+  }).catch(() => { WEEK_RUNS = null; return []; }));
+}
+/** The competitions (Pixel's next layout), kept by id for the names and the rules of visibility. */
+let COMPS_P = null;
+const noteComps = (list) => { for (const c of list || []) if (c?.id) COMPS.set(c.id, c); };
+/** An organiser's competition as the analysis reads a map, from /api/virtual/comp (when the events' list does not hold it). */
+const compRace = (id) => {
+  const c = COMPS.get(id);
+  if (!c || c.kind !== "orga") return null;
+  return { id, thumb: c.thumb, event: { id, type: "competition", name: c.name, to: c.to, from: c.from, mine: !!c.mine, env: c.env },
+    race: { id, scale: c.scale, std: c.std, source: c.source === "lidar" ? "lidaronly" : "lidar", lonlat: c.lonlat, courses: c.courses || [] } };
+};
+const loadComps = () => (COMPS_P ||= getJson(`${API}comp`).then((d) => { noteComps(d.comps || []); return d.comps || []; })
+  .catch(() => { COMPS_P = null; return []; }));
 
 // ---- the ghosts (owner, 2026-11-12: « a user could select a number of ghosts to run with, in training for now ») -------------
 const GHOSTS_KEY = "ocn.vt.ghosts", GHOSTS_MAX = 5;
@@ -151,24 +219,34 @@ async function mySeed() {
   } catch (e) { return null; }
 }
 
-export async function render(main, { query }) {
+export async function render(main, { query, route }) {
+  const NEXT = pixelNext();
   await loadArea("virtually");
+  // Pixel's next layout: the competitions' texts and the game's new ones (the keys); a catalogue missing never stops the page
+  if (NEXT) await Promise.all([loadArea("vcomp").catch((e) => console.warn(e)), loadArea("vplay").catch((e) => console.warn(e))]);
   if (location.hash.startsWith("#/jeux")) history.replaceState(null, "", "#/virtually");     // « Jeux »'s tab of before
-  const tabs = [["entrainement", t("vt.tab.training")], ["resultats", t("vt.tab.results")], ["classement", t("vt.tab.ranking")], ["analyse", t("vt.tab.analysis")],
+  const allTabs = [["entrainement", t("vt.tab.training")], ["resultats", t("vt.tab.results")], ["classement", t("vt.tab.ranking")], ["analyse", t("vt.tab.analysis")],
     ["avatar", t("vt.tab.avatar")], ...(auth.session()?.orga !== false ? [["orga", t("vt.tab.orga")]] : [])]
     // every account sees Pixel since 2026-11-12 (owner: Entraînement and Avatar for all), Analyse since 2026-11-14 (owner: every
     // training open to solo and multi analysis); Résultats, Classement and Orga stay the administrators'
     .filter(([k]) => auth.session()?.admin || k === "entrainement" || k === "avatar" || k === "analyse");
-  const tab = tabFrom(tabs, query);
+  // the next layout: one view, the route's (app.js sends an account without Orga's entry away from #/pixel/orga)
+  const VIEW = VIEW_OF[route] || "entrainement";
+  const views = ["entrainement", "competitions", "classement", "analyse", "avatar", ...(auth.session()?.orga !== false ? ["orga"] : [])];
+  const tabs = NEXT ? [[VIEW, VIEW === "competitions" ? t("nav.pixel.comp") : allTabs.find(([k]) => k === VIEW)?.[1] || t("nav.virtually")]] : allTabs;
+  const tab = NEXT ? VIEW : tabFrom(tabs, query);
   const sel = { race: query.carte || null, course: query.circuit || null, run: query.run || null,
     // the analysis open: ?an=, else Coach's own address of it (?id=px~<map>, written by pages/shared.js once open)
     an: query.an || (String(query.id || "").startsWith("px~") ? String(query.id).slice(3) : null) };
-  main.innerHTML = html`
+  main.innerHTML = NEXT ? html`
+    <div class="page-head"><div><h1>${tabs[0][1]}</h1></div></div>
+    ${raw(betaNote("pixel"))}
+    <div data-panel="${VIEW}" class="vtp-panel vtp-view"></div>` : html`
     <div class="page-head"><div><h1>${t("nav.virtually")}</h1><p class="lede">${t("vtp.lede")}</p></div></div>
     ${raw(betaNote("pixel"))}
     ${pageTabs(tabs, tab)}
     ${tabs.map(([k]) => html`<div data-panel="${k}" class="vtp-panel" hidden></div>`)}`;
-  let game = null, drawn = new Set(), stopAn = null, stopOrga = null, stopAvatar = null, trainingPlay = null;
+  let game = null, drawn = new Set(), stopAn = null, stopOrga = null, stopAvatar = null, stopComp = null, trainingPlay = null;
   const panel = (k) => $(`[data-panel="${k}"]`, main);
   const setQuery = (q) => {
     const [path, qs] = location.hash.split("?"), p = new URLSearchParams(qs || "");
@@ -182,8 +260,9 @@ export async function render(main, { query }) {
       if (k === "entrainement") await training(panel(k));
       else if (k === "resultats") await results(panel(k));
       else if (k === "classement") await ranking(panel(k));
-      else if (k === "avatar") { stopAvatar?.(); stopAvatar = await (await import("../games/vavatar.js")).renderAvatar(panel(k)); }
+      else if (k === "avatar") { stopAvatar?.(); stopAvatar = NEXT ? await avatarViews(panel(k)) : await (await import("../games/vavatar.js")).renderAvatar(panel(k)); }
       else if (k === "orga") { stopOrga?.(); stopOrga = await (await import("./virtuallyorga.js")).renderOrga(panel(k), { onPlay: (ev, c) => tryEvent(ev, c), onChange: listsChanged }); }
+      else if (k === "competitions") { stopComp?.(); stopComp = await (await import("./virtuallycomp.js")).renderComp(panel(k), compCtx()); }
       else stopAn = await analysis(panel(k));
     } catch (e) {
       console.error(e);
@@ -192,16 +271,62 @@ export async function render(main, { query }) {
   };
   // the Analyse tab chosen opens on its list of analyses (owner, 2026-11-15), not on the one seen last
   $('[data-ptab="analyse"]', main)?.addEventListener("click", () => { if (!panel("analyse").hidden) return; closeAnalysis(); });
-  const show = bindPageTabs(main, tabs, tab, (k) => { if (!drawn.has(k) || (k !== "entrainement" && k !== "orga")) { drawn.add(k); draw(k); } });
-  /** The organisers try their event (the Orga tab) in the training tab: their own runs are trainings. */
+  /** The next layout: another view is another address (the router draws it); q its query (run, an, carte…). */
+  const goView = (k, q = {}) => {
+    const p = new URLSearchParams(Object.entries(q).filter(([, v]) => v != null && v !== ""));
+    location.hash = `${VIEW_PATH[k] || "#/pixel"}${p.toString() ? `?${p}` : ""}`;
+  };
+  const show = NEXT ? (k) => { if (k !== VIEW) goView(k, k === "analyse" ? { run: sel.run } : {}); else { drawn.add(k); draw(k); } }
+    : bindPageTabs(main, tabs, tab, (k) => { if (!drawn.has(k) || (k !== "entrainement" && k !== "orga")) { drawn.add(k); draw(k); } });
+  if (NEXT) { drawn.add(VIEW); draw(VIEW); }
+  /** The organisers try their event (the Orga tab) in the training tab: their own runs are trainings. The next layout: in the Orga
+   *  view itself, Orga drawn again once the try is left (a countdown, a pause allowed: a training's run). */
   const tryEvent = async (ev, course) => {
     EVENTS.set(ev.id, ev); RACES = null;
-    game?.stop(); game = null; show("entrainement");
+    game?.stop(); game = null;
+    if (NEXT) {
+      stopOrga?.(); stopOrga = null;
+      const raceOf = { id: ev.id, event: ev, race: { id: ev.id, scale: ev.scale, std: ev.std, source: ev.source === "lidar" ? "lidaronly" : "lidar", lonlat: ev.lonlat, courses: ev.courses } };
+      await playIn(panel("orga"), raceOf, course, () => draw("orga"));
+      return;
+    }
+    show("entrainement");
     if (!trainingPlay) { drawn.add("entrainement"); await draw("entrainement"); }
     await trainingPlay({ id: ev.id, event: ev, race: { courses: ev.courses } }, course);
   };
   const goTab = (k) => { game?.stop(); game = null; show(k); };
-  const hasTab = (k) => tabs.some(([x]) => x === k);     // « Résultats » and « Analyse » are the administrators' (owner, 2026-11-12)
+  // « Résultats » and « Analyse » are the administrators' (owner, 2026-11-12); the next layout's views are the menu's
+  const hasTab = (k) => (NEXT ? views.includes(k) : tabs.some(([x]) => x === k));
+  /** « Compétitions »'s helpers (pages/virtuallycomp.js renderComp). */
+  function compCtx() {
+    return { mapName, weekName, courseName, swatch, clock, mySeed, savedView, setView: (v) => { try { localStorage.setItem(VIEW_KEY, v); } catch (e) { /* not kept */ } },
+      ghostCount, setGhostCount: (n) => { try { localStorage.setItem(GHOSTS_KEY, String(n)); } catch (e) { /* not kept */ } }, GHOSTS_MAX,
+      noteComps, levels: LEVELS, weekWorld,
+      // a run kept, a registration changed: the ranking and the analyses read the runs again
+      changed: () => { runsCache.clear(); WEEK_RUNS = null; COMPS_P = null; drawn.delete("classement"); drawn.delete("analyse"); },
+      analyse: (id) => goView("analyse", { an: id }),
+      setQuery, getQuery: () => Object.fromEntries(new URLSearchParams(location.hash.split("?")[1] || "")) };
+  }
+  /** Avatar in the next layout: « Apparence » (games/vavatar.js) and « Commandes » (the keys, games/vkeysui.js) as page tabs. */
+  async function avatarViews(el) {
+    const atabs = [["apparence", t("vc.av.look")], ["commandes", t("vc.av.keys")]];
+    const cur = tabFrom(atabs, query);
+    el.innerHTML = html`${pageTabs(atabs, cur)}${atabs.map(([k]) => html`<div data-panel="${k}" hidden></div>`)}`;
+    const stops = {};
+    bindPageTabs(el, atabs, cur, async (k) => {
+      if (stops[k] !== undefined) return;
+      stops[k] = null;
+      const box = $(`[data-panel="${k}"]`, el);
+      try {
+        stops[k] = k === "apparence" ? await (await import("../games/vavatar.js")).renderAvatar(box)
+          : await (await import("../games/vkeysui.js")).renderControls(box);
+      } catch (e) {
+        console.error(e);
+        box.innerHTML = html`<div class="card"><div class="empty">${t("vt.error")}<br><span class="muted">${String(e.message || e)}</span></div></div>`;
+      }
+    });
+    return () => { for (const f of Object.values(stops)) { try { if (typeof f === "function") f(); else f?.stop?.(); } catch (e) { /* gone */ } } };
+  }
   /** An event published, withdrawn, changed or deleted in « Orga »: the maps and their results are read again when next shown,
    *  Training drawn afresh unless a race is under way there. */
   function listsChanged() {
@@ -225,7 +350,9 @@ export async function render(main, { query }) {
   async function training(el) {
     if (game) return;
     el.innerHTML = html`<div class="boot"><div class="spinner"></div></div>`;
-    const list = await races();
+    // the next layout: the competitions are on their own page (Compétitions), the « Carte du jour » gone (the week's competition)
+    const list = (await races()).filter((r) => !NEXT || r.event?.type !== "competition");
+    const GENS = NEXT ? ["free", "sfree"] : ["day", "free", "sday", "sfree"];
     if (!list.some((r) => r.id === sel.race)) sel.race = null;
     const drawChooser = () => {
       const race = list.find((r) => r.id === sel.race), courses = offered(race?.race.courses);
@@ -233,9 +360,9 @@ export async function render(main, { query }) {
       // on a phone the chosen map's circuits and « Commencer » come right under that map, not under the whole list (owner, 2026-11-12)
       // the invented forests (pages/virtuallygen.js) as two tiles among the maps (owner, 2026-11-14: hidden at the page's bottom,
       // nobody saw them): « gen:day » / « gen:free » chosen shows their section right under the maps, in place of a map's courses
-      const gen = /^gen:(day|free|sday|sfree)$/.exec(sel.race || "")?.[1] || null;
+      const gen = GENS.find((k) => sel.race === `gen:${k}`) || null;
       const inline = (!!race || !!gen) && matchMedia("(max-width: 640px)").matches;
-      el.innerHTML = html`<p class="muted vtp-intro">${t(auth.session()?.admin ? "vt.tr.intro" : "vt.tr.introAll")}</p>
+      el.innerHTML = html`<p class="muted vtp-intro">${t(NEXT ? "vc.tr.intro" : auth.session()?.admin ? "vt.tr.intro" : "vt.tr.introAll")}</p>
         <h2 class="vtp-h">${t("vt.tr.maps")}</h2>
         <div class="vtp-maps">${list.map((r) => html`<button type="button" class="vtp-map card" data-race="${r.id}" aria-pressed="${r.id === sel.race}">
           ${r.thumb ? html`<img src="${r.event ? `${API}events/${r.id}/pkg/` : `${API}${r.id}/`}thumb.webp" alt="" loading="lazy">` : html`<span class="vtp-nothumb"></span>`}
@@ -246,7 +373,7 @@ export async function render(main, { query }) {
           ${r.event && envText(t, r.event.env) ? html`<span class="vtp-env">${envText(t, r.event.env)}</span>` : ""}
           ${r.event && mapOptText(t, r.event.mapOpt) ? html`<span class="vtp-env">${mapOptText(t, r.event.mapOpt)}</span>` : ""}
           <span class="muted">${t(`vt.src.${r.race.source}`, { authors: (r.race.photoAuthors || []).join(", ") || "—" })}</span></button>${inline && r.id === race?.id ? raw('<div class="vtp-inline"></div>') : ""}`)}
-          ${["day", "free", "sday", "sfree"].map((k) => html`<button type="button" class="vtp-map vtp-genmap card" data-gen="${k}" aria-pressed="${gen === k}">
+          ${GENS.map((k) => html`<button type="button" class="vtp-map vtp-genmap card" data-gen="${k}" aria-pressed="${gen === k}">
             <span class="vtp-genthumb vtp-genthumb-${k}" aria-hidden="true"></span>
             <b>${t(`vtg.${k}.h`)}</b><span class="muted">${t(`vt.tr.gen.${k}`)}</span>
             <span><span class="tag vtg-tag">${t("vtg.tag")}</span></span></button>${inline && gen === k ? raw('<div class="vtp-inline"></div>') : ""}`)}</div>
@@ -270,7 +397,7 @@ export async function render(main, { query }) {
       // invented terrain (pages/virtuallygen.js): the « Carte du jour » and the « Terrain libre », played by `play` as any map
       const genHost = $("#vtp-gen", el);
       const into = (q) => requestAnimationFrame(() => $(q, el)?.scrollIntoView({ block: "nearest", behavior: "smooth" }));
-      if (gen) import("./virtuallygen.js").then(async (m) => { if (genHost.isConnected) { await m.renderGen(genHost, { play, runsOf, courseName, swatch, offered, kind: gen.startsWith("s") ? "sprint" : "forest" }); into(`#vtp-gen [data-k="${gen}"]`); } })
+      if (gen) import("./virtuallygen.js").then(async (m) => { if (genHost.isConnected) { await m.renderGen(genHost, { play, runsOf, courseName, swatch, offered, kind: gen.startsWith("s") ? "sprint" : "forest", noDay: NEXT }); into(`#vtp-gen [data-k="${gen}"]`); } })
         .catch((e) => console.error(e));
       if (inline) $(".vtp-inline", el).append(gen ? genHost : $(".vtp-below", el));
       $$(".vtp-map", el).forEach((b) => b.addEventListener("click", () => {
@@ -288,7 +415,14 @@ export async function render(main, { query }) {
       $("#vtp-memory", el)?.addEventListener("change", moSave);
       $("#vtp-go", el)?.addEventListener("click", () => play(race, courses.find((c) => c.id === sel.course)));
     };
-    const play = async (race, course) => {
+    const play = (race, course) => playIn(el, race, course, drawChooser);
+    trainingPlay = play;
+    drawChooser();
+  }
+  /** A training's run in `el` (the game mounted in place); back() draws again what was there (the maps, Orga). */
+  async function playIn(el, race, course, back) {
+    {
+      const drawChooser = back;
       const name = race.name || mapName(race.id);              // an invented terrain names itself (pages/virtuallygen.js)
       el.innerHTML = html`<p class="vtp-back"><button type="button" class="btn btn-sm" id="vtp-back">${t("vt.tr.back")}</button>
         <b>${name} · ${courseName(course)}</b></p><div class="g-root card vtp-game"><div class="card-body"></div></div>`;
@@ -305,6 +439,7 @@ export async function render(main, { query }) {
         // (the « Carte du jour »'s ranked runs: the whole map for everyone)
         map: ev ? mapOptOf(ev.mapOpt) : race.day ? null : savedOpt(),
         view: savedView(),                                  // the runner's own choice, an event's races included
+        countdown: NEXT,                                    // the next layout: a start's countdown on every run (§4)
         onFinish: (run) => (saving = (async () => {
           const note = () => $("#vt-saved", el);
           if (race.noSave) { if (note()) note().textContent = t("vtg.notKept"); return; }       // a « Terrain libre »: played, not kept
@@ -332,7 +467,10 @@ export async function render(main, { query }) {
         resultsLabel: ev?.type === "competition" && !ev.mine ? t("vt.toResults") : t("vt.toPalmares"),   // a « Carte du jour » too
         onNav: async (k) => {
           await saving;                                    // so that the run just finished is the one opened
-          if (k === "analysis" && hasTab("analyse") && !race.noSave) { setQuery({ run: sel.run }); return goTab("analyse"); }
+          if (k === "analysis" && hasTab("analyse") && !race.noSave) {
+            if (NEXT) { game?.stop(); game = null; return goView("analyse", { run: sel.run }); }
+            setQuery({ run: sel.run }); return goTab("analyse");
+          }
           if (race.gen) { game?.stop(); game = null; drawChooser(); return; }
           setQuery({ run: sel.run });
           if (ev?.type === "competition" && !ev.mine && hasTab("resultats")) return goTab("resultats");
@@ -341,9 +479,7 @@ export async function render(main, { query }) {
         onExit: () => { game?.stop(); game = null; drawChooser(); },   // « Retour à Pixel »: the maps and their courses again
       });
       $("#vtp-back", el).addEventListener("click", () => { game?.stop(); game = null; drawChooser(); });
-    };
-    trainingPlay = play;
-    drawChooser();
+    }
   }
 
   /** A map's training palmarès (owner, 2026-11-12: beside its circuits, a pop-up as the games' palmarès): for one circuit, the 20
@@ -481,6 +617,7 @@ ${ci.kind === "training" ? html` · <span class="tag">${t("vt.res.trainingTag")}
   }
   async function analysis(el) {
     el.innerHTML = html`<div class="boot"><div class="spinner"></div></div>`;
+    if (NEXT) await loadComps();                                     // the competitions' days and organisers (canSee)
     const { list, runs } = await analysisRuns();
     const pinned = runs.find((r) => r.id === sel.run && r.mine);
     const open = pinned?.race || sel.an;
@@ -494,15 +631,15 @@ ${ci.kind === "training" ? html` · <span class="tag">${t("vt.res.trainingTag")}
     const { completeRuns } = await import("./virtuallysrc.js");
     const ids = [...new Set(runs.map((r) => r.race))];
     const rows = (await Promise.all(ids.map(async (id) => {
-      const race = list.find((r) => r.id === id), day = id.startsWith("day-");
-      if (!race && !day) return null;                           // a map withdrawn: nothing to draw it on
-      const competition = race?.event?.type === "competition";
+      const race = list.find((r) => r.id === id) || compRace(id), day = id.startsWith("day-"), week = WEEK_RE.test(id);
+      if (!race && !day && !week) return null;                  // a map withdrawn: nothing to draw it on
+      const competition = week || race?.event?.type === "competition";
       const seen = runs.filter((r) => r.race === id && r.t > 0 && (r.mine || canSee(r))
         && (competition ? r.kind === "competition" || r.mine : r.kind !== "competition"));
       // a « Carte du jour »'s circuits are its runs' own (the analysis makes the day's forest again); a map's checked here
-      const done = day ? seen : await completeRuns(id, race.race?.courses || [], seen).then((ok) => seen.filter((r) => ok.has(r.id))).catch(() => seen);
+      const done = day || week ? seen : await completeRuns(id, race.race?.courses || [], seen).then((ok) => seen.filter((r) => ok.has(r.id))).catch(() => seen);
       if (!done.length) return null;
-      return { id, name: mapName(id), kind: race?.event ? "event" : day ? "day" : "map",
+      return { id, name: mapName(id), kind: race?.event ? "event" : day ? "day" : week ? "week" : "map",
         circuits: new Set(done.map((r) => r.course)).size, runners: new Set(done.map((r) => r.u)).size,
         mine: done.filter((r) => r.mine).length, last: done.reduce((a, r) => (r.at > a ? r.at : a), "") };
     }))).filter(Boolean);
@@ -510,7 +647,7 @@ ${ci.kind === "training" ? html` · <span class="tag">${t("vt.res.trainingTag")}
     el.innerHTML = html`<p class="muted">${t("vt.an.listHint")}</p><div id="vtp-anlist"></div>`;
     dataTable($("#vtp-anlist", el), {
       columns: [
-        { key: "name", label: t("vt.an.col.map"), render: (r) => html`<a href="#" data-open="${r.id}">${r.name}</a>${r.kind !== "map" ? html` <span class="tag">${t(`vt.an.kind.${r.kind}`)}</span>` : ""}`, sort: (r) => r.name },
+        { key: "name", label: t("vt.an.col.map"), render: (r) => html`<a href="#" data-open="${r.id}">${r.name}</a>${r.kind !== "map" ? html` <span class="tag">${r.kind === "week" ? t("vc.an.kindWeek") : t(`vt.an.kind.${r.kind}`)}</span>` : ""}`, sort: (r) => r.name },
         { key: "circuits", label: t("vt.an.col.circuits"), align: "num", render: (r) => fmt(r.circuits), sort: (r) => r.circuits },
         { key: "runners", label: t("vt.an.col.runners"), align: "num", render: (r) => fmt(r.runners), sort: (r) => r.runners },
         { key: "mine", label: t("vt.an.col.mine"), align: "num", render: (r) => (r.mine ? fmt(r.mine) : ""), sort: (r) => r.mine },
@@ -533,7 +670,7 @@ ${ci.kind === "training" ? html` · <span class="tag">${t("vt.res.trainingTag")}
   /** One map's analysis: its circuits in Coach's own « Circuits » tab, the way back to the list above it. */
   async function analysisOf(el, raceId, { list, runs, pinned }) {
     el.onclick = null;
-    let race = list.find((r) => r.id === raceId);
+    let race = list.find((r) => r.id === raceId) || compRace(raceId);
     const sig = (id) => runs.find((r) => r.race === id)?.event;
     el.innerHTML = html`<div class="vtp-anpick"><button type="button" class="btn btn-sm" id="vtp-anback">${t("vt.an.back")}</button>
       <span class="muted" id="vtp-annote"></span></div><div class="vtp-coach"><div class="boot"><div class="spinner"></div></div></div>`;
@@ -544,10 +681,19 @@ ${ci.kind === "training" ? html` · <span class="tag">${t("vt.res.trainingTag")}
       try { race = await dayRace(raceId); } catch (e) { console.error(e); race = null; }
       if (race && race.sig !== sig(raceId)) race = null;              // another world than the runs': never mixed
     }
+    if (!race && WEEK_RE.test(raceId)) {                               // a week's competition: its world made again here
+      host.innerHTML = html`<div class="boot"><div class="spinner"></div><p class="muted">${t("vc.an.weekMaking")}</p></div>`;
+      try { race = await weekWorld(raceId); } catch (e) { console.error(e); race = null; }
+      // no run on this world (runs saved without a world's signature are taken as they are)
+      if (race && runs.some((r) => r.race === raceId && r.ws) && !runs.some((r) => r.race === raceId && r.ws === race.sig)) race = null;
+    }
     if (!race) { host.innerHTML = html`<div class="card"><div class="empty">${t("vt.an.gone")}</div></div>`; return null; }
     const [{ pixelAnalysis, drawRaceMap }, { useSource, openSourced }] = await Promise.all([import("./virtuallysrc.js"), import("./shared.js")]);
-    const mine = runs.filter((r) => r.race === race.id && (!race.gen || r.event === race.sig));
-    const src = pixelAnalysis({ race, runs: mine, pick: pinned?.id, canSee, mapOf: drawRaceMap, title: mapName(race.id), courseName });
+    const mine = runs.filter((r) => r.race === race.id && (race.week ? !r.ws || r.ws === race.sig : !race.gen || r.event === race.sig));
+    // a competition over (the next layout): one's own run may go to « Mes cartes » — by itself for an organiser's, by hand for a week's
+    const isComp = !!race.week || race.event?.type === "competition";
+    const src = pixelAnalysis({ race, runs: mine, pick: pinned?.id, canSee, mapOf: drawRaceMap, title: mapName(race.id), courseName,
+      mymaps: NEXT && isComp && compOver(race.id), autoKeep: !race.week });
     await src.ready();                                                // only the runs that completed their circuit
     // what is not shown: the circuits' older runners beyond 100, a competition's others before its end
     const courses = race.race.courses || [], capped = courses.some((c) => src.counts(c.id).total > 101);
@@ -564,6 +710,7 @@ ${ci.kind === "training" ? html` · <span class="tag">${t("vt.res.trainingTag")}
     return () => { res?.cleanup?.(); forget(); };
   }
 
-  return { title: t("nav.virtually"), cleanup: () => { game?.stop(); stopAn?.(); stopOrga?.(); } };
+  return { title: NEXT ? `${tabs[0][1]} · ${t("nav.virtually")}` : t("nav.virtually"),
+    cleanup: () => { game?.stop(); stopAn?.(); stopOrga?.(); stopComp?.(); if (NEXT) stopAvatar?.(); } };
 }
 

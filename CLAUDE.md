@@ -1844,6 +1844,31 @@ Every multiple-choice game was played through to its score page at phone size, w
   the finish card says « Couru avec : … » and shows the whole map again; the run keeps them (`mo`, « contours+mem », in its R2
   custom metadata; an event's run takes the event's own, whatever the page sent), shown as a tag beside the runner in a training's
   results and in the analysis. Nothing else changes: the index counts competitions, whose runners all ran with the same options.
+- **Pixel's competitions, the week's race, its menu, its keys** (owner, 2026-11-28; **the contract is `docs/pixel/competitions.md`: change it
+  first, then the code**; **the administrators' only for now** — one switch each side: `games/vnext.js pixelNext()` and
+  `functions/_lib/virtual.js compAllowed`; everyone else keeps Pixel as described above, « Carte du jour » included). The owner chose
+  the module's new name the same day, **« Virtuoz »** (Pixel read as Google's): the rename follows as its own change. With the switch:
+  Pixel's tabs are the bar's menu, a route each, all drawn by `pages/virtually.js` — Entraînement `#/pixel` (`virtually`), Compétitions
+  `#/pixel/competitions` (`virtuallyComp`, `pages/virtuallycomp.js`), Classement, Analyse, Avatar (two page tabs: « Apparence » and
+  « Commandes », `games/vkeys.js` / `vkeysui.js`: every keyboard action of a run bound to keys of one's own, `localStorage ocn.vt.keys`),
+  Orga —; « Résultats » is no longer a page (a competition's results on its card; a training has its palmarès). **A competition** is run
+  once, on one course an account, without pause: registered on a course (changed until the start), « Prendre le départ » after a
+  confirmation, then the game with `countdown` (the map a blank sheet everywhere until a 5 s countdown with a start clock's beeps ends;
+  every training run too), `noPause` (the race clock follows the wall clock; a tab closed or « Abandonner » = abandoned) and
+  `beforeStart` (the server's start record). Two kinds: an **organiser's** (Orga = creating competitions only — owner: no trainings
+  there, Trois Pignons and the other training events are not listed —: the map and the courses dropped first, which creates the event;
+  dates from – to required to publish, format, ghosts of rivals allowed or not, season, weather, time of day, terrain photos by role
+  prepared in the browser and laid over the scene's textures, `PUT events/<id>/tex/<role>`, no rebuild) and **the week's**
+  (« Compétition de la semaine », in the place of the « Carte du jour »: Monday–Sunday in Paris, id `week-YYYYWW`, `games/vweekid.js`
+  shared with the server; its world made in the browser, `games/vweek.js weekRace` — always much relief and detail, never the flat
+  pine type —, long, middle, sprint in turn, courses a / b / c set for about 70 / 30 / 15 race minutes on `a`, `WEEK_LEVELS` in
+  `vcourse.js` with a route timer, `tools/virtually/t_week.mjs` checks 15 weeks; a long week's world takes 22–37 s in Node). Server:
+  `functions/api/virtual/comp/[[path]].js` (its header lists the routes; R2 `virtual-reg/<comp>/<u>.json`, runs as every Pixel run with
+  `k: "competition"`, a week's with its world's signature `ws`); results show while it runs, routes and the analysis open the day after
+  its last day (Paris), where the map goes to « Mes cartes » — by itself for an organiser's competition, by hand for a week's.
+  Tested 2026-11-28 on the local server as an administrator (the week's race: register, countdown, blank map, abandon, results;
+  Commandes; Orga's list) and as a regular account (unchanged); **not yet**: an organiser's competition built end to end, a finished
+  run's analysis and its « Mes cartes » copy, winter and spring, terrain photos by eye, a phone.
 - **Apprendre / Learning** (`#/apprendre`, route `learn`, `pages/learn.js`; owner, 2026-11-10): « Définitions de postes » and
   « Symboles de carte » became one Coach page of three views (`?vue=definitions|symboles|test`; `#/definitions` and `#/symboles`
   open theirs; the two modules drawn in place with `embedded`, their own Forêt / Sprint tabs kept in `?onglet=`), the owner's only

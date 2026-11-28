@@ -6,7 +6,7 @@
 //   GET    events/<id>                    one event; its organisers also get its build's progress
 //   POST   events { name, type, from, to, source, courses, area }   a new event (a draft); source "ocad" or "lidar"
 //                                         (administrators: area { lat, lon, size } in metres), courses "proposed" or "file"
-//   PUT    events/<id> { name, type, from, to, published, env, mapOpt }      its settings; env { weather, time, lamp } the race's
+//   PUT    events/<id> { name, type, from, to, published, env, mapOpt, ghosts, format }   its settings; env { weather, time, lamp, season } the race's
 //                                         conditions (owner, 2026-11-12: clear | overcast | rain | fog | snow; day | dusk | night;
 //                                         a night's headlamp normal | strong), drawn by games/vweather.js
 //   PUT    events/<id>/file/<map.ocd|courses.ocd|courses.xml>        the organiser's files (the body), kept privately in R2
@@ -14,7 +14,7 @@
 //                                         that map in Pixel, its use written down (rights.pixel); sent after its map.ocd (which
 //                                         clears it)
 //   POST   events/<id>/build              the race package made by the workflow virtually.yml (GH_DISPATCH_TOKEN)
-//   DELETE events/<id>                    the event, its files, its package and its runs
+//   DELETE events/<id>                    the event, its files, its package, its runs and its registrations (api/virtual/comp)
 //   GET    events/<id>/pkg/<file>         its package (as virtual/<race>/ for the built-in maps), to whoever may play it
 //   GET    events/<id>/runs               its results: [{ course, name, t, sp, d, at, help, mine }]
 //   POST   events/<id>/runs { course, t, sp, d, help, seed, route }   a run: a training's as often as one likes, a
@@ -24,19 +24,34 @@
 // virtual-build/<id>.json (a build asked for, its progress written by the workflow), and the runs as the built-in maps' runs
 // (api/virtual: virtual-runs/<event id>/<course>/<hash>-<time>.json, kind and event in custom metadata), so that the results
 // and the ranking read them all; only competitions count in the ranking.
+// The competitions (docs/pixel/competitions.md §3.3, owner 2026-11-28): a new event is a competition unless it says « training »;
+// an event gains `ghosts` (others' routes during the competition), `format` ("" | ld | md | sprint, the organiser's word),
+// `env.season` and `tex` (the terrain photos sent); a competition's map options are always the whole map; publishing a
+// competition needs both its dates (400 « dates »). Its runners register and run through api/virtual/comp; its organisers' runs
+// here stay trainings.
+//   PUT    events/<id>/tex/<role>         a terrain photo (body image/webp, ≤ 700 KB, role floor | path | rock | bark | grass |
+//                                         leaves; the browser prepared it, games/vforest.js prepareTexture) → virtual-ev/<id>/
+//                                         tex-<role>.webp, served as pkg/tex-<role>.webp; no rebuild needed
+//   DELETE events/<id>/tex/<role>         the same removed
 import { allow, currentUser, isAdmin, json, nowIso, readBody } from "../../../_lib/api.js";
-import { runnerHash } from "../../../_lib/virtual.js";
+import { cleanEnv, runnerHash } from "../../../_lib/virtual.js";
 import { checkSource, recordUse } from "../../../_lib/orgmaps.js";
+import { parisDate } from "../../../../site/assets/js/games/vweekid.js";
 
 const EV = "virtual-events/", PKG = "virtual-ev/", REQ = "virtual-build/", RUNS = "virtual-runs/";
 const ID = /^e[a-z0-9]{9}$/, COURSE = /^[a-z0-9_]{1,24}$/;
-const PFILES = /^(race\.json|h\.png|cls\.png|veg\.png|ground\.jpg|feats\.json|trees\.bin|map\.ocd|map\.ocd\.gz|map\.webp|thumb\.webp)$/;
+const TEX_ROLES = ["floor", "path", "rock", "bark", "grass", "leaves"], TEX_MAX = 700000;
+const PFILES = /^(race\.json|h\.png|cls\.png|veg\.png|ground\.jpg|feats\.json|trees\.bin|map\.ocd|map\.ocd\.gz|map\.webp|thumb\.webp|tex-(floor|path|rock|bark|grass|leaves)\.webp)$/;
+const FORMATS = ["", "ld", "md", "sprint"];
+const cleanFormat = (s) => (FORMATS.includes(s) ? s : "");
+/** A competition's dates fit for publishing: both, in order. */
+const datesOk = (ev) => !!ev.from && !!ev.to && ev.from <= ev.to;
 const INPUTS = { "map.ocd": 40e6, "courses.ocd": 40e6, "courses.xml": 5e6 };
 const TYPES = { json: "application/json", png: "image/png", jpg: "image/jpeg", webp: "image/webp", bin: "application/octet-stream", ocd: "application/octet-stream", gz: "application/gzip" };
 const MAX_EVENTS = 20;                       // an account's events (an administrator: no limit)
 
 const isOrganiser = (env, user, ev) => !!user && (ev.by === user.id || isAdmin(env, user));
-const today = () => new Date().toISOString().slice(0, 10);
+const today = () => parisDate();                 // Paris's day (UTC's until 2026-11-28)
 /** Is the competition open today (its dates, when it has some)? */
 const openNow = (ev) => (!ev.from || ev.from <= today()) && (!ev.to || today() <= ev.to);
 /** May this visitor (user null) or account play the event? */
@@ -49,7 +64,8 @@ function mayPlay(env, user, ev) {
 const view = (ev, extra = {}) => ({ id: ev.id, name: ev.name, type: ev.type, from: ev.from || "", to: ev.to || "", source: ev.source,
   status: ev.status, published: !!ev.published, org: ev.orgName || "", courses: ev.courses || [], std: ev.std || "", scale: ev.scale || 0,
   lonlat: ev.lonlat || null, thumb: !!ev.thumb, open: ev.type === "training" || openNow(ev), env: cleanEnv(ev.env), mapOpt: cleanMapOpt(ev.mapOpt, ev),
-  orgMap: ev.orgMap ? { org: ev.orgMap.org, name: ev.orgMap.name || "" } : null, ...extra });
+  orgMap: ev.orgMap ? { org: ev.orgMap.org, name: ev.orgMap.name || "" } : null, ghosts: !!ev.ghosts, format: cleanFormat(ev.format),
+  tex: (ev.tex || []).filter((r) => TEX_ROLES.includes(r)), ...extra });
 
 async function getEvent(env, id) {
   if (!ID.test(id || "")) return null;
@@ -70,15 +86,11 @@ async function listAll(env, prefix, opts = {}) {
   return out;
 }
 const userOf = async (ctx) => (ctx.env.DB ? currentUser(ctx.request, ctx.env) : null);
-/** The race's conditions, as games/vweather.js knows them (anything else: a clear day). */
-function cleanEnv(e) {
-  const pick = (v, list) => (list.includes(v) ? v : list[0]);
-  return { weather: pick(e?.weather, ["clear", "overcast", "rain", "fog", "snow"]), time: pick(e?.time, ["day", "dusk", "night"]),
-    lamp: pick(e?.lamp, ["normal", "strong"]) };
-}
+// the race's conditions: _lib/virtual.js cleanEnv (weather, time, lamp, season), shared with api/virtual/comp
 /** The map options its creator fixed (games/vmapopt.js; the same for every runner): { layer, memory }; a race from the LiDAR alone
- *  (its map an image without symbols) keeps « map at the controls only » alone. */
+ *  (its map an image without symbols) keeps « map at the controls only » alone; a competition always the whole map (2026-11-28). */
 function cleanMapOpt(o, ev) {
+  if (ev?.type === "competition") return { layer: "full", memory: false };
   const layer = ["full", "nopaths", "noveg", "relief", "contours"].includes(o?.layer) && ev?.source !== "lidar" ? o.layer : "full";
   return { layer, memory: o?.memory === true };
 }
@@ -192,9 +204,10 @@ export async function onRequestPost(ctx) {
       area = { lat, lon, size };
     }
     const id = `e${Date.now().toString(36).slice(-6)}${Math.random().toString(36).slice(2, 5)}`.slice(0, 10).padEnd(10, "0");
-    const ev = { id, name, type: b?.type === "competition" ? "competition" : "training", from: cleanDate(b?.from), to: cleanDate(b?.to),
+    const type = b?.type === "training" ? "training" : "competition";      // a competition unless said (2026-11-28; a training before)
+    const ev = { id, name, type, from: cleanDate(b?.from), to: cleanDate(b?.to),
       source, area, coursesFrom: b?.courses === "file" && source === "ocad" ? "file" : "proposed", env: cleanEnv(b?.env),
-      mapOpt: cleanMapOpt(b?.mapOpt, { source }), by: user.id,
+      mapOpt: cleanMapOpt(b?.mapOpt, { source, type }), ghosts: b?.ghosts === true, format: cleanFormat(b?.format), tex: [], by: user.id,
       orgName: String(user.display_name || "").slice(0, 80), created: nowIso(), status: "draft", published: false, courses: [] };
     await putEvent(env, ev);
     return json(view(ev, { mine: true, files: {}, area, coursesFrom: ev.coursesFrom }));
@@ -253,6 +266,19 @@ export async function onRequestPut(ctx) {
   const path = [].concat(params.path || []), ev = await getEvent(env, path[0]);
   if (!ev) return json({ error: "not found" }, 404);
   if (!isOrganiser(env, user, ev)) return json({ error: "forbidden" }, 403);
+  if (path[1] === "tex" && path.length === 3) {          // a terrain photo, laid over the biome's set (games/vforest.js loadPhotos)
+    if (!TEX_ROLES.includes(path[2])) return json({ error: "bad request" }, 400);
+    const size = Number(request.headers.get("Content-Length") || 0);
+    if (!size || size > TEX_MAX) return json({ error: "size", max: TEX_MAX }, 413);
+    if (!/^image\/webp\b/i.test(request.headers.get("Content-Type") || "")) return json({ error: "bad request" }, 400);
+    const buf = await request.arrayBuffer();
+    const h = new Uint8Array(buf.slice(0, 12)), tag = (a, b) => String.fromCharCode(...h.slice(a, b));
+    if (buf.byteLength > TEX_MAX || tag(0, 4) !== "RIFF" || tag(8, 12) !== "WEBP") return json({ error: "bad request" }, 400);
+    await env.BUCKET.put(`${PKG}${ev.id}/tex-${path[2]}.webp`, buf, { httpMetadata: { contentType: "image/webp" } });
+    ev.tex = [...new Set([...(ev.tex || []), path[2]])].filter((r) => TEX_ROLES.includes(r)).sort();
+    await putEvent(env, ev);
+    return json({ ok: true, tex: ev.tex });
+  }
   if (path[1] === "file" && path.length === 3 && INPUTS[path[2]]) {
     // a race from the LiDAR alone takes back its generated map, edited (map.ocd only)
     if (ev.source !== "ocad" && !(ev.source === "lidar" && path[2] === "map.ocd")) return json({ error: "bad request" }, 400);
@@ -268,10 +294,12 @@ export async function onRequestPut(ctx) {
   if (path.length !== 1) return json({ error: "bad request" }, 400);
   const b = await readBody(request);
   if (b?.name !== undefined) { const n = cleanName(b.name); if (!n) return json({ error: "name" }, 400); ev.name = n; }
-  if (b?.type !== undefined) ev.type = b.type === "competition" ? "competition" : "training";
+  if (b?.type !== undefined) ev.type = b.type === "training" ? "training" : "competition";
   if (b?.from !== undefined) ev.from = cleanDate(b.from);
   if (b?.to !== undefined) ev.to = cleanDate(b.to);
   if (b?.env !== undefined) ev.env = cleanEnv(b.env);
+  if (b?.ghosts !== undefined) ev.ghosts = b.ghosts === true;
+  if (b?.format !== undefined) ev.format = cleanFormat(b.format);
   if (b?.mapOpt !== undefined) ev.mapOpt = cleanMapOpt(b.mapOpt, ev);
   if (b?.orgMap !== undefined) {
     if (!b.orgMap) delete ev.orgMap;
@@ -287,6 +315,8 @@ export async function onRequestPut(ctx) {
     if (b.published && !["ready", "stale"].includes(ev.status)) return json({ error: "not built" }, 400);
     ev.published = !!b.published;
   }
+  // a published competition keeps both its dates (nothing saved otherwise)
+  if (ev.published && ev.type === "competition" && !datesOk(ev)) return json({ error: "dates" }, 400);
   await putEvent(env, ev);
   return json(view(ev, { mine: true }));
 }
@@ -298,9 +328,18 @@ export async function onRequestDelete(ctx) {
   if (!user) return json({ error: "login required" }, 401);
   const path = [].concat(params.path || []), ev = await getEvent(env, path[0]);
   if (!ev) return json({ error: "not found" }, 404);
-  if (!isOrganiser(env, user, ev) || path.length !== 1) return json({ error: "forbidden" }, 403);
+  if (!isOrganiser(env, user, ev)) return json({ error: "forbidden" }, 403);
+  if (user.demo_until) return json({ error: "demo" }, 403);
+  if (path[1] === "tex" && path.length === 3) {          // a terrain photo taken back: the biome's own again
+    if (!TEX_ROLES.includes(path[2])) return json({ error: "bad request" }, 400);
+    await env.BUCKET.delete(`${PKG}${ev.id}/tex-${path[2]}.webp`);
+    ev.tex = (ev.tex || []).filter((r) => r !== path[2] && TEX_ROLES.includes(r));
+    await putEvent(env, ev);
+    return json({ ok: true, tex: ev.tex });
+  }
+  if (path.length !== 1) return json({ error: "forbidden" }, 403);
   const keys = [];
-  for (const p of [`${EV}${ev.id}/`, `${PKG}${ev.id}/`, `${RUNS}${ev.id}/`]) keys.push(...(await listAll(env, p)).map((o) => o.key));
+  for (const p of [`${EV}${ev.id}/`, `${PKG}${ev.id}/`, `${RUNS}${ev.id}/`, `virtual-reg/${ev.id}/`]) keys.push(...(await listAll(env, p)).map((o) => o.key));
   keys.push(`${EV}${ev.id}.json`, `${REQ}${ev.id}.json`);
   for (let i = 0; i < keys.length; i += 1000) await env.BUCKET.delete(keys.slice(i, i + 1000));
   return json({ ok: true });
