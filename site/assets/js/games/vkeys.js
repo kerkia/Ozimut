@@ -1,7 +1,7 @@
 // Pixel's keys of one's own (owner, 2026-11-28; docs/pixel/competitions.md §4): every keyboard action of the game
 // (games/virtually.js) with its default physical keys (KeyboardEvent.code, so that a game's « WASD » stays where the fingers are
 // on any layout), the bindings in use — the defaults, merged with what the player chose in Avatar › Commandes (games/vkeysui.js),
-// kept in this browser (localStorage ocn.vt.keys) —, and the letter each key prints on the player's own keyboard (the browser's
+// kept in this browser (localStorage ocn.vt.keys) and with the account (syncKeys) —, and the letter each key prints on the player's own keyboard (the browser's
 // Keyboard Map where there is one, else a guess from the site's language). Escape (pause, back to the scene) and Enter (« Partir »)
 // stay fixed; the mouse's and a touch screen's gestures are not configurable.
 import { t, loadArea, lang } from "../i18n.js";
@@ -71,13 +71,53 @@ export function loadKeys() {
 export function saveKeys(b) {
   const out = {};
   for (const a of ACTIONS) if (Array.isArray(b?.[a.id])) out[a.id] = b[a.id].slice(0, MAX_KEYS);
-  try { localStorage.setItem(STORE, JSON.stringify(out)); return true; } catch (e) { return false; }
+  let ok = true;
+  try { localStorage.setItem(STORE, JSON.stringify(out)); } catch (e) { ok = false; }
+  send(out);
+  return ok;
 }
 
 /** Back to the defaults. */
 export function resetKeys() {
   try { localStorage.removeItem(STORE); } catch (e) { /* nothing kept */ }
+  send(null);
   return loadKeys();
+}
+
+// ---- kept with the account (owner, 2026-11-28: one's keys come back at the next sign-in, on any device) -----------------------
+// The browser's copy is what the game reads; the account's (PUT /api/virtual/prefs) is written at each change and read once a
+// visit: the later of the two wins (STORE_AT, this browser's time of change; keys chosen before this existed are sent up).
+const STORE_AT = "ocn.vt.keys.at", PREFS = "/api/virtual/prefs";
+const stamp = (at) => { try { localStorage.setItem(STORE_AT, String(at)); } catch (e) { /* not kept */ } };
+const stampOf = () => { try { return Number(localStorage.getItem(STORE_AT)) || 0; } catch (e) { return 0; } };
+async function send(keys) {
+  stamp(Date.now());
+  try {
+    const r = await fetch(PREFS, { method: "PUT", credentials: "same-origin", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ keys }) });
+    const j = r.ok ? await r.json() : null;
+    if (j?.at) stamp(j.at);
+    return r.ok;
+  } catch (e) { return false; }
+}
+let synced = null;
+/** The account's keys brought to this browser (or this browser's to the account), once a visit; resolves true when it took the
+ *  account's. Never rejects; 1.5 s at most. */
+export function syncKeys() {
+  return (synced ||= Promise.race([new Promise((r) => setTimeout(() => r(false), 1500)), (async () => {
+    try {
+      const r = await fetch(PREFS, { credentials: "same-origin" });
+      if (!r.ok) return false;
+      const j = await r.json(), mine = stampOf();
+      let local = null; try { local = localStorage.getItem(STORE); } catch (e) { local = null; }
+      if (j.at > mine) {
+        try { if (j.keys) localStorage.setItem(STORE, JSON.stringify(j.keys)); else localStorage.removeItem(STORE); } catch (e) { return false; }
+        stamp(j.at);
+        return true;
+      }
+      if (local && (mine > j.at || !j.at)) { try { await send(JSON.parse(local)); } catch (e) { /* next change */ } }
+      return false;
+    } catch (e) { return false; }
+  })()]));
 }
 
 /** Does the action keep its default keys? */

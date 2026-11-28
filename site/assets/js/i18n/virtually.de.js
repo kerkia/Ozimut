@@ -452,7 +452,7 @@ export default {
   "vtg.day.results": "Bestenliste des Tages (die beste Zeit jedes Läufers)",
   "vtg.day.none": "Heute ist noch niemand diese Bahn gelaufen.",
   "vtg.day.notCounted": "Ohne Geister. Zählt nicht für den virtuellen Index.",
-  "vtg.free.h": "Freies Gelände",
+  "vtg.free.h": "Freies Gelände — Wald",
   "vtg.free.line": "Wähle eine Geländeart und stelle sie ein. Dieselbe Nummer ergibt immer dasselbe Gelände: Teile sie, um denselben Wald zu laufen.",
   "vtg.type": "Gelände",
   "vtg.type.moraine": "Nordische Moräne",

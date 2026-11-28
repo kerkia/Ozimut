@@ -6048,6 +6048,7 @@ export default {
   "nav.virtually": "Virtuoz",
   "mt.virtually": "Virtual races in a 3D forest made from real maps",
   "vtp.lede": "Virtual orienteering races in a 3D forest made from real maps: train, run with ghosts, analyse your race alone or with the others.",
+  "wait.left": "about {t} left",
   "nav.pixel.training": "Training",
   "nav.pixel.comp": "Competitions",
   "nav.pixel.ranking": "Ranking",

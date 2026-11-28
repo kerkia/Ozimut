@@ -194,6 +194,7 @@ export const body = (SITE, { world = false, later = "" } = {}) => `
         The result, its settings and the date only; nothing is kept of a visitor's games without an account. These results are
         deleted with your account.</p>
       <h2 style="font-size:16px">Virtuoz</h2>
+      <p>The keys you choose in Avatar › Controls are kept with your account, so that you find them again on your other devices; they are deleted with it.</p>
       <p>Each race you finish in Virtuoz is kept under your account's name: its time, its split times, the distance run and its
         route in the virtual forest, shown to the other accounts in that course's results, ranking and analysis; you are told apart
         from one race to the next by a fingerprint of your account, never by its number. Nothing is kept of a visitor's races. An

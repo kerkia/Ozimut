@@ -57,7 +57,7 @@ export default {
   "vk.season.autumn": "Automne",
   "vk.season.winter": "Hiver",
   // the « Commandes » page
-  "vk.intro": "Choisissez vos touches pour Virtuoz. Cliquez sur une touche, puis appuyez sur celle que vous voulez ; Retour arrière ou Suppr vide la case, Échap annule. Deux touches au plus par action ; vos choix sont gardés dans ce navigateur.",
+  "vk.intro": "Choisissez vos touches pour Virtuoz. Cliquez sur une touche, puis appuyez sur celle que vous voulez ; Retour arrière ou Suppr vide la case, Échap annule. Deux touches au plus par action ; vos choix sont gardés avec votre compte : vous les retrouvez sur vos autres appareils.",
   "vk.g.run": "La course",
   "vk.g.map": "La carte",
   "vk.g.view": "Les vues",

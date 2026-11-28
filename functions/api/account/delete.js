@@ -230,6 +230,7 @@ export const onRequestPost = withUser(async ({ request, env }, user) => {
         if (gone.length) await env.BUCKET.delete(gone);
         cursor = r.truncated ? r.cursor : undefined;
       } while (cursor);
+      await env.BUCKET.delete(`virtual-prefs/${me}.json`);     // its keys (api/virtual prefs)
       // its registrations to Pixel's competitions (api/virtual/comp: virtual-reg/<competition>/<hash>.json)
       do {
         const r = await env.BUCKET.list({ prefix: "virtual-reg/", cursor, limit: 1000 });

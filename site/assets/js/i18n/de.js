@@ -6263,6 +6263,7 @@ export default {
   "nav.virtually": "Virtuoz",
   "mt.virtually": "Virtuelle Läufe in einem 3D-Wald nach echten Karten",
   "vtp.lede": "Virtuelle OL-Läufe in einem 3D-Wald nach echten Karten: trainieren, mit Geistern laufen, den Lauf allein oder mit den anderen analysieren.",
+  "wait.left": "noch etwa {t}",
   "nav.pixel.training": "Training",
   "nav.pixel.comp": "Wettkämpfe",
   "nav.pixel.ranking": "Rangliste",

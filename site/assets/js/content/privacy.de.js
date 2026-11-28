@@ -217,6 +217,7 @@ export const body = (SITE, { world = false, later = "" } = {}) => `
         zu den 20 besten aller gehört. Nur das Ergebnis, seine Einstellungen und das Datum; von den Spielen eines Besuchers ohne Konto
         wird nichts gespeichert. Diese Ergebnisse werden mit deinem Konto gelöscht.</p>
       <h2 style="font-size:16px">Virtuoz</h2>
+      <p>Die Tasten, die du unter Avatar › Steuerung wählst, werden mit deinem Konto gespeichert, damit du sie auf deinen anderen Geräten wiederfindest; sie werden mit ihm gelöscht.</p>
       <p>Jedes Rennen, das du in Virtuoz beendest, wird unter dem Namen deines Kontos gespeichert: seine Zeit, seine
         Zwischenzeiten, die gelaufene Strecke und sein Weg durch den virtuellen Wald, den anderen Konten in den Ergebnissen, der
         Rangliste und der Analyse dieser Bahn gezeigt; von einem Rennen zum nächsten wirst du an einem Fingerabdruck deines Kontos

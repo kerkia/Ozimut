@@ -6,6 +6,8 @@
 //   GET  <race>/<file>                 a map's package (made offline by tools/virtually: race.json — its courses —, h.png,
 //                                      cls.png, veg.png, ground.jpg, feats.json, trees.bin when LiDAR, map.ocd, thumb.webp; a town's town.json, town.bin, surf.png and facades.webp, tools/virtually/town_3d.py; town.bin.gz and map.ocd.gz the same
 //                                      gzipped, tools/virtually/pkggz.py, which games/vworld.js inflates)
+//   GET  prefs                         one's own settings kept with the account: { keys, at } (games/vkeys.js)
+//   PUT  prefs { keys }                 keep them (null: the defaults)
 //   GET  runs?race=<id>                every finished run of that map: [{ id, race, u, name, course, t, sp, d, at, help, seed, mo, cs, mine }]
 //   GET  runs?race=day                 every « Carte du jour »'s runs, all days (the analysis of an invented forest's run)
 //   GET  runs/<race>/routes?ids=a,b,…  the routes of up to 101 runs of a map at once, { <id>: { route } } — the ones this account
@@ -38,6 +40,7 @@ const FILE = /^([a-z0-9-]{1,40})\/(race\.json|h\.png|cls\.png|veg\.png|ground\.j
 const TYPES = { json: "application/json", png: "image/png", jpg: "image/jpeg", webp: "image/webp", bin: "application/octet-stream", ocd: "application/octet-stream", gz: "application/gzip" };
 const ID = /^[a-z0-9-]{1,40}$/, COURSE = /^[a-z0-9_]{1,24}$/, RUN = /^[0-9a-f]{12}-[0-9a-z]{6,12}$/;
 const RUNS = "virtual-runs/";
+const PREFS = "virtual-prefs/";                              // <runner hash>.json: { keys, at }
 const DAY = /^day-(\d{8})(?:-s)?$/, SIG = /^[0-9a-f]{1,8}$/;
 /** Paris's day as YYYYMMDD, `back` days ago. */
 const parisDay = (back = 0) => {
@@ -71,6 +74,12 @@ export const onRequestGet = withUser(async ({ request, env, params }, user) => {
   if (!env.BUCKET) return json({ error: "storage not configured" }, 500);
   const path = [].concat(params.path || []);
   const p = path.join("/");
+  // one's own settings kept with the account (owner, 2026-11-28: the keys of Avatar › Commandes come back on another device)
+  if (p === "prefs") {
+    const o = await env.BUCKET.get(`${PREFS}${await runnerHash(env, user.id)}.json`);
+    let v = null; try { v = o ? await o.json() : null; } catch (e) { v = null; }
+    return json({ keys: v?.keys || null, at: Number(v?.at) || 0 }, 200, { "Cache-Control": "private, no-store" });
+  }
   if (p === "races") {
     const l = await env.BUCKET.list({ prefix: "virtual/", delimiter: "/" });
     const ids = (l.delimitedPrefixes || []).map((x) => x.slice(8, -1)).filter((x) => ID.test(x));
@@ -165,6 +174,27 @@ export const onRequestPost = withUser(async ({ request, env, params }, user) => 
   await env.BUCKET.put(`${RUNS}${race}/${course}/${id}.json`, JSON.stringify({ route }),
     { httpMetadata: { contentType: "application/json" }, customMetadata: meta });
   return json({ id, at });
+});
+
+/** The keys an account chose: { <action>: [KeyboardEvent.code, …] }, 40 actions and 2 keys each at most; null = the defaults. */
+function cleanKeys(k) {
+  if (!k || typeof k !== "object" || Array.isArray(k)) return null;
+  const out = {};
+  for (const [id, v] of Object.entries(k).slice(0, 40)) {
+    if (!/^[A-Za-z][A-Za-z0-9]{0,15}$/.test(id) || !Array.isArray(v)) continue;
+    out[id] = v.filter((c) => typeof c === "string" && /^[A-Za-z][A-Za-z0-9]{0,30}$/.test(c)).slice(0, 2);
+  }
+  return Object.keys(out).length ? out : null;
+}
+export const onRequestPut = withUser(async ({ request, env, params }, user) => {
+  if (!env.BUCKET) return json({ error: "storage not configured" }, 500);
+  if ([].concat(params.path || []).join("/") !== "prefs") return json({ error: "bad request" }, 400);
+  if (user.demo_until) return json({ error: "demo" }, 403);
+  if (!(await allow(env, `virtual-prefs:${user.id}`, 120, 3600))) return json({ error: "rate" }, 429);
+  const b = await readBody(request), at = Date.now();
+  await env.BUCKET.put(`${PREFS}${await runnerHash(env, user.id)}.json`, JSON.stringify({ keys: cleanKeys(b?.keys), at }),
+    { httpMetadata: { contentType: "application/json" } });
+  return json({ ok: true, at });
 });
 
 export const onRequestDelete = withUser(async ({ env, params }, user) => {

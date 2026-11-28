@@ -6263,6 +6263,7 @@ export default {
   "nav.virtually": "Virtuoz",
   "mt.virtually": "Carreras virtuales en un bosque en 3D hecho a partir de mapas reales",
   "vtp.lede": "Carreras de orientación virtuales en un bosque en 3D hecho a partir de mapas reales: entrénate, corre con fantasmas, analiza tu carrera solo o con los demás.",
+  "wait.left": "quedan unos {t}",
   "nav.pixel.training": "Entrenamiento",
   "nav.pixel.comp": "Competiciones",
   "nav.pixel.ranking": "Clasificación",

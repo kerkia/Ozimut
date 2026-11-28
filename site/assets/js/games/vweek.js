@@ -6,7 +6,7 @@
 // - « ld » (long distance): a forest of 1 600 m, much relief and detail, few controls, a few very long legs with real route
 //   choices (games/vcourse.js WEEK_LEVELS.ld: judged on the ground);
 // - « md » (middle distance): a forest of 1 200 m, many short legs away from the handrails, changes of direction;
-// - « sprint »: an invented town of 800-1000 m (games/vtowngen.js), the orange courses' rules (games/vcoursesprint.js).
+// - « sprint »: an invented town of 800-1000 m, its buildings, gardens and parks anywhere on their dials (games/vtowngen.js), the orange courses' rules (games/vcoursesprint.js).
 // Target times at the game's ×1 (a good club runner; IOF winning times: long 70-100 min, middle 30-35, sprint 12-15): « a » about
 // 70 / 30 / 14 minutes. Static imports here are the pure ones (the server and the tests may read weekOpts); the package is built
 // by games/vgenpack.js, loaded when a race is made.
@@ -28,8 +28,10 @@ export function weekOpts(id) {
   const format = weekFormat(id), seed = seedOf(`pixel-week-${id}`), rnd = prng(seed);
   const common = { format, seed, retry: RETRY, estimate: true };
   if (format === "sprint") {
-    return { ...common, sprint: true, size: 800 + 100 * Math.floor(rnd() * 3), buildings: r2(rnd.range(0.35, 0.8)),
-      gardens: r2(rnd.range(0.2, 0.8)), parks: r2(rnd.range(0.2, 0.7)), levels: WEEK_SPRINT_LEVELS, tries: 160, ends: 6 };
+    // a town's dials vary widely from week to week (owner, 2026-11-28: « strong relief and detail » is the forest's rule; a sprint
+    // is less sensitive to them): a dense old centre one week, houses in their gardens or parks the next
+    return { ...common, sprint: true, size: 800 + 100 * Math.floor(rnd() * 3), buildings: r2(rnd.range(0.1, 0.95)),
+      gardens: r2(rnd.range(0.05, 0.95)), parks: r2(rnd.range(0.05, 0.9)), levels: WEEK_SPRINT_LEVELS, tries: 160, ends: 6 };
   }
   const type = WEEK_TYPES[Math.floor(rnd() * WEEK_TYPES.length)];
   return { ...common, type, size: format === "ld" ? 1600 : 1200, relief: r2(rnd.range(0.7, 1)), detail: r2(rnd.range(0.7, 1)),

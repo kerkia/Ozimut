@@ -14,6 +14,7 @@
 import { html, raw, $, $$, fmt, pct, displayName } from "../util.js";
 import { t, locale } from "../i18n.js";
 import { TYPES } from "../games/vgen.js";
+import { follow } from "../waitbar.js";
 
 const state = { free: { type: "moraine", seed: 1 + Math.floor(Math.random() * 99999), size: 1200, detail: 0.5, relief: 0.5, green: 0.5, paths: 0.5 },
   sfree: { seed: 1 + Math.floor(Math.random() * 99999), size: 700, buildings: 0.5, gardens: 0.5, parks: 0.5 },
@@ -108,6 +109,7 @@ export async function renderGen(el, ctx) {
       ${checkLine(m.chk)}
       <div class="vtp-courses">${cs.map((c) => html`<button type="button" class="vtp-course" data-gk="${k}" data-course="${c.id}" aria-pressed="${c.id === sel}">
         ${V.ctx.swatch(c.id)}<b>${V.ctx.courseName(c)}</b><span>${t("vt.tr.courseLine", { km: fmt(c.length / 1000, 1), climb: fmt(c.climb || 0), n: c.controls.length - 2 })}</span></button>`)}</div>
+      ${isFree(k) && sel && V.ctx.moChooser ? V.ctx.moChooser(m.race) : ""}
       <div class="vtp-go"><button type="button" class="btn btn-primary" data-go="${k}" ${raw(sel ? "" : "disabled")}>${t("vt.tr.start")}</button>
         ${isFree(k) ? html`<span class="muted">${t("vtg.notKeptHint")}</span>` : html`<span class="muted">${t("vtg.day.notCounted")}</span>`}</div>
       ${isDay(k) ? html`<h4 class="vtg-rh">${t("vtg.day.results")}</h4><div class="vtg-results" data-rk="${k}"><div class="boot"><div class="spinner"></div></div></div>` : ""}`;
@@ -149,6 +151,7 @@ export async function renderGen(el, ctx) {
       const k = b.dataset.go, m = state.made[k], c = m.race.race.courses.find((x) => x.id === state.sel[k]);
       if (c) V.ctx.play(m.race, c);
     }));
+    V.ctx.moBind?.(V.el);
     for (const box of $$(".vtg-results", V.el)) if (state.made[box.dataset.rk]) dayResults(box.dataset.rk);
   }
 
@@ -156,14 +159,15 @@ export async function renderGen(el, ctx) {
     if (state.busy[k]) return;                              // already being made
     const o = k === "day" ? dayO : k === "sday" ? sdayO : k === "sfree" ? { sprint: true, ...state.sfree } : { ...state.free };
     state.busy[k] = { step: "relief", f: 0 }; draw();
-    let last = 0;
+    // the wait with its time left (waitbar.js): this device's own time for a terrain of that kind and size, else a computer's usual time (by the area)
+    const w8 = follow(() => (V.el?.isConnected && $(`[data-k="${k}"] .vtg-busy`, V.el)) || null, { kind: `vt.gen.${o.sprint ? "s" : "f"}.${o.size || 0}`,
+      guess: o.sprint ? 8 * ((o.size || 700) / 700) ** 2 : 9 * ((o.size || 1200) / 1200) ** 2 });
     try {
       const res = await P.makeWorld(o, (step, f) => {
         state.busy[k] = { step, f: progressOf(step, f, !!o.sprint) };
-        const now = performance.now(); if (now - last < 120) return; last = now;
-        const box = $(`[data-k="${k}"] .vtg-busy`, V.el);
-        if (box) { box.querySelector("progress").value = state.busy[k].f; box.querySelector("span").textContent = t(`vtg.step.${step}`); }
+        w8.set(t(`vtg.step.${step}`), state.busy[k].f);
       });
+      w8.stop(true);
       state.busy[k] = { step: "build", f: 0.97 }; draw();
       const id = k === "day" ? `day-${dayKey}` : k === "sday" ? `day-${dayKey}-s` : k === "sfree" ? `gen-sprint-${o.seed}` : `gen-${o.type}-${o.seed}`;
       const name = k === "day" ? t("vtg.name.day", { date: dateText(dayKey) }) : k === "sday" ? t("vtg.name.sday", { date: dateText(dayKey) })
@@ -179,7 +183,7 @@ export async function renderGen(el, ctx) {
       state.sel[k] = state.sel[k] && cs.some((c) => c.id === state.sel[k]) ? state.sel[k] : cs[2]?.id || cs[0]?.id || null;
       state.busy[k] = null;
     } catch (e) {
-      console.error(e); state.busy[k] = false;
+      console.error(e); w8.stop(); state.busy[k] = false;
     }
     draw();
   }

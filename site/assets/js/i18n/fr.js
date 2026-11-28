@@ -5217,6 +5217,7 @@ export default {
   "nav.virtually": "Virtuoz",
   "mt.virtually": "Courses virtuelles dans une forêt en 3D faite d'après de vraies cartes",
   "vtp.lede": "Des courses d'orientation virtuelles dans une forêt en 3D faite d'après de vraies cartes : s'entraîner, courir avec des fantômes, analyser sa course seul ou avec les autres.",
+  "wait.left": "encore environ {t}",
   "nav.pixel.training": "Entraînement",
   "nav.pixel.comp": "Compétitions",
   "nav.pixel.ranking": "Classement",

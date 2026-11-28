@@ -5,11 +5,11 @@
 // them, what the mouse and a touch screen do (not configurable). The page (pages/virtually.js) loads the area « vplay » before.
 import { html, raw } from "../util.js";
 import { t } from "../i18n.js";
-import { ACTIONS, GROUPS, MAX_KEYS, FIXED, loadKeys, saveKeys, resetKeys, keyLabel, keysReady, boundTo, isDefault, labelsOf } from "./vkeys.js";
+import { ACTIONS, GROUPS, MAX_KEYS, FIXED, loadKeys, saveKeys, resetKeys, syncKeys, keyLabel, keysReady, boundTo, isDefault, labelsOf } from "./vkeys.js";
 
 /** Draw the « Commandes » page in `el`; returns the cleanup (the key listener, if one waits). */
 export async function renderControls(el) {
-  await keysReady;
+  await Promise.all([keysReady, syncKeys()]);              // the account's keys first (another device's choices)
   let B = loadKeys(), waiting = null, savedAt = 0, msgTimer = 0;
 
   const slotHtml = (id, i) => {

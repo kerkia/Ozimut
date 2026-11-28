@@ -15,6 +15,7 @@ import { loadAvatar } from "./vavatar.js";
 import { applyEnv, envOf, envText } from "./vweather.js";
 import { mapOptOf, plainMap, imageMap, usable, mapOptText, moCode, MEM_R, MEM_S } from "./vmapopt.js";
 import { loadKeys, match, labelsOf, keysReady } from "./vkeys.js";
+import { leftOf, about } from "../waitbar.js";
 import { overlayPhotos } from "./vforest.js";
 import { confirmBox } from "../askbox.js";
 
@@ -186,7 +187,14 @@ export function mount(root, raceId, opts = {}) {
     try {
       // the bytes counted on the briefing's line; the map drawn as soon as its file is in, while the rest still downloads
       let mapP = null;
-      const early = { onProgress: (d, n) => { if (n) say("vt.loadingPct", { pct: Math.min(99, Math.floor((100 * d) / n)) }); },
+      // … with the time left once a sixth is in (waitbar.js: the bytes come at a steady enough pace)
+      const loadAt = performance.now();
+      const early = { onProgress: (d, n) => {
+        if (!n) return;
+        say("vt.loadingPct", { pct: Math.min(99, Math.floor((100 * d) / n)) });
+        const left = leftOf((performance.now() - loadAt) / 1000, d / n, null), m = $("#vt-msg", root);
+        if (left != null && left >= 2 && m) m.textContent += ` · ${t("wait.left", { t: about(left) })}`;
+      },
         onMap: (m) => { mapP = drawMap(m, usable(brief.mapOpt, m.race).layer); mapP.catch(() => {}); } };
       const [THREE, data, cd, ghostRuns] = await Promise.all([import(THREE_URL), (opts.load ? opts.load() : loadRace(opts.base || `${BASE}${raceId}/`, undefined, early)), cdLoaded,
         Promise.resolve(opts.ghosts || []).catch(() => [])]);
@@ -823,7 +831,8 @@ export function mount(root, raceId, opts = {}) {
       const tick = () => {
         if (stopped || st.phase !== "count") { el.hidden = true; return; }
         const s = Math.floor((performance.now() - t0) / 1000);
-        if (s >= 5) { el.hidden = true; el.textContent = ""; tone(1400, 0.7, 0.12); begin(); return; }
+        // at the long beep the runner sets off at ×0.5 at once (owner, 2026-11-28), any speed chosen from there
+        if (s >= 5) { el.hidden = true; el.textContent = ""; tone(1400, 0.7, 0.12); st.level = 0.5; showSpeed(); begin(); return; }
         if (s !== shown) {
           shown = s;
           el.innerHTML = `<span class="vt-count-n">${5 - s}</span>`;   // a new element: its animation starts again

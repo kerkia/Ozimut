@@ -452,7 +452,7 @@ export default {
   "vtg.day.results": "Today's palmarès (everyone's best time)",
   "vtg.day.none": "Nobody has run this course today yet.",
   "vtg.day.notCounted": "No ghosts. Does not count for the virtual index.",
-  "vtg.free.h": "Free terrain",
+  "vtg.free.h": "Free terrain — forest",
   "vtg.free.line": "Choose a type of terrain and set it up. One number always gives the same terrain: share it to run the same forest.",
   "vtg.type": "Terrain",
   "vtg.type.moraine": "Nordic moraine",

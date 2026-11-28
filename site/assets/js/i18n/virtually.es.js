@@ -452,7 +452,7 @@ export default {
   "vtg.day.results": "Palmarés del día (el mejor tiempo de cada uno)",
   "vtg.day.none": "Nadie ha corrido todavía este recorrido hoy.",
   "vtg.day.notCounted": "Sin fantasmas. No cuenta para el índice virtual.",
-  "vtg.free.h": "Terreno libre",
+  "vtg.free.h": "Terreno libre — bosque",
   "vtg.free.line": "Elige un tipo de terreno y ajústalo. Un mismo número da siempre el mismo terreno: compártelo para correr el mismo bosque.",
   "vtg.type": "Terreno",
   "vtg.type.moraine": "Morrena nórdica",

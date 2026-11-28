@@ -52,7 +52,7 @@ export default {
   "vk.season.summer": "Sommer",
   "vk.season.autumn": "Herbst",
   "vk.season.winter": "Winter",
-  "vk.intro": "Wähle deine Tasten für Virtuoz. Klicke auf eine Taste und drücke dann die gewünschte; Rücktaste oder Entf leert das Feld, Esc bricht ab. Höchstens zwei Tasten pro Aktion; deine Wahl bleibt in diesem Browser gespeichert.",
+  "vk.intro": "Wähle deine Tasten für Virtuoz. Klicke auf eine Taste und drücke dann die gewünschte; Rücktaste oder Entf leert das Feld, Esc bricht ab. Höchstens zwei Tasten pro Aktion; deine Wahl wird mit deinem Konto gespeichert: Du findest sie auf deinen anderen Geräten wieder.",
   "vk.g.run": "Der Lauf",
   "vk.g.map": "Die Karte",
   "vk.g.view": "Die Ansichten",

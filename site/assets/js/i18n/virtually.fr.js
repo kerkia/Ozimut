@@ -452,7 +452,7 @@ export default {
   "vtg.day.results": "Palmarès du jour (le meilleur temps de chacun)",
   "vtg.day.none": "Personne n'a encore couru ce circuit aujourd'hui.",
   "vtg.day.notCounted": "Sans fantômes. Ne compte pas pour l'indice virtuel.",
-  "vtg.free.h": "Terrain libre",
+  "vtg.free.h": "Terrain libre — forêt",
   "vtg.free.line": "Choisissez un type de terrain et réglez-le. Un même numéro donne toujours le même terrain : partagez-le pour courir la même forêt.",
   "vtg.type": "Terrain",
   "vtg.type.moraine": "Moraine nordique",

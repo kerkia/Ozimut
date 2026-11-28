@@ -9,7 +9,7 @@
 // The server: functions/api/virtual/events/[[path]].js (its header lists the routes).
 import { html, raw, $, $$, fmt, fmtDate, pct, touchScreen, fileAccept } from "../util.js";
 import { t, tn } from "../i18n.js";
-import { bar, setBar, elapsed } from "../waitbar.js";
+import { bar, setBar, elapsed, leftOf, about } from "../waitbar.js";
 import { confirmBox, alertBox } from "../askbox.js";
 import * as auth from "../auth.js";
 import * as offers from "../offers.js";
@@ -235,10 +235,15 @@ export async function renderOrga(el, { onPlay, onChange } = {}) {
       box.innerHTML = html`<div class="vo-prog">${raw(bar(0))}<span class="muted" id="vo-send-l"></span></div>`;
       const pbar = $("progress", box), label = $("#vo-send-l", box);
       let done = 0, failed = "";
+      const sendAt = performance.now();
       for (const [file, f] of sends) {
         label.textContent = t("vo.sending", { name: f.name });
         try {
-          await upload(`${API}/${ev.id}/file/${file}`, f, (n) => setBar(pbar, (done + n) / total));
+          await upload(`${API}/${ev.id}/file/${file}`, f, (n) => {
+            const frac = (done + n) / total;
+            setBar(pbar, frac);
+            label.textContent = t("vo.sending", { name: f.name }) + leftText(sendAt, frac);
+          });
           if (file === "map.ocd" && plan.map.src) await post(`${API}/${ev.id}`, { orgMap: sourceOf(plan.map.src) }, "PUT").catch(() => {});
         } catch (e) { failed = errText(e); break; }
         done += f.size; setBar(pbar, done / total);
@@ -344,7 +349,8 @@ export async function renderOrga(el, { onPlay, onChange } = {}) {
       } else if (x.kind !== "ocd") { st.textContent = was; return say(t("vo.bad.ocd", { name: f.name })); }
       st.innerHTML = bar(0);
       try {
-        await upload(`${API}/${id}/file/${name}`, f, (n) => setBar($("progress", st), n / (f.size || 1)));
+        const sendAt = performance.now();
+        await upload(`${API}/${id}/file/${name}`, f, (n) => { const p = $("progress", st); setBar(p, n / (f.size || 1)); if (p) p.title = leftText(sendAt, n / (f.size || 1)).replace(/^ · /, ""); });
         detail(id);
       } catch (e) { st.textContent = was; say(errText(e)); }
     }));
@@ -440,10 +446,14 @@ export async function renderOrga(el, { onPlay, onChange } = {}) {
     <label class="btn btn-sm">${t(has ? "vo.file.replace" : "vo.file.choose")}<input type="file" accept="${accept}" data-file="${name}" hidden></label></div>`;
   const progressHtml = (b) => html`<div class="vo-prog">${raw(bar(b && b.frac > 0 ? b.frac : null))}
     <span class="muted" id="vo-stage">${stageText(b)}</span></div>`;
+  /** « · encore environ 40 s » for a wait begun at `at` (performance.now()) with `frac` done; "" while no fair estimate. */
+  const leftText = (at, frac) => { const l = leftOf((performance.now() - at) / 1000, frac, null); return l != null && l >= 2 ? ` · ${t("wait.left", { t: about(l) })}` : ""; };
   const stageText = (b) => {
     if (!b) return t("vo.stage.queued");
     const since = b.at ? (Date.now() - Date.parse(b.at)) / 1000 : 0;
-    return `${t(`vo.stage.${b.stage || "queued"}`)}${b.frac ? ` · ${pct(b.frac)}` : ""}${since > 0 ? ` · ${t("vo.stage.since", { t: elapsed(since) })}` : ""}`;
+    // the build's time left only from a third done: its first stages (the downloads) say little about the rest
+    const left = b.frac >= 1 / 3 && since > 20 ? leftOf(since, b.frac, null) : null;
+    return `${t(`vo.stage.${b.stage || "queued"}`)}${b.frac ? ` · ${pct(b.frac)}` : ""}${since > 0 ? ` · ${t("vo.stage.since", { t: elapsed(since) })}` : ""}${left != null ? ` · ${t("wait.left", { t: about(left) })}` : ""}`;
   };
   function poll(id) {
     let on = true, timer = 0;

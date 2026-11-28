@@ -18,6 +18,7 @@ import { html, raw, $, $$, fmt, fmtDate, displayName } from "../util.js";
 import { t, tn } from "../i18n.js";
 import { envText } from "../games/vweather.js";
 import { confirmBox } from "../askbox.js";
+import { follow } from "../waitbar.js";
 import { courseSig } from "./virtuallysrc.js";
 
 const API = "/api/virtual/comp";
@@ -225,21 +226,26 @@ export async function renderComp(el, ctx) {
   function makeWorld(c) {
     if (busy.has(c.id) || worlds.has(c.id)) return;
     busy.set(c.id, { step: "relief", f: 0 });
-    let last = 0;
-    const onStep = async (step, f) => {
+    // the wait with its time left (waitbar.js): this device's own time for a week of that format once it made one; until then,
+    // a usual time (a computer's, measured 2026-11-28), then from the world's own time — a week's courses take about 0.4 (forest) or 1 (town) times the world's (measured 2026-11-28)
+    const sprint = c.format === "sprint", t0 = performance.now(), C0 = sprint ? 0.5 : 0.72, BASE = sprint ? 0.68 : 0.85;
+    const w8 = follow(() => (alive && sel === c.id && $("#vcp-busy", el)) || null, { kind: `vt.week.${c.format}`, guess: { ld: 30, md: 12, sprint: 12 }[c.format] || null });
+    let gen = null, told = false;
+    import("./virtuallygen.js").then((m) => { gen = m; }).catch(() => {});
+    const onStep = (step, f) => {
       let share = f;
-      try { share = (await import("./virtuallygen.js")).progressOf(step, f, c.format === "sprint"); } catch (e) { /* the raw share */ }
+      if (step === "courses") { share = C0; if (!told) { told = true; w8.expect((performance.now() - t0) / 1000 / C0); } }
+      else if (gen) share = (gen.progressOf(step, f, sprint) / BASE) * C0;
       busy.set(c.id, { step, f: share });
-      const now = performance.now(); if (now - last < 120) return; last = now;
-      const box = alive && sel === c.id && $("#vcp-busy", el);
-      if (box) { box.querySelector("progress").value = share; box.querySelector("span").textContent = t(`vtg.step.${step}`); }
+      w8.set(t(`vtg.step.${step}`), share);
     };
     ctx.weekWorld(c.id, onStep).then((w) => {
+      w8.stop(true);
       worlds.set(c.id, w);
       busy.delete(c.id);
       if (alive && sel === c.id && !game) drawDetail();
     }).catch((e) => {
-      console.error(e);
+      console.error(e); w8.stop();
       busy.delete(c.id); fails.add(c.id);
       if (alive && sel === c.id && !game) drawDetail();
     });

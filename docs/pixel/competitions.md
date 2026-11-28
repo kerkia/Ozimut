@@ -116,7 +116,8 @@ my: null | { course, at, started, done, dnf, t, run }, entrants: { <course>: n }
 
 - `countdown: true` — after « Partir »: the scene shows, the runner stands, **the map is a blank sheet in every view** (the
   briefing never shows the map either), a large 5 · 4 · 3 · 2 · 1 over the scene with a start clock's beeps (a short beep
-  each second, a longer and higher one at zero); at zero the map appears and the race clock starts.
+  each second, a longer and higher one at zero); at zero the map appears, the race clock starts and **the runner sets off
+  at ×0.5 at once** (any speed chosen from there).
 - `beforeStart: async () => true | string` — awaited when « Partir » is pressed, before the countdown; a string is an error
   shown on the briefing (the race does not start).
 - `noPause: true` — no pause button, Escape and a hidden tab do not pause, the race clock follows the wall clock (time with
@@ -125,7 +126,9 @@ my: null | { course, at, started, done, dnf, t, run }, entrants: { <course>: n }
 - `tex: { <role>: url }` — an event's terrain photos, laid over the biome's set (`games/vforest.js loadPhotos(set, tex)`).
 - `env.season` — drawn by `games/vweather.js` (`SEASONS`, `envText`).
 - Keys: every keyboard action reads its key from `games/vkeys.js` (`ACTIONS`, `loadKeys()`, `saveKeys()`, `resetKeys()`,
-  `keyLabel(code)`); kept in this browser (`localStorage ocn.vt.keys`). The commands' lists show the keys in use.
+  `keyLabel(code)`); kept in this browser (`localStorage ocn.vt.keys`) **and with the account**: `GET|PUT /api/virtual/prefs`
+  (`{ keys, at }`, R2 `virtual-prefs/<runner hash>.json`, deleted with the account), written at each change, read once a
+  visit (`syncKeys()`), the later of the two winning. The commands' lists show the keys in use.
 - `games/vforest.js` exports `TEX_ROLES` and `prepareTexture(file) → Promise<Blob>` (a 512 × 512 WebP, tiling, brought
   round mid-grey as the built-in photos, so that the biome still tints it).
 - New texts of the game and of « Commandes »: area `i18n/vplay.{fr,en,de,es}.js` (keys `vk.*`), loaded by the page with
@@ -175,7 +178,8 @@ WEEK_TYPES        // the forest types drawn from: moraine, karst, sandrock, vall
   moraine at ~7) within 0.75-1.3 × the level's km, so that the target time holds.
 - A seed that gives fewer than three courses is followed by seed + 1, + 2 … (up to 6 more; `seed` in the result says which).
 
-- Always much relief and much detail (both in the upper third of the generator's range); the rest varies with the week.
+- A forest week: always much relief and much detail (both in the upper third of the generator's range), the rest varies
+  with the week. A sprint week: every dial of the town (buildings, gardens, parks) anywhere on its range.
 - `ld`: a forest of 1 600 m; few controls, a few very long legs with real route choices. `md`: a forest of 1 200 m; many
   short legs, hard navigation, changes of direction. `sprint`: an invented town.
 - Courses `a` (the longest, hardest), `b`, `c` (shorter, a level easier). Target race times at the game's ×1 (a good club

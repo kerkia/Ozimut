@@ -4842,6 +4842,10 @@ html.vt-fs-on, html.vt-fs-on body { overflow: hidden; }
 .vtp-course[aria-pressed="true"] { border-color: var(--flag); background: color-mix(in srgb, var(--flag) 9%, var(--surface)); }
 .vtp-sw { display: inline-block; width: 12px; height: 12px; border-radius: 3px; border: 1px solid rgba(0, 0, 0, 0.25); vertical-align: -1px; }
 .vtp-go { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin: 16px 0 6px; }
+.vtp-opts { display: flex; align-items: center; gap: 8px 16px; flex-wrap: wrap; margin: 14px 0 6px; }
+.vtp-opts:empty { display: none; }
+.vtp-opts + .vtp-mo { margin: 8px 0 0; }
+.vtp-opts ~ .vtp-go { margin-top: 10px; }
 /* Pixel's invented terrain (pages/virtuallygen.js; 2026-11-12): the « Carte du jour » and the « Terrain libre » side by side */
 .vtp-gen { margin-top: 26px; padding-top: 6px; border-top: 1px solid var(--border); }
 .vtg { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 12px; align-items: start; }

@@ -224,6 +224,8 @@ export async function render(main, { query, route }) {
   await loadArea("virtually");
   // Pixel's next layout: the competitions' texts and the game's new ones (the keys); a catalogue missing never stops the page
   if (NEXT) await Promise.all([loadArea("vcomp").catch((e) => console.warn(e)), loadArea("vplay").catch((e) => console.warn(e))]);
+  // one's keys kept with the account, brought to this browser before any race starts (games/vkeys.js)
+  if (NEXT) import("../games/vkeys.js").then((m) => m.syncKeys()).catch(() => {});
   if (location.hash.startsWith("#/jeux")) history.replaceState(null, "", "#/virtually");     // « Jeux »'s tab of before
   const allTabs = [["entrainement", t("vt.tab.training")], ["resultats", t("vt.tab.results")], ["classement", t("vt.tab.ranking")], ["analyse", t("vt.tab.analysis")],
     ["avatar", t("vt.tab.avatar")], ...(auth.session()?.orga !== false ? [["orga", t("vt.tab.orga")]] : [])]
@@ -335,7 +337,8 @@ export async function render(main, { query, route }) {
   }
 
   // ---- Entraînement ------------------------------------------------------------------------------------------------------
-  /** The map options under « Commencer » (owner, 2026-11-12): a map's training, the runner's choice kept in this browser; an event,
+  /** The map options, chosen last — after the course, the ghosts and the view, right above « Commencer » (owner, 2026-11-28; under
+   *  the button from 2026-11-12): a map's training, the runner's choice kept in this browser; an event,
    *  its creator's, said and not changed; a map from the LiDAR alone (an image) offers « map at the controls only » alone. */
   function moChooser(race) {
     if (race.event) {
@@ -346,6 +349,12 @@ export async function render(main, { query, route }) {
     return html`<div class="vtp-mo" title="${t("vt.mo.tip")}"><b>${t("vt.mo.label")}</b>
       ${img ? html`<span class="muted">${t("vt.mo.imageOnly")}</span>` : html`<label>${t("vt.mo.layer")} <select id="vtp-layer">${LAYERS.map((l) => html`<option value="${l}" ${raw(l === o.layer ? "selected" : "")}>${t(`vt.mo.l.${l}`)}</option>`)}</select></label>`}
       <label class="vtp-mo-mem"><input type="checkbox" id="vtp-memory" ${raw(o.memory ? "checked" : "")}> ${t("vt.mo.memory")}</label></div>`;
+  }
+  /** The chooser's fields kept as they change (a map's courses, and a « Terrain libre »'s card: pages/virtuallygen.js). */
+  function moBind(el) {
+    const save = () => saveOpt({ layer: $("#vtp-layer", el)?.value || savedOpt().layer, memory: !!$("#vtp-memory", el)?.checked });
+    $("#vtp-layer", el)?.addEventListener("change", save);
+    $("#vtp-memory", el)?.addEventListener("change", save);
   }
   async function training(el) {
     if (game) return;
@@ -384,20 +393,22 @@ export async function render(main, { query, route }) {
             ${raw(race.event?.type === "competition" && !race.event.mine && (race.event.played?.includes(c.id) || !race.event.open) ? "disabled" : "")}>
             ${swatch(c.id)}<b>${courseName(c)}</b><span>${t("vt.tr.courseLine", { km: fmt(c.length / 1000, 1), climb: fmt(c.climb || 0), n: c.controls.length - 2 })}</span>
             <span class="muted">${race.event?.played?.includes(c.id) ? t("vo.played") : t(`vt.lvlHint.${LEVELS.includes(c.id) ? c.id : "other"}`)}</span></button>`)}</div>` : ""}
-        <div class="vtp-go"><button type="button" class="btn btn-primary" id="vtp-go" ${raw(race && sel.course ? "" : "disabled")}>${t("vt.tr.start")}</button>
+        <div class="vtp-opts">
           ${race && sel.course && race.event?.type !== "competition" ? html`<span class="vtp-ghosts"><label title="${t("vt.gh.tip")}">${t("vt.gh.label")}
             <select id="vtp-ghosts">${Array.from({ length: GHOSTS_MAX + 1 }, (_, i) => html`<option value="${i}" ${raw(i === ghostCount() ? "selected" : "")}>${i ? fmt(i) : t("vt.gh.none")}</option>`)}</select></label>
             <button type="button" class="vtp-info" id="vtp-gh-i" title="${t("vt.gh.what")}" aria-label="${t("vt.gh.what")}" aria-expanded="false">i</button></span>
             <p class="vtp-gh-what" id="vtp-gh-what" hidden>${t("vt.gh.what")}</p>` : ""}
           ${race && sel.course ? html`<label class="vtp-ghosts" title="${t("vt.view.tip")}">${t("vt.view.label")}
             <select id="vtp-view">${["third", "first"].map((v) => html`<option value="${v}" ${raw(v === savedView() ? "selected" : "")}>${t(`vt.view.opt.${v}`)}</option>`)}</select></label>` : ""}
-          <span class="muted">${!race ? t("vt.tr.needMap") : !sel.course ? t("vt.tr.needCourse") : t("vt.tr.ready", { course: courseName(courses.find((c) => c.id === sel.course)), map: mapName(race.id) })}</span></div>
-          ${race && sel.course ? moChooser(race) : ""}</div>
+          </div>
+          ${race && sel.course ? moChooser(race) : ""}
+        <div class="vtp-go"><button type="button" class="btn btn-primary" id="vtp-go" ${raw(race && sel.course ? "" : "disabled")}>${t("vt.tr.start")}</button>
+          <span class="muted">${!race ? t("vt.tr.needMap") : !sel.course ? t("vt.tr.needCourse") : t("vt.tr.ready", { course: courseName(courses.find((c) => c.id === sel.course)), map: mapName(race.id) })}</span></div></div>
         <div class="vtp-gen" id="vtp-gen" ${raw(gen ? "" : "hidden")}></div>`;
       // invented terrain (pages/virtuallygen.js): the « Carte du jour » and the « Terrain libre », played by `play` as any map
       const genHost = $("#vtp-gen", el);
       const into = (q) => requestAnimationFrame(() => $(q, el)?.scrollIntoView({ block: "nearest", behavior: "smooth" }));
-      if (gen) import("./virtuallygen.js").then(async (m) => { if (genHost.isConnected) { await m.renderGen(genHost, { play, runsOf, courseName, swatch, offered, kind: gen.startsWith("s") ? "sprint" : "forest", noDay: NEXT }); into(`#vtp-gen [data-k="${gen}"]`); } })
+      if (gen) import("./virtuallygen.js").then(async (m) => { if (genHost.isConnected) { await m.renderGen(genHost, { play, runsOf, courseName, swatch, offered, moChooser, moBind, kind: gen.startsWith("s") ? "sprint" : "forest", noDay: NEXT }); into(`#vtp-gen [data-k="${gen}"]`); } })
         .catch((e) => console.error(e));
       if (inline) $(".vtp-inline", el).append(gen ? genHost : $(".vtp-below", el));
       $$(".vtp-map", el).forEach((b) => b.addEventListener("click", () => {
@@ -410,9 +421,7 @@ export async function render(main, { query, route }) {
       $("#vtp-view", el)?.addEventListener("change", (e) => { try { localStorage.setItem(VIEW_KEY, e.target.value); } catch (x) { /* not kept */ } });
       // the ghosts' ⓘ: its tooltip on hover; a tap (no hover on a phone) shows the text under the line
       $("#vtp-gh-i", el)?.addEventListener("click", (e) => { const p = $("#vtp-gh-what", el), on = p.hidden; p.hidden = !on; e.currentTarget.setAttribute("aria-expanded", String(on)); });
-      const moSave = () => saveOpt({ layer: $("#vtp-layer", el)?.value || savedOpt().layer, memory: !!$("#vtp-memory", el)?.checked });
-      $("#vtp-layer", el)?.addEventListener("change", moSave);
-      $("#vtp-memory", el)?.addEventListener("change", moSave);
+      moBind(el);
       $("#vtp-go", el)?.addEventListener("click", () => play(race, courses.find((c) => c.id === sel.course)));
     };
     const play = (race, course) => playIn(el, race, course, drawChooser);
