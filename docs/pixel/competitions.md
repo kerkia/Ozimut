@@ -127,8 +127,9 @@ my: null | { course, at, started, done, dnf, t, run }, entrants: { <course>: n }
 - `env.season` — drawn by `games/vweather.js` (`SEASONS`, `envText`).
 - Keys: every keyboard action reads its key from `games/vkeys.js` (`ACTIONS`, `loadKeys()`, `saveKeys()`, `resetKeys()`,
   `keyLabel(code)`); kept in this browser (`localStorage ocn.vt.keys`) **and with the account**: `GET|PUT /api/virtual/prefs`
-  (`{ keys, at }`, R2 `virtual-prefs/<runner hash>.json`, deleted with the account), written at each change, read once a
-  visit (`syncKeys()`), the later of the two winning. The commands' lists show the keys in use.
+  (`{ keys, at, avatar, avatarAt }`, R2 `virtual-prefs/<runner hash>.json`, deleted with the account; a PUT replaces only the
+  setting it sends), written 0.7 s after a change, read once a visit (`games/vprefs.js` `sync()`), the later of the two
+  winning, setting by setting. **The avatar is kept the same way** (every account's, not only the administrators'). The commands' lists show the keys in use.
 - `games/vforest.js` exports `TEX_ROLES` and `prepareTexture(file) → Promise<Blob>` (a 512 × 512 WebP, tiling, brought
   round mid-grey as the built-in photos, so that the biome still tints it).
 - New texts of the game and of « Commandes »: area `i18n/vplay.{fr,en,de,es}.js` (keys `vk.*`), loaded by the page with

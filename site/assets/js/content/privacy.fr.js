@@ -212,7 +212,7 @@ export const body = (SITE, { world = false, later = "" } = {}) => `
         20 meilleurs de tous. Le résultat, ses réglages et la date seulement ; rien n'est gardé des parties d'un visiteur sans compte.
         Ces résultats sont supprimés avec votre compte.</p>
       <h2 style="font-size:16px">Virtuoz</h2>
-      <p>Les touches que vous choisissez dans Avatar › Commandes sont gardées avec votre compte, pour que vous les retrouviez sur vos autres appareils ; elles sont supprimées avec lui.</p>
+      <p>L'avatar que vous composez et les touches que vous choisissez dans Avatar › Commandes sont gardés avec votre compte, pour que vous les retrouviez sur vos autres appareils ; ils sont supprimés avec lui.</p>
       <p>Chaque course terminée dans Virtuoz est gardée sous le nom de votre compte : son temps, ses temps intermédiaires, la
         distance courue et son tracé dans la forêt virtuelle, montrés aux autres comptes dans les résultats, le classement et l'analyse
         de ce circuit ; vous êtes reconnu d'une course à l'autre par une empreinte de votre compte, jamais par son numéro. Rien n'est

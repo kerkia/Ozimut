@@ -386,7 +386,7 @@ export default {
   "va.custom": "Autre",
   "va.random": "Au hasard",
   "va.reset": "Par défaut",
-  "va.kept": "Votre choix est gardé dans ce navigateur.",
+  "va.kept": "Votre choix est gardé avec votre compte : vous le retrouvez sur vos autres appareils.",
   "va.gait": "Allure",
   "va.gait.stand": "À l'arrêt",
   "va.gait.walk": "Marche",

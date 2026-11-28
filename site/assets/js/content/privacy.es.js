@@ -209,7 +209,7 @@ export const body = (SITE, { world = false, later = "" } = {}) => `
         20 mejores de todos. Solo el resultado, sus ajustes y la fecha; no se guarda nada de las partidas de un visitante sin cuenta.
         Estos resultados se borran con tu cuenta.</p>
       <h2 style="font-size:16px">Virtuoz</h2>
-      <p>Las teclas que eliges en Avatar › Controles se guardan con tu cuenta, para que las encuentres en tus otros dispositivos; se eliminan con ella.</p>
+      <p>El avatar que compones y las teclas que eliges en Avatar › Controles se guardan con tu cuenta, para que los encuentres en tus otros dispositivos; se eliminan con ella.</p>
       <p>Cada carrera que terminas en Virtuoz se guarda con el nombre de tu cuenta: su tiempo, sus tiempos parciales, la
         distancia recorrida y su recorrido por el bosque virtual, mostrados a las demás cuentas en los resultados, la clasificación y el
         análisis de ese recorrido; se te reconoce de una carrera a otra por una huella de tu cuenta, nunca por su número. No se guarda

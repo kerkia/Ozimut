@@ -386,7 +386,7 @@ export default {
   "va.custom": "Andere",
   "va.random": "Zufällig",
   "va.reset": "Standard",
-  "va.kept": "Deine Wahl wird in diesem Browser gespeichert.",
+  "va.kept": "Deine Wahl wird mit deinem Konto gespeichert: Du findest sie auf deinen anderen Geräten wieder.",
   "va.gait": "Gangart",
   "va.gait.stand": "Stehend",
   "va.gait.walk": "Gehen",

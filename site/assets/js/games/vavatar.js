@@ -2,13 +2,14 @@
 // man, the skin and the hair (its colour and its style), and two costumes (owner, the same evening): the forest's — shorts down to
 // the knee and socks up to it, no skin showing, or long trousers — and the sprint's — short shorts and low socks —, each with its
 // colours of shirt, shorts, socks and shoes; the race's discipline chooses which the runner wears. Kept in this browser
-// (localStorage `ocn.vt.avatar`); the tab « Avatar » of Coach › Virtually shows it turning and walking or running in a small
+// (localStorage `ocn.vt.avatar`) and, since 2026-11-28, with the account (games/vprefs.js); the tab « Avatar » of Coach › Virtually shows it turning and walking or running in a small
 // scene while it is chosen.
 
 import { html, $, $$ } from "../util.js";
 import { t } from "../i18n.js";
 import { THREE as THREE_URL } from "../vendor.js";
 import { runnerFigure } from "./vworld.js";
+import { keep, sync } from "./vprefs.js";
 
 const KEY = "ocn.vt.avatar";
 export const SKINS = ["#f6dcc8", "#ecbf9c", "#d29a6e", "#b07548", "#83522f", "#5a3620", "#3b2316", "#24140c"];
@@ -45,7 +46,7 @@ export function lookOf(A, kind = "forest") {
   return { sex: A.sex, skin: A.skin, hair: A.hair, hairStyle: A.hairStyle, ...A[k], legs: k === "sprint" ? "sprint" : A.forest.legs };
 }
 export const loadAvatar = (kind = "forest") => lookOf(loadAvatars(), kind);
-function saveAvatar(a) { try { localStorage.setItem(KEY, JSON.stringify(a)); } catch (e) { /* private window: kept for the visit only */ } }
+function saveAvatar(a) { try { localStorage.setItem(KEY, JSON.stringify(a)); } catch (e) { /* private window: kept for the visit only */ } keep("avatar", a); }
 
 const kebab = (s) => s.replace(/[A-Z]/g, (c) => `-${c.toLowerCase()}`);
 const pick = (arr) => arr[Math.floor(Math.random() * arr.length)];
@@ -57,6 +58,7 @@ function randomAvatar() {
 
 /** The tab: the choices on one side, the runner in its small scene on the other. Returns a stop function. */
 export async function renderAvatar(el) {
+  await sync();                                                  // the account's avatar first (another device's choice)
   let A = loadAvatars(), kind = "forest";
   const cur = () => lookOf(A, kind);
   const seg = (name, list) => html`<div class="seg" role="group" aria-label="${t(`va.${name}`)}">${list.map(([k, l]) =>

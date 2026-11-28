@@ -5,6 +5,7 @@
 // Keyboard Map where there is one, else a guess from the site's language). Escape (pause, back to the scene) and Enter (« Partir »)
 // stay fixed; the mouse's and a touch screen's gestures are not configurable.
 import { t, loadArea, lang } from "../i18n.js";
+import { keep, sync } from "./vprefs.js";
 
 await loadArea("vplay");
 
@@ -84,41 +85,11 @@ export function resetKeys() {
   return loadKeys();
 }
 
-// ---- kept with the account (owner, 2026-11-28: one's keys come back at the next sign-in, on any device) -----------------------
-// The browser's copy is what the game reads; the account's (PUT /api/virtual/prefs) is written at each change and read once a
-// visit: the later of the two wins (STORE_AT, this browser's time of change; keys chosen before this existed are sent up).
-const STORE_AT = "ocn.vt.keys.at", PREFS = "/api/virtual/prefs";
-const stamp = (at) => { try { localStorage.setItem(STORE_AT, String(at)); } catch (e) { /* not kept */ } };
-const stampOf = () => { try { return Number(localStorage.getItem(STORE_AT)) || 0; } catch (e) { return 0; } };
-async function send(keys) {
-  stamp(Date.now());
-  try {
-    const r = await fetch(PREFS, { method: "PUT", credentials: "same-origin", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ keys }) });
-    const j = r.ok ? await r.json() : null;
-    if (j?.at) stamp(j.at);
-    return r.ok;
-  } catch (e) { return false; }
-}
-let synced = null;
+// ---- kept with the account (owner, 2026-11-28: one's keys come back at the next sign-in, on any device; games/vprefs.js) -------
+const send = (keys) => keep("keys", keys);
 /** The account's keys brought to this browser (or this browser's to the account), once a visit; resolves true when it took the
  *  account's. Never rejects; 1.5 s at most. */
-export function syncKeys() {
-  return (synced ||= Promise.race([new Promise((r) => setTimeout(() => r(false), 1500)), (async () => {
-    try {
-      const r = await fetch(PREFS, { credentials: "same-origin" });
-      if (!r.ok) return false;
-      const j = await r.json(), mine = stampOf();
-      let local = null; try { local = localStorage.getItem(STORE); } catch (e) { local = null; }
-      if (j.at > mine) {
-        try { if (j.keys) localStorage.setItem(STORE, JSON.stringify(j.keys)); else localStorage.removeItem(STORE); } catch (e) { return false; }
-        stamp(j.at);
-        return true;
-      }
-      if (local && (mine > j.at || !j.at)) { try { await send(JSON.parse(local)); } catch (e) { /* next change */ } }
-      return false;
-    } catch (e) { return false; }
-  })()]));
-}
+export const syncKeys = () => sync().then((took) => took.includes("keys"));
 
 /** Does the action keep its default keys? */
 export const isDefault = (b, id) => { const a = BY_ID.get(id), v = b?.[id] || []; return !!a && v.length === a.keys.length && v.every((c, i) => c === a.keys[i]); };

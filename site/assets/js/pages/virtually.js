@@ -224,8 +224,8 @@ export async function render(main, { query, route }) {
   await loadArea("virtually");
   // Pixel's next layout: the competitions' texts and the game's new ones (the keys); a catalogue missing never stops the page
   if (NEXT) await Promise.all([loadArea("vcomp").catch((e) => console.warn(e)), loadArea("vplay").catch((e) => console.warn(e))]);
-  // one's keys kept with the account, brought to this browser before any race starts (games/vkeys.js)
-  if (NEXT) import("../games/vkeys.js").then((m) => m.syncKeys()).catch(() => {});
+  // one's avatar and keys kept with the account, brought to this browser before any race starts (games/vprefs.js)
+  if (auth.session()) import("../games/vprefs.js").then((m) => m.sync()).catch(() => {});
   if (location.hash.startsWith("#/jeux")) history.replaceState(null, "", "#/virtually");     // « Jeux »'s tab of before
   const allTabs = [["entrainement", t("vt.tab.training")], ["resultats", t("vt.tab.results")], ["classement", t("vt.tab.ranking")], ["analyse", t("vt.tab.analysis")],
     ["avatar", t("vt.tab.avatar")], ...(auth.session()?.orga !== false ? [["orga", t("vt.tab.orga")]] : [])]

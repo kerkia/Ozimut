@@ -6,8 +6,8 @@
 //   GET  <race>/<file>                 a map's package (made offline by tools/virtually: race.json — its courses —, h.png,
 //                                      cls.png, veg.png, ground.jpg, feats.json, trees.bin when LiDAR, map.ocd, thumb.webp; a town's town.json, town.bin, surf.png and facades.webp, tools/virtually/town_3d.py; town.bin.gz and map.ocd.gz the same
 //                                      gzipped, tools/virtually/pkggz.py, which games/vworld.js inflates)
-//   GET  prefs                         one's own settings kept with the account: { keys, at } (games/vkeys.js)
-//   PUT  prefs { keys }                 keep them (null: the defaults)
+//   GET  prefs                         one's own settings kept with the account: { keys, at, avatar, avatarAt } (games/vprefs.js)
+//   PUT  prefs { keys } | { avatar }    keep the one sent (null: the default), the other left as it is
 //   GET  runs?race=<id>                every finished run of that map: [{ id, race, u, name, course, t, sp, d, at, help, seed, mo, cs, mine }]
 //   GET  runs?race=day                 every « Carte du jour »'s runs, all days (the analysis of an invented forest's run)
 //   GET  runs/<race>/routes?ids=a,b,…  the routes of up to 101 runs of a map at once, { <id>: { route } } — the ones this account
@@ -40,7 +40,7 @@ const FILE = /^([a-z0-9-]{1,40})\/(race\.json|h\.png|cls\.png|veg\.png|ground\.j
 const TYPES = { json: "application/json", png: "image/png", jpg: "image/jpeg", webp: "image/webp", bin: "application/octet-stream", ocd: "application/octet-stream", gz: "application/gzip" };
 const ID = /^[a-z0-9-]{1,40}$/, COURSE = /^[a-z0-9_]{1,24}$/, RUN = /^[0-9a-f]{12}-[0-9a-z]{6,12}$/;
 const RUNS = "virtual-runs/";
-const PREFS = "virtual-prefs/";                              // <runner hash>.json: { keys, at }
+const PREFS = "virtual-prefs/";                              // <runner hash>.json: { keys, at, avatar, avatarAt }
 const DAY = /^day-(\d{8})(?:-s)?$/, SIG = /^[0-9a-f]{1,8}$/;
 /** Paris's day as YYYYMMDD, `back` days ago. */
 const parisDay = (back = 0) => {
@@ -74,11 +74,13 @@ export const onRequestGet = withUser(async ({ request, env, params }, user) => {
   if (!env.BUCKET) return json({ error: "storage not configured" }, 500);
   const path = [].concat(params.path || []);
   const p = path.join("/");
-  // one's own settings kept with the account (owner, 2026-11-28: the keys of Avatar › Commandes come back on another device)
+  // one's own settings kept with the account (owner, 2026-11-28: the avatar and the keys of Avatar › Commandes come back on
+  // another device)
   if (p === "prefs") {
     const o = await env.BUCKET.get(`${PREFS}${await runnerHash(env, user.id)}.json`);
     let v = null; try { v = o ? await o.json() : null; } catch (e) { v = null; }
-    return json({ keys: v?.keys || null, at: Number(v?.at) || 0 }, 200, { "Cache-Control": "private, no-store" });
+    return json({ keys: v?.keys || null, at: Number(v?.at) || 0, avatar: v?.avatar || null, avatarAt: Number(v?.avatarAt) || 0 }, 200,
+      { "Cache-Control": "private, no-store" });
   }
   if (p === "races") {
     const l = await env.BUCKET.list({ prefix: "virtual/", delimiter: "/" });
@@ -186,14 +188,36 @@ function cleanKeys(k) {
   }
   return Object.keys(out).length ? out : null;
 }
+/** The avatar an account chose (games/vavatar.js): sex, skin, hair, hair style and the two costumes' colours; anything else dropped. */
+function cleanAvatar(a) {
+  if (!a || typeof a !== "object" || Array.isArray(a)) return null;
+  const hex = (v) => (/^#[0-9a-f]{6}$/.test(String(v || "").toLowerCase()) ? String(v).toLowerCase() : null);
+  const out = {};
+  if (a.sex === "f" || a.sex === "m") out.sex = a.sex;
+  if (["short", "ponytail", "bun"].includes(a.hairStyle)) out.hairStyle = a.hairStyle;
+  for (const k of ["skin", "hair"]) if (hex(a[k])) out[k] = hex(a[k]);
+  for (const kind of ["forest", "sprint"]) {
+    const src = a[kind], kit = {};
+    if (!src || typeof src !== "object") continue;
+    for (const k of ["shirt", "shorts", "socks", "shoes"]) if (hex(src[k])) kit[k] = hex(src[k]);
+    if (kind === "forest" && (src.legs === "knee" || src.legs === "long")) kit.legs = src.legs;
+    if (Object.keys(kit).length) out[kind] = kit;
+  }
+  return Object.keys(out).length ? out : null;
+}
 export const onRequestPut = withUser(async ({ request, env, params }, user) => {
   if (!env.BUCKET) return json({ error: "storage not configured" }, 500);
   if ([].concat(params.path || []).join("/") !== "prefs") return json({ error: "bad request" }, 400);
   if (user.demo_until) return json({ error: "demo" }, 403);
   if (!(await allow(env, `virtual-prefs:${user.id}`, 120, 3600))) return json({ error: "rate" }, 429);
-  const b = await readBody(request), at = Date.now();
-  await env.BUCKET.put(`${PREFS}${await runnerHash(env, user.id)}.json`, JSON.stringify({ keys: cleanKeys(b?.keys), at }),
-    { httpMetadata: { contentType: "application/json" } });
+  const b = (await readBody(request)) || {}, at = Date.now(), key = `${PREFS}${await runnerHash(env, user.id)}.json`;
+  if (!("keys" in b) && !("avatar" in b)) return json({ error: "bad request" }, 400);
+  // each setting has its own time of change: only the one sent is replaced
+  let v = null; try { const o = await env.BUCKET.get(key); v = o ? await o.json() : null; } catch (e) { v = null; }
+  const out = { keys: v?.keys || null, at: Number(v?.at) || 0, avatar: v?.avatar || null, avatarAt: Number(v?.avatarAt) || 0 };
+  if ("keys" in b) { out.keys = cleanKeys(b.keys); out.at = at; }
+  if ("avatar" in b) { out.avatar = cleanAvatar(b.avatar); out.avatarAt = at; }
+  await env.BUCKET.put(key, JSON.stringify(out), { httpMetadata: { contentType: "application/json" } });
   return json({ ok: true, at });
 });
 
