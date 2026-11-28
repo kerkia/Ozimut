@@ -772,6 +772,9 @@ class 9): the repository `kerkia/Chronoz` (`ChronOzimut` before, GitHub redirect
 `appId` `com.ozimut.chronoz`, the events folder Documents › Chronoz, the event file `.chronoz` (journals
 `<event>.chronoz.jsonl`, format `"chronoz"`), the discovery tag `oz: "chronoz"`. **The tab keeps its label « Chrono »**
 (the timing tab of an Orga event, as « Direct » or « Résultats »); every text naming the tool or the app says Chronoz.
+**Its icon** (owner, 2026-11-28, from five ideas: private canvas https://claude.ai/artifact/1mCX3AXaw2fmdVJNFZ8RF8):
+Ozimut's mark unchanged in a stopwatch's case — a crown on top, a pusher at 45° —, drawn by Chronoz's
+`tools/make_icons.py` (the app's SVG and PNGs, the Windows `app/build/icon.ico`, 16 and 24 px without ticks); since 0.3.1.
 
 **What this repository keeps**:
 - `site/assets/js/chrono/` — **a copy of Chronoz's `src/`, never edited here** (its `LICENSE` MPL 2.0 and `UPSTREAM`,
