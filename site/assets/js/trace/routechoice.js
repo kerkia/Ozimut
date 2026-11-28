@@ -2064,7 +2064,7 @@ export function sprintLayers(O, P, pts = [], r = 0) {
   // and the reading's fill gave to the walls (the Auray scan's control 14, at the foot of such a passage up to a stairway:
   // owner, 2026-11-25). Its pixels open ground and a narrow way's middle
   if (1.6 / mpp >= 4 && O.thick && O.warm) {
-    const tk = (q) => O.thick[q] === 4 || O.thick[q] === 2, gap = new Uint8Array(N), runs = [];
+    const tk = (q) => O.thick[q] === 4 || O.thick[q] === 2, gap = new Uint8Array(N), mid = new Uint8Array(N), runs = [];
     for (const [st, n0, n1, step] of [[1, h, w, w], [w, w, h, 1]]) {
       for (let a0 = 1; a0 < n0 - 1; a0++) {
         const base = a0 * step;
@@ -2077,7 +2077,7 @@ export function sprintLayers(O, P, pts = [], r = 0) {
           let warm = false;
           // (the ground's colour, or its blend with the walls: yellow over olive's hue, a mixed tint — not black, grey or ink)
           for (let u = 0; u < e; u++) { const q = i + u * st, v = P.kind[q]; if ((O.warm[q] && v !== I_BLACK) || v === I_OLIVE || v === I_MIXED || v < 20) warm = true; }
-          if (warm) for (let u = 0; u < e; u++) gap[i + u * st] = 1;
+          if (warm) { for (let u = 0; u < e; u++) { gap[i + u * st] = 1; if (e <= 3) mid[i + u * st] = 1; } mid[i + ((e - 1) >> 1) * st] = 1; }
           t += e;
         }
       }
@@ -2089,7 +2089,12 @@ export function sprintLayers(O, P, pts = [], r = 0) {
       if (!id || !gap[i]) continue;
       const c = comps[id];
       if (Math.hypot(c.x1 - c.x0 + 1, c.y1 - c.y0 + 1) * mpp < 3) continue;
-      lane[i] = 2; block[i] = 0;
+      // (its middle only is the way's middle, which opens a cell whatever wall shares it, the rest plain open ground — a strip
+      // of three pixels or less all of it, its breaks bridged by the cells: all of it marked, the edge of the second Auray scan's
+      // middle terrace path, at the foot of the wall above, opened the cell over that wall, the next cell up held the top path's:
+      // the wall was lost and the route to 14 went up through it, owner 2026-11-28)
+      if (mid[i]) lane[i] = 2;
+      block[i] = 0;
       if (ar[i] === A.GREY || ar[i] === A.BUILDING || ar[i] === A.OOB) ar[i] = A.ROUGH;
     }
   }

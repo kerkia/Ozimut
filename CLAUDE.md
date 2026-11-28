@@ -4585,10 +4585,19 @@ Every multiple-choice game was played through to its score page at phone size, w
   house's dark corner is no step). A stairway's rungs are any ink but the overprint (`rung`: under a contour or an erased north
   line they read brown, grey, mixed), and two flights on one line within four steps are one stairway (`flights`, `openAxis`: the
   wall across the stairway to 6 hid two treads in Firefox's drawing). Both drawings now: 5-6 up the stairway (204 m, best or
-  second), 13-14 down the stairway and the slit (264 m) with the terraces second, 14-15 up the stairway. **The gate reads
-  Firefox's drawing too** (`scans/ffnat<n>.rgba` from `gpu/ffnat.mjs`, keys `scan<n>ff`; baseline of before
-  `baseline_2026-11-27_before_ff.json`); accepted with scan 2's every-route lines 7 → 12 (the terraces route into 14, back as asked:
-  it steps over the terrace edges).
+  second), 13-14 down the stairway and the slit (263 m), 14-15 up the stairway. **The gate reads Firefox's drawing too**
+  (`scans/ffnat<n>.rgba` from `gpu/ffnat.mjs`, keys `scan<n>ff`; baseline of before `baseline_2026-11-27_before_ff.json`).
+  **The terraces by 14** (owner, 2026-11-28: « route to 14 does not show any second route » in Firefox): the « terraces » second
+  route of 309 m Edge's drawing gave went up from the middle terrace path through the thick wall below the top path — the five
+  « terrace edges » the gate counted were that wall. The strip-between-thick-walls rule marked its whole strip as a way's middle,
+  so the middle path's edge pixels, at the wall's foot, opened the cell over the wall (a narrow way's middle opens its cell
+  whatever wall shares it) while the next cell up held the top path's: the three-pixel wall lay on the line between them. Now a
+  strip wider than three pixels is a way's middle along its middle only, the rest plain open ground; a narrower one (the
+  passage up from 14, two or three pixels with breaks the cells bridge) all of it. The real terraces route, by the hairpin, is
+  ~360 m in both drawings: over the page's 25 % variants, so not shown unless « Variante jusqu'à » is raised. Gate: scan 2's
+  every-route lines 12 → 7 (baseline of before `baseline_2026-11-28_before_strip.json`). Tried and dropped: a wall recorded
+  between two cells whose pixels do not meet (cut the stairway passages, whose pixels have the same breaks), the ways'
+  direction round the cells (unreliable).
 - **Languages: French, English, German and Spanish** (owner, 2026-10-17 French and English, open to everyone since 2026-10-18,
   `i18n.OPEN` true; **German and Spanish since 2026-11-01**: `i18n.LANGS`, catalogues `i18n/de.js`, `es.js`, `tracer.de.js`,
   `tracer.es.js`, long texts `content/<name>.de.js` / `.es.js`, e-mails in `_lib/templates.js`, `manifest.de|es.webmanifest`;
