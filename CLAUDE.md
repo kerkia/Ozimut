@@ -917,6 +917,9 @@ Health), laid on each other in « Analyse » minutes after the finish.
   its session (`POST /api/push/native`, `native-off`; `push.js` in the app); `pushToUser` sends **every** notification of the
   account to those phones (`nativepush.appToUser`: FCM, APNs topic `com.ozimut.app`), and `/api/notify` counts such a phone as
   a push device. Folloz's phones still get the tracking's alerts only.
+- **Its icon** (owner, 2026-11-28): the Ozimut mark with its ring and ticks in the flag's orange on white, so that it is told
+  from the installed web app's (black ring) on one home screen — iPhone's drawn by `track/tools/make_icons.py`, Android's the
+  vector `app/android/.../drawable/ic_fg.xml` (kept to the same colours by hand).
 - **The owner's steps** (Apple developer account, keys, TestFlight, Firebase, Play): `docs/app/setup.md`; the store texts in
   four languages, the review notes and the ready replies to a 3.1.x or 4.2 objection: `docs/app/store.md`.
 - **Never compiled locally nor run on a device** (2026-11-23): the first GitHub builds are the first compilations; iOS's

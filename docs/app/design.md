@@ -109,7 +109,9 @@ shells hold no credential.
 
 ## The shells
 
-- Identifiers: Android application id `com.ozimut.app`; iOS bundle `com.ozimut.app`. Name « Ozimut ». The Ozimut mark as icon.
+- Identifiers: Android application id `com.ozimut.app`; iOS bundle `com.ozimut.app`. Name « Ozimut ». The Ozimut mark as icon,
+  its ring and ticks in the flag's orange on white (owner, 2026-11-28: the installed web app's are black, and both may sit on
+  one home screen); iPhone's by `track/tools/make_icons.py`, Android's the vector `drawable/ic_fg.xml`.
 - Base address `https://ozimut.com/` (a debug build may point elsewhere). The main frame only ever shows that origin:
   any other address opens in the phone's browser; `window.open` and `target=_blank` likewise (same origin: in the view).
   Sub-frames and scripts of other hosts load as the site asks (the anti-robot check).

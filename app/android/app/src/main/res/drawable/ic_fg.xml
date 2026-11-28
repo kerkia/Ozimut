@@ -1,13 +1,14 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- The Ozimut mark (site/assets/favicon.svg), drawn by track/tools/make_icons.py: a compass bezel, and the control flag's
-     two quarters as its needle on a bearing of 45 degrees. -->
+<!-- The Ozimut mark (site/assets/favicon.svg): a compass bezel, and the control flag's two quarters as its needle on a
+     bearing of 45 degrees. The companion app's ring and ticks are orange (the installed web app's are black), so that the
+     two are told apart on one home screen; the iPhone's icon, by track/tools/make_icons.py, alike. -->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     android:width="108dp" android:height="108dp"
     android:viewportWidth="108" android:viewportHeight="108">
     <path android:fillColor="#E8641C" android:pathData="M54.00,37.50 L70.50,54.00 L54.00,54.00 Z" />
     <path android:fillColor="#1B1A17" android:pathData="M37.50,54.00 L54.00,70.50 L54.00,54.00 Z" />
-    <path android:strokeColor="#1B1A17" android:strokeWidth="3.92" android:fillColor="#00000000"
+    <path android:strokeColor="#E8641C" android:strokeWidth="3.92" android:fillColor="#00000000"
         android:pathData="M54.00,25.74 A28.26,28.26 0 1,1 53.99,25.74 Z" />
-    <path android:strokeColor="#1B1A17" android:strokeWidth="4.12" android:strokeLineCap="round"
+    <path android:strokeColor="#E8641C" android:strokeWidth="4.12" android:strokeLineCap="round"
         android:pathData="M54.00,28.01 L54.00,32.55 M79.99,54.00 L75.45,54.00 M54.00,79.99 L54.00,75.45 M28.01,54.00 L32.55,54.00" />
 </vector>
